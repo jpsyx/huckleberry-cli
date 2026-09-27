@@ -1,0 +1,36 @@
+# Logs
+logs
+*.log
+
+# Cargo build output
+/target
+**/*.rs.bk
+
+# Editor directories and files
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Environment
+.env
+.env.local*
+
+# Agent skills. Only skills-lock.json is tracked: the project's skills tooling
+# restores these directories from it (see scripts/skills). `.agents/skills`
+# holds the real skill folders and every other directory here is a per-frontend
+# link or copy.
+.agents/
+.claude/skills/
+.claude/settings.local.json
+.codex/
+.cursor/agents/
+.cursor/hooks.json
+.cursor/skills/
+.opencode/
+
+# Difit session comments
+.difit/

@@ -1,0 +1,51 @@
+[package]
+name = "huckleberry-cli"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "huckleberry-cli: a command-line tool."
+license = "MIT"
+
+# The library half holds everything worth testing; the binary is a thin shell
+# around it. Its name is fixed (the package name is not a valid identifier when
+# it is hyphenated), so tests and the binary both say `use app::...`.
+[lib]
+name = "app"
+path = "src/lib.rs"
+
+[[bin]]
+name = "huckleberry-cli"
+path = "src/main.rs"
+
+[dependencies]
+# Error context a human can read: every failure carries the `.context(...)` of
+# what the tool was trying to do.
+anyhow = "1"
+# The command-line surface. `derive` keeps the flags next to the types they
+# fill; `env` lets any flag also come from the environment.
+clap = { version = "4", features = ["derive", "env"] }
+# The configuration struct is (de)serialized rather than parsed by hand, so a
+# new setting is one more field. `derive` is the whole reason it is here.
+serde = { version = "1", features = ["derive"] }
+# The configuration file format: a config a person edits by hand should look
+# like one. `preserve_order` keeps a table in the order it was read instead of
+# sorting it, so rewriting the file does not reshuffle what the user wrote.
+toml = { version = "1", features = ["preserve_order"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+# Help and about strings would render literal backticks in a terminal.
+doc_markdown = "allow"
+# A tool binary, not a published library surface: the error and panic sections
+# would be ceremony no reader asked for.
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
