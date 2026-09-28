@@ -1,0 +1,79 @@
+# huckleberry-api: a Rust client for the Huckleberry baby-tracking app.
+#
+# This package knows nothing about the command-line tool that sits beside it in
+# this repository. It depends on no CLI crate, reads no configuration file,
+# prints nothing, and returns typed errors rather than `anyhow`, so any Rust
+# program can take it as a dependency.
+[package]
+name = "huckleberry-api"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Async Rust client for the Huckleberry baby-tracking app (Firebase/Firestore)."
+keywords = ["huckleberry", "baby", "firestore", "firebase", "tracking"]
+categories = ["api-bindings", "asynchronous"]
+readme = "README.md"
+
+[dependencies]
+# IANA timezones, for the offset-in-minutes every Huckleberry row carries.
+# Computed per instant rather than once, so a row written either side of a DST
+# change records the offset that was actually in force.
+jiff = { workspace = true }
+# The HTTP client. Firestore is reached over its REST API rather than gRPC:
+# see `docs/api.md` for why. rustls keeps the build free of OpenSSL.
+reqwest = { version = "0.13", default-features = false, features = [
+    "charset",
+    "http2",
+    "json",
+    "query",
+    "rustls",
+    "webpki-roots",
+] }
+# Every model is a serde struct, and the Firestore value codec converts through
+# `serde_json::Value` rather than hand-walking each type.
+serde = { workspace = true }
+serde_json = { workspace = true }
+# Typed errors, because a library that returns `anyhow::Error` forces its
+# callers to string-match.
+thiserror = "2"
+# `time` alone: polling a document on an interval is the one thing this crate
+# does with the runtime. The caller owns the runtime.
+tokio = { workspace = true, features = ["sync", "time"] }
+# Session and interval identifiers, in the 16- and 20-hex-character shapes the
+# Huckleberry app itself writes.
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+# The stub Firestore in `tests/` is a real socket, so the request shapes the
+# write methods produce are asserted rather than assumed.
+tokio = { workspace = true, features = [
+    "io-util",
+    "macros",
+    "net",
+    "rt-multi-thread",
+    "sync",
+] }
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+# Doc comments name Firestore fields as they appear on the wire, which are not
+# links and are not always valid Rust paths.
+doc_markdown = "allow"
+# Every model here mirrors a Firestore document field for field. Adding `Eq` to
+# one is a promise that no future field of it will be a float, which is a
+# promise about Huckleberry's schema that this crate is in no position to make.
+derive_partial_eq_without_eq = "allow"
+# Same reason: `ReminderIn` has four booleans because the document has four
+# booleans. The shape is not ours to redesign.
+struct_excessive_bools = "allow"
+# Unix timestamps travel as `f64` because that is how Huckleberry stores them,
+# and seconds since 1970 are exact in an `f64` for the next eight million
+# years. The conversions to and from `i64` are deliberate and lossless in
+# every range this crate sees.
+cast_precision_loss = "allow"
+cast_possible_truncation = "allow"

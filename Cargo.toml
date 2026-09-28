@@ -1,10 +1,33 @@
-[package]
-name = "huckleberry-cli"
-version = "0.1.0"
+# The workspace. Two packages that know as little about each other as
+# possible: a reusable Huckleberry client library, and the command-line tool
+# that happens to be its first consumer.
+[workspace]
+members = ["crates/huckleberry-api"]
+# So that a bare `cargo test` or `cargo clippy` at the root covers both
+# packages rather than only the binary.
+default-members = [".", "crates/huckleberry-api"]
+
+[workspace.package]
 edition = "2024"
 rust-version = "1.85"
-description = "huckleberry-cli: a command-line tool."
 license = "MIT"
+
+[workspace.dependencies]
+# The library half of this repository, consumed by path. Publishing it is a
+# version number away: nothing in it mentions the CLI.
+huckleberry-api = { path = "crates/huckleberry-api", version = "0.1.0" }
+jiff = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = "1"
+
+[package]
+name = "huckleberry-cli"
+version = "0.2.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "A terminal client and dashboard for Huckleberry baby tracking."
 
 # The library half holds everything worth testing; the binary is a thin shell
 # around it. Its name is fixed (the package name is not a valid identifier when
@@ -24,24 +47,47 @@ anyhow = "1"
 # The command-line surface. `derive` keeps the flags next to the types they
 # fill; `env` lets any flag also come from the environment.
 clap = { version = "4", features = ["derive", "env"] }
+# Reading a password without echoing it, and the terminal backend the
+# dashboard draws on. Already in the tree under ratatui; named here because
+# `prompt` uses it directly.
+crossterm = "0.29"
+# The Huckleberry client. The CLI holds no knowledge of Firestore.
+huckleberry-api = { workspace = true }
+# Day boundaries in the family's timezone, DST included. A "day" in this tool
+# is a local calendar day, and 23- and 25-hour days have to come out right.
+jiff = { workspace = true, features = ["tzdb-bundle-platform"] }
+# Full-screen dashboards: the stripe chart, the sparklines, the tables.
+ratatui = "0.30"
 # The configuration struct is (de)serialized rather than parsed by hand, so a
 # new setting is one more field. `derive` is the whole reason it is here.
-serde = { version = "1", features = ["derive"] }
+serde = { workspace = true }
+# The snapshot file `export` writes and `--offline` reads, and the untyped
+# shape the normalizer tolerates.
+serde_json = { workspace = true }
+# The async runtime the client needs. `rt-multi-thread` because a snapshot
+# pulls several collections at once.
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }
 # The configuration file format: a config a person edits by hand should look
 # like one. `preserve_order` keeps a table in the order it was read instead of
 # sorting it, so rewriting the file does not reshuffle what the user wrote.
 toml = { version = "1", features = ["preserve_order"] }
 
-[lints.rust]
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "macros"] }
+
+[lints]
+workspace = true
+
+[workspace.lints.rust]
 unsafe_code = "forbid"
 
-[lints.clippy]
+[workspace.lints.clippy]
 pedantic = { level = "warn", priority = -1 }
 nursery = { level = "warn", priority = -1 }
 # Help and about strings would render literal backticks in a terminal.
 doc_markdown = "allow"
 # A tool binary, not a published library surface: the error and panic sections
-# would be ceremony no reader asked for.
+# would be ceremony no reader asked for. `huckleberry-api` opts back in.
 missing_errors_doc = "allow"
 missing_panics_doc = "allow"
 
