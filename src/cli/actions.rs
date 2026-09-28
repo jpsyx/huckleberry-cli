@@ -70,8 +70,8 @@ pub enum FeedAction {
         #[arg(short, long, value_name = "NUMBER")]
         amount: Option<f64>,
 
-        /// What was in it. Defaults to the `units` setting's usual partner:
-        /// left out on a terminal, you are asked.
+        /// What was in it. Left out on a terminal, you are asked, with the
+        /// last kind used offered as the default.
         #[arg(short = 't', long = "type", value_enum, value_name = "KIND")]
         bottle_type: Option<BottleKind>,
 
