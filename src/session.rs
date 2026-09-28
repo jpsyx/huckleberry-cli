@@ -151,7 +151,7 @@ impl Context {
             None => prompt::ask_secret(
                 &Question::new(
                     "password",
-                    "Password (not shown):",
+                    "Password:",
                     &format!("--password <PASSWORD> or {PASSWORD_ENV}"),
                 ),
                 self.theme,

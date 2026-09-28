@@ -14,6 +14,8 @@
 
 use std::io::{IsTerminal, Write};
 
+use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+
 use anyhow::{Context, Result, bail};
 
 use crate::theme::Theme;
@@ -180,7 +182,9 @@ pub fn ask(question: &Question<'_>, theme: Theme) -> Result<String> {
 /// Asks for something that must not appear on the screen.
 ///
 /// The terminal is put into raw mode for exactly as long as the answer is
-/// being typed, so the characters are not echoed. Raw mode is restored before
+/// being typed, so the characters themselves are not echoed. One asterisk is
+/// drawn per character, because seeing the length is what catches a mis-paste
+/// before a failed sign-in does. Raw mode is restored before
 /// this returns by any path, including the one where the read fails: leaving
 /// a person's terminal in raw mode is worse than failing to read a password.
 ///
@@ -217,32 +221,101 @@ fn read_without_echo() -> Result<String> {
     Ok(typed)
 }
 
+/// What one keystroke does while a secret is being typed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Keystroke {
+    /// Add this character.
+    Add(char),
+    /// Remove the last one.
+    Remove,
+    /// The answer is finished.
+    Submit,
+    /// Abandon the command.
+    Cancel,
+    /// Nothing this loop understands.
+    Ignore,
+}
+
+/// What a keystroke means while typing a secret.
+///
+/// Pure, so the two that matter are tested rather than tried: Ctrl-C
+/// abandons the command instead of submitting what has been typed so far, and
+/// a control character that happens to carry a letter is not that letter.
+#[must_use]
+pub const fn interpret_keystroke(code: KeyCode, modifiers: KeyModifiers) -> Keystroke {
+    if modifiers.contains(KeyModifiers::CONTROL) {
+        return match code {
+            KeyCode::Char('c' | 'd') => Keystroke::Cancel,
+            // Ctrl-U clears the line, as it does in a shell.
+            KeyCode::Char('u') => Keystroke::Remove,
+            _ => Keystroke::Ignore,
+        };
+    }
+    match code {
+        KeyCode::Enter => Keystroke::Submit,
+        KeyCode::Backspace | KeyCode::Delete => Keystroke::Remove,
+        KeyCode::Esc => Keystroke::Cancel,
+        KeyCode::Char(character) => Keystroke::Add(character),
+        _ => Keystroke::Ignore,
+    }
+}
+
+/// The mask drawn in place of each character of a secret.
+pub const MASK: char = '*';
+
 /// The key loop behind [`read_without_echo`], with the terminal already raw.
+///
+/// One asterisk per character goes to stderr as it is typed. Showing the
+/// length is the difference between noticing a mis-paste and finding out from
+/// a failed sign-in, and the length of a password is not the part worth
+/// hiding from somebody looking over your shoulder.
 fn collect_secret() -> Result<String> {
-    use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, read};
+    use crossterm::event::read;
 
     let mut typed = String::new();
     loop {
         let Event::Key(KeyEvent {
-            code, modifiers, ..
+            code,
+            modifiers,
+            kind,
+            ..
         }) = read().context("reading the answer")?
         else {
             continue;
         };
-        match code {
-            KeyCode::Enter => return Ok(typed),
-            KeyCode::Backspace => {
-                typed.pop();
+        // Windows reports press and release; echoing both would double every
+        // asterisk.
+        if kind != KeyEventKind::Press {
+            continue;
+        }
+        match interpret_keystroke(code, modifiers) {
+            Keystroke::Submit => return Ok(typed),
+            Keystroke::Cancel => bail!("cancelled"),
+            Keystroke::Add(character) => {
+                typed.push(character);
+                echo(MASK);
             }
-            // Ctrl-C while typing a password should abandon the command, not
-            // submit what has been typed so far.
-            KeyCode::Char('c') if modifiers.contains(KeyModifiers::CONTROL) => {
-                bail!("cancelled");
+            Keystroke::Remove => {
+                if typed.pop().is_some() {
+                    // Back up, paint over the asterisk, back up again.
+                    echo_raw("\u{8} \u{8}");
+                }
             }
-            KeyCode::Char(character) => typed.push(character),
-            _ => {}
+            Keystroke::Ignore => {}
         }
     }
+}
+
+/// Draws one character of the mask. A terminal that will not take it is not
+/// worth failing the sign-in over, so the result is dropped.
+fn echo(character: char) {
+    echo_raw(&character.to_string());
+}
+
+fn echo_raw(text: &str) {
+    let mut output = std::io::stderr();
+    let _ = output.write_all(text.as_bytes());
+    let _ = output.flush();
 }
 
 /// Asks a yes-or-no question. With no terminal, the default stands: a command
@@ -380,6 +453,76 @@ mod tests {
         let question = Question::new("name to greet", "Who should I greet?", "--name <NAME>");
         let text = render(&question, Theme::dark(false));
         assert_eq!(text, "Who should I greet?\n> ");
+    }
+
+    #[test]
+    fn a_typed_character_becomes_one_asterisk_of_the_mask() {
+        assert_eq!(
+            interpret_keystroke(KeyCode::Char('h'), KeyModifiers::NONE),
+            Keystroke::Add('h')
+        );
+        assert_eq!(
+            interpret_keystroke(KeyCode::Char('H'), KeyModifiers::SHIFT),
+            Keystroke::Add('H'),
+            "shift is how a capital arrives, not a control key"
+        );
+    }
+
+    #[test]
+    fn control_c_abandons_rather_than_submitting_what_was_typed_so_far() {
+        assert_eq!(
+            interpret_keystroke(KeyCode::Char('c'), KeyModifiers::CONTROL),
+            Keystroke::Cancel
+        );
+        assert_eq!(
+            interpret_keystroke(KeyCode::Char('d'), KeyModifiers::CONTROL),
+            Keystroke::Cancel
+        );
+        assert_eq!(
+            interpret_keystroke(KeyCode::Esc, KeyModifiers::NONE),
+            Keystroke::Cancel
+        );
+    }
+
+    #[test]
+    fn a_control_character_carrying_a_letter_is_not_that_letter() {
+        // The trap this guards: `Ctrl-a` must not silently become an `a` in
+        // somebody's password.
+        assert_eq!(
+            interpret_keystroke(KeyCode::Char('a'), KeyModifiers::CONTROL),
+            Keystroke::Ignore
+        );
+    }
+
+    #[test]
+    fn backspace_takes_a_character_back() {
+        assert_eq!(
+            interpret_keystroke(KeyCode::Backspace, KeyModifiers::NONE),
+            Keystroke::Remove
+        );
+        assert_eq!(
+            interpret_keystroke(KeyCode::Char('u'), KeyModifiers::CONTROL),
+            Keystroke::Remove
+        );
+    }
+
+    #[test]
+    fn enter_finishes_the_answer() {
+        assert_eq!(
+            interpret_keystroke(KeyCode::Enter, KeyModifiers::NONE),
+            Keystroke::Submit
+        );
+    }
+
+    #[test]
+    fn a_key_with_no_meaning_here_is_ignored() {
+        for code in [KeyCode::Up, KeyCode::F(1), KeyCode::Tab] {
+            assert_eq!(
+                interpret_keystroke(code, KeyModifiers::NONE),
+                Keystroke::Ignore,
+                "{code:?}"
+            );
+        }
     }
 
     #[test]

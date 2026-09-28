@@ -13,7 +13,10 @@ huckleberry-cli child use           # pick one, and remember it
 huckleberry-cli now                 # the screen this tool exists for
 ```
 
-`auth login` saves one child automatically when the account has only one.
+`auth login` saves one child automatically when the account has only one. The
+password prompt draws one asterisk per character: the characters stay hidden,
+and the length is visible, which is what catches a mis-paste before a failed
+sign-in does. Backspace and Ctrl-U erase; Ctrl-C and Esc abandon.
 
 ## Global flags
 
