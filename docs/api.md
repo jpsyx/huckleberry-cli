@@ -147,6 +147,14 @@ ordered by a time the row no longer claims. And an optional field left out is
 *removed* rather than left behind, because a colour nobody gave this time is
 not last time's colour.
 
+## Starting a backdated sleep timer
+
+`start_sleep_at(cid, started)` extends the original Python start operation with
+an explicit Unix timestamp in seconds. `start_sleep(cid)` still starts at now.
+Only `timerStartTime` is backdated (and converted to milliseconds); the
+synchronization timestamps describe the current write. Both methods retain
+the same merge semantics and timer shape researched by Woyken.
+
 ## Name mapping
 
 The models drop the `Firebase` prefix, because the crate name is the namespace.

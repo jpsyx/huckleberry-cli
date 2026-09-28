@@ -5,8 +5,9 @@ use huckleberry_api::client::now_seconds;
 use huckleberry_api::{Huckleberry, TimerChange};
 
 use crate::cli::{Overlap, SleepAction};
-use crate::domain::clock::{self, TimeOfDay, Typed};
+use crate::domain::clock;
 use crate::domain::time::format_duration;
+use crate::prompt::time::read_clock;
 use crate::prompt::{self, Choice, Question};
 use crate::render::format;
 use crate::session::Context;
@@ -15,7 +16,9 @@ use crate::session::Context;
 pub async fn run(context: &Context, action: &SleepAction) -> Result<()> {
     let (client, cid) = super::client_and_child(context).await?;
     let outcome = match action {
-        SleepAction::Start => start(context, &client, &cid).await,
+        SleepAction::Start { start: given } => {
+            start(context, &client, &cid, given.as_deref()).await
+        }
         SleepAction::Manual {
             start,
             end,
@@ -65,7 +68,15 @@ pub async fn run(context: &Context, action: &SleepAction) -> Result<()> {
     outcome
 }
 
-async fn start(context: &Context, client: &huckleberry_api::Huckleberry, cid: &str) -> Result<()> {
+async fn start(
+    context: &Context,
+    client: &Huckleberry,
+    cid: &str,
+    given: Option<&str>,
+) -> Result<()> {
+    let began = prompt::time::read_start(context, given)?;
+    // Check after prompting: another caregiver may start a timer while the
+    // question is open.
     // Starting a second sleep would leave the first unrecorded, which is the
     // one mistake here that loses data rather than just being noisy.
     if let Some(timer) = client
@@ -84,7 +95,7 @@ async fn start(context: &Context, client: &huckleberry_api::Huckleberry, cid: &s
         ));
         return Ok(());
     }
-    client.start_sleep(cid).await?;
+    client.start_sleep_at(cid, began).await?;
     context.report("Sleep started.");
     Ok(())
 }
@@ -112,12 +123,12 @@ async fn manual(
     let now = now_seconds();
 
     let began = clock::most_recent(
-        read_time(context, start, "When did it begin?", "--start <TIME>")?,
+        read_clock(context, start, "When did it begin?", "--start <TIME>")?,
         now,
         &calendar,
     );
     let ended = clock::first_after(
-        read_time(context, end, "When did it end?", "--end <TIME>")?,
+        read_clock(context, end, "When did it end?", "--end <TIME>")?,
         began,
         &calendar,
     );
@@ -244,64 +255,6 @@ fn ask_about_overlap(
         "discard-manual" => Overlap::DiscardManual,
         "record-sleep" => Overlap::RecordSleep,
         _ => Overlap::DiscardSleep,
-    })
-}
-
-/// One time, from the flag or from a question, asking again when what was
-/// typed is not a time and asking which half of the day when it is both.
-fn read_time(context: &Context, given: Option<&str>, label: &str, flag: &str) -> Result<TimeOfDay> {
-    if let Some(text) = given {
-        return match clock::parse(text) {
-            Some(Typed::Certain(time)) => Ok(time),
-            Some(Typed::Ambiguous { .. }) => {
-                bail!("`{text}` is either half of the day: say `{text}am` or `{text}pm`")
-            }
-            None => bail!("`{text}` is not a time I can read: try `9pm`, `21:00` or `0357`"),
-        };
-    }
-    let question = Question::new("time", label, flag);
-    loop {
-        let answer = prompt::ask(&question, context.theme)?;
-        match clock::parse(&answer) {
-            Some(Typed::Certain(time)) => return Ok(time),
-            Some(Typed::Ambiguous { morning, afternoon }) => {
-                return ask_which_half(context, morning, afternoon);
-            }
-            None => context.warn(&format!(
-                "`{answer}` is not a time I can read: try `9pm`, `21:00` or `0357`"
-            )),
-        }
-    }
-}
-
-/// Asks which half of the day a bare time meant.
-fn ask_which_half(
-    context: &Context,
-    morning: TimeOfDay,
-    afternoon: TimeOfDay,
-) -> Result<TimeOfDay> {
-    let morning_label = morning.label();
-    let afternoon_label = afternoon.label();
-    let choices = [
-        Choice {
-            value: "am",
-            hint: &morning_label,
-        },
-        Choice {
-            value: "pm",
-            hint: &afternoon_label,
-        },
-    ];
-    let question = Question::new(
-        "half of the day",
-        "Which one?",
-        "--start <TIME> with am or pm",
-    )
-    .with_choices(&choices);
-    Ok(if prompt::ask(&question, context.theme)? == "pm" {
-        afternoon
-    } else {
-        morning
     })
 }
 

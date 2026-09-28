@@ -105,6 +105,25 @@ pub fn parse(text: &str) -> Option<Typed> {
     }
 }
 
+/// Reads a relative time against the supplied clock.
+#[must_use]
+pub fn parse_relative(text: &str, now: f64) -> Option<f64> {
+    let cleaned = text.trim().to_ascii_lowercase();
+    if matches!(cleaned.as_str(), "now" | "right now") {
+        return Some(now);
+    }
+    let duration = cleaned.strip_suffix("ago")?.trim();
+    let digits = ["minutes", "minute", "mins", "min", "m"]
+        .iter()
+        .find_map(|suffix| duration.strip_suffix(suffix))?
+        .trim();
+    if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    let minutes: u32 = digits.parse().ok()?;
+    Some(now - f64::from(minutes) * 60.0)
+}
+
 /// Which half of the day was named.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Half {
@@ -483,5 +502,45 @@ mod resolving {
         assert!(overlaps(100.0, 201.0, 200.0, 400.0));
         assert!(overlaps(250.0, 300.0, 200.0, 400.0), "wholly inside it");
         assert!(overlaps(100.0, 500.0, 200.0, 400.0), "wholly around it");
+    }
+}
+
+#[cfg(test)]
+mod relative_reading {
+    use super::*;
+
+    #[test]
+    fn relative_minutes_are_subtracted_from_the_supplied_clock() {
+        for (text, expected) in [
+            ("now", 1800.0),
+            ("right now", 1800.0),
+            ("10 minutes ago", 1200.0),
+            ("20 mins ago", 600.0),
+            ("28m ago", 120.0),
+            ("1 minute ago", 1740.0),
+            ("1 min ago", 1740.0),
+            ("  2 MINS AGO  ", 1680.0),
+            ("0m ago", 1800.0),
+            ("40m ago", -600.0),
+        ] {
+            assert_eq!(parse_relative(text, 1800.0), Some(expected), "{text}");
+        }
+    }
+
+    #[test]
+    fn invalid_relative_times_are_not_guessed() {
+        for text in [
+            "",
+            "10",
+            "10m",
+            "-1m ago",
+            "1.5m ago",
+            "NaN mins ago",
+            "in 10 minutes",
+            "10 minutes ago extra",
+            "999999999999999999999m ago",
+        ] {
+            assert_eq!(parse_relative(text, 1800.0), None, "{text}");
+        }
     }
 }

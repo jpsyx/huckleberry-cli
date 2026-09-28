@@ -55,7 +55,9 @@ terminal, you are offered the list.
 ### Sleep
 
 ```sh
-hb sleep start
+hb sleep start                               # asks when it started; Enter means now
+hb sleep start --start "28m ago"
+hb sleep start --start "358 am"
 hb sleep pause
 hb sleep resume
 hb sleep stop        # records it
@@ -67,7 +69,18 @@ hb sleep manual --start 11:30pm --end 1:15am
 ```
 
 `sleep start` refuses to start a second sleep over a running one, because that
-would leave the first unrecorded.
+would leave the first unrecorded. On a terminal it asks when the sleep started,
+with `now` as the default. It uses the same clock reader as manual entries,
+including `358 am` and the AM/PM question for ambiguous times. Clock times
+mean their most recent occurrence in the configured timezone. Relative starts
+accept whole minutes: `10 minutes ago`, `20 mins ago`, `28m ago`, and the
+singular `minute` and `min` forms. Relative minutes are elapsed time, including
+across midnight or a daylight-saving transition. Invalid answers are asked
+again before anything is written.
+
+`--start <TIME>` supplies the same value without prompting; ambiguous flag
+values must include AM or PM. `--start now` starts immediately, and without a
+terminal an omitted `--start` keeps the existing default of now.
 
 `sleep manual` records a sleep that has already happened, and asks two
 questions because that is all a sleep is. Neither time carries a date: a bare

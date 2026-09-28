@@ -94,6 +94,17 @@ impl Huckleberry {
     ///
     /// As every write: a refused or unreachable Firestore.
     pub async fn start_sleep(&self, cid: &str) -> Result<()> {
+        self.start_sleep_at(cid, now_seconds()).await
+    }
+
+    /// Starts a sleep at the supplied Unix timestamp in seconds.
+    /// The synchronization timestamps describe this write; only the timer's
+    /// start is backdated. This extends the original Python operation.
+    ///
+    /// # Errors
+    ///
+    /// As every write: a refused or unreachable Firestore.
+    pub async fn start_sleep_at(&self, cid: &str, started: f64) -> Result<()> {
         let now = now_seconds();
         let document = SleepDocument {
             timer: Some(SleepTimer {
@@ -101,7 +112,7 @@ impl Huckleberry {
                 paused: false,
                 timestamp: Some(Timestamp::at(now)),
                 local_timestamp: Some(Number::Float(now)),
-                timer_start_time: Some(Number::Float(now * 1000.0)),
+                timer_start_time: Some(Number::Float(started * 1000.0)),
                 timer_end_time: None,
                 uuid: ids::session_id(),
                 details: Some(SleepDetails::blank()),

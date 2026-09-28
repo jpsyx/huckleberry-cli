@@ -640,3 +640,23 @@ async fn a_manual_sleep_older_than_the_last_one_leaves_the_last_one_alone() {
         "the app's `last sleep` is the last one, not the last one entered"
     );
 }
+
+#[tokio::test]
+async fn backdated_sleep_keeps_the_requested_start_in_milliseconds() {
+    let stub = Stub::start(vec![json!({})]).await;
+    client(&stub)
+        .start_sleep_at("c1", 1_758_572_400.0)
+        .await
+        .expect("the write");
+    let request = stub.request(0).await;
+    let timer = &request.document()["timer"];
+    assert_eq!(timer["timerStartTime"], json!(1_758_572_400_000.0));
+    assert_eq!(timer["active"], json!(true));
+    assert_eq!(timer["paused"], json!(false));
+    assert!(timer["local_timestamp"].as_f64().expect("write timestamp") > 1_758_572_400.0);
+    assert!(
+        request
+            .update_mask()
+            .contains(&"timer.timerStartTime".to_owned())
+    );
+}

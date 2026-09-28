@@ -49,8 +49,13 @@ pub enum ChildAction {
 /// What `sleep` can be asked to do.
 #[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
 pub enum SleepAction {
-    /// Start a sleep.
-    Start,
+    /// Start a sleep, asking when it began on a terminal.
+    Start {
+        /// When it began: `now`, `358 am`, or `10 minutes ago`.
+        /// Left out on a terminal, you are asked; otherwise defaults to now.
+        #[arg(short, long, value_name = "TIME")]
+        start: Option<String>,
+    },
     /// Record a sleep that has already happened.
     Manual {
         /// When it began, as you would say it: `9pm`, `21:00`, `0357`.
