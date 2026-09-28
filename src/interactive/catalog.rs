@@ -38,10 +38,8 @@ pub enum MenuId {
 pub enum MenuTarget {
     /// Open another menu.
     Menu(MenuId),
-    /// Configure or run a typed command.
+    /// Run a typed command.
     Command(CommandPath),
-    /// Edit this session's overrides.
-    SessionOptions,
     /// Read command-specific help.
     Help,
     /// Display the build version.
@@ -127,10 +125,6 @@ fn more() -> Vec<MenuEntry> {
         command("About this build", "info"),
     ];
     entries.extend([
-        MenuEntry {
-            label: "Session options".into(),
-            target: MenuTarget::SessionOptions,
-        },
         MenuEntry {
             label: "Help".into(),
             target: MenuTarget::Help,

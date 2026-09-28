@@ -459,16 +459,15 @@ foods can be selected without comma-separated typing. Solids amount offers
 Some or a custom value. Sleep overlap resolution begins on Cancel. Units,
 measurement system, and verbose settings use finite selection lists.
 
-Command options expose finite values as choices, booleans as Yes/No, passwords
-as masked input, and repeated foods as an add/remove list. Edit's field builder
+Optional command overrides are available through CLI flags. History editing
 selects the entry and named fields, keeping existing values unless deliberately
 changed; Clear is separate from Keep. Unfamiliar stored enum values survive
 changes to other details.
 
 Deletion with a named tracker and no ID opens a searchable entry picker on a
 terminal. The selected row still requires the usual confirmation, defaulting to
-No. Session options edit temporary configuration, child, verbosity and live or
-snapshot source overrides; Apply publishes the draft and Escape discards it.
+No. Temporary configuration, child, verbosity and live or snapshot source
+overrides can be supplied as global flags when starting `hb`.
 
 With no command, `hb` starts a persistent interactive session when stdin and
 stderr are terminals. Home starts with View latest (the same command as
@@ -477,19 +476,20 @@ Visualizations, logs, other logging, Delete, More, and Exit. Read-only views run
 immediately when selected: latest/current status, Dashboard, Trends, Summary,
 Sleep stripes, logs, sleep/nursing status, food lists, child lists/profiles,
 authentication status, configuration display/paths, and build information.
-After the result (or leaving a full-screen view), Back is selected by default;
-Change options opens the existing flag editor. Done runs the view again with
-those options. This menu keeps static results visible without a separate Continue
-prompt. Trends still asks for its required metric before displaying a chart.
-Failed views offer Back, Change options, and an explicit Retry; they never retry
-automatically. Escape leaves the view or unfinished options and returns to navigation.
-Commands that record, edit, delete, change settings/account state, or export keep
-Run, Options and Back before execution. Options reaches every flag, including
-session overrides. Successful logging returns home; views return to their parent
-menu. Other static results remain visible until Continue. Escape cancels unfinished input
-and returns to navigation; Escape or Ctrl-C at home exits cleanly. Failures stay
-in the session without retrying the command. Bare nonterminal invocations print
-help and exit successfully. Explicit commands keep their scriptable behavior.
+Every command starts immediately when selected, including logging, editing,
+deleting, settings/account changes, and exports. Required questions and
+command-specific confirmations remain in their normal flows; there is no Run,
+Options, Change options, or Session options menu item.
+After a read result (or leaving a full-screen view), Back is selected by default.
+This keeps static results visible without a separate Continue prompt. Trends
+still asks for its required metric before displaying a chart. Failed views offer
+Back and an explicit Retry; they never retry automatically.
+Successful logging returns home; views return to their parent menu. Other static
+results remain visible until Continue. Escape cancels unfinished input and returns
+to navigation; Escape or Ctrl-C at home exits cleanly. Failed writes return to
+navigation after Continue and are never automatically retried. Bare nonterminal
+invocations print help and exit successfully. Explicit commands keep their
+scriptable behavior.
 
 Long menu labels wrap within the visible terminal area. Completing Edit's field
 picker without changing any fields reports that the entry is unchanged. Menu
@@ -499,6 +499,5 @@ History edits ask which fields to change; Done keeps every other field. Keep
 preserves stored quantities, unknown values, potty outcomes and food metadata;
 Clear removes just the chosen optional field. During network waits, Ctrl-C
 returns to navigation. A submitted write may already have completed, so the
-session asks you to check logs before retrying. Changing session account, child
-or source clears pending options so a selected entry cannot follow that switch.
-Long text input scrolls to keep the insertion point visible.
+session asks you to check logs before retrying. Long text input scrolls to keep
+the insertion point visible.

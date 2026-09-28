@@ -1,8 +1,8 @@
-//! Run, options and error recovery for one pending command.
+//! Direct command execution and error recovery for menu selections.
 use super::{
     catalog::CommandPath,
     draft::CommandDraft,
-    options, pause,
+    pause,
     session::{SessionOptions, load_context},
     session_menu::choose,
 };
@@ -19,59 +19,24 @@ use anyhow::Result;
 /// Returns true after a successful action that should return to home.
 pub(super) async fn run(
     path: &CommandPath,
-    globals: &mut SessionOptions,
+    globals: &SessionOptions,
     theme: Theme,
 ) -> Result<bool> {
-    let mut draft = CommandDraft::new(path.clone());
+    let draft = CommandDraft::new(path.clone());
     if draft
         .resolve(globals)?
         .command
         .as_ref()
         .is_some_and(is_read_view)
     {
-        return run_view(&mut draft, globals, theme).await;
+        return run_view(&draft, globals, theme).await;
     }
-    run_pending(&mut draft, globals, theme).await
+    execute(&draft, globals, theme).await
 }
 
-async fn run_pending(
-    draft: &mut CommandDraft,
-    globals: &mut SessionOptions,
-    theme: Theme,
-) -> Result<bool> {
+async fn run_view(draft: &CommandDraft, globals: &SessionOptions, theme: Theme) -> Result<bool> {
     loop {
-        let index = choose(
-            &format!("{}: ready", draft.path.0.join(" ")),
-            &["Run".into(), "Options".into(), "Back".into()],
-            0,
-            theme,
-        )?;
-        let result = match index {
-            0 => execute(draft, globals, theme).await.map(Some),
-            1 => Box::pin(options::edit(theme, globals, draft))
-                .await
-                .map(|()| None),
-            _ => return Ok(false),
-        };
-        match result {
-            Ok(Some(home)) => return Ok(home),
-            Ok(None) => {}
-            Err(error) if prompt::is_cancelled(&error) => return Ok(false),
-            Err(error) => {
-                eprintln!("{}", theme.error_line("error:", &format!("{error:#}")));
-                pause(theme)?;
-            }
-        }
-    }
-}
-
-async fn run_view(
-    draft: &mut CommandDraft,
-    globals: &mut SessionOptions,
-    theme: Theme,
-) -> Result<bool> {
-    loop {
-        let mut labels = vec!["Back".into(), "Change options".into()];
+        let mut labels = vec!["Back".into()];
         match execute(draft, globals, theme).await {
             Ok(_) => {}
             Err(error) if prompt::is_cancelled(&error) => return Ok(false),
@@ -81,14 +46,13 @@ async fn run_view(
             }
         }
         match choose("Anything else?", &labels, 0, theme)? {
-            1 => Box::pin(options::edit(theme, globals, draft)).await?,
-            2 => {}
+            1 => {}
             _ => return Ok(false),
         }
     }
 }
 
-// Only views can safely execute before options and then run again with changes.
+// Only read-only views offer an explicit retry after failure.
 const fn is_read_view(command: &Command) -> bool {
     matches!(
         command,
@@ -157,7 +121,7 @@ mod tests {
     use clap::Parser;
 
     #[test]
-    fn views_can_run_before_options() {
+    fn read_views_offer_retry() {
         for path in [
             "now",
             "dash",
@@ -182,7 +146,7 @@ mod tests {
     }
 
     #[test]
-    fn mutating_commands_keep_options_before_execution() {
+    fn writes_and_exports_do_not_offer_retry() {
         for path in [
             "diaper",
             "potty",

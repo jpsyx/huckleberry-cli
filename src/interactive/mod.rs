@@ -41,7 +41,7 @@ pub const fn entry_mode(
 
 /// Runs menus until Exit or cancellation at home.
 pub async fn run(cli: &Cli, theme: Theme) -> Result<()> {
-    let mut globals = SessionOptions::from_cli(cli);
+    let globals = SessionOptions::from_cli(cli);
     let mut stack = vec![(MenuId::Home, 0)];
     while let Some(&(menu, cursor)) = stack.last() {
         let entries = catalog::entries(menu);
@@ -69,7 +69,7 @@ pub async fn run(cli: &Cli, theme: Theme) -> Result<()> {
         }
         let result = interrupt::run(Box::pin(visit(
             &entries[index].target,
-            &mut globals,
+            &globals,
             &mut stack,
             theme,
         )))
@@ -86,7 +86,7 @@ pub async fn run(cli: &Cli, theme: Theme) -> Result<()> {
 
 async fn visit(
     target: &MenuTarget,
-    globals: &mut SessionOptions,
+    globals: &SessionOptions,
     stack: &mut Vec<(MenuId, usize)>,
     theme: Theme,
 ) -> Result<()> {
@@ -97,7 +97,6 @@ async fn visit(
                 *stack = vec![(MenuId::Home, 0)];
             }
         }
-        MenuTarget::SessionOptions => *globals = session::edit_options(globals, theme).await?,
         MenuTarget::Help => help(theme)?,
         MenuTarget::Version => {
             eprintln!("huckleberry-cli {}", env!("CARGO_PKG_VERSION"));

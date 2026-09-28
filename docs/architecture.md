@@ -253,16 +253,18 @@ Pending argument drafts resolve through clap without spawning a shell; passwords
 are redacted in previews and parser diagnostics. Session options remain separate
 from persistent settings.
 
-Interactive option bindings derive from clap metadata. Specialized editors handle
-repeated foods and entry fields. Edit persistence retains original wire enum
-values when the corresponding field was not changed.
+Argument-binding helpers derive from clap metadata; the menu does not expose
+the generic option editor. Specialized command prompts handle foods and entry
+fields. Edit persistence retains original wire enum values when the corresponding
+field was not changed.
 
-The bare-command session owns navigation and temporary overrides. A typed command
-policy in `interactive/operation` lets read-only views execute on selection,
-then offers Back (the default) or Change options. Completing the options editor
-reruns the view; failures require an explicit Retry or options edit. This follow-up
-menu also holds static output on screen, replacing the separate pause. Mutating
-commands and export retain their pre-execution Run/Options/Back menu.
+The bare-command session owns navigation and inherits temporary overrides from
+its initial CLI flags. Every command in `interactive/operation` enters dispatch
+on selection, with no Run or options menu. A typed policy identifies read-only
+views, which offer Back after output and an explicit Retry only after failure.
+This follow-up menu holds static output on screen, replacing the separate pause.
+Writes and exports return through their ordinary completion flow; errors return
+to navigation after a pause and cannot automatically replay a write.
 Each execution opens a fresh Context and calls the same typed dispatch as an
 explicit CLI invocation. Menus release terminal ownership before handlers run,
 cancellation returns to navigation, and failed writes are never automatically
@@ -272,10 +274,9 @@ History editing now collects explicit field changes rather than rewriting a
 normalized draft. The CLI maps those selected fields to the API's existing
 `update_history_row` operation; omitted fields stay untouched, including unknown
 values and meal food metadata. A changed meal amount updates only amounts in the
-original food map. Direct edits and interactive Options share the field picker.
+original food map. Direct edits use the field picker.
 The API crate and its operation semantics are unchanged.
 
 The session installs a Tokio Ctrl-C listener around operations, including picker
 reads. Interruption stops waiting and returns to navigation, with a reminder to
-check logs if a write might already have reached the service. Switching account,
-child or data source clears pending command options and requires reselection.
+check logs if a write might already have reached the service. Each selection creates a fresh command draft.
