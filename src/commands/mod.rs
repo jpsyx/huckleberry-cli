@@ -45,7 +45,21 @@ pub async fn run(cli: &Cli, theme: Theme) -> Result<()> {
         Command::Summary { days, json } => views::summary(&context, *days, *json).await,
         Command::Trends { metric, days } => views::trends(&context, *metric, *days).await,
         Command::Stripes { days } => views::stripes(&context, *days).await,
-        Command::Log { kind, days, limit } => views::log(&context, *kind, *days, *limit).await,
+        Command::Log {
+            kind,
+            days,
+            limit,
+            search,
+        } => {
+            Box::pin(views::log(
+                &context,
+                *kind,
+                *days,
+                *limit,
+                search.as_deref(),
+            ))
+            .await
+        }
         Command::Edit { options } => Box::pin(edit::run(&context, options)).await,
         Command::Delete { options } => Box::pin(delete::run(&context, options)).await,
         Command::Sleep { action } => sleep::run(&context, action).await,

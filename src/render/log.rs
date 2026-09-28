@@ -5,6 +5,8 @@
 
 use crate::domain::log::{Entry, Kind};
 use crate::domain::time::Calendar;
+use crate::edit;
+use crate::listing::{Column, Role, Row};
 use crate::theme::{Theme, Tone};
 
 use super::format;
@@ -25,6 +27,72 @@ pub const fn tone_for(kind: Kind) -> Tone {
         Kind::Pump => Tone::Pumping,
         Kind::Milestone => Tone::Milestone,
     }
+}
+
+/// The columns the stream is listed in.
+pub const COLUMNS: [Column; 3] = [
+    Column::new("when", Role::Key),
+    Column::new("what", Role::Kind),
+    Column::new("detail", Role::Value),
+];
+
+/// The stream as rows of a listing, grouped by the day they happened on.
+///
+/// `refusal` says which entries the command cannot act on, and why; a row it
+/// refuses is still listed, because the stream is the stream.
+#[must_use]
+pub fn rows(
+    entries: &[Entry],
+    calendar: &Calendar,
+    refusal: &dyn Fn(&Entry) -> Option<String>,
+) -> Vec<Row> {
+    entries
+        .iter()
+        .map(|entry| {
+            let row = Row::new(
+                entry
+                    .at
+                    .as_ref()
+                    .map_or_else(|| entry.id.clone(), edit::token_for),
+                [
+                    format::clock(entry.start, calendar),
+                    entry.title.clone(),
+                    entry.description.clone(),
+                ],
+            )
+            .group(format::day_short(calendar.day_of(entry.start)))
+            .tone(tone_for(entry.kind))
+            .note(entry.notes.clone())
+            .detail(detail(entry, calendar));
+            match refusal(entry) {
+                Some(why) => row.refused(why),
+                None => row,
+            }
+        })
+        .collect()
+}
+
+/// What is known about one entry, for the screen that shows one.
+fn detail(entry: &Entry, calendar: &Calendar) -> Vec<(String, String)> {
+    let mut pairs = vec![
+        (
+            "when".to_owned(),
+            format!(
+                "{} {}",
+                format::day_short(calendar.day_of(entry.start)),
+                format::clock(entry.start, calendar)
+            ),
+        ),
+        ("what".to_owned(), entry.title.clone()),
+        ("detail".to_owned(), entry.description.clone()),
+    ];
+    if let Some(notes) = &entry.notes {
+        pairs.push(("notes".to_owned(), notes.clone()));
+    }
+    if let Some(at) = &entry.at {
+        pairs.push(("entry".to_owned(), edit::token_for(at)));
+    }
+    pairs
 }
 
 /// The stream, newest first, grouped by day. `now` decides which heading
@@ -184,6 +252,41 @@ mod tests {
         data.feeds = vec![bottle(AFTERNOON, 90.0)];
         data.sleep = vec![sleep(AFTERNOON - 7_200.0, 3_600.0)];
         assert_eq!(only(log::build(&data), None).len(), 2);
+    }
+
+    #[test]
+    fn a_row_carries_the_entrys_name_its_colour_its_note_and_its_details() {
+        let mut data = dataset();
+        let mut noted = diaper(AFTERNOON, true, false);
+        noted.at = Some(huckleberry_api::RowRef::loose("diaper", "row-one"));
+        noted.notes = Some("a bit sore".to_owned());
+        data.diapers = vec![noted];
+        let entries = log::build(&data);
+        let rows = rows(&entries, &calendar(), &|_| None);
+
+        assert_eq!(rows[0].key, "diaper/row-one", "the name `edit` knows it by");
+        assert_eq!(rows[0].tone, Some(Tone::Diaper));
+        assert_eq!(rows[0].note.as_deref(), Some("a bit sore"));
+        assert_eq!(rows[0].group, "Mon 22 Sep");
+        assert!(rows[0].selectable);
+        assert!(
+            rows[0]
+                .detail
+                .iter()
+                .any(|(label, value)| label == "entry" && value == "diaper/row-one"),
+            "{:?}",
+            rows[0].detail
+        );
+    }
+
+    #[test]
+    fn a_row_the_command_cannot_act_on_is_listed_and_says_why() {
+        let mut data = dataset();
+        data.feeds = vec![bottle(AFTERNOON, 90.0)];
+        let entries = log::build(&data);
+        let rows = rows(&entries, &calendar(), &|_| Some("not here".to_owned()));
+        assert!(!rows[0].selectable);
+        assert_eq!(rows[0].refusal.as_deref(), Some("not here"));
     }
 
     #[test]

@@ -185,6 +185,11 @@ pub enum Command {
         #[arg(short, long, value_enum)]
         kind: Option<LogKind>,
 
+        /// Only entries matching every word of this. On a terminal you can
+        /// also press `/` and type.
+        #[arg(short, long, value_name = "TEXT")]
+        search: Option<String>,
+
         /// How many days to read.
         #[arg(short, long, value_name = "DAYS")]
         days: Option<u32>,

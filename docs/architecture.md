@@ -66,7 +66,7 @@ src/
 │   └── clock.rs     a time somebody typed, and the instant it means
 ├── render/          domain values to lines of text
 ├── dashboard/       the full-screen version of the same values
-├── picker/          choosing one entry off a list, full screen
+├── listing/         every list: columns, groups, search, browsing
 └── commands/        one thin module per command
 tests/
 └── public_api.rs    the library surface, driven from outside the crate
@@ -78,7 +78,7 @@ tests/
 | --- | --- | --- |
 | `huckleberry-api` | Firestore, Huckleberry's shapes | this tool |
 | `domain` | events, days, arithmetic | the clock, the network, a terminal |
-| `render` / `dashboard` / `picker` | text, colour, widgets | the network, the clock |
+| `render` / `dashboard` / `listing` | text, colour, widgets | the network, the clock |
 | `commands` | all of the above, and the outside world | arithmetic worth asserting |
 
 `domain` takes `now` as an argument everywhere. That is the whole reason a
@@ -197,7 +197,7 @@ Several directories exist because a file crossed it:
 | `domain/` | one module per question the tool answers |
 | `render/` | one module per screen |
 | `dashboard/draw/` | the frame, and one function per tab |
-| `picker/` | what is on the list, and what it looks like |
+| `listing/` | what is in a list, how it is laid out, what a key does |
 | `commands/edit/` | the command, and the questions it asks |
 | `models/sleep/` | what was recorded, the timer, the history |
 | `models/feed/` | the words, the timer, the summaries, the history |

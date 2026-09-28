@@ -8,8 +8,10 @@ use huckleberry_api::client::now_seconds;
 
 use crate::cli::{LogKind, TrendMetric, Units};
 use crate::domain::{log, now, stripes, summaries};
+use crate::listing::Listing;
 use crate::prompt::{self, Choice, Question};
 use crate::render;
+use crate::render::format;
 use crate::session::Context;
 
 /// The 3am screen.
@@ -90,22 +92,30 @@ pub async fn stripes(context: &Context, days: Option<u32>) -> Result<()> {
 }
 
 /// The merged stream.
+///
+/// A list to look around in rather than a wall of text: on a terminal it opens
+/// the browsable view, where `/` searches and Enter opens one entry. Piped, it
+/// is the same rows as plain lines.
 pub async fn log(
     context: &Context,
     kind: Option<LogKind>,
     days: Option<u32>,
     limit: usize,
+    search: Option<&str>,
 ) -> Result<()> {
     let (dataset, calendar) = super::load(context, days).await?;
-    let entries = render::log::only(log::build(&dataset), kind.map(LogKind::to_domain));
-    render::print(&render::log::lines(
-        &entries,
-        &calendar,
-        context.output_theme(),
-        limit,
-        now_seconds(),
-    ));
-    Ok(())
+    let entries: Vec<_> = render::log::only(log::build(&dataset), kind.map(LogKind::to_domain))
+        .into_iter()
+        .take(limit)
+        .collect();
+    let today = format::day_short(calendar.day_of(now_seconds()));
+    Listing::new(&dataset.child.name, "entries", &render::log::COLUMNS)
+        .rows(render::log::rows(&entries, &calendar, &|_| None))
+        .today(|heading| heading == today)
+        .empty("nothing logged in this window")
+        .query(search)
+        .verb("j/k or ↑/↓ move · / searches · enter opens one · q leaves")
+        .show(context.output_theme())
 }
 
 /// Which volume unit to show, from the configuration.
