@@ -19,6 +19,7 @@ pub async fn run(
     height: Option<f64>,
     head: Option<f64>,
     units: Option<System>,
+    at: Option<&str>,
 ) -> Result<()> {
     let (client, cid) = super::client_and_child(context).await?;
     let nothing_given = weight.is_none() && height.is_none() && head.is_none();
@@ -46,15 +47,16 @@ pub async fn run(
     }
     validate(&measurements)?;
 
+    let at = prompt::time::read_at(context, at)?;
     client
-        .log_growth(&cid, &measurements, system.to_api())
+        .log_growth_at(&cid, &measurements, system.to_api(), at)
         .await?;
     super::persist_session(context, &client).await?;
     let (weight_unit, length_unit) = match system {
         System::Metric => ("kg", "cm"),
         System::Imperial => ("lb", "in"),
     };
-    let fields: Vec<(&str, String)> = [
+    let mut fields: Vec<(&str, String)> = [
         ("Weight", measurements.weight, weight_unit),
         ("Length", measurements.height, length_unit),
         ("Head circumference", measurements.head, length_unit),
@@ -62,6 +64,10 @@ pub async fn run(
     .into_iter()
     .filter_map(|(label, amount, unit)| amount.map(|amount| (label, format!("{amount} {unit}"))))
     .collect();
+    fields.push((
+        "When",
+        crate::render::format::date_time(at, &context.calendar()?),
+    ));
     context.receipt("📏 Growth recorded", &fields, &[]);
     Ok(())
 }

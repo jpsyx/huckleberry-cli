@@ -259,7 +259,7 @@ async fn a_bottle_is_written_as_a_row_and_as_the_next_default() {
         .await
         .expect("the write");
 
-    let row = stub.request(0).await;
+    let row = stub.request(1).await;
     assert!(row.path.starts_with("/v1/documents/feed/c1/intervals/"));
     let interval = row.document();
     assert_eq!(interval["mode"], json!("bottle"));
@@ -268,7 +268,7 @@ async fn a_bottle_is_written_as_a_row_and_as_the_next_default() {
     // numbers `bottleAmount`/`bottleUnits`.
     assert_eq!(interval["units"], json!("ml"));
 
-    let prefs = stub.request(1).await;
+    let prefs = stub.request(2).await;
     assert_eq!(prefs.path, "/v1/documents/feed/c1");
     let mask = prefs.update_mask();
     assert!(mask.contains(&"prefs.bottleAmount".to_owned()), "{mask:?}");
@@ -299,7 +299,7 @@ async fn a_diaper_writes_only_what_was_recorded() {
         .await
         .expect("the write");
 
-    let row = stub.request(0).await.document();
+    let row = stub.request(1).await.document();
     assert_eq!(row["mode"], json!("both"));
     assert_eq!(row["quantity"]["poo"], json!(50.0));
     assert!(
@@ -316,7 +316,7 @@ async fn a_diaper_writes_only_what_was_recorded() {
     // The summary is replaced whole rather than merged field by field, which
     // is what stops a `pee` summary keeping the colour of the `poo` before it.
     assert_eq!(
-        stub.request(1).await.update_mask(),
+        stub.request(2).await.update_mask(),
         vec![
             "prefs.lastDiaper",
             "prefs.local_timestamp",
@@ -338,12 +338,12 @@ async fn a_potty_trip_goes_in_the_same_collection_and_says_so() {
         .await
         .expect("the write");
 
-    let row = stub.request(0).await;
+    let row = stub.request(1).await;
     assert!(row.path.starts_with("/v1/documents/diaper/c1/intervals/"));
     assert_eq!(row.document()["isPotty"], json!(true));
     assert_eq!(row.document()["howItHappened"], json!("wentPotty"));
 
-    let mask = stub.request(1).await.update_mask();
+    let mask = stub.request(2).await.update_mask();
     assert!(
         mask.iter()
             .any(|entry| entry.starts_with("prefs.lastPotty")),
@@ -366,7 +366,7 @@ async fn growth_goes_to_the_data_subcollection_not_intervals() {
         .await
         .expect("the write");
 
-    let row = stub.request(0).await;
+    let row = stub.request(1).await;
     assert!(
         row.path.starts_with("/v1/documents/health/c1/data/"),
         "health is the tracker that uses `data`: {}",

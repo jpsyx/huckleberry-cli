@@ -137,12 +137,31 @@ impl Huckleberry {
     ///
     /// As [`Huckleberry::start_sleep`].
     pub async fn pause_sleep(&self, cid: &str) -> Result<TimerChange> {
+        self.pause_sleep_at(cid, now_seconds()).await
+    }
+
+    /// Performs this operation at a Unix timestamp in seconds.
+    /// Synchronization timestamps still describe the current write.
+    ///
+    /// # Errors
+    ///
+    /// Invalid event times or a refused or unreachable Firestore.
+    pub async fn pause_sleep_at(&self, cid: &str, at: f64) -> Result<TimerChange> {
         let Some(timer) = self.sleep_timer(cid).await? else {
             return Ok(TimerChange::NotRunning);
         };
         if timer.paused {
             return Ok(TimerChange::Unchanged);
         }
+        super::timing::validate_time(
+            at,
+            timer
+                .started_at()
+                .or_else(|| timer.timestamp.map(|stamp| stamp.seconds.as_f64()))
+                .into_iter()
+                .chain(timer.paused_at())
+                .reduce(f64::max),
+        )?;
         let now = now_seconds();
         self.update_sleep(
             cid,
@@ -150,7 +169,7 @@ impl Huckleberry {
                 FieldUpdate::set("timer.paused", json!(true)),
                 FieldUpdate::set("timer.active", json!(true)),
                 // The app reads this to show when a paused sleep stopped.
-                FieldUpdate::set("timer.timerEndTime", json!(now * 1000.0)),
+                FieldUpdate::set("timer.timerEndTime", json!(at * 1000.0)),
                 FieldUpdate::set("timer.timestamp", json!({ "seconds": now })),
                 FieldUpdate::set("timer.local_timestamp", json!(now)),
             ],
@@ -165,16 +184,37 @@ impl Huckleberry {
     ///
     /// As [`Huckleberry::start_sleep`].
     pub async fn resume_sleep(&self, cid: &str) -> Result<TimerChange> {
+        self.resume_sleep_at(cid, now_seconds()).await
+    }
+
+    /// Performs this operation at a Unix timestamp in seconds.
+    /// Synchronization timestamps still describe the current write.
+    ///
+    /// # Errors
+    ///
+    /// Invalid event times or a refused or unreachable Firestore.
+    pub async fn resume_sleep_at(&self, cid: &str, at: f64) -> Result<TimerChange> {
         let Some(timer) = self.sleep_timer(cid).await? else {
             return Ok(TimerChange::NotRunning);
         };
         if !timer.paused {
             return Ok(TimerChange::Unchanged);
         }
+        super::timing::validate_time(
+            at,
+            timer
+                .started_at()
+                .or_else(|| timer.timestamp.map(|stamp| stamp.seconds.as_f64()))
+                .into_iter()
+                .chain(timer.paused_at())
+                .reduce(f64::max),
+        )?;
         let now = now_seconds();
         self.update_sleep(
             cid,
             &[
+                // While running, this is a transition boundary rather than an end.
+                FieldUpdate::set("timer.timerEndTime", json!(at * 1000.0)),
                 FieldUpdate::set("timer.paused", json!(false)),
                 FieldUpdate::set("timer.active", json!(true)),
                 FieldUpdate::set("timer.timestamp", json!({ "seconds": now })),
@@ -214,11 +254,30 @@ impl Huckleberry {
     ///
     /// As [`Huckleberry::start_sleep`].
     pub async fn complete_sleep(&self, cid: &str) -> Result<Option<CompletedSleep>> {
+        self.complete_sleep_at(cid, now_seconds()).await
+    }
+
+    /// Performs this operation at a Unix timestamp in seconds.
+    /// Synchronization timestamps still describe the current write.
+    ///
+    /// # Errors
+    ///
+    /// Invalid event times or a refused or unreachable Firestore.
+    pub async fn complete_sleep_at(&self, cid: &str, at: f64) -> Result<Option<CompletedSleep>> {
         let Some(timer) = self.sleep_timer(cid).await? else {
             return Ok(None);
         };
+        super::timing::validate_time(
+            at,
+            timer
+                .started_at()
+                .or_else(|| timer.timestamp.map(|stamp| stamp.seconds.as_f64()))
+                .into_iter()
+                .chain(timer.paused_at())
+                .reduce(f64::max),
+        )?;
         let now = now_seconds();
-        let Some(completed) = completed_sleep(&timer, now) else {
+        let Some(completed) = completed_sleep(&timer, at) else {
             // A running timer with nothing to measure from: clear it rather
             // than leave a sleep that can never be finished.
             self.update_sleep(
@@ -230,13 +289,16 @@ impl Huckleberry {
             return Ok(None);
         };
 
-        let offset = self.zone().offset_minutes(now);
+        let offset = self.zone().offset_minutes(completed.start as f64);
         let interval = SleepInterval {
             id: None,
             start: Number::Integer(completed.start),
             duration: Number::Integer(completed.duration),
             offset: Number::Float(offset),
-            end_offset: Some(Number::Float(offset)),
+            end_offset: Some(Number::Float(
+                self.zone()
+                    .offset_minutes((completed.start + completed.duration) as f64),
+            )),
             details: completed.details.clone(),
             last_updated: Some(Number::Float(now)),
         };

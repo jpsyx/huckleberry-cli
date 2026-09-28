@@ -15,7 +15,7 @@ license = "MIT"
 [workspace.dependencies]
 # The library half of this repository, consumed by path. Publishing it is a
 # version number away: nothing in it mentions the CLI.
-huckleberry-api = { path = "crates/huckleberry-api", version = "0.2.0" }
+huckleberry-api = { path = "crates/huckleberry-api", version = "0.3.0" }
 jiff = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -23,7 +23,7 @@ tokio = "1"
 
 [package]
 name = "huckleberry-cli"
-version = "0.6.1"
+version = "0.7.0"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true

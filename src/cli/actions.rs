@@ -76,11 +76,26 @@ pub enum SleepAction {
         overlap: Option<Overlap>,
     },
     /// Pause the running sleep.
-    Pause,
+    Pause {
+        /// When it happened: `now`, `358 am`, or `32 mins ago`.
+        /// Left out on a terminal, you are asked; otherwise defaults to now.
+        #[arg(long, value_name = "TIME")]
+        at: Option<String>,
+    },
     /// Resume a paused sleep.
-    Resume,
+    Resume {
+        /// When it happened: `now`, `358 am`, or `32 mins ago`.
+        /// Left out on a terminal, you are asked; otherwise defaults to now.
+        #[arg(long, value_name = "TIME")]
+        at: Option<String>,
+    },
     /// Finish the running sleep and record it.
-    Stop,
+    Stop {
+        /// When it happened: `now`, `358 am`, or `32 mins ago`.
+        /// Left out on a terminal, you are asked; otherwise defaults to now.
+        #[arg(long, value_name = "TIME")]
+        at: Option<String>,
+    },
     /// Throw away the running sleep without recording it.
     Cancel,
     /// Say whether a sleep is running, and for how long.
@@ -92,6 +107,10 @@ pub enum SleepAction {
 pub enum FeedAction {
     /// Record a bottle.
     Bottle {
+        /// When it happened: `now`, `358 am`, or `32 mins ago`.
+        /// Left out on a terminal, you are asked; otherwise defaults to now.
+        #[arg(long, value_name = "TIME")]
+        at: Option<String>,
         /// How much. Left out on a terminal, you are asked.
         #[arg(short, long, value_name = "NUMBER")]
         amount: Option<f64>,
@@ -118,6 +137,10 @@ pub enum FeedAction {
     },
     /// Record a meal.
     Solids {
+        /// When it happened: `now`, `358 am`, or `32 mins ago`.
+        /// Left out on a terminal, you are asked; otherwise defaults to now.
+        #[arg(long, value_name = "TIME")]
+        at: Option<String>,
         /// A food, by name. Repeat for several. Left out on a terminal, you
         /// are asked, with the family's own foods offered as choices.
         #[arg(short, long = "food", value_name = "NAME")]
@@ -143,23 +166,46 @@ pub enum FeedAction {
 pub enum NursingAction {
     /// Start a nursing session.
     Start {
+        /// When it happened: `now`, `358 am`, or `32 mins ago`.
+        /// Left out on a terminal, you are asked; otherwise defaults to now.
+        #[arg(long, alias = "at", value_name = "TIME")]
+        start: Option<String>,
         /// Which side to start on. Left out, the side opposite the last feed
         /// is offered; on a terminal you are asked.
         #[arg(short, long, value_enum)]
         side: Option<Side>,
     },
     /// Pause the running session, banking the side that was running.
-    Pause,
+    Pause {
+        /// When it happened: `now`, `358 am`, or `32 mins ago`.
+        /// Left out on a terminal, you are asked; otherwise defaults to now.
+        #[arg(long, value_name = "TIME")]
+        at: Option<String>,
+    },
     /// Resume a paused session.
     Resume {
+        /// When it happened: `now`, `358 am`, or `32 mins ago`.
+        /// Left out on a terminal, you are asked; otherwise defaults to now.
+        #[arg(long, value_name = "TIME")]
+        at: Option<String>,
         /// Which side to resume on. Left out, the last one is used.
         #[arg(short, long, value_enum)]
         side: Option<Side>,
     },
     /// Switch sides, banking what the current one has run for.
-    Switch,
+    Switch {
+        /// When it happened: `now`, `358 am`, or `32 mins ago`.
+        /// Left out on a terminal, you are asked; otherwise defaults to now.
+        #[arg(long, value_name = "TIME")]
+        at: Option<String>,
+    },
     /// Finish the session and record it.
-    Stop,
+    Stop {
+        /// When it happened: `now`, `358 am`, or `32 mins ago`.
+        /// Left out on a terminal, you are asked; otherwise defaults to now.
+        #[arg(long, value_name = "TIME")]
+        at: Option<String>,
+    },
     /// Throw away the session without recording it.
     Cancel,
     /// Say whether a session is running, and for how long on each side.

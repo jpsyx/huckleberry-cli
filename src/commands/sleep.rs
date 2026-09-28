@@ -34,19 +34,21 @@ pub async fn run(context: &Context, action: &SleepAction) -> Result<()> {
             )
             .await
         }
-        SleepAction::Pause => {
+        SleepAction::Pause { at } => {
+            let at = prompt::time::read_at(context, at.as_deref())?;
             report(
                 context,
-                client.pause_sleep(&cid).await?,
+                client.pause_sleep_at(&cid, at).await?,
                 "😴 Sleep paused.",
                 "paused",
             );
             Ok(())
         }
-        SleepAction::Resume => {
+        SleepAction::Resume { at } => {
+            let at = prompt::time::read_at(context, at.as_deref())?;
             report(
                 context,
-                client.resume_sleep(&cid).await?,
+                client.resume_sleep_at(&cid, at).await?,
                 "😴 Sleep resumed.",
                 "running",
             );
@@ -61,7 +63,7 @@ pub async fn run(context: &Context, action: &SleepAction) -> Result<()> {
             );
             Ok(())
         }
-        SleepAction::Stop => stop(context, &client, &cid).await,
+        SleepAction::Stop { at } => stop(context, &client, &cid, at.as_deref()).await,
         SleepAction::Status => status(context, &client, &cid).await,
     };
     super::persist_session(context, &client).await?;
@@ -258,8 +260,14 @@ fn ask_about_overlap(
     })
 }
 
-async fn stop(context: &Context, client: &huckleberry_api::Huckleberry, cid: &str) -> Result<()> {
-    if let Some(completed) = client.complete_sleep(cid).await? {
+async fn stop(
+    context: &Context,
+    client: &huckleberry_api::Huckleberry,
+    cid: &str,
+    at: Option<&str>,
+) -> Result<()> {
+    let at = prompt::time::read_at(context, at)?;
+    if let Some(completed) = client.complete_sleep_at(cid, at).await? {
         let calendar = context.calendar()?;
         context.receipt(
             "😴 Sleep recorded",

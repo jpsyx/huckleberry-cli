@@ -93,6 +93,39 @@ terminal, you are offered the list.
 
 ## Writing
 
+Every new bottle, meal, diaper, potty trip and growth measurement asks **when**
+after its other questions. Enter accepts `now`. Nursing starts ask when they
+started; sleep and nursing pause, resume and stop actions, plus nursing side
+switches, also ask when. Cancel and status do not record an event and need no time.
+
+All these questions share the sleep-start parser: `358 am`, `3:58 a.m.`,
+`0358`, `21:30`, `9pm`, or whole relative minutes such as `32 mins ago`.
+An ambiguous clock time prompts for AM or PM. Clock times mean their most recent
+occurrence in the configured timezone; relative minutes count elapsed time across
+midnight and daylight-saving changes. Invalid answers are asked again.
+
+Use `--at <TIME>` to answer directly, or `--start <TIME>` for sleep and nursing
+starts (`--at` is also an alias for nursing starts). Flag values must resolve
+without an AM/PM follow-up. Without a terminal, omitted event times default to
+now, preserving scripts. A timer transition before its current segment is
+refused before writing. Stopping a paused sleep uses its pause time; stopping
+paused nursing records only the already banked durations. Sleep resume retains
+the existing continuous-sleep semantics, so its pause is included in the duration.
+
+```sh
+hb feed bottle --at "32 mins ago"
+hb feed solids --at "358 am"
+hb diaper --at now
+hb potty --at 21:30
+hb growth --at "10 minutes ago"
+hb feed nursing start --start "20 mins ago"
+hb feed nursing switch --at "5 mins ago"
+hb sleep stop --at "3 mins ago"
+```
+
+Receipts for instant events include the chosen local date and time. Backdated
+entries go into history without replacing a newer last-entry summary.
+
 ### Sleep
 
 ```sh
@@ -147,7 +180,7 @@ in yellow, with no default: all three answers throw something away.
 
 ```sh
 hb feed bottle --amount 90 --type formula
-hb feed bottle                       # asks which units, how much, what, and notes
+hb feed bottle                       # asks units, amount, milk, notes, and when
 
 hb feed nursing start --side left
 hb feed nursing switch
@@ -161,9 +194,9 @@ hb feed solids --food Avocado --reaction loved
 `--type` takes `formula`, `breast-milk`, `cow-milk`, `goat-milk`, `soy-milk`,
 `tube-feeding` or `other`. `--units` takes `ml` or `oz`.
 
-Asked interactively, a bottle is four questions: which units, how much, what
-was in it, and anything to note. Every one of them arrives with an answer
-already in it, so the fast path is four presses of Enter. The `units` setting
+Asked interactively, a bottle is five questions: which units, how much, what
+was in it, anything to note, and when. Every one of them arrives with an answer
+already in it, so the fast path is five presses of Enter. The `units` setting
 is what the first question offers, not what the command assumes: somebody who
 mostly records in ounces still gives the odd bottle in millilitres, and
 `hb config set units oz` changes what Enter takes. The amount offered is the
@@ -172,7 +205,7 @@ it in whatever units it was entered in, so offering it as it stands turned a
 last bottle of 1.15 oz into an offer of "1.15" under a question reading "How
 much, in ml?".
 
-A meal asks for the food, how much, how it went and anything to note.
+A meal asks for the food, how much, how it went, anything to note, and when.
 
 `feed nursing start` with no `--side` offers the side opposite the last feed,
 which is what the app suggests.
@@ -188,13 +221,13 @@ hb growth                        # asks the system, the weight, then the rest
 ```
 
 `growth` asks which system the numbers are in, offering the `measurements`
-setting, then the weight, the length and the head circumference; only the
+setting, then the weight, the length, the head circumference and when; only the
 weight has to be answered, and only when no measurement was passed at all.
 
 The diaper prompt asks what was in it and then asks every question that answer
 implies: how much wet, how much dirty, the colour, the consistency, whether
-there was a rash, and anything to note. Each one takes Enter for "leave it
-out", so the fast path is still a few keystrokes, and a flag answers its own
+there was a rash, anything to note, and when. Optional details take Enter for
+"leave it out", and the time takes Enter for now, so the fast path is still a few keystrokes, and a flag answers its own
 question only: `--pee big` is not a statement about the colour. A potty trip is
 asked the same questions minus the rash, which the app has no field for.
 

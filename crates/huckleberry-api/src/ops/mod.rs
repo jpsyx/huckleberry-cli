@@ -16,6 +16,8 @@ pub mod sleep;
 pub mod solids;
 pub mod watch;
 
+pub(crate) mod timing;
+
 pub use reads::Window;
 
 /// What happened when a timer was asked to change.

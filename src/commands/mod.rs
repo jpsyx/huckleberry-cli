@@ -65,6 +65,7 @@ pub async fn run(cli: &Cli, theme: Theme) -> Result<()> {
         Command::Sleep { action } => sleep::run(&context, action).await,
         Command::Feed { action } => feed::run(&context, action).await,
         Command::Diaper {
+            at,
             mode,
             pee,
             poo,
@@ -84,10 +85,12 @@ pub async fn run(cli: &Cli, theme: Theme) -> Result<()> {
                     rash: *rash,
                 },
                 notes.as_deref(),
+                at.as_deref(),
             )
             .await
         }
         Command::Potty {
+            at,
             mode,
             how,
             color,
@@ -101,15 +104,17 @@ pub async fn run(cli: &Cli, theme: Theme) -> Result<()> {
                 *color,
                 *consistency,
                 notes.as_deref(),
+                at.as_deref(),
             )
             .await
         }
         Command::Growth {
+            at,
             weight,
             height,
             head,
             units,
-        } => growth::run(&context, *weight, *height, *head, *units).await,
+        } => growth::run(&context, *weight, *height, *head, *units, at.as_deref()).await,
         Command::Foods { action } => foods::run(&context, action).await,
         Command::Export { days, out } => export::run(&context, *days, out.as_deref()).await,
         Command::Config { action } => settings::run(&context, action),

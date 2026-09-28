@@ -79,18 +79,41 @@ impl Huckleberry {
         measurements: &GrowthMeasurements,
         system: MeasurementSystem,
     ) -> Result<()> {
+        self.log_growth_at(cid, measurements, system, now_seconds())
+            .await
+    }
+
+    /// Performs this operation at a Unix timestamp in seconds.
+    /// Synchronization timestamps still describe the current write.
+    ///
+    /// # Errors
+    ///
+    /// Invalid event times or a refused or unreachable Firestore.
+    pub async fn log_growth_at(
+        &self,
+        cid: &str,
+        measurements: &GrowthMeasurements,
+        system: MeasurementSystem,
+        at: f64,
+    ) -> Result<()> {
         if measurements.is_empty() {
             return Err(Error::Invalid(
                 "a growth entry needs a weight, a height or a head measurement".to_owned(),
             ));
         }
+        super::timing::validate_time(at, None)?;
+        let replaces = self
+            .replaces_summary(paths::HEALTH, cid, "lastGrowthEntry", at)
+            .await?;
         let now = now_seconds();
-        let offset = self.zone().offset_minutes(now);
-        let id = ids::interval_id(now);
+        let offset = self.zone().offset_minutes(at);
+        let id = ids::interval_id(at);
         // Wrapped in `HealthEntry` so the row carries `mode: "growth"`, which
         // is how the app tells growth from a temperature in the same
         // subcollection.
-        let entry = HealthEntry::Growth(growth_entry(&id, measurements, system, offset, now));
+        let mut growth = growth_entry(&id, measurements, system, offset, at);
+        growth.last_updated = Number::Float(now);
+        let entry = HealthEntry::Growth(growth);
 
         let token = self.token().await?;
         self.firestore()
@@ -101,6 +124,10 @@ impl Huckleberry {
                 "recording the growth measurement",
             )
             .await?;
+
+        if !replaces {
+            return Ok(());
+        }
 
         self.firestore()
             .update(

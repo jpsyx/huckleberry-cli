@@ -31,10 +31,33 @@ impl Huckleberry {
         units: VolumeUnits,
         notes: Option<&str>,
     ) -> Result<()> {
+        self.log_bottle_at(cid, amount, bottle_type, units, notes, now_seconds())
+            .await
+    }
+
+    /// Performs this operation at a Unix timestamp in seconds.
+    /// Synchronization timestamps still describe the current write.
+    ///
+    /// # Errors
+    ///
+    /// Invalid event times or a refused or unreachable Firestore.
+    pub async fn log_bottle_at(
+        &self,
+        cid: &str,
+        amount: f64,
+        bottle_type: BottleType,
+        units: VolumeUnits,
+        notes: Option<&str>,
+        at: f64,
+    ) -> Result<()> {
+        super::super::timing::validate_time(at, None)?;
+        let replaces = self
+            .replaces_summary(paths::FEED, cid, "lastBottle", at)
+            .await?;
         let now = now_seconds();
-        let offset = self.zone().offset_minutes(now);
+        let offset = self.zone().offset_minutes(at);
         let interval = FeedInterval::Bottle(BottleFeedInterval {
-            start: Number::Float(now),
+            start: Number::Float(at),
             last_updated: Some(Number::Float(now)),
             bottle_type: bottle_type.clone(),
             amount: Number::Float(amount),
@@ -47,15 +70,19 @@ impl Huckleberry {
         self.firestore()
             .set(
                 &token,
-                &paths::history_row(paths::FEED, cid, &ids::interval_id(now)),
+                &paths::history_row(paths::FEED, cid, &ids::interval_id(at)),
                 &to_fields(&interval)?,
                 "recording the bottle",
             )
             .await?;
 
+        if !replaces {
+            return Ok(());
+        }
+
         let last_bottle = LastBottle {
             mode: Some("bottle".to_owned()),
-            start: Some(Number::Float(now)),
+            start: Some(Number::Float(at)),
             bottle_type: Some(bottle_type.clone()),
             bottle_amount: Some(Number::Float(amount)),
             bottle_units: Some(units.clone()),

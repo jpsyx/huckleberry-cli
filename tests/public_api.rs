@@ -90,7 +90,7 @@ fn every_action_is_reachable_without_a_prompt() {
     assert_eq!(
         stop.command,
         Command::Sleep {
-            action: SleepAction::Stop
+            action: SleepAction::Stop { at: None }
         }
     );
 

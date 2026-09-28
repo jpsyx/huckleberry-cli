@@ -209,16 +209,39 @@ impl Huckleberry {
         reaction: Option<SolidsReaction>,
         photo: Option<&str>,
     ) -> Result<()> {
+        self.log_solids_at(cid, foods, notes, reaction, photo, now_seconds())
+            .await
+    }
+
+    /// Performs this operation at a Unix timestamp in seconds.
+    /// Synchronization timestamps still describe the current write.
+    ///
+    /// # Errors
+    ///
+    /// Invalid event times or a refused or unreachable Firestore.
+    pub async fn log_solids_at(
+        &self,
+        cid: &str,
+        foods: &[FoodReference],
+        notes: Option<&str>,
+        reaction: Option<SolidsReaction>,
+        photo: Option<&str>,
+        at: f64,
+    ) -> Result<()> {
         let eaten = foods_map(foods)?;
+        super::timing::validate_time(at, None)?;
+        let replaces = self
+            .replaces_summary(paths::FEED, cid, "lastSolid", at)
+            .await?;
         let now = now_seconds();
-        let offset = self.zone().offset_minutes(now);
+        let offset = self.zone().offset_minutes(at);
         let reactions = reaction
             .as_ref()
             .map(|taken| BTreeMap::from([(taken.as_str().to_owned(), true)]));
         let notes = notes.map(str::trim).filter(|text| !text.is_empty());
 
         let entry = FeedInterval::Solids(SolidsFeedInterval {
-            start: Number::Float(now),
+            start: Number::Float(at),
             last_updated: Some(Number::Float(now)),
             offset: Number::Float(offset),
             foods: Some(eaten.clone()),
@@ -234,15 +257,19 @@ impl Huckleberry {
         self.firestore()
             .set(
                 &token,
-                &paths::history_row(paths::FEED, cid, &ids::interval_id(now)),
+                &paths::history_row(paths::FEED, cid, &ids::interval_id(at)),
                 &to_fields(&entry)?,
                 operation,
             )
             .await?;
 
+        if !replaces {
+            return Ok(());
+        }
+
         let last_solid = LastSolid {
             mode: Some("solids".to_owned()),
-            start: Some(Number::Float(now)),
+            start: Some(Number::Float(at)),
             foods: Some(eaten),
             reactions,
             notes: notes.map(ToOwned::to_owned),

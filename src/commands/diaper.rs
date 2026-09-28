@@ -22,6 +22,7 @@ pub async fn diaper(
     mode: Option<DiaperKind>,
     flags: DiaperFlags,
     notes: Option<&str>,
+    at: Option<&str>,
 ) -> Result<()> {
     let (client, cid) = super::client_and_child(context).await?;
     let mode = match mode {
@@ -30,9 +31,17 @@ pub async fn diaper(
     };
     let details = details(context, Record::Diaper, mode, flags, notes)?;
 
-    client.log_diaper(&cid, mode.to_api(), &details).await?;
+    let at = prompt::time::read_at(context, at)?;
+    client
+        .log_diaper_at(&cid, mode.to_api(), &details, at)
+        .await?;
     super::persist_session(context, &client).await?;
-    context.receipt("🧷 Diaper recorded", &receipt_fields(mode, &details), &[]);
+    let mut fields = receipt_fields(mode, &details);
+    fields.push((
+        "When",
+        crate::render::format::date_time(at, &context.calendar()?),
+    ));
+    context.receipt("🧷 Diaper recorded", &fields, &[]);
     Ok(())
 }
 
@@ -44,6 +53,7 @@ pub async fn potty(
     color: Option<Colour>,
     consistency: Option<Consistency>,
     notes: Option<&str>,
+    at: Option<&str>,
 ) -> Result<()> {
     let (client, cid) = super::client_and_child(context).await?;
     let mode = match mode {
@@ -68,11 +78,16 @@ pub async fn potty(
         notes,
     )?;
 
+    let at = prompt::time::read_at(context, at)?;
     client
-        .log_potty(&cid, mode.to_api(), how.to_api(), &details)
+        .log_potty_at(&cid, mode.to_api(), how.to_api(), &details, at)
         .await?;
     super::persist_session(context, &client).await?;
     let mut fields = receipt_fields(mode, &details);
+    fields.push((
+        "When",
+        crate::render::format::date_time(at, &context.calendar()?),
+    ));
     fields.push(("Outcome", output::words(how.to_api().as_str())));
     context.receipt("🚽 Potty trip recorded", &fields, &[]);
     Ok(())

@@ -133,7 +133,8 @@ pub struct SleepTimer {
         deserialize_with = "crate::models::lenient"
     )]
     pub timer_start_time: Option<Number>,
-    /// When a paused sleep was paused, in milliseconds.
+    /// When a paused sleep was paused, in milliseconds. Explicit-time resumes
+    /// retain their transition time here while running, to validate later actions.
     #[serde(
         rename = "timerEndTime",
         default,

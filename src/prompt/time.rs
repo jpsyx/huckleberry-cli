@@ -25,13 +25,28 @@ pub fn read_clock(
 /// Reads a timer start, offering now and accepting relative minutes or a clock time.
 /// Without a terminal, an omitted value retains the default of now.
 pub fn read_start(context: &Context, given: Option<&str>) -> Result<f64> {
-    let calendar = context.calendar()?;
-    let question = Question::new(
-        "start time",
-        "When did it start? (e.g. 358 am or 10 minutes ago)",
+    read_instant(
+        context,
+        given,
+        "When did it start? (e.g. 358 am or 32 mins ago)",
         "--start <TIME>",
     )
-    .with_default("now");
+}
+
+/// Reads when an event happened, using the same defaults and parser as sleep starts.
+pub fn read_at(context: &Context, given: Option<&str>) -> Result<f64> {
+    read_instant(
+        context,
+        given,
+        "When? (e.g. 358 am or 32 mins ago)",
+        "--at <TIME>",
+    )
+}
+
+/// Resolves an answer after it is read, so accepting now means the current instant.
+fn read_instant(context: &Context, given: Option<&str>, label: &str, flag: &str) -> Result<f64> {
+    let calendar = context.calendar()?;
+    let question = Question::new("time", label, flag).with_default("now");
     let given = given.or_else(|| (!std::io::stdin().is_terminal()).then_some("now"));
     read(context, given, &question, |text, interactive| {
         let now = now_seconds();

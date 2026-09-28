@@ -171,6 +171,32 @@ Only `timerStartTime` is backdated (and converted to milliseconds); the
 synchronization timestamps describe the current write. Both methods retain
 the same merge semantics and timer shape researched by Woyken.
 
+## Explicit event times
+
+The `log_bottle_at`, `log_solids_at`, `log_diaper_at`, `log_potty_at` and
+`log_growth_at` methods add a final Unix timestamp in seconds. Their original
+methods remain available and delegate with the current time. History starts,
+timestamp-based row IDs and timezone offsets use the event time; `lastUpdated`,
+`timestamp` and `local_timestamp` describe the current write. Each operation
+reads the corresponding last-entry summary before writing and updates that
+summary only if the new entry is newer, following manual sleep's existing rule.
+
+Nursing start, pause, resume, switch and completion also have `_at` variants,
+as do sleep pause, resume and completion. Sleep's timer fields remain in
+milliseconds, while nursing's remain in seconds. Nursing pause banks durations
+and keeps its event time in `timerStartTime` as the boundary for the next
+transition. Transitions preceding that boundary are invalid. Sleep transitions
+cannot precede the start or, after a transition, the last pause or resume time. A paused timer retains
+its existing completion semantics: sleep ends when paused, and nursing records
+only its banked durations. Sleep resume still counts the pause as part of a
+continuous sleep. While running, `timerEndTime` retains the resume time as a
+transition boundary; it does not end the running sleep. Nursing completion
+preserves newer last-nursing and last-side summaries.
+
+These timestamp parameters extend this Rust port, using the original tracker
+schemas and operation semantics researched by Woyken in `py-huckleberry-api`.
+No new upstream operations or field names were ported.
+
 ## Name mapping
 
 The models drop the `Firebase` prefix, because the crate name is the namespace.

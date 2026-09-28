@@ -101,6 +101,17 @@ impl Huckleberry {
     ///
     /// As every write: a refused or unreachable Firestore.
     pub async fn start_nursing(&self, cid: &str, side: FeedSide) -> Result<()> {
+        self.start_nursing_at(cid, side, now_seconds()).await
+    }
+
+    /// Performs this operation at a Unix timestamp in seconds.
+    /// Synchronization timestamps still describe the current write.
+    ///
+    /// # Errors
+    ///
+    /// Invalid event times or a refused or unreachable Firestore.
+    pub async fn start_nursing_at(&self, cid: &str, side: FeedSide, at: f64) -> Result<()> {
+        super::super::timing::validate_time(at, None)?;
         let now = now_seconds();
         let document = FeedDocument {
             timer: Some(FeedTimer {
@@ -108,8 +119,8 @@ impl Huckleberry {
                 paused: false,
                 timestamp: Some(Timestamp::at(now)),
                 local_timestamp: Some(Number::Float(now)),
-                feed_start_time: Some(Number::Float(now)),
-                timer_start_time: Some(Number::Float(now)),
+                feed_start_time: Some(Number::Float(at)),
+                timer_start_time: Some(Number::Float(at)),
                 uuid: ids::session_id(),
                 left_duration: Some(Number::Float(0.0)),
                 right_duration: Some(Number::Float(0.0)),
@@ -135,19 +146,31 @@ impl Huckleberry {
     ///
     /// As [`Huckleberry::start_nursing`].
     pub async fn pause_nursing(&self, cid: &str) -> Result<TimerChange> {
+        self.pause_nursing_at(cid, now_seconds()).await
+    }
+
+    /// Performs this operation at a Unix timestamp in seconds.
+    /// Synchronization timestamps still describe the current write.
+    ///
+    /// # Errors
+    ///
+    /// Invalid event times or a refused or unreachable Firestore.
+    pub async fn pause_nursing_at(&self, cid: &str, at: f64) -> Result<TimerChange> {
         let Some(timer) = self.feed_timer(cid).await? else {
             return Ok(TimerChange::NotRunning);
         };
         if timer.paused {
             return Ok(TimerChange::Unchanged);
         }
+        super::super::timing::validate_time(at, timer.timer_start_time.map(Number::as_f64))?;
         let now = now_seconds();
-        let (left, right) = nursing_totals(&timer, now);
+        let (left, right) = nursing_totals(&timer, at);
         let side = timer.current_side();
         self.update_feed(
             cid,
             &[
                 FieldUpdate::set("timer.paused", json!(true)),
+                FieldUpdate::set("timer.timerStartTime", json!(at)),
                 FieldUpdate::set("timer.active", json!(true)),
                 FieldUpdate::set("timer.timestamp", json!({ "seconds": now })),
                 FieldUpdate::set("timer.local_timestamp", json!(now)),
@@ -169,12 +192,28 @@ impl Huckleberry {
     ///
     /// As [`Huckleberry::start_nursing`].
     pub async fn resume_nursing(&self, cid: &str, side: Option<FeedSide>) -> Result<TimerChange> {
+        self.resume_nursing_at(cid, side, now_seconds()).await
+    }
+
+    /// Performs this operation at a Unix timestamp in seconds.
+    /// Synchronization timestamps still describe the current write.
+    ///
+    /// # Errors
+    ///
+    /// Invalid event times or a refused or unreachable Firestore.
+    pub async fn resume_nursing_at(
+        &self,
+        cid: &str,
+        side: Option<FeedSide>,
+        at: f64,
+    ) -> Result<TimerChange> {
         let Some(timer) = self.feed_timer(cid).await? else {
             return Ok(TimerChange::NotRunning);
         };
         if !timer.paused {
             return Ok(TimerChange::Unchanged);
         }
+        super::super::timing::validate_time(at, timer.timer_start_time.map(Number::as_f64))?;
         let now = now_seconds();
         let side = side
             .or_else(|| timer.last_side.clone())
@@ -187,7 +226,7 @@ impl Huckleberry {
                 FieldUpdate::set("timer.timestamp", json!({ "seconds": now })),
                 FieldUpdate::set("timer.local_timestamp", json!(now)),
                 // The side starts accruing from now; what it had is banked.
-                FieldUpdate::set("timer.timerStartTime", json!(now)),
+                FieldUpdate::set("timer.timerStartTime", json!(at)),
                 FieldUpdate::set("timer.activeSide", json!(side.as_str())),
                 FieldUpdate::set("timer.lastSide", json!(FeedSide::None.as_str())),
             ],
@@ -205,11 +244,22 @@ impl Huckleberry {
     ///
     /// As [`Huckleberry::start_nursing`].
     pub async fn switch_nursing_side(&self, cid: &str) -> Result<TimerChange> {
+        self.switch_nursing_side_at(cid, now_seconds()).await
+    }
+
+    /// Performs this operation at a Unix timestamp in seconds.
+    /// Synchronization timestamps still describe the current write.
+    ///
+    /// # Errors
+    ///
+    /// Invalid event times or a refused or unreachable Firestore.
+    pub async fn switch_nursing_side_at(&self, cid: &str, at: f64) -> Result<TimerChange> {
         let Some(timer) = self.feed_timer(cid).await? else {
             return Ok(TimerChange::NotRunning);
         };
+        super::super::timing::validate_time(at, timer.timer_start_time.map(Number::as_f64))?;
         let now = now_seconds();
-        let (left, right) = nursing_totals(&timer, now);
+        let (left, right) = nursing_totals(&timer, at);
         let next = opposite_side(&timer.current_side());
         self.update_feed(
             cid,
@@ -218,7 +268,7 @@ impl Huckleberry {
                 FieldUpdate::set("timer.lastSide", json!(FeedSide::None.as_str())),
                 FieldUpdate::set("timer.timestamp", json!({ "seconds": now })),
                 FieldUpdate::set("timer.local_timestamp", json!(now)),
-                FieldUpdate::set("timer.timerStartTime", json!(now)),
+                FieldUpdate::set("timer.timerStartTime", json!(at)),
                 FieldUpdate::set("timer.activeSide", json!(next.as_str())),
                 FieldUpdate::set("timer.leftDuration", json!(left)),
                 FieldUpdate::set("timer.rightDuration", json!(right)),
@@ -268,15 +318,34 @@ impl Huckleberry {
     ///
     /// As [`Huckleberry::start_nursing`].
     pub async fn complete_nursing(&self, cid: &str) -> Result<Option<CompletedNursing>> {
-        let Some(timer) = self.feed_timer(cid).await? else {
+        self.complete_nursing_at(cid, now_seconds()).await
+    }
+
+    /// Performs this operation at a Unix timestamp in seconds.
+    /// Synchronization timestamps still describe the current write.
+    ///
+    /// # Errors
+    ///
+    /// Invalid event times or a refused or unreachable Firestore.
+    pub async fn complete_nursing_at(
+        &self,
+        cid: &str,
+        at: f64,
+    ) -> Result<Option<CompletedNursing>> {
+        let Some(document) = self.feed_document(cid).await? else {
             return Ok(None);
         };
+        let Some(timer) = document.timer.filter(|timer| timer.active) else {
+            return Ok(None);
+        };
+        let prefs = document.prefs;
+        super::super::timing::validate_time(at, timer.timer_start_time.map(Number::as_f64))?;
         let now = now_seconds();
-        let Some(completed) = completed_nursing(&timer, now) else {
+        let Some(completed) = completed_nursing(&timer, at) else {
             return Ok(None);
         };
 
-        let offset = self.zone().offset_minutes(now);
+        let offset = self.zone().offset_minutes(completed.start);
         // Written through `FeedInterval` rather than as a bare row: the enum
         // is what puts `mode` on the document, and the app reads `mode` to
         // decide what kind of feed it is looking at.
@@ -287,14 +356,14 @@ impl Huckleberry {
             left_duration: Number::Float(completed.left_seconds),
             right_duration: Number::Float(completed.right_seconds),
             offset: Number::Float(offset),
-            end_offset: Some(Number::Float(offset)),
+            end_offset: Some(Number::Float(self.zone().offset_minutes(at))),
             notes: None,
         });
         let token = self.token().await?;
         self.firestore()
             .set(
                 &token,
-                &paths::history_row(paths::FEED, cid, &ids::interval_id(now)),
+                &paths::history_row(paths::FEED, cid, &ids::interval_id(completed.start)),
                 &to_fields(&interval)?,
                 "writing the feed to history",
             )
@@ -312,27 +381,44 @@ impl Huckleberry {
             start: Number::Float(completed.start),
             last_side: completed.last_side.clone(),
         };
-        self.update_feed(
-            cid,
-            &[
-                FieldUpdate::set("timer.active", json!(false)),
-                FieldUpdate::set("timer.paused", json!(true)),
-                FieldUpdate::set("timer.timestamp", json!({ "seconds": now })),
-                FieldUpdate::set("timer.local_timestamp", json!(now)),
-                FieldUpdate::set("timer.lastSide", json!(completed.last_side.as_str())),
-                // The banked seconds belong to the history row now; leaving
-                // them on the timer would double them into the next session.
-                FieldUpdate::delete("timer.leftDuration"),
-                FieldUpdate::delete("timer.rightDuration"),
-                FieldUpdate::delete("timer.activeSide"),
-                FieldUpdate::set("prefs.lastNursing", to_json(&last_nursing)?),
-                FieldUpdate::set("prefs.lastSide", to_json(&last_side)?),
-                FieldUpdate::set("prefs.timestamp", json!({ "seconds": now })),
-                FieldUpdate::set("prefs.local_timestamp", json!(now)),
-            ],
-            "finishing the nursing session",
-        )
-        .await?;
+        let mut updates = vec![
+            FieldUpdate::set("timer.active", json!(false)),
+            FieldUpdate::set("timer.paused", json!(true)),
+            FieldUpdate::set("timer.timestamp", json!({ "seconds": now })),
+            FieldUpdate::set("timer.local_timestamp", json!(now)),
+            FieldUpdate::set("timer.lastSide", json!(completed.last_side.as_str())),
+            // The banked seconds belong to the history row now; leaving
+            // them on the timer would double them into the next session.
+            FieldUpdate::delete("timer.leftDuration"),
+            FieldUpdate::delete("timer.rightDuration"),
+            FieldUpdate::delete("timer.activeSide"),
+            FieldUpdate::set("prefs.timestamp", json!({ "seconds": now })),
+            FieldUpdate::set("prefs.local_timestamp", json!(now)),
+        ];
+        if super::super::sleep::replaces_last(
+            prefs
+                .as_ref()
+                .and_then(|prefs| prefs.last_nursing.as_ref())
+                .and_then(|last| last.start)
+                .map(Number::as_f64),
+            completed.start,
+        ) {
+            updates.push(FieldUpdate::set(
+                "prefs.lastNursing",
+                to_json(&last_nursing)?,
+            ));
+        }
+        if super::super::sleep::replaces_last(
+            prefs
+                .as_ref()
+                .and_then(|prefs| prefs.last_side.as_ref())
+                .map(|last| last.start.as_f64()),
+            completed.start,
+        ) {
+            updates.push(FieldUpdate::set("prefs.lastSide", to_json(&last_side)?));
+        }
+        self.update_feed(cid, &updates, "finishing the nursing session")
+            .await?;
         Ok(Some(completed))
     }
 

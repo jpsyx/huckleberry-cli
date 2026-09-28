@@ -60,7 +60,7 @@ src/
 ├── dataset.rs       pulling one child into one value, and the snapshot format
 ├── edit.rs          what an edit is: which row, which fields, what they hold
 ├── prompt.rs        asking for a value that was left out
-├── prompt/time.rs   shared clock-time and relative-start questions
+├── prompt/time.rs   shared clock-time and relative-event questions
 ├── theme.rs         semantic colours
 ├── domain/          everything the tool works out, and nothing it prints
 │   └── clock.rs     a time somebody typed, and the instant it means
@@ -109,10 +109,13 @@ Every value a command needs is looked for in the same order:
 3. a question, asked through `src/prompt.rs`, when there is a terminal;
 4. a failure naming the flag, when there is not.
 
-Optional timer starts keep their noninteractive default of now.
-`prompt/time.rs` shares the clock reader and AM/PM question between manual
-sleeps and timer starts; `domain/clock.rs` parses relative minutes using an
-explicit `now`. Timer starts resolve against the clock after the answer is read.
+Event times keep their noninteractive default of now. `prompt/time.rs` shares
+the clock reader and AM/PM question between manual sleeps, instant recordings
+and timer transitions; `domain/clock.rs` parses relative minutes using an
+explicit `now`. Times resolve against the clock after the answer is read.
+Commands pass them to explicit-time API operations, which keep event times
+separate from synchronization timestamps. `ops/timing.rs` validates transition
+ordering and checks that backfilled instant events preserve newer summaries.
 
 Step 4 is why an agent never hangs on a question it cannot see. See
 [`rules/cli-ux.md`](rules/cli-ux.md).

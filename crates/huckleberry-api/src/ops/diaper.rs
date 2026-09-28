@@ -65,7 +65,23 @@ impl Huckleberry {
         mode: DiaperMode,
         details: &DiaperDetails,
     ) -> Result<()> {
-        self.log_diaper_event(cid, mode, details, None).await
+        self.log_diaper_at(cid, mode, details, now_seconds()).await
+    }
+
+    /// Performs this operation at a Unix timestamp in seconds.
+    /// Synchronization timestamps still describe the current write.
+    ///
+    /// # Errors
+    ///
+    /// Invalid event times or a refused or unreachable Firestore.
+    pub async fn log_diaper_at(
+        &self,
+        cid: &str,
+        mode: DiaperMode,
+        details: &DiaperDetails,
+        at: f64,
+    ) -> Result<()> {
+        self.log_diaper_event(cid, mode, details, None, at).await
     }
 
     /// Records a potty trip, in the same tracker.
@@ -80,7 +96,25 @@ impl Huckleberry {
         how_it_happened: PottyResult,
         details: &DiaperDetails,
     ) -> Result<()> {
-        self.log_diaper_event(cid, mode, details, Some(how_it_happened))
+        self.log_potty_at(cid, mode, how_it_happened, details, now_seconds())
+            .await
+    }
+
+    /// Performs this operation at a Unix timestamp in seconds.
+    /// Synchronization timestamps still describe the current write.
+    ///
+    /// # Errors
+    ///
+    /// Invalid event times or a refused or unreachable Firestore.
+    pub async fn log_potty_at(
+        &self,
+        cid: &str,
+        mode: DiaperMode,
+        how_it_happened: PottyResult,
+        details: &DiaperDetails,
+        at: f64,
+    ) -> Result<()> {
+        self.log_diaper_event(cid, mode, details, Some(how_it_happened), at)
             .await
     }
 
@@ -154,6 +188,7 @@ impl Huckleberry {
         mode: DiaperMode,
         details: &DiaperDetails,
         how_it_happened: Option<PottyResult>,
+        at: f64,
     ) -> Result<()> {
         let is_potty = how_it_happened.is_some();
         let operation = if is_potty {
@@ -161,12 +196,21 @@ impl Huckleberry {
         } else {
             "recording the diaper"
         };
+        super::timing::validate_time(at, None)?;
+        let replaces = self
+            .replaces_summary(
+                paths::DIAPER,
+                cid,
+                if is_potty { "lastPotty" } else { "lastDiaper" },
+                at,
+            )
+            .await?;
         let now = now_seconds();
-        let offset = self.zone().offset_minutes(now);
+        let offset = self.zone().offset_minutes(at);
 
         let entry = DiaperEntry {
             mode: mode.clone(),
-            start: Number::Float(now),
+            start: Number::Float(at),
             last_updated: Some(Number::Float(now)),
             offset: Number::Float(offset),
             quantity: quantity(details.pee_amount.as_ref(), details.poo_amount.as_ref()),
@@ -184,21 +228,25 @@ impl Huckleberry {
         self.firestore()
             .set(
                 &token,
-                &paths::history_row(paths::DIAPER, cid, &ids::interval_id(now)),
+                &paths::history_row(paths::DIAPER, cid, &ids::interval_id(at)),
                 &to_fields(&entry)?,
                 operation,
             )
             .await?;
 
+        if !replaces {
+            return Ok(());
+        }
+
         let summary = if is_potty {
             to_json(&LastPotty {
                 mode: Some(mode),
-                start: Some(Number::Float(now)),
+                start: Some(Number::Float(at)),
                 offset: Some(Number::Float(offset)),
             })?
         } else {
             to_json(&LastDiaper {
-                start: Some(Number::Float(now)),
+                start: Some(Number::Float(at)),
                 mode: Some(mode),
                 offset: Some(Number::Float(offset)),
             })?

@@ -11,11 +11,30 @@ use crate::prompt::{self, Choice, Question};
 use crate::render::{format, output};
 use crate::session::Context;
 
+/// Unanswered bottle fields, including its event time.
+struct BottleInput<'a> {
+    amount: Option<f64>,
+    bottle_type: Option<BottleKind>,
+    units: Option<Units>,
+    notes: Option<&'a str>,
+    at: Option<&'a str>,
+}
+
+/// Unanswered meal fields, including its event time.
+struct MealInput<'a> {
+    foods: &'a [String],
+    amount: Option<&'a str>,
+    reaction: Option<Reaction>,
+    notes: Option<&'a str>,
+    at: Option<&'a str>,
+}
+
 /// Runs the chosen action.
 pub async fn run(context: &Context, action: &FeedAction) -> Result<()> {
     let (client, cid) = super::client_and_child(context).await?;
     let outcome = match action {
         FeedAction::Bottle {
+            at,
             amount,
             bottle_type,
             units,
@@ -25,15 +44,19 @@ pub async fn run(context: &Context, action: &FeedAction) -> Result<()> {
                 context,
                 &client,
                 &cid,
-                *amount,
-                *bottle_type,
-                *units,
-                notes.as_deref(),
+                BottleInput {
+                    amount: *amount,
+                    bottle_type: *bottle_type,
+                    units: *units,
+                    notes: notes.as_deref(),
+                    at: at.as_deref(),
+                },
             )
             .await
         }
         FeedAction::Nursing { action } => nursing(context, &client, &cid, action).await,
         FeedAction::Solids {
+            at,
             foods,
             amount,
             reaction,
@@ -43,10 +66,13 @@ pub async fn run(context: &Context, action: &FeedAction) -> Result<()> {
                 context,
                 &client,
                 &cid,
-                foods,
-                amount.as_deref(),
-                *reaction,
-                notes.as_deref(),
+                MealInput {
+                    foods,
+                    amount: amount.as_deref(),
+                    reaction: *reaction,
+                    notes: notes.as_deref(),
+                    at: at.as_deref(),
+                },
             )
             .await
         }
@@ -65,11 +91,15 @@ async fn bottle(
     context: &Context,
     client: &Huckleberry,
     cid: &str,
-    amount: Option<f64>,
-    bottle_type: Option<BottleKind>,
-    units: Option<Units>,
-    notes: Option<&str>,
+    input: BottleInput<'_>,
 ) -> Result<()> {
+    let BottleInput {
+        amount,
+        bottle_type,
+        units,
+        notes,
+        at,
+    } = input;
     // The `units` setting is the default, not the answer: somebody who mostly
     // records in ounces still gives the odd bottle in millilitres.
     let configured = Units::from_setting(&context.config.units);
@@ -93,12 +123,21 @@ async fn bottle(
         None => ask_for_notes(context)?,
     };
 
+    let at = prompt::time::read_at(context, at)?;
     client
-        .log_bottle(cid, amount, kind.to_api(), units.to_api(), notes.as_deref())
+        .log_bottle_at(
+            cid,
+            amount,
+            kind.to_api(),
+            units.to_api(),
+            notes.as_deref(),
+            at,
+        )
         .await?;
     context.receipt(
         "🍼 Bottle recorded",
         &[
+            ("When", format::date_time(at, &context.calendar()?)),
             (
                 "Amount",
                 format!("{} {}", format::amount_in(amount, units), units.as_str()),
@@ -256,37 +295,43 @@ async fn nursing(
     action: &NursingAction,
 ) -> Result<()> {
     match action {
-        NursingAction::Start { side } => {
+        NursingAction::Start { side, start } => {
             let side = match side {
                 Some(given) => given.to_api(),
                 None => suggested_side(context, client, cid).await?,
             };
-            client.start_nursing(cid, side.clone()).await?;
+            let at = prompt::time::read_start(context, start.as_deref())?;
+            client.start_nursing_at(cid, side.clone(), at).await?;
             context.report(&format!("Nursing started on the {side}."));
             Ok(())
         }
-        NursingAction::Pause => {
+        NursingAction::Pause { at } => {
+            let at = prompt::time::read_at(context, at.as_deref())?;
             report(
                 context,
-                client.pause_nursing(cid).await?,
+                client.pause_nursing_at(cid, at).await?,
                 "Paused.",
                 "paused",
             );
             Ok(())
         }
-        NursingAction::Resume { side } => {
+        NursingAction::Resume { side, at } => {
+            let at = prompt::time::read_at(context, at.as_deref())?;
             report(
                 context,
-                client.resume_nursing(cid, side.map(Side::to_api)).await?,
+                client
+                    .resume_nursing_at(cid, side.map(Side::to_api), at)
+                    .await?,
                 "Resumed.",
                 "running",
             );
             Ok(())
         }
-        NursingAction::Switch => {
+        NursingAction::Switch { at } => {
+            let at = prompt::time::read_at(context, at.as_deref())?;
             report(
                 context,
-                client.switch_nursing_side(cid).await?,
+                client.switch_nursing_side_at(cid, at).await?,
                 "Switched sides.",
                 "running",
             );
@@ -301,7 +346,7 @@ async fn nursing(
             );
             Ok(())
         }
-        NursingAction::Stop => stop_nursing(context, client, cid).await,
+        NursingAction::Stop { at } => stop_nursing(context, client, cid, at.as_deref()).await,
         NursingAction::Status => nursing_status(context, client, cid).await,
     }
 }
@@ -346,8 +391,14 @@ async fn suggested_side(context: &Context, client: &Huckleberry, cid: &str) -> R
     })
 }
 
-async fn stop_nursing(context: &Context, client: &Huckleberry, cid: &str) -> Result<()> {
-    match client.complete_nursing(cid).await? {
+async fn stop_nursing(
+    context: &Context,
+    client: &Huckleberry,
+    cid: &str,
+    at: Option<&str>,
+) -> Result<()> {
+    let at = prompt::time::read_at(context, at)?;
+    match client.complete_nursing_at(cid, at).await? {
         Some(completed) => {
             context.receipt(
                 "🤱 Nursing recorded",
@@ -413,11 +464,15 @@ async fn solids(
     context: &Context,
     client: &Huckleberry,
     cid: &str,
-    foods: &[String],
-    amount: Option<&str>,
-    reaction: Option<Reaction>,
-    notes: Option<&str>,
+    input: MealInput<'_>,
 ) -> Result<()> {
+    let MealInput {
+        foods,
+        amount,
+        reaction,
+        notes,
+        at,
+    } = input;
     let named = if foods.is_empty() {
         vec![ask_for_food(context, client, cid).await?]
     } else {
@@ -442,18 +497,21 @@ async fn solids(
         .map(|name| match_food(name, &known, &amount))
         .collect();
 
+    let at = prompt::time::read_at(context, at)?;
     client
-        .log_solids(
+        .log_solids_at(
             cid,
             &references,
             notes.as_deref(),
             reaction.map(Reaction::to_api),
             None,
+            at,
         )
         .await?;
     context.receipt(
         "🥑 Meal recorded",
         &[
+            ("When", format::date_time(at, &context.calendar()?)),
             ("Foods", named.join(", ")),
             ("Amount", amount),
             (

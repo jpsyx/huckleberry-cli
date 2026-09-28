@@ -229,6 +229,10 @@ pub enum Command {
 
     /// Record a diaper change.
     Diaper {
+        /// When it happened: `now`, `358 am`, or `32 mins ago`.
+        /// Left out on a terminal, you are asked; otherwise defaults to now.
+        #[arg(long, value_name = "TIME")]
+        at: Option<String>,
         /// What was in it. Left out on a terminal, you are asked.
         #[arg(short, long, value_enum)]
         mode: Option<DiaperKind>,
@@ -260,6 +264,10 @@ pub enum Command {
 
     /// Record a potty trip.
     Potty {
+        /// When it happened: `now`, `358 am`, or `32 mins ago`.
+        /// Left out on a terminal, you are asked; otherwise defaults to now.
+        #[arg(long, value_name = "TIME")]
+        at: Option<String>,
         /// What happened. Left out on a terminal, you are asked.
         #[arg(short, long, value_enum)]
         mode: Option<DiaperKind>,
@@ -283,6 +291,10 @@ pub enum Command {
 
     /// Record a growth measurement.
     Growth {
+        /// When it happened: `now`, `358 am`, or `32 mins ago`.
+        /// Left out on a terminal, you are asked; otherwise defaults to now.
+        #[arg(long, value_name = "TIME")]
+        at: Option<String>,
         /// Weight, in kilograms or pounds.
         #[arg(short, long, value_name = "NUMBER")]
         weight: Option<f64>,
@@ -396,6 +408,7 @@ mod tests {
             consistency,
             rash,
             notes,
+            ..
         } = cli.command
         else {
             panic!("expected a diaper");
