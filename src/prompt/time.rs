@@ -19,7 +19,8 @@ pub fn read_clock(
     label: &str,
     flag: &str,
 ) -> Result<TimeOfDay> {
-    let question = Question::new("time", label, flag);
+    let question = Question::new("time", label, flag)
+        .with_help("E.g. '1:23 pm' or '123pm' or '21:30' are all valid");
     read(context, given, &question, |text, interactive| {
         parse_clock(context, text, interactive)
     })

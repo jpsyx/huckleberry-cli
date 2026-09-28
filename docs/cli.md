@@ -109,7 +109,9 @@ switches, also ask when. Cancel and status do not record an event and need no ti
 Every **When?** prompt, including history and ongoing-timer edits, shows
 `E.g. '1:23 pm' or '123pm' or '32 min ago' are all valid` beneath the question
 in the muted hint colour. The helper remains readable as plain text when
-colour is disabled. Timer-start questions use the same helper.
+colour is disabled. Timer-start questions use the same helper. Both manual-sleep
+questions show clock-only examples (`1:23 pm`, `123pm`, `21:30`) in the same
+muted style, since manual sleep accepts clock times rather than relative minutes.
 
 All these questions share the sleep-start parser: `358 am`, `3:58 a.m.`,
 `0358`, `21:30`, `9pm`, or whole relative minutes such as `32 mins ago`.
