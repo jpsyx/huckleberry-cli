@@ -105,3 +105,115 @@ the file stays readable as shell.
 
 **Revisit when.** A task needs logic rather than a command line. That is the
 moment `cargo xtask` starts paying for itself.
+
+## The client is a package of its own, not a module
+
+**Decision.** The Huckleberry client lives in `crates/huckleberry-api`, a
+workspace member with its own version, its own lint configuration and its own
+typed error enum. The CLI depends on it by path.
+
+**Why.** The brief was that the API should read as a library any Rust program
+could take, which happens to be consumed here. A module inside the binary
+crate cannot be that: it would inherit the binary's `anyhow`, its
+`missing_errors_doc = "allow"`, and eventually a use of its configuration.
+Separating them makes each of those a compile error instead of a code review
+note. Publishing it is a `cargo publish` away.
+
+**Consequences.** Two `Cargo.toml` files, and a lint configuration that is not
+shared: the library documents `# Errors` on every fallible function and the
+binary does not, which is the right bar for each. The workspace sets
+`default-members` so a bare `cargo test` still covers both.
+
+**Revisit when.** Never, unless the client stops being useful on its own.
+
+## Firestore is reached over REST
+
+**Decision.** The client speaks the Firestore REST API directly rather than
+using a gRPC client.
+
+**Why.** No Rust Firestore crate accepts a bare Firebase ID token; they expect
+Google service-account credentials. Adapting one means either forging
+credentials or vendoring its auth layer. Meanwhile the whole surface this
+client needs is five requests, and REST serves all five with nothing but
+`reqwest` and `serde`. A gRPC stack (`tonic`, `prost`, generated protos) would
+have been larger than the rest of the dependency tree combined.
+
+**Consequences.** No real-time listeners: `Listen` is a bidirectional gRPC
+stream with no REST equivalent, so `setup_*_listener` becomes polling in
+`ops::watch`. A polled document is late by up to its interval and costs one
+read per interval. For a dashboard that is acceptable; for a home-automation
+integration it might not be.
+
+The Firestore value codec is ours: `firestore::value` converts between the
+tagged wire format and `serde_json::Value`, which is forty lines and the
+reason every model can be a plain serde struct.
+
+**Revisit when.** A Rust Firestore client appears that takes an ID token, or
+this grows a use that genuinely needs push.
+
+## Secrets live in a second file, with a mode
+
+**Decision.** `config.toml` holds settings and nothing secret. The email, the
+password and the session live in `credentials.toml` beside it, written with
+mode `0600` set at open time. `HUCKLEBERRY_EMAIL` and `HUCKLEBERRY_PASSWORD`
+override the file, and a password that came from the environment is never
+written back to it.
+
+**Why.** The settings file wants to be shown to people: pasted into a bug
+report, committed to a dotfiles repository, printed by `config show`. A
+password in it makes all of that a mistake. Two files make the distinction
+structural rather than a matter of remembering, and a test asserts that no
+setting is named `password`, `email`, `token` or `session`.
+
+The OS keychain was the alternative. It is more secure and it was rejected for
+now: it adds a dependency with real platform caveats, and it makes the
+CI and agent paths harder exactly where this tool wants them easy.
+
+**Consequences.** The refresh token is on disk in plain text, readable by the
+account that put it there, and anybody who can read that file can read the
+account. `auth logout` deletes it. On Windows there is no portable `0600`, and
+the code says so at the one place it matters.
+
+**Revisit when.** The tool is used somewhere a local file is not an acceptable
+place for a token, or somebody wants a shared machine. That is the moment to
+weigh `keyring` against this.
+
+## Nothing about a baby's day is ever coloured as a problem
+
+**Decision.** The screens never paint a number red, never flag it, and never
+alarm. Typical ranges are grey text and the tool says where a number sits
+relative to one, in a declarative sentence, and stops.
+
+**Why.** This is a tool a frightened first-time parent opens at 3am. A red
+number is a verdict, and this program is in no position to deliver one. The
+rule is inherited from the dashboard this grew out of, along with its sharper
+corollary: there is no reference band for milk volume at any age, because the
+obvious one describes established feeding and drawing it in week one would
+tell a parent they are underfeeding their baby.
+
+**Consequences.** `domain::reference` has no volume metric at all, so it cannot
+be added by accident; a test walks every label and fails on "should", "must",
+"need" and "doctor"; another asserts the day table emits no `error` or
+`warning` tone. `Tone::Error` is still used, for the tool's own failures, which
+are the tool's fault and not the baby's.
+
+**Revisit when.** Never on the medical side. The mechanism could change.
+
+## The analysis layer never reads the clock
+
+**Decision.** Everything in `src/domain` takes `now` as an argument. Nothing in
+it calls `SystemTime::now`, opens a socket, or writes to a terminal.
+
+**Why.** Almost every interesting bug in this problem domain is a date bug: a
+sleep across midnight, a night window that spans midnight, a day that is 23
+hours long because the clocks went forward, a "last night" that means something
+different at noon than at 3am. All of those are one-line tests when the
+function takes the instant and untestable when it reads one.
+
+**Consequences.** A lot of `now: f64` parameters, and one place
+(`huckleberry_api::client::now_seconds`) that actually reads the clock. The
+domain tests run in milliseconds and have no fixtures on disk. The same
+discipline extends to `render`, which returns `Vec<String>` rather than
+printing, so every screen is asserted line by line.
+
+**Revisit when.** It does not need revisiting; it needs keeping.

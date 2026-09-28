@@ -2,16 +2,25 @@
 
 ## Stack
 
-- This project is a command-line tool written in Rust (edition 2024) and built
-  with cargo. There is no web server and no browser: the interface is the
-  terminal.
-- The command-line surface is **clap** (derive), the settings are a **serde**
-  struct stored as **TOML**, and failures travel as **anyhow** errors carrying
-  the context that produced them.
+- This project is a Rust workspace (edition 2024) with two packages. There is
+  no web server and no browser: the interface is the terminal.
+- `crates/huckleberry-api` is a reusable client for the Huckleberry baby
+  tracking app. **It depends on nothing else in this repository**, returns
+  typed errors rather than `anyhow`, and prints nothing. Keep it that way: it
+  is meant to be publishable on its own. Read
+  [`docs/api.md`](docs/api.md) before changing it.
+- `src/` is the command-line tool. The command-line surface is **clap**
+  (derive), the settings are a **serde** struct stored as **TOML**, the
+  full-screen dashboard is **ratatui**, and failures travel as **anyhow**
+  errors carrying the context that produced them.
 - `src/main.rs` is deliberately thin. It parses arguments and hands them to the
   library in `src/`, so every decision is reachable from a test without
   spawning a process. Read [`docs/architecture.md`](docs/architecture.md)
   before adding a module.
+- **`src/domain` never reads the clock, touches the network, or writes to a
+  terminal**, and `src/render` returns lines rather than printing them. Every
+  function takes `now` as an argument. That is what makes the date arithmetic
+  testable, and it is not negotiable.
 - Every action is reachable with flags alone. A value left out on a terminal is
   asked for through `src/prompt.rs`, never demanded through a prompt an agent
   cannot answer.
@@ -24,7 +33,10 @@
 - Use `docs/` for architectural notes, design decisions, functionality
   overviews, and checklists (for example `docs/<topic>.md`). These docs exist
   so future humans and LLMs can learn the codebase quickly without having to
-  read all of the source.
+  read all of the source. The current set is
+  [`architecture.md`](docs/architecture.md), [`api.md`](docs/api.md),
+  [`cli.md`](docs/cli.md), [`dashboards.md`](docs/dashboards.md),
+  [`decisions.md`](docs/decisions.md) and [`skills.md`](docs/skills.md).
 - **Keep the docs current as you build. This is a rule, not a suggestion.**
   Whenever you add, change, or remove a feature, module, route, data model, or
   architectural boundary, create or update the relevant file(s) in `docs/` as
@@ -91,10 +103,10 @@ also type by hand.
 ```sh
 # run it (with no subcommand it prints its help)
 cargo run -- --help
-cargo run -- greet --name Ada                 # just run greet --name Ada
+cargo run -- now                              # just run now
 cargo run -- config show                      # just run config show
 
-# the full test suite: the inline unit tests plus tests/
+# the full test suite for both packages: inline unit tests plus tests/
 cargo test                                    # just test
 
 # lint clean (clippy pedantic + nursery are on, warnings are errors)

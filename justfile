@@ -14,11 +14,11 @@ default:
 build:
     cargo build
 
-# Run the CLI, for example: just run greet --name Ada
+# Run the CLI, for example: just run now
 run *args:
     cargo run -- "$@"
 
-# Run every test: the inline unit tests and tests/.
+# Run every test in both packages: the inline unit tests and tests/.
 test:
     cargo test
 
