@@ -184,11 +184,18 @@ impl Context {
 }
 
 /// The failure when nobody has signed in and there is nobody to ask.
+///
+/// Names the command as it was actually invoked, because `install.sh --name`
+/// means this tool does not know what it is called.
 #[must_use]
 pub fn not_signed_in_message() -> String {
-    format!(
-        "not signed in: run `huckleberry-cli auth login`, or set {EMAIL_ENV} and {PASSWORD_ENV}"
-    )
+    sign_in_hint(&crate::program_name())
+}
+
+/// The same message, for a given command name.
+#[must_use]
+pub fn sign_in_hint(command: &str) -> String {
+    format!("not signed in: run `{command} auth login`, or set {EMAIL_ENV} and {PASSWORD_ENV}")
 }
 
 /// Which child to act on, given what the flag and the configuration say.
@@ -253,6 +260,13 @@ mod tests {
         assert!(message.contains("auth login"), "{message}");
         assert!(message.contains(EMAIL_ENV), "{message}");
         assert!(message.contains(PASSWORD_ENV), "{message}");
+    }
+
+    #[test]
+    fn the_refusal_names_the_command_as_it_was_invoked() {
+        // Installed under another name, the hint has to follow.
+        assert!(sign_in_hint("hb").contains("`hb auth login`"));
+        assert!(sign_in_hint("baby").contains("`baby auth login`"));
     }
 
     #[test]

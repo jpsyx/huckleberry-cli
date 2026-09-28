@@ -6,11 +6,14 @@ audiences are first class; see [`rules/cli-ux.md`](rules/cli-ux.md) for why.
 
 ## Getting started
 
+The installed command is `hb`. `./install.sh --name <other>` changes it, and
+everything below works the same under whatever you pick.
+
 ```sh
-huckleberry-cli auth login          # asks for email, password and timezone
-huckleberry-cli child list          # who is on the account
-huckleberry-cli child use           # pick one, and remember it
-huckleberry-cli now                 # the screen this tool exists for
+hb auth login          # asks for email, password and timezone
+hb child list          # who is on the account
+hb child use           # pick one, and remember it
+hb now                 # the screen this tool exists for
 ```
 
 `auth login` saves one child automatically when the account has only one. The
@@ -51,12 +54,12 @@ terminal, you are offered the list.
 ### Sleep
 
 ```sh
-huckleberry-cli sleep start
-huckleberry-cli sleep pause
-huckleberry-cli sleep resume
-huckleberry-cli sleep stop        # records it
-huckleberry-cli sleep cancel      # throws it away
-huckleberry-cli sleep status
+hb sleep start
+hb sleep pause
+hb sleep resume
+hb sleep stop        # records it
+hb sleep cancel      # throws it away
+hb sleep status
 ```
 
 `sleep start` refuses to start a second sleep over a running one, because that
@@ -65,16 +68,16 @@ would leave the first unrecorded.
 ### Feeding
 
 ```sh
-huckleberry-cli feed bottle --amount 90 --type formula
-huckleberry-cli feed bottle                       # asks, offering the last amount
+hb feed bottle --amount 90 --type formula
+hb feed bottle                       # asks, offering the last amount
 
-huckleberry-cli feed nursing start --side left
-huckleberry-cli feed nursing switch
-huckleberry-cli feed nursing pause
-huckleberry-cli feed nursing stop
-huckleberry-cli feed nursing status
+hb feed nursing start --side left
+hb feed nursing switch
+hb feed nursing pause
+hb feed nursing stop
+hb feed nursing status
 
-huckleberry-cli feed solids --food Avocado --reaction loved
+hb feed solids --food Avocado --reaction loved
 ```
 
 `--type` takes `formula`, `breast-milk`, `cow-milk`, `goat-milk`, `soy-milk`,
@@ -88,10 +91,10 @@ which is what the app suggests.
 ### Nappies, potty and growth
 
 ```sh
-huckleberry-cli diaper --mode both --poo medium --color yellow --consistency loose
-huckleberry-cli diaper                        # asks what was in it
-huckleberry-cli potty --mode pee --how went-potty
-huckleberry-cli growth --weight 3.6
+hb diaper --mode both --poo medium --color yellow --consistency loose
+hb diaper                        # asks what was in it
+hb potty --mode pee --how went-potty
+hb growth --weight 3.6
 ```
 
 The nappy prompt asks what was in it and stops there. It offers the colour and
@@ -101,9 +104,9 @@ passed, and only as a yes-or-no first.
 ### Foods
 
 ```sh
-huckleberry-cli foods list --search avocado
-huckleberry-cli foods list --custom
-huckleberry-cli foods add "Sweet potato"
+hb foods list --search avocado
+hb foods list --custom
+hb foods add "Sweet potato"
 ```
 
 `foods list` shows the family's own foods and Huckleberry's curated database,
@@ -112,10 +115,10 @@ the latter flagged for common allergens and choking hazards.
 ## Settings
 
 ```sh
-huckleberry-cli config show
-huckleberry-cli config set days 14
-huckleberry-cli config set          # asks which, and what
-huckleberry-cli config path
+hb config show
+hb config set days 14
+hb config set          # asks which, and what
+hb config path
 ```
 
 | Setting | Default | What it does |
@@ -143,7 +146,7 @@ this from CI or from a password manager:
 
 ```sh
 export HUCKLEBERRY_PASSWORD="$(pass huckleberry)"
-huckleberry-cli now --json
+hb now --json
 ```
 
 `auth logout` deletes the file.
@@ -159,10 +162,10 @@ huckleberry-cli now --json
 - **A non-zero exit means it did not happen.**
 
 ```sh
-huckleberry-cli now --json | jq -r '.last_feed.ago_seconds'
-huckleberry-cli summary --days 30 --json > month.json
-huckleberry-cli export --days 90 --out snapshot.json
-huckleberry-cli --offline snapshot.json stripes
+hb now --json | jq -r '.last_feed.ago_seconds'
+hb summary --days 30 --json > month.json
+hb export --days 90 --out snapshot.json
+hb --offline snapshot.json stripes
 ```
 
 ## Without an account
@@ -171,9 +174,9 @@ huckleberry-cli --offline snapshot.json stripes
 `--offline` opens a socket, so every read-only screen works from a file:
 
 ```sh
-huckleberry-cli export --out snapshot.json
-huckleberry-cli --offline snapshot.json now
-huckleberry-cli --offline snapshot.json dash
+hb export --out snapshot.json
+hb --offline snapshot.json now
+hb --offline snapshot.json dash
 ```
 
 Write commands refuse `--offline` rather than pretending.

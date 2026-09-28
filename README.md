@@ -17,7 +17,7 @@ Both are MIT licensed.
 ## The screen this exists for
 
 ```console
-$ huckleberry-cli now
+$ hb now
 Wren
 
 Last fed       36m ago · 73 ml of Formula · 8:03 pm
@@ -29,7 +29,7 @@ as of 2m ago
 ```
 
 ```console
-$ huckleberry-cli stripes
+$ hb stripes
 Where sleep lands
 
             00          06          12          18
@@ -41,7 +41,7 @@ Wed 23 Sep │██▼█◦███▼◦███ ▼◦  ▼█◦ ▼ █�
 ```
 
 ```console
-$ huckleberry-cli summary
+$ hb summary
 day          feeds  milk ml  formula ml  breast ml  nursed  sleep  night  longest  wet  dirty
 Sun 27 Sep       8      373         223        150     56m   11.3    7.9   2h 36m    7      4
 Sat 26 Sep       9      443         299        144   1h 1m   13.1    9.9   2h 38m    8      3
@@ -52,20 +52,21 @@ Wren is 21 days old
   typical from day 5: 6 or more wet nappies a day
 ```
 
-And `huckleberry-cli dash` for all of it at once, full screen and live.
+And `hb dash` for all of it at once, full screen and live.
 
 ## Getting started
 
 A Rust toolchain is the only prerequisite ([rustup.rs](https://rustup.rs)).
 
 ```sh
-./install.sh                    # builds a release binary into ~/.local/bin
-huckleberry-cli auth login      # asks for email, password and timezone
-huckleberry-cli now
+./install.sh            # builds a release binary into ~/.local/bin
+hb auth login           # asks for email, password and timezone
+hb now
 ```
 
-`./install.sh --name hb` installs it under a shorter name, and `BIN_DIR`
-chooses somewhere other than `~/.local/bin`.
+The command is `hb`, short for huckleberry: this is a tool you reach for at 3am
+one-handed. `./install.sh --name <something-else>` installs it under another
+name, and `BIN_DIR` chooses somewhere other than `~/.local/bin`.
 
 ## What it can do
 
@@ -85,9 +86,9 @@ they follow.
 
 ## Two audiences, both first class
 
-**A person who omits a value is asked for it.** `huckleberry-cli feed bottle`
+**A person who omits a value is asked for it.** `hb feed bottle`
 asks how much, offering the last amount as the default, and what was in it,
-offering the last kind. `huckleberry-cli diaper` asks what was in it. Nobody
+offering the last kind. `hb diaper` asks what was in it. Nobody
 has to read `--help` to do the obvious thing.
 
 **An agent or a script drives everything with flags.** No action is reachable
@@ -97,9 +98,9 @@ prompt nobody will see. Stdout is data and stderr is the conversation, so
 piping anywhere yields plain text.
 
 ```sh
-huckleberry-cli now --json | jq -r '.last_feed.ago_seconds'
-huckleberry-cli feed bottle --amount 90 --type formula
-huckleberry-cli summary --days 30 --json > month.json
+hb now --json | jq -r '.last_feed.ago_seconds'
+hb feed bottle --amount 90 --type formula
+hb summary --days 30 --json > month.json
 ```
 
 ## Your credentials
@@ -113,10 +114,10 @@ password supplied that way is never written to disk:
 
 ```sh
 export HUCKLEBERRY_PASSWORD="$(pass huckleberry)"
-huckleberry-cli now
+hb now
 ```
 
-`huckleberry-cli auth logout` deletes the file.
+`hb auth logout` deletes the file.
 
 ## Trying it without an account
 
@@ -124,8 +125,8 @@ huckleberry-cli now
 `--offline` opens a socket, so every read-only screen works from a file:
 
 ```sh
-huckleberry-cli export --out snapshot.json
-huckleberry-cli --offline snapshot.json dash
+hb export --out snapshot.json
+hb --offline snapshot.json dash
 ```
 
 ## Using the client from your own code
