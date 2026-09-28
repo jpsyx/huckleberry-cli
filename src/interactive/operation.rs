@@ -43,6 +43,11 @@ pub(super) async fn run(
 }
 
 async fn execute(draft: &CommandDraft, globals: &SessionOptions, theme: Theme) -> Result<bool> {
+    if draft.is_unchanged_edit() {
+        eprintln!("The entry is unchanged.");
+        pause(theme)?;
+        return Ok(true);
+    }
     let cli = draft.resolve(globals)?;
     let context = load_context(globals, theme)?;
     let command = cli

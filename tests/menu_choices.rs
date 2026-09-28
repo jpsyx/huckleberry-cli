@@ -175,3 +175,27 @@ fn list_numbering_preserves_row_keys_and_leaves_headings_unnumbered() {
     );
     assert_eq!(lines[1].row, Some(0));
 }
+
+#[test]
+fn long_selected_labels_wrap_inside_the_viewport() {
+    use app::prompt::select::{MenuItem, render};
+    let items = vec![MenuItem {
+        label: "unique beginning and important ending".into(),
+        detail: None,
+    }];
+    let lines = render(
+        "Choose",
+        &items,
+        &Selection::new(1, 0),
+        20,
+        8,
+        app::theme::Theme::dark(false),
+    );
+    assert!(lines.join(" ").contains("ending"));
+    assert!(lines.len() <= 8);
+    assert!(
+        lines
+            .iter()
+            .all(|line| ratatui::text::Line::raw(line).width() < 20)
+    );
+}

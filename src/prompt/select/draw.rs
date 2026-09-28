@@ -26,26 +26,65 @@ pub fn render(
     height: u16,
     theme: Theme,
 ) -> Vec<String> {
-    let width = usize::from(width).max(1);
+    let width = usize::from(width).saturating_sub(1).max(1);
     let count = usize::from(height).saturating_sub(2).max(1);
-    let top = crate::listing::state::scrolled(state.top, state.cursor, count, items.len());
+    let rows = items
+        .iter()
+        .enumerate()
+        .map(|(index, item)| {
+            let marker = if index == state.cursor { ">" } else { " " };
+            let prefix = format!("{marker} {}. ", index + 1);
+            let detail = item
+                .detail
+                .as_ref()
+                .map_or_else(String::new, |text| format!(": {text}"));
+            wrapped(
+                &format!("{prefix}{}{detail}", item.label),
+                width,
+                prefix.len(),
+            )
+        })
+        .collect::<Vec<_>>();
+    let mut top = state
+        .top
+        .min(state.cursor)
+        .min(items.len().saturating_sub(1));
+    while top < state.cursor && rows[top..=state.cursor].iter().map(Vec::len).sum::<usize>() > count
+    {
+        top += 1;
+    }
     let mut lines = vec![theme.prompt(&clipped(label, width))];
-    for (index, item) in items.iter().enumerate().skip(top).take(count) {
-        let marker = if index == state.cursor { ">" } else { " " };
-        let detail = item
-            .detail
-            .as_ref()
-            .map_or_else(String::new, |text| format!(": {text}"));
-        let line = clipped(
-            &format!("{marker} {}. {}{detail}", index + 1, item.label),
-            width,
-        );
-        lines.push(if index == state.cursor {
-            theme.value(&line)
-        } else {
-            line
-        });
+    for (index, row) in rows.iter().enumerate().skip(top) {
+        for line in row {
+            if lines.len() > count {
+                break;
+            }
+            lines.push(if index == state.cursor {
+                theme.value(line)
+            } else {
+                line.clone()
+            });
+        }
+        if lines.len() > count {
+            break;
+        }
     }
     lines.push(theme.muted(&clipped("↑/↓ j/k h/p · Enter selects · Esc back", width)));
+    lines
+}
+
+fn wrapped(text: &str, width: usize, indent: usize) -> Vec<String> {
+    let continuation = " ".repeat(indent.min(width.saturating_sub(1)));
+    let mut lines = Vec::new();
+    let mut line = String::new();
+    for character in text.chars().filter(|character| !character.is_control()) {
+        if ratatui::text::Line::raw(format!("{line}{character}")).width() > width {
+            lines.push(std::mem::replace(&mut line, continuation.clone()));
+        }
+        if ratatui::text::Line::raw(format!("{line}{character}")).width() <= width {
+            line.push(character);
+        }
+    }
+    lines.push(line);
     lines
 }

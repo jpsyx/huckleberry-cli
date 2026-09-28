@@ -27,11 +27,7 @@ pub(super) async fn edit(
         "Keep current option".into(),
         "Use default / ask when running".into(),
     ];
-    let values = arg
-        .get_possible_values()
-        .into_iter()
-        .map(|value| value.get_name().to_owned())
-        .collect::<Vec<_>>();
+    let values = super::choices_for(draft, &binding.argument_id);
     if binding.control == OptionControl::Boolean {
         labels.extend(["Yes".into(), "No".into()]);
     } else if values.is_empty() {

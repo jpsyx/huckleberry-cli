@@ -154,3 +154,38 @@ fn label(draft: &CommandDraft, binding: &OptionBinding) -> String {
         crate::render::output::words(&binding.argument_id)
     )
 }
+
+/// Finite option values, including configuration keys whose clap type is text.
+#[must_use]
+pub fn choices_for(draft: &CommandDraft, id: &str) -> Vec<String> {
+    if draft.path.0 == ["config", "set"] {
+        if id == "key" {
+            return crate::config::Config::KEYS
+                .iter()
+                .map(|key| (*key).into())
+                .collect();
+        }
+        if id == "value" {
+            let key = draft.values.get("key").and_then(|values| values.first());
+            return key.map_or_else(Vec::new, |key| {
+                crate::commands::settings::value_choices(key)
+                    .iter()
+                    .map(|choice| choice.value.into())
+                    .collect()
+            });
+        }
+    }
+    metadata(&draft.path)
+        .and_then(|command| {
+            command
+                .get_arguments()
+                .find(|arg| arg.get_id().as_str() == id)
+                .map(|arg| {
+                    arg.get_possible_values()
+                        .iter()
+                        .map(|value| value.get_name().into())
+                        .collect()
+                })
+        })
+        .unwrap_or_default()
+}

@@ -29,22 +29,19 @@ fn collect(label: &str, items: &[MenuItem], default: usize, theme: Theme) -> Res
     execute!(output, cursor::Hide)?;
     loop {
         let (width, height) = terminal::size().unwrap_or((80, 24));
-        redraw(
-            &mut output,
-            &render(label, items, &state, width, height.saturating_sub(1), theme),
-            drawn,
-        )?;
-        drawn = items
-            .len()
-            .min(usize::from(height).saturating_sub(3).max(1))
-            + 2;
+        let lines = render(label, items, &state, width, height.saturating_sub(1), theme);
+        redraw(&mut output, &lines, drawn)?;
+        drawn = lines.len();
         if let event::Event::Key(key) = event::read().context("reading menu selection")? {
             match state.apply(key, items.len(), usize::from(height).saturating_sub(3)) {
                 SelectionAction::Stay => {}
                 SelectionAction::Submit(index) => {
                     redraw(
                         &mut output,
-                        &[format!("{label} {}", items[index].label)],
+                        &[super::clip(
+                            &format!("{label} {}", items[index].label),
+                            usize::from(width).saturating_sub(1),
+                        )],
                         drawn,
                     )?;
                     return Ok(index);

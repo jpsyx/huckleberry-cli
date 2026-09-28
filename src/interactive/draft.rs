@@ -33,6 +33,11 @@ impl CommandDraft {
     pub fn clear(&mut self, id: &str) {
         self.values.remove(id);
     }
+    /// A completed field picker with every field kept must not reopen the form.
+    #[must_use]
+    pub fn is_unchanged_edit(&self) -> bool {
+        self.path.0 == ["edit"] && self.values.get("set").is_some_and(Vec::is_empty)
+    }
     /// Validates the pending command with the actual CLI parser.
     pub fn resolve(&self, globals: &SessionOptions) -> Result<Cli> {
         let meta = metadata(&self.path).ok_or_else(|| anyhow!("unknown command"))?;

@@ -475,3 +475,7 @@ Static results remain visible until Continue. Escape cancels unfinished input
 and returns to navigation; Escape or Ctrl-C at home exits cleanly. Failures stay
 in the session without retrying the command. Bare nonterminal invocations print
 help and exit successfully. Explicit commands keep their scriptable behavior.
+
+Long menu labels wrap within the visible terminal area. Completing Edit's field
+picker without changing any fields reports that the entry is unchanged. Menu
+output remains on stderr even when command results are redirected to a file.

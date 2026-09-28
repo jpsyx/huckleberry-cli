@@ -132,3 +132,22 @@ fn offline_choice_can_return_to_live() {
     let saved = app::interactive::session::finish_edit(&original, pending, true);
     assert_eq!(saved.to_cli(Some(app::cli::Command::Info)).offline, None);
 }
+
+#[test]
+fn settings_options_use_key_and_value_menus() {
+    let mut draft = CommandDraft::new(CommandPath(vec!["config".into(), "set".into()]));
+    assert!(options::choices_for(&draft, "key").contains(&"units".to_owned()));
+    draft.set("key", vec!["units".into()]);
+    assert_eq!(options::choices_for(&draft, "value"), ["ml", "oz"]);
+}
+
+#[test]
+fn completing_an_edit_without_changes_is_a_noop() {
+    let mut draft = CommandDraft::new(CommandPath(vec!["edit".into()]));
+    assert!(!draft.is_unchanged_edit());
+    draft.set("id", vec!["diaper/example".into()]);
+    draft.set("set", vec![]);
+    assert!(draft.is_unchanged_edit());
+    draft.set("set", vec!["notes=new note".into()]);
+    assert!(!draft.is_unchanged_edit());
+}
