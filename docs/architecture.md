@@ -33,7 +33,15 @@ src/
 │   ├── query.rs     structured queries
 │   └── value.rs     the tagged wire format, in and out
 ├── models/          one module per collection, all plain serde
+│   ├── sleep/       details, timer, interval
+│   ├── feed/        units, timer, prefs, interval
+│   └── …            one file each for the smaller trackers
 └── ops/             the operations, one module per tracker
+    └── feed/        nursing (a timer) and bottle (an instant event)
+tests/
+├── support/         a stub Firestore on a loopback socket
+├── read_requests.rs what each read asks for
+└── write_requests.rs what each write sends
 ```
 
 Read [`api.md`](api.md) before changing it: it maps every method to the Python
@@ -137,7 +145,20 @@ the same change. See [`rules/rust.md`](rules/rust.md).
 
 ## The 400-line rule in practice
 
-Several directories exist because a file crossed it: `cli/` split into shape,
-value words and subcommand trees; `domain/` into one module per question;
-`ops/` into one module per tracker. Each `mod.rs` is glue and re-exports, and
-the split is along a real seam every time.
+Several directories exist because a file crossed it:
+
+| Directory | The seam it was split along |
+| --- | --- |
+| `cli/` | the shape, the words the flags take, the deeper subcommand trees |
+| `domain/` | one module per question the tool answers |
+| `render/` | one module per screen |
+| `dashboard/draw/` | the frame, and one function per tab |
+| `models/sleep/` | what was recorded, the timer, the history |
+| `models/feed/` | the words, the timer, the summaries, the history |
+| `ops/feed/` | nursing runs a timer; a bottle is one instant event |
+| `tests/` | what a read asks for, and what a write sends |
+
+Each `mod.rs` is glue and re-exports. `src/commands/feed.rs` sits just over the
+line at around 400 and is deliberately left whole: it is one command's tree
+together with the prompts that fill it in, and splitting it would separate a
+question from the thing it asks about.

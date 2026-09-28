@@ -1,25 +1,24 @@
-//! Nursing sessions and bottles.
+//! The nursing timer.
 //!
-//! The nursing timer banks seconds per side. `leftDuration` and
-//! `rightDuration` hold what is already finished, and the side running now is
-//! measured from `timerStartTime`, which resets on every switch and every
-//! resume. [`nursing_totals`] is the one place that adds the two together, and
-//! every operation here goes through it so that pausing, switching and
-//! finishing cannot disagree about the total.
+//! The timer banks seconds per side: `leftDuration` and `rightDuration` hold
+//! what is finished, and the side running now is measured from
+//! `timerStartTime`, which resets on every switch and every resume.
+//! [`nursing_totals`] is the one place that adds the two together, and every
+//! operation here goes through it, so pausing, switching and finishing cannot
+//! disagree about the total.
 
 use serde_json::json;
 
-use super::TimerChange;
 use crate::client::{Huckleberry, now_seconds};
 use crate::error::Result;
 use crate::firestore::FieldUpdate;
 use crate::ids;
 use crate::models::common::{Number, Timestamp};
 use crate::models::feed::{
-    BottleFeedInterval, BottleType, BreastFeedInterval, FeedDocument, FeedInterval, FeedSide,
-    FeedTimer, LastBottle, LastNursing, LastSide, VolumeUnits,
+    BreastFeedInterval, FeedDocument, FeedInterval, FeedSide, FeedTimer, LastNursing, LastSide,
 };
 use crate::models::{to_fields, to_json};
+use crate::ops::TimerChange;
 use crate::paths;
 
 /// What a finished nursing session amounts to.
@@ -333,74 +332,6 @@ impl Huckleberry {
         )
         .await?;
         Ok(Some(completed))
-    }
-
-    /// Records a bottle. An instant event: there is no bottle timer.
-    ///
-    /// # Errors
-    ///
-    /// As [`Huckleberry::start_nursing`].
-    pub async fn log_bottle(
-        &self,
-        cid: &str,
-        amount: f64,
-        bottle_type: BottleType,
-        units: VolumeUnits,
-    ) -> Result<()> {
-        let now = now_seconds();
-        let offset = self.zone().offset_minutes(now);
-        let interval = FeedInterval::Bottle(BottleFeedInterval {
-            start: Number::Float(now),
-            last_updated: Some(Number::Float(now)),
-            bottle_type: bottle_type.clone(),
-            amount: Number::Float(amount),
-            units: units.clone(),
-            offset: Number::Float(offset),
-            end_offset: Some(Number::Float(offset)),
-            notes: None,
-        });
-        let token = self.token().await?;
-        self.firestore()
-            .set(
-                &token,
-                &paths::history_row(paths::FEED, cid, &ids::interval_id(now)),
-                &to_fields(&interval)?,
-                "recording the bottle",
-            )
-            .await?;
-
-        let last_bottle = LastBottle {
-            mode: Some("bottle".to_owned()),
-            start: Some(Number::Float(now)),
-            bottle_type: Some(bottle_type.clone()),
-            bottle_amount: Some(Number::Float(amount)),
-            bottle_units: Some(units.clone()),
-            offset: Some(Number::Float(offset)),
-        };
-        // A merge rather than an update: this also sets the defaults the app
-        // offers next time, and the feed document may not exist yet on an
-        // account whose first ever entry is a bottle.
-        let mut prefs = serde_json::Map::new();
-        prefs.insert(
-            "prefs".to_owned(),
-            json!({
-                "lastBottle": to_json(&last_bottle)?,
-                "bottleType": bottle_type.as_str(),
-                "bottleAmount": amount,
-                "bottleUnits": units.as_str(),
-                "timestamp": { "seconds": now },
-                "local_timestamp": now,
-            }),
-        );
-        let fields = crate::firestore::value::fields_from_json(&prefs);
-        self.firestore()
-            .merge(
-                &token,
-                &paths::tracker(paths::FEED, cid),
-                &fields,
-                "recording the bottle",
-            )
-            .await
     }
 
     /// The feed tracker's document.

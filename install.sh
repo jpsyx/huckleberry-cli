@@ -22,14 +22,20 @@ Examples:
   BIN_DIR="$HOME/bin" ./install.sh --name huckleberry-cli-dev'
 }
 
-binary_name="huckleberry-cli"
-command_name="$binary_name"
-while (($#)); do
-  case "$1" in
+# Help wins wherever it appears, and before anything is checked or written.
+for argument in "$@"; do
+  case "$argument" in
     -h | --help)
       usage
       exit 0
       ;;
+  esac
+done
+
+binary_name="huckleberry-cli"
+command_name="$binary_name"
+while (($#)); do
+  case "$1" in
     --name)
       if (($# < 2)); then
         usage >&2
@@ -45,14 +51,18 @@ while (($#)); do
   esac
 done
 
-# A command name that is empty, hidden, a path, or full of shell metacharacters
-# is a mistake worth catching before anything is built.
+# A command name that is empty, hidden, a path, absurdly long, or full of
+# shell metacharacters is a mistake worth catching before anything is built.
 case "$command_name" in
   '' | [.-]* | *..* | *[!a-zA-Z0-9_.-]*)
     usage >&2
     exit 2
     ;;
 esac
+if ((${#command_name} > 100)); then
+  usage >&2
+  exit 2
+fi
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 

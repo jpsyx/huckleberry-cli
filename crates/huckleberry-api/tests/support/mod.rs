@@ -1,3 +1,9 @@
+#![allow(
+    dead_code,
+    reason = "each file in tests/ is its own binary, so a helper only the \
+              write suite uses reads as dead code while the read suite compiles"
+)]
+
 //! A stub Firestore, so the request shapes are asserted rather than assumed.
 //!
 //! The write methods are the part of this crate a unit test cannot reach: the
