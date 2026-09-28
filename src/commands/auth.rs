@@ -6,8 +6,8 @@ use huckleberry_api::{Credentials, Huckleberry, auth};
 
 use crate::cli::AuthAction;
 use crate::credentials::PASSWORD_ENV;
-use crate::domain::time::format_duration;
 use crate::prompt::{self, Question};
+use crate::render::output;
 use crate::session::Context;
 
 /// Runs the chosen action.
@@ -68,10 +68,7 @@ async fn login(
 
     // The point of signing in is to use the account, so say what is on it.
     let user = client.user().await?;
-    for entry in &user.child_list {
-        let name = entry.nickname.as_deref().unwrap_or("(no nickname)");
-        println!("{}\t{name}", entry.cid);
-    }
+    super::child::show_list(context, &user.child_list);
     if context.config.child().is_none()
         && let [only] = user.child_list.as_slice()
     {
@@ -79,8 +76,8 @@ async fn login(
         config.set("child", &only.cid)?;
         crate::config::save(&context.config_path, &config)?;
         context.report(&format!(
-            "One child on the account, so saved child = {}",
-            only.cid
+            "Now tracking {}.",
+            only.nickname.as_deref().unwrap_or(&only.cid)
         ));
     }
     Ok(())
@@ -89,40 +86,48 @@ async fn login(
 /// Says whether there is a session, and how long it has left.
 fn status(context: &Context) -> Result<()> {
     let resolved = context.credentials()?;
-    let theme = context.theme;
-
-    match &resolved.email {
-        Some(email) => println!("email\t{email}"),
-        None => println!("email\t(none)"),
-    }
-    println!(
-        "password\t{}",
-        match (&resolved.password, resolved.password_from_environment) {
-            (Some(_), true) => format!("set (from {PASSWORD_ENV})"),
-            (Some(_), false) => "saved".to_owned(),
-            (None, _) => "(none)".to_owned(),
-        }
-    );
-
+    let email = resolved.email.as_deref().unwrap_or("(none)");
+    let password = match (&resolved.password, resolved.password_from_environment) {
+        (Some(_), true) => format!("set (from {PASSWORD_ENV})"),
+        (Some(_), false) => "saved".into(),
+        (None, _) => "(none)".into(),
+    };
+    let mut machine = vec![format!("email\t{email}"), format!("password\t{password}")];
+    let mut fields = vec![
+        (
+            "Email",
+            resolved.email.clone().unwrap_or_else(|| "Not set".into()),
+        ),
+        (
+            "Password",
+            if password == "(none)" {
+                "Not saved".into()
+            } else {
+                password
+            },
+        ),
+    ];
     if let Some(session) = &resolved.session {
         let remaining = auth::seconds_remaining(session.expires_at, now_seconds());
-        println!("session\tvalid");
-        println!("expires_in\t{remaining}");
-        eprintln!(
-            "{}",
-            theme.muted(&if remaining > 0 {
-                format!(
-                    "The session has {} left.",
-                    format_duration(remaining as f64)
-                )
+        machine.extend(["session\tvalid".into(), format!("expires_in\t{remaining}")]);
+        fields.push((
+            "Session",
+            if remaining > 0 {
+                "Signed in"
             } else {
-                "The session has expired; the next command will renew it.".to_owned()
-            })
-        );
+                "Expired; renews on the next command"
+            }
+            .into(),
+        ));
+        if remaining > 0 {
+            fields.push(("Time remaining", output::duration(remaining as f64)));
+        }
     } else {
-        println!("session\tnone");
-        eprintln!("{}", theme.muted(&crate::session::not_signed_in_message()));
+        machine.push("session\tnone".into());
+        fields.push(("Session", "Not signed in".into()));
+        context.narrate(&crate::session::not_signed_in_message());
     }
+    context.present("🔐 Account status", &fields, &machine);
     Ok(())
 }
 

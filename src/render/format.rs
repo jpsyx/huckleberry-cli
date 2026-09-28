@@ -116,6 +116,18 @@ pub fn clock(at: f64, calendar: &Calendar) -> String {
     format!("{display}:{:02} {suffix}", zoned.minute())
 }
 
+/// A local date and time with a zone abbreviation to distinguish DST repeats.
+#[must_use]
+pub fn date_time(at: f64, calendar: &Calendar) -> String {
+    let zoned = calendar.zoned(at);
+    format!(
+        "{}, {} {}",
+        zoned.strftime("%b %d, %Y"),
+        clock(at, calendar),
+        zoned.strftime("%Z")
+    )
+}
+
 /// A day, short: `Mon 22 Sep`.
 #[must_use]
 pub fn day_short(day: Date) -> String {

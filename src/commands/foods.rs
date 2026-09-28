@@ -37,13 +37,20 @@ async fn list(
     };
 
     let mut shown = 0usize;
+    let mut rows = Vec::new();
+    let mut machine = Vec::new();
     if !curated_only {
         for food in client.custom_foods(&cid, archived).await? {
             if !matches(&food.name) {
                 continue;
             }
             let state = if food.archived { "\tarchived" } else { "" };
-            println!("custom\t{}{state}", food.name);
+            machine.push(format!("custom\t{}{state}", food.name));
+            rows.push(vec![
+                food.name,
+                "Family food".into(),
+                if food.archived { "Archived" } else { "" }.into(),
+            ]);
             shown += 1;
         }
     }
@@ -69,7 +76,8 @@ async fn list(
             } else {
                 format!("\t{}", flags.join(", "))
             };
-            println!("curated\t{}{note}", food.name);
+            machine.push(format!("curated\t{}{note}", food.name));
+            rows.push(vec![food.name, "Food database".into(), flags.join(", ")]);
             shown += 1;
         }
     }
@@ -81,6 +89,7 @@ async fn list(
             |needle| format!("No food matches `{needle}`."),
         ));
     } else {
+        context.table("🥑 Foods", &["Food", "Source", "Notes"], &rows, &machine);
         context.detail(&format!("{shown} foods"));
     }
     Ok(())
@@ -112,8 +121,11 @@ async fn add(context: &Context, name: Option<String>) -> Result<()> {
 
     let food = client.create_custom_food(&cid, &name, "").await?;
     super::persist_session(context, &client).await?;
-    context.report(&format!("Added {}.", food.name));
-    println!("{}\t{}", food.id, food.name);
+    context.receipt(
+        "🥑 Food added",
+        &[("Food", food.name.clone()), ("Food ID", food.id.clone())],
+        &[format!("{}\t{}", food.id, food.name)],
+    );
     Ok(())
 }
 

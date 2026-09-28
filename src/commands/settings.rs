@@ -11,7 +11,11 @@ use crate::session::Context;
 pub fn run(context: &Context, action: &ConfigAction) -> Result<()> {
     match action {
         ConfigAction::Show => {
-            crate::render::print(&lines(&context.config));
+            context.present(
+                "⚙️ Settings",
+                &crate::render::output::settings_fields(&context.config),
+                &lines(&context.config),
+            );
             if context.verbose {
                 for (name, path) in
                     crate::session::describe_paths(&context.config_path, &context.credentials_path)
@@ -23,11 +27,20 @@ pub fn run(context: &Context, action: &ConfigAction) -> Result<()> {
         }
         ConfigAction::Set { key, value } => set(context, key.clone(), value.clone()),
         ConfigAction::Path => {
-            for (name, path) in
-                crate::session::describe_paths(&context.config_path, &context.credentials_path)
-            {
-                println!("{name}\t{path}");
-            }
+            let paths =
+                crate::session::describe_paths(&context.config_path, &context.credentials_path);
+            let machine: Vec<String> = paths
+                .iter()
+                .map(|(name, path)| format!("{name}\t{path}"))
+                .collect();
+            context.present(
+                "📁 Settings files",
+                &[
+                    ("Settings", paths[0].1.clone()),
+                    ("Credentials", paths[1].1.clone()),
+                ],
+                &machine,
+            );
             Ok(())
         }
     }
@@ -58,7 +71,14 @@ fn set(context: &Context, key: Option<String>, value: Option<String>) -> Result<
     config.set(&key, &value)?;
     crate::config::save(&context.config_path, &config)?;
 
-    context.report(&format!("{key} = {}", config.get(&key).unwrap_or_default()));
+    let fields = crate::render::output::settings_fields(&config);
+    let changed: Vec<_> = Config::KEYS
+        .iter()
+        .zip(fields)
+        .filter(|(name, _)| **name == key)
+        .map(|(_, field)| field)
+        .collect();
+    context.receipt("⚙️ Setting saved", &changed, &[]);
     context.detail(&format!(
         "saved to {} (any comments in it are rewritten away)",
         context.config_path.display()

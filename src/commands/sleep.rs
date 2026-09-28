@@ -9,7 +9,7 @@ use crate::domain::clock;
 use crate::domain::time::format_duration;
 use crate::prompt::time::read_clock;
 use crate::prompt::{self, Choice, Question};
-use crate::render::format;
+use crate::render::{format, output};
 use crate::session::Context;
 
 /// Runs the chosen action.
@@ -38,7 +38,7 @@ pub async fn run(context: &Context, action: &SleepAction) -> Result<()> {
             report(
                 context,
                 client.pause_sleep(&cid).await?,
-                "Paused.",
+                "😴 Sleep paused.",
                 "paused",
             );
             Ok(())
@@ -47,7 +47,7 @@ pub async fn run(context: &Context, action: &SleepAction) -> Result<()> {
             report(
                 context,
                 client.resume_sleep(&cid).await?,
-                "Resumed.",
+                "😴 Sleep resumed.",
                 "running",
             );
             Ok(())
@@ -96,7 +96,7 @@ async fn start(
         return Ok(());
     }
     client.start_sleep_at(cid, began).await?;
-    context.report("Sleep started.");
+    context.report("😴 Sleep started.");
     Ok(())
 }
 
@@ -173,14 +173,14 @@ async fn manual(
     }
 
     client.log_sleep(cid, began, duration).await?;
-    context.report(&format!(
-        "Recorded {} of sleep · {} to {}",
-        format_duration(duration),
-        format::clock(began, &calendar),
-        format::clock(ended, &calendar)
-    ));
-    println!("start\t{began:.0}");
-    println!("duration_seconds\t{duration:.0}");
+    context.receipt(
+        "😴 Sleep recorded",
+        &output::sleep_fields(began, duration, &calendar),
+        &[
+            format!("start\t{began:.0}"),
+            format!("duration_seconds\t{duration:.0}"),
+        ],
+    );
     Ok(())
 }
 
@@ -261,13 +261,14 @@ fn ask_about_overlap(
 async fn stop(context: &Context, client: &huckleberry_api::Huckleberry, cid: &str) -> Result<()> {
     if let Some(completed) = client.complete_sleep(cid).await? {
         let calendar = context.calendar()?;
-        context.report(&format!(
-            "Slept {} · from {}",
-            format_duration(completed.duration as f64),
-            format::clock(completed.start as f64, &calendar)
-        ));
-        println!("duration_seconds\t{}", completed.duration);
-        println!("start\t{}", completed.start);
+        context.receipt(
+            "😴 Sleep recorded",
+            &output::sleep_fields(completed.start as f64, completed.duration as f64, &calendar),
+            &[
+                format!("duration_seconds\t{}", completed.duration),
+                format!("start\t{}", completed.start),
+            ],
+        );
     } else {
         context.warn("No sleep was running.");
     }
@@ -279,41 +280,35 @@ async fn status(context: &Context, client: &huckleberry_api::Huckleberry, cid: &
     let at = now_seconds();
     let calendar = context.calendar()?;
 
-    let Some(timer) = document
+    let timer = document
         .as_ref()
-        .and_then(|document| document.timer.as_ref())
-    else {
-        println!("running\tfalse");
-        context.detail("no sleep timer on this child yet");
+        .and_then(|document| document.timer.as_ref());
+    let last = document
+        .as_ref()
+        .and_then(|document| document.prefs.as_ref())
+        .and_then(|prefs| prefs.last_sleep.as_ref())
+        .and_then(|sleep| sleep.duration)
+        .map(huckleberry_api::models::Number::as_f64);
+    let fields = output::sleep_status_fields(timer, last, at, &calendar);
+    let Some(timer) = timer else {
+        context.present("😴 Sleep status", &fields, &["running\tfalse".into()]);
         return Ok(());
     };
-
-    println!("running\t{}", timer.active);
-    println!("paused\t{}", timer.paused);
+    let mut machine = vec![
+        format!("running\t{}", timer.active),
+        format!("paused\t{}", timer.paused),
+    ];
     if let Some(started) = timer.started_at() {
-        println!("started\t{}", started as i64);
-        println!("started_clock\t{}", format::clock(started, &calendar));
-    }
-    if let Some(seconds) = timer.elapsed(at) {
-        println!("elapsed_seconds\t{}", seconds as i64);
-        let paused = if timer.paused { " (paused)" } else { "" };
-        context.report(&format!("Asleep {}{paused}.", format_duration(seconds)));
-    } else {
-        let last = document
-            .as_ref()
-            .and_then(|document| document.prefs.as_ref())
-            .and_then(|prefs| prefs.last_sleep.as_ref())
-            .and_then(|sleep| sleep.duration);
-        context.detail(&last.map_or_else(
-            || "not asleep".to_owned(),
-            |duration| {
-                format!(
-                    "not asleep; the last sleep was {}",
-                    format_duration(duration.as_f64())
-                )
-            },
+        machine.push(format!("started\t{}", started as i64));
+        machine.push(format!(
+            "started_clock\t{}",
+            format::clock(started, &calendar)
         ));
     }
+    if let Some(seconds) = timer.elapsed(at) {
+        machine.push(format!("elapsed_seconds\t{}", seconds as i64));
+    }
+    context.present("😴 Sleep status", &fields, &machine);
     Ok(())
 }
 

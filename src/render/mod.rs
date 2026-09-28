@@ -18,6 +18,7 @@
 pub mod format;
 pub mod log;
 pub mod now;
+pub mod output;
 pub mod stripes;
 pub mod summary;
 pub mod trends;

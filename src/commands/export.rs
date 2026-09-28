@@ -19,8 +19,14 @@ pub async fn run(context: &Context, days: Option<u32>, out: Option<&Path>) -> Re
         None => println!("{text}"),
         Some(path) => {
             crate::dataset::write_snapshot(path, &dataset)?;
-            context.report(&format!("Wrote {}.", path.display()));
-            context.detail(&summary_line(&dataset));
+            context.receipt(
+                "📁 History exported",
+                &[
+                    ("File", path.display().to_string()),
+                    ("Records", summary_line(&dataset)),
+                ],
+                &[],
+            );
         }
     }
     Ok(())

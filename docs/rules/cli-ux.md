@@ -7,10 +7,13 @@ and the rules below are what keeps them from pulling the design apart.
 
 Stdout carries only intentional output: the answer the command was asked for,
 in a shape something else can consume (`key=value` lines, a path, a JSON
-document). Everything else goes to stderr: progress, prompts, warnings,
-failures, and the argument parser's own errors. Anyone may pipe this tool into
-another, so a diagnostic on stdout is a bug, and so is a decorated,
-hand-aligned table where a machine expected a value.
+document on a pipe; a readable table on a terminal). Progress, prompts, warnings,
+failures, and the argument parser's own errors go to stderr. Anyone may pipe this tool into
+another, so a diagnostic on stdout is a bug, and so is a decorated table on a
+pipe where a machine expected a value.
+Terminal receipts and status tables use friendly labels, dates with timezones,
+and durations with units. JSON and export remain machine-readable even on a
+terminal.
 
 ## Two audiences, both first-class
 
@@ -68,5 +71,7 @@ rather than about the tool:
 Terminals do not reliably report whether they are light or dark, so the palette
 assumes **dark** and uses the bright half of the ANSI palette. A dark
 foreground on a dark background is unreadable, and a test in `src/theme.rs`
-fails if a tone drifts out of that range. Color is emitted only when stderr is
-a terminal and `NO_COLOR` is unset, so piped output is always plain text.
+fails if a tone drifts out of that range. Each stream emits colour only when that stream is a terminal and `NO_COLOR` is
+unset. The stdout palette is independent of the prompt palette on stderr, so
+piped output is always plain text. Small emoji headings accompany terminal
+receipts; meaning remains explicit in the accompanying words.

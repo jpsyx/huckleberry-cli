@@ -4,6 +4,42 @@ Every action has a flag or a subcommand, and every value a person can omit is
 asked for when there is a terminal and refused by name when there is not. Both
 audiences are first class; see [`rules/cli-ux.md`](rules/cli-ux.md) for why.
 
+## Reading the output
+
+On a terminal, commands show labelled tables with a small emoji heading and
+semantic colours. Successful recordings have a receipt: sleep shows its start,
+end and duration; nursing shows the total and each side; bottles, meals,
+diapers, potty trips and growth show what was recorded. Status, child profiles,
+food lists, settings, account details and edit results use the same presentation.
+Long tables become stacked, wrapped records on narrow terminals.
+
+Times in receipts include the local date, year and timezone abbreviation, so a
+sleep across midnight or a repeated hour at the end of daylight saving time is
+unambiguous. Durations read `2h 30m`, including sleep totals in summaries and
+stripe charts; a short session reads `35s`. Measurements carry their units.
+Child profiles show the date of a weight measurement and honour the configured
+measurement system. IDs are labelled wherever they are needed for another command.
+
+For example, an overnight manual sleep produces:
+
+```text
+✅ 😴 Sleep recorded
+
+┌──────────┬────────────────────────────┐
+│ Detail   │ Value                      │
+├──────────┼────────────────────────────┤
+│ Started  │ Sep 27, 2026, 11:00 pm EDT │
+│ Ended    │ Sep 28, 2026, 1:30 am EDT  │
+│ Duration │ 2h 30m                     │
+└──────────┴────────────────────────────┘
+```
+
+Redirecting stdout preserves the existing tab-separated or `key=value` payloads,
+including numeric timestamps and seconds. Explicit JSON and export output also
+retain their schemas. `NO_COLOR` removes colour without removing readable labels,
+tables or emoji. Each stream decides independently whether it can use colour, so
+redirected stdout stays free of ANSI escapes even when stderr is a terminal.
+
 ## Getting started
 
 The installed command is `hb`. `./install.sh --name <other>` changes it, and
@@ -274,7 +310,8 @@ hb now --json
 ## Driving it from a script
 
 - **stdout is data, stderr is the conversation.** Everything the command was
-  asked for goes to stdout as `key\tvalue` or `key=value` lines or as JSON;
+  asked for goes to stdout as readable terminal output, or as `key\tvalue`,
+  `key=value` or JSON data when appropriate for scripts;
   prompts, progress and failures go to stderr. Piping the tool anywhere yields
   plain text with no escape sequences.
 - **Nothing blocks on input it was given.** With stdin redirected, a missing

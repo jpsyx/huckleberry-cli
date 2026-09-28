@@ -69,12 +69,12 @@ the intervals collection yet, so history cannot know about it.
 The table a pediatrician asks for.
 
 ```
-day          feeds  milk ml  formula ml  breast ml  nursed  sleep  night  longest  wet  dirty
-Sun 27 Sep       8      373         223        150     56m   11.3    7.9   2h 36m    7      4
-Sat 26 Sep       9      443         299        144   1h 1m   13.1    9.9   2h 38m    8      3
+day          feeds  milk ml  formula ml  breast ml    nursed     sleep     night  longest  wet  dirty
+Sun 27 Sep       8      373         223        150       56m   11h 18m    7h 54m   2h 36m    7      4
+Sat 26 Sep       9      443         299        144     1h 1m    13h 6m    9h 54m   2h 38m    8      3
 …
 
-average over 6 complete days: 9.0 feeds · 441 ml milk · 13.8h sleep · 8.0 wet · 3.5 dirty
+average over 6 complete days: 9.0 feeds · 441 ml milk · 13h 48m sleep · 8.0 wet · 3.5 dirty
 Wren is 21 days old
   typical at this age: 8 to 12 feeds a day (this week is in that range)
   typical at this age: 14 to 17 hours in 24 (this week is under that)
@@ -101,8 +101,8 @@ sleep landing.
 
 ```
             00          06          12          18
-Mon 21 Sep │██▼◦████▼◦███▼ ◦ ▼ █◦█▼  █◦▼    █◦▼   ◦▼███◦·█▼█│ 13.0h
-Tue 22 Sep │███▼█████▼████▼ ◦▼ ██◦▼  █◦▼█  ██◦▼  ◦██▼██◦·█▼█│ 14.1h
+Mon 21 Sep │██▼◦████▼◦███▼ ◦ ▼ █◦█▼  █◦▼    █◦▼   ◦▼███◦·█▼█│  13h 0m
+Tue 22 Sep │███▼█████▼████▼ ◦▼ ██◦▼  █◦▼█  ██◦▼  ◦██▼██◦·█▼█│  14h 6m
 …
             █ asleep   ▼ feed   ◦ diaper   · night
 ```
@@ -221,3 +221,9 @@ what the screen says:
 assert!(text.contains("Night of Sun 21 Sep"), "{text}");
 assert!(!text.contains("Tonight"), "an ambiguous label is the bug: {text}");
 ```
+
+## Duration labels
+
+Daily sleep and night-sleep totals, their averages, and stripe-chart totals use
+hours and minutes (for example `2h 30m`). Nursing side durations use the same
+units as their total. JSON still exposes numeric seconds for calculations.

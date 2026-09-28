@@ -256,8 +256,9 @@ pub fn summary(draft: &Draft) -> String {
             bottle.kind.to_api()
         ),
         Draft::Nursing(nursing) => format!(
-            "L {:.0}m · R {:.0}m",
-            nursing.left_minutes, nursing.right_minutes
+            "Left {} · Right {}",
+            crate::domain::time::format_duration(nursing.left_minutes * 60.0),
+            crate::domain::time::format_duration(nursing.right_minutes * 60.0)
         ),
         Draft::Solids(meal) => {
             let mut said = meal.foods.join(", ");
@@ -267,7 +268,7 @@ pub fn summary(draft: &Draft) -> String {
             }
             said
         }
-        Draft::Sleep(sleep) => format!("{:.0} minutes", sleep.minutes),
+        Draft::Sleep(sleep) => crate::domain::time::format_duration(sleep.minutes * 60.0),
     }
 }
 

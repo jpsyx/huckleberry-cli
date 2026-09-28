@@ -29,7 +29,7 @@ pub async fn now(context: &Context, json: bool) -> Result<()> {
         &view,
         &dataset,
         &calendar,
-        context.theme,
+        context.output_theme(),
         units(context),
         at,
     ));
@@ -51,7 +51,7 @@ pub async fn summary(context: &Context, days: Option<u32>, json: bool) -> Result
         &rows,
         &dataset,
         &calendar,
-        context.theme,
+        context.output_theme(),
         units(context),
         at,
     ));
@@ -74,7 +74,7 @@ pub async fn trends(
     render::print(&render::trends::lines(
         &rows,
         metric,
-        context.theme,
+        context.output_theme(),
         units(context),
     ));
     Ok(())
@@ -85,7 +85,7 @@ pub async fn stripes(context: &Context, days: Option<u32>) -> Result<()> {
     let (dataset, calendar) = super::load(context, days).await?;
     let window = context.days(days) as usize;
     let rows = stripes::build(&dataset, &calendar, now_seconds(), window);
-    render::print(&render::stripes::lines(&rows, context.theme));
+    render::print(&render::stripes::lines(&rows, context.output_theme()));
     Ok(())
 }
 
@@ -101,7 +101,7 @@ pub async fn log(
     render::print(&render::log::lines(
         &entries,
         &calendar,
-        context.theme,
+        context.output_theme(),
         limit,
         now_seconds(),
     ));

@@ -11,9 +11,8 @@
 //! tone uses a bright variant that stays legible on a dark background. A light
 //! palette later is a second code table plus a branch in [`Theme::active`].
 //!
-//! Color is emitted only when stderr is a terminal and `NO_COLOR` is unset:
-//! the human channel is stderr, and piping the tool anywhere must yield plain
-//! text.
+//! Prompt colours follow stderr; `Context::output_theme` gates stdout colours
+//! independently. `NO_COLOR` disables both. Redirected streams stay plain.
 
 use std::io::IsTerminal;
 
@@ -229,9 +228,9 @@ impl Theme {
     }
 }
 
-/// Whether to emit escape sequences: stderr is a terminal and `NO_COLOR` is
-/// unset. Stderr is the human channel (prompts, progress, failures); stdout
-/// carries data and is never painted.
+/// Whether stderr can emit colour and `NO_COLOR` is unset.
+///
+/// Stdout uses its own terminal check in `Context::output_theme`.
 #[must_use]
 pub fn color_enabled() -> bool {
     std::io::stderr().is_terminal() && std::env::var_os("NO_COLOR").is_none()

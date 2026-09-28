@@ -13,6 +13,7 @@ use huckleberry_api::DiaperDetails;
 use crate::cli::actions::{DiaperFlags, DiaperQuestion, unanswered};
 use crate::cli::{Amount, Colour, Consistency, DiaperKind, PottyOutcome};
 use crate::prompt::{self, Choice, Question};
+use crate::render::output;
 use crate::session::Context;
 
 /// Records a diaper change.
@@ -31,10 +32,7 @@ pub async fn diaper(
 
     client.log_diaper(&cid, mode.to_api(), &details).await?;
     super::persist_session(context, &client).await?;
-    context.report(&format!(
-        "Recorded a {} diaper.",
-        crate::domain::log::mode_word(mode.to_api().as_str())
-    ));
+    context.receipt("🧷 Diaper recorded", &receipt_fields(mode, &details), &[]);
     Ok(())
 }
 
@@ -74,8 +72,40 @@ pub async fn potty(
         .log_potty(&cid, mode.to_api(), how.to_api(), &details)
         .await?;
     super::persist_session(context, &client).await?;
-    context.report(&format!("Recorded a potty trip: {}.", how.to_api()));
+    let mut fields = receipt_fields(mode, &details);
+    fields.push(("Outcome", output::words(how.to_api().as_str())));
+    context.receipt("🚽 Potty trip recorded", &fields, &[]);
     Ok(())
+}
+
+/// The details a parent just recorded, using the words from the prompts.
+fn receipt_fields(mode: DiaperKind, details: &DiaperDetails) -> output::Fields {
+    let contents = match mode {
+        DiaperKind::Pee => "Wet",
+        DiaperKind::Poo => "Dirty",
+        DiaperKind::Both => "Wet and dirty",
+        DiaperKind::Dry => "Dry",
+    };
+    let mut fields = vec![("Contents", contents.into())];
+    if let Some(value) = &details.pee_amount {
+        fields.push(("Wet amount", output::words(&value.to_string())));
+    }
+    if let Some(value) = &details.poo_amount {
+        fields.push(("Dirty amount", output::words(&value.to_string())));
+    }
+    if let Some(value) = &details.color {
+        fields.push(("Colour", output::words(value.as_str())));
+    }
+    if let Some(value) = &details.consistency {
+        fields.push(("Consistency", output::words(value.as_str())));
+    }
+    if details.rash {
+        fields.push(("Rash", "Recorded".into()));
+    }
+    if let Some(notes) = &details.notes {
+        fields.push(("Notes", notes.clone()));
+    }
+    fields
 }
 
 /// Everything beyond the mode, asked for one question at a time.

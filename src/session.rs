@@ -172,9 +172,60 @@ impl Context {
         }
     }
 
+    /// Whether stdout is being read directly by a person.
+    #[must_use]
+    pub fn human_output(&self) -> bool {
+        std::io::IsTerminal::is_terminal(&std::io::stdout())
+    }
+
+    /// The stdout palette, independently gated from stderr and NO_COLOR.
+    #[must_use]
+    pub fn output_theme(&self) -> Theme {
+        Theme::dark(self.human_output() && std::env::var_os("NO_COLOR").is_none())
+    }
+
+    /// Shows a table on a terminal and preserves the given machine payload on a pipe.
+    pub fn table(&self, title: &str, headers: &[&str], rows: &[Vec<String>], machine: &[String]) {
+        let available = crossterm::terminal::size().map_or(80, |(columns, _)| usize::from(columns));
+        let human = crate::render::output::table_with_width(
+            title,
+            headers,
+            rows,
+            self.output_theme(),
+            available,
+        );
+        crate::render::print(&crate::render::output::select(
+            self.human_output(),
+            human,
+            machine,
+        ));
+    }
+
+    /// A compact table of labelled values.
+    pub fn present(&self, title: &str, fields: &[(&str, String)], machine: &[String]) {
+        let rows: Vec<Vec<String>> = fields
+            .iter()
+            .map(|(label, value)| vec![(*label).into(), value.clone()])
+            .collect();
+        self.table(title, &["Detail", "Value"], &rows, machine);
+    }
+
+    /// Confirms a write with a receipt; scripts get a short stderr confirmation.
+    pub fn receipt(&self, title: &str, fields: &[(&str, String)], machine: &[String]) {
+        if !self.human_output() {
+            self.report(title);
+        }
+        self.present(&format!("✅ {title}"), fields, machine);
+    }
+
     /// Reports that something worked.
     pub fn report(&self, message: &str) {
-        eprintln!("{}", self.theme.success(message));
+        let prefix = if std::io::IsTerminal::is_terminal(&std::io::stderr()) {
+            "✅ "
+        } else {
+            ""
+        };
+        eprintln!("{}", self.theme.success(&format!("{prefix}{message}")));
     }
 
     /// Reports something that worked but deserves a second look.

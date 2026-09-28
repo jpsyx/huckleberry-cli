@@ -52,18 +52,18 @@ const COLUMNS: &[Column] = &[
     },
     Column {
         heading: "nursed",
-        width: 6,
+        width: 8,
         value: |row, _| format::duration(row.nursing_seconds),
     },
     Column {
         heading: "sleep",
-        width: 5,
-        value: |row, _| format::hours(row.sleep_seconds),
+        width: 8,
+        value: |row, _| format::duration(row.sleep_seconds),
     },
     Column {
         heading: "night",
-        width: 5,
-        value: |row, _| format::hours(row.night_sleep_seconds),
+        width: 8,
+        value: |row, _| format::duration(row.night_sleep_seconds),
     },
     Column {
         heading: "longest",
@@ -188,7 +188,7 @@ const AVERAGED: &[Figure] = &[
     ),
     (
         |row| row.sleep_seconds,
-        |value, _| format!("{:.1}h sleep", value / 3600.0),
+        |value, _| format!("{} sleep", crate::domain::time::format_duration(value)),
         Some(Metric::SleepPerDay),
     ),
     (
@@ -305,6 +305,15 @@ mod tests {
             AFTERNOON,
         )
         .join("\n")
+    }
+
+    #[test]
+    fn sleep_columns_show_hours_and_minutes() {
+        let mut rows = summaries::build(&dataset(), &calendar(), AFTERNOON, 1);
+        rows[0].sleep_seconds = 9000.0;
+        rows[0].night_sleep_seconds = 9000.0;
+        let rendered = data_row(&rows[0], Units::Ml);
+        assert_eq!(rendered.matches("2h 30m").count(), 2, "{rendered}");
     }
 
     #[test]

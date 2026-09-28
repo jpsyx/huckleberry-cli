@@ -7,9 +7,8 @@ use huckleberry_api::models::solids::FoodReference;
 use huckleberry_api::{Huckleberry, TimerChange};
 
 use crate::cli::{BottleKind, FeedAction, NursingAction, Reaction, Side, Units};
-use crate::domain::time::format_duration;
 use crate::prompt::{self, Choice, Question};
-use crate::render::format;
+use crate::render::{format, output};
 use crate::session::Context;
 
 /// Runs the chosen action.
@@ -97,12 +96,18 @@ async fn bottle(
     client
         .log_bottle(cid, amount, kind.to_api(), units.to_api(), notes.as_deref())
         .await?;
-    context.report(&format!(
-        "Recorded {} {} of {}.",
-        format::amount_in(amount, units),
-        units.as_str(),
-        kind.to_api()
-    ));
+    context.receipt(
+        "🍼 Bottle recorded",
+        &[
+            (
+                "Amount",
+                format!("{} {}", format::amount_in(amount, units), units.as_str()),
+            ),
+            ("Milk", kind.to_api().to_string()),
+            ("Notes", notes.unwrap_or_else(|| "None".into())),
+        ],
+        &[],
+    );
     Ok(())
 }
 
@@ -344,15 +349,15 @@ async fn suggested_side(context: &Context, client: &Huckleberry, cid: &str) -> R
 async fn stop_nursing(context: &Context, client: &Huckleberry, cid: &str) -> Result<()> {
     match client.complete_nursing(cid).await? {
         Some(completed) => {
-            context.report(&format!(
-                "Nursed {} · L {} · R {}",
-                format_duration(completed.total_seconds()),
-                format_duration(completed.left_seconds),
-                format_duration(completed.right_seconds)
-            ));
-            println!("total_seconds\t{:.0}", completed.total_seconds());
-            println!("left_seconds\t{:.0}", completed.left_seconds);
-            println!("right_seconds\t{:.0}", completed.right_seconds);
+            context.receipt(
+                "🤱 Nursing recorded",
+                &output::nursing_fields(completed.left_seconds, completed.right_seconds),
+                &[
+                    format!("total_seconds\t{:.0}", completed.total_seconds()),
+                    format!("left_seconds\t{:.0}", completed.left_seconds),
+                    format!("right_seconds\t{:.0}", completed.right_seconds),
+                ],
+            );
         }
         None => context.warn("No nursing session was running."),
     }
@@ -368,31 +373,38 @@ async fn nursing_status(context: &Context, client: &Huckleberry, cid: &str) -> R
         .as_ref()
         .and_then(huckleberry_api::models::FeedDocument::running_timer)
     else {
-        println!("running\tfalse");
-        context.detail("no nursing session in progress");
+        context.present(
+            "🤱 Nursing status",
+            &[("Status", "No nursing in progress".into())],
+            &["running\tfalse".into()],
+        );
         return Ok(());
     };
 
     let (left, right) = timer.totals(at);
-    println!("running\ttrue");
-    println!("paused\t{}", timer.paused);
-    println!("side\t{}", timer.current_side());
-    println!("left_seconds\t{left:.0}");
-    println!("right_seconds\t{right:.0}");
+    let mut machine = vec![
+        "running\ttrue".into(),
+        format!("paused\t{}", timer.paused),
+        format!("side\t{}", timer.current_side()),
+        format!("left_seconds\t{left:.0}"),
+        format!("right_seconds\t{right:.0}"),
+    ];
+    let mut fields = vec![
+        (
+            "Status",
+            if timer.paused { "Paused" } else { "Nursing" }.into(),
+        ),
+        ("Current side", output::words(timer.current_side().as_str())),
+    ];
     if let Some(started) = timer.feed_start_time {
-        println!(
+        machine.push(format!(
             "started_clock\t{}",
             format::clock(started.as_f64(), &calendar)
-        );
+        ));
+        fields.push(("Started", format::date_time(started.as_f64(), &calendar)));
     }
-    let paused = if timer.paused { " (paused)" } else { "" };
-    context.report(&format!(
-        "Nursing {} on the {}{paused} · L {} · R {}",
-        format_duration(left + right),
-        timer.current_side(),
-        format_duration(left),
-        format_duration(right)
-    ));
+    fields.extend(output::nursing_fields(left, right));
+    context.present("🤱 Nursing status", &fields, &machine);
     Ok(())
 }
 
@@ -439,7 +451,22 @@ async fn solids(
             None,
         )
         .await?;
-    context.report(&format!("Recorded {}.", named.join(", ")));
+    context.receipt(
+        "🥑 Meal recorded",
+        &[
+            ("Foods", named.join(", ")),
+            ("Amount", amount),
+            (
+                "Reaction",
+                reaction.map_or_else(
+                    || "Not recorded".into(),
+                    |reaction| output::words(reaction.to_api().as_str()),
+                ),
+            ),
+            ("Notes", notes.unwrap_or_else(|| "None".into())),
+        ],
+        &[],
+    );
     Ok(())
 }
 

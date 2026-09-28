@@ -27,15 +27,53 @@ async fn list(context: &Context) -> Result<()> {
         context.warn("This account has no children on it.");
         return Ok(());
     }
-    let chosen = context.config.child();
-    for entry in &user.child_list {
-        let name = entry.nickname.as_deref().unwrap_or("(no nickname)");
-        println!("{}\t{name}", entry.cid);
-        if chosen == Some(entry.cid.as_str()) {
-            context.detail(&format!("  {} is the chosen child", entry.cid));
-        }
-    }
+    show_list(context, &user.child_list);
     Ok(())
+}
+
+/// Lists names first, while preserving child IDs for scripts and selection.
+pub(super) fn show_list(
+    context: &Context,
+    children: &[huckleberry_api::models::user::UserChildRef],
+) {
+    let chosen = context
+        .child_override
+        .as_deref()
+        .or_else(|| context.config.child());
+    let machine: Vec<String> = children
+        .iter()
+        .map(|child| {
+            format!(
+                "{}\t{}",
+                child.cid,
+                child.nickname.as_deref().unwrap_or("(no nickname)")
+            )
+        })
+        .collect();
+    let rows: Vec<Vec<String>> = children
+        .iter()
+        .map(|child| {
+            vec![
+                child
+                    .nickname
+                    .clone()
+                    .unwrap_or_else(|| "No nickname".into()),
+                if chosen == Some(child.cid.as_str()) {
+                    "Selected"
+                } else {
+                    ""
+                }
+                .into(),
+                child.cid.clone(),
+            ]
+        })
+        .collect();
+    context.table(
+        "👶 Children",
+        &["Name", "Tracking", "Child ID"],
+        &rows,
+        &machine,
+    );
 }
 
 /// Chooses the child every command acts on.
@@ -82,7 +120,15 @@ async fn choose(context: &Context, cid: Option<String>) -> Result<()> {
     let mut config = context.config.clone();
     config.set("child", &chosen)?;
     crate::config::save(&context.config_path, &config)?;
-    context.report(&format!("Now tracking {chosen}."));
+    let name = labels
+        .iter()
+        .find(|(cid, _)| *cid == chosen)
+        .map_or(chosen.as_str(), |(_, name)| name.as_str());
+    context.receipt(
+        "👶 Child selected",
+        &[("Name", name.into()), ("Child ID", chosen)],
+        &[],
+    );
     Ok(())
 }
 
@@ -96,35 +142,54 @@ async fn show(context: &Context) -> Result<()> {
     let calendar = context.calendar()?;
     let now = huckleberry_api::client::now_seconds();
 
-    println!("cid\t{}", child.cid);
-    println!("name\t{}", child.name);
-    println!(
-        "birthdate\t{}",
-        child.birthdate.as_deref().unwrap_or("(unknown)")
-    );
+    let mut machine = profile_machine(&child, &calendar, now);
+    let mut fields = crate::render::output::profile_fields(&child, &calendar, now);
+    if let Some(growth) = client.latest_growth(&cid).await? {
+        if let Some(kilograms) = growth.weight_kilograms() {
+            machine.push(format!("weight_kg\t{kilograms:.3}"));
+            fields.extend(crate::render::output::weight_fields(
+                kilograms,
+                growth.start.as_f64(),
+                context.config.measurements == "imperial",
+                &calendar,
+            ));
+        }
+        machine.push(format!(
+            "weight_measured\t{}",
+            format::clock(growth.start.as_f64(), &calendar)
+        ));
+    }
+    context.present("👶 Child profile", &fields, &machine);
+    Ok(())
+}
+
+/// The stable pipe representation of the profile.
+fn profile_machine(
+    child: &crate::domain::types::Child,
+    calendar: &crate::domain::Calendar,
+    now: f64,
+) -> Vec<String> {
+    let mut lines = vec![
+        format!("cid\t{}", child.cid),
+        format!("name\t{}", child.name),
+        format!(
+            "birthdate\t{}",
+            child.birthdate.as_deref().unwrap_or("(unknown)")
+        ),
+    ];
     if let Some(age) = child
         .birthdate
         .as_deref()
         .and_then(|birthdate| calendar.age_in_days(birthdate, now))
     {
-        println!("age_days\t{age}");
+        lines.push(format!("age_days\t{age}"));
     }
-    println!("night_start\t{}", hour_label(child.night_start_hour));
-    println!("morning_cutoff\t{}", hour_label(child.morning_cutoff_hour));
-    println!("timezone\t{}", calendar.name());
-
-    if let Some(growth) = client.latest_growth(&cid).await? {
-        if let Some(kilograms) = growth.weight_kilograms() {
-            println!("weight_kg\t{kilograms:.3}");
-        }
-        // The measurement's own time, so a weight from last month is not read
-        // as this morning's.
-        println!(
-            "weight_measured\t{}",
-            format::clock(growth.start.as_f64(), &calendar)
-        );
-    }
-    Ok(())
+    lines.extend([
+        format!("night_start\t{}", hour_label(child.night_start_hour)),
+        format!("morning_cutoff\t{}", hour_label(child.morning_cutoff_hour)),
+        format!("timezone\t{}", calendar.name()),
+    ]);
+    lines
 }
 
 /// An hour-with-a-fraction as a clock time: `20.0` is `20:00`.

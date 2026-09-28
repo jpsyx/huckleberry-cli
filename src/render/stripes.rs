@@ -112,8 +112,8 @@ pub fn lines(rows: &[StripeRow], theme: Theme) -> Vec<String> {
     for row in rows.iter().rev() {
         let strip: String = cells(row).into_iter().map(Cell::glyph).collect();
         let label = format::pad(&format::day_short(row.day), 11);
-        let hours = format::pad_left(&format::hours(total_asleep(row)), 5);
-        let line = format!("{label}│{strip}│{hours}h");
+        let duration = format::pad_left(&format::duration(total_asleep(row)), 8);
+        let line = format!("{label}│{strip}│{duration}");
         lines.push(if row.partial {
             theme.today(&line)
         } else {

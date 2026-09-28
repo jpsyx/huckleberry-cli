@@ -4,14 +4,33 @@ use anyhow::Result;
 
 use crate::session::Context;
 
-/// Prints the facts, one `key=value` line each.
+/// Shows build details as a table, or stable `key=value` lines on a pipe.
 pub fn run(context: &Context) -> Result<()> {
-    crate::render::print(&facts(
+    let machine = facts(
         &context.config_path.display().to_string(),
         &context.credentials_path.display().to_string(),
         &context.config.timezone,
         context.config.child(),
-    ));
+    );
+    context.present(
+        "🍼 Huckleberry",
+        &[
+            ("App", crate::APP_NAME.into()),
+            ("Version", env!("CARGO_PKG_VERSION").into()),
+            ("API version", huckleberry_api::VERSION.into()),
+            ("Settings file", context.config_path.display().to_string()),
+            (
+                "Credentials file",
+                context.credentials_path.display().to_string(),
+            ),
+            ("Timezone", context.config.timezone.clone()),
+            (
+                "Child",
+                context.config.child().unwrap_or("Not selected").into(),
+            ),
+        ],
+        &machine,
+    );
     Ok(())
 }
 

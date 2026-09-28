@@ -86,6 +86,19 @@ sleep across midnight, a night window that spans midnight and a 23-hour day are
 testable rather than seasonal. Nothing in `domain` or `render` reads a clock, so
 every screen in this repository is asserted line by line in a test.
 
+## Command presentation
+
+`render/output.rs` formats receipts, labelled values and lists without I/O. It
+measures terminal cells through ratatui, including wide names and emoji, and
+provides a stacked layout for narrow terminals. `render/format.rs` provides local
+date/time formatting with timezone abbreviations. Command handlers supply
+explicit human fields alongside their existing machine payloads; `Context`
+selects the terminal presentation using stdout's terminal status. It also gates
+stdout colour independently of stderr. JSON and snapshot exports bypass receipts.
+
+This keeps numeric timestamps and seconds available to scripts while parents
+see dates, durations and units. No API storage or operation semantics change.
+
 ## How a value is resolved
 
 Every value a command needs is looked for in the same order:

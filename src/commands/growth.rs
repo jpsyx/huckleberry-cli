@@ -50,7 +50,19 @@ pub async fn run(
         .log_growth(&cid, &measurements, system.to_api())
         .await?;
     super::persist_session(context, &client).await?;
-    context.report(&format!("Recorded {}.", describe(&measurements, system)));
+    let (weight_unit, length_unit) = match system {
+        System::Metric => ("kg", "cm"),
+        System::Imperial => ("lb", "in"),
+    };
+    let fields: Vec<(&str, String)> = [
+        ("Weight", measurements.weight, weight_unit),
+        ("Length", measurements.height, length_unit),
+        ("Head circumference", measurements.head, length_unit),
+    ]
+    .into_iter()
+    .filter_map(|(label, amount, unit)| amount.map(|amount| (label, format!("{amount} {unit}"))))
+    .collect();
+    context.receipt("📏 Growth recorded", &fields, &[]);
     Ok(())
 }
 

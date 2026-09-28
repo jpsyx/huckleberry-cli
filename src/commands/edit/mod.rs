@@ -52,7 +52,7 @@ pub async fn run(context: &Context, options: &EditOptions) -> Result<()> {
         .collect();
 
     if options.list {
-        list(&entries, &calendar);
+        list(context, &entries, &calendar);
         return Ok(());
     }
 
@@ -95,13 +95,16 @@ pub async fn run(context: &Context, options: &EditOptions) -> Result<()> {
 
     save(&client, &cid, &at, &draft).await?;
     super::persist_session(context, &client).await?;
-    context.report(&format!(
-        "Changed the {}: from {} to {}.",
-        draft.what(),
-        edit::summary(&before),
-        edit::summary(&draft)
-    ));
-    println!("entry\t{}", edit::token_for(&at));
+    context.receipt(
+        "📝 Entry updated",
+        &[
+            ("Kind", crate::render::output::words(draft.what())),
+            ("Before", edit::summary(&before)),
+            ("After", edit::summary(&draft)),
+            ("Entry ID", edit::token_for(&at)),
+        ],
+        &[format!("entry\t{}", edit::token_for(&at))],
+    );
     Ok(())
 }
 
@@ -110,12 +113,14 @@ pub async fn run(context: &Context, options: &EditOptions) -> Result<()> {
 /// On stdout, because this is the answer the command was asked for. An entry
 /// this tool cannot change says so in its own column rather than being left
 /// out, so a script does not have to guess why its id is missing.
-fn list(entries: &[Entry], calendar: &Calendar) {
+fn list(context: &Context, entries: &[Entry], calendar: &Calendar) {
+    let mut machine = Vec::new();
+    let mut rows = Vec::new();
     for entry in entries {
         let Some(at) = &entry.at else {
             continue;
         };
-        println!(
+        machine.push(format!(
             "{}\t{}\t{} {}\t{}\t{}",
             edit::token_for(at),
             entry.kind.as_str(),
@@ -127,8 +132,26 @@ fn list(entries: &[Entry], calendar: &Calendar) {
                 "read-only"
             },
             entry.description
-        );
+        ));
+        rows.push(vec![
+            format::date_time(entry.start, calendar),
+            crate::render::output::words(entry.kind.as_str()),
+            entry.description.clone(),
+            if crate::picker::editable(entry) {
+                "Editable"
+            } else {
+                "Read only"
+            }
+            .into(),
+            edit::token_for(at),
+        ]);
     }
+    context.table(
+        "📝 Recorded entries",
+        &["When", "Kind", "Details", "Editing", "Entry ID"],
+        &rows,
+        &machine,
+    );
 }
 
 /// Puts the entries on the screen and waits for one to be picked.

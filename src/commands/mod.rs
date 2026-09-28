@@ -155,7 +155,13 @@ pub async fn which_child(context: &Context, client: &Huckleberry) -> Result<Stri
         let mut config = context.config.clone();
         config.set("child", &chosen)?;
         crate::config::save(&context.config_path, &config)?;
-        context.report(&format!("saved child = {chosen}"));
+        let name = user
+            .child_list
+            .iter()
+            .find(|child| child.cid == chosen)
+            .and_then(|child| child.nickname.as_deref())
+            .unwrap_or(&chosen);
+        context.report(&format!("Now tracking {name}."));
     }
     Ok(chosen)
 }
