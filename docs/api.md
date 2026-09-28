@@ -197,6 +197,20 @@ These timestamp parameters extend this Rust port, using the original tracker
 schemas and operation semantics researched by Woyken in `py-huckleberry-api`.
 No new upstream operations or field names were ported.
 
+## Correcting an ongoing sleep
+
+`update_sleep_start(cid, session_id, started)` changes an existing active sleep's
+start in Unix seconds. It rereads the timer and refuses an inactive or replaced
+session, a future start, or a start after a paused timer's endpoint. Keeping the
+existing start returns `TimerChange::Unchanged` without a write. The read retains
+Firestore's `updateTime`, and the patch requires the same server revision. A
+concurrent change is refused without retrying against a replacement session.
+
+The update mask contains only `timer.timerStartTime` (milliseconds),
+`timer.timestamp` and `timer.local_timestamp`. UUID, active/paused state, details,
+end marker, summaries and history are untouched. This is a Rust-specific
+extension using Woyken's original timer schema, not a completion or a new session.
+
 ## Name mapping
 
 The models drop the `Firebase` prefix, because the crate name is the namespace.

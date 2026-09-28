@@ -145,6 +145,21 @@ repository does not model, and a batched row has neighbours in the same
 document; naming the fields that change is what leaves both alone. See
 [`api.md`](api.md).
 
+The edit command also prepends the active sleep from the live state, under the
+reserved selector `sleep/current`. `commands/edit/live.rs` routes that selection
+to a timer update instead of a history draft. It reads the current session before
+the prompt, then the API rechecks its identity and active state before patching
+only the start and synchronization fields. The patch requires the Firestore
+revision read with that timer, so a concurrent change causes a conflict instead
+of applying a stale correction. Enter means no mutation, even if the existing
+start field is absent. `ops/sleep_edit.rs` owns that operation;
+a paused timer stays paused, a running timer keeps running, and history is untouched.
+
+The `now` renderer combines the live sleep duration with the last completed
+sleep from the domain view. Its secondary previous-sleep note uses the muted
+role; relative time is measured from the completed sleep's end. Without a live
+sleep it displays that elapsed time and the recorded duration.
+
 Removing one is the same reference and one more step. Every tracker keeps a
 copy of its most recent entry on its own document so the app can draw a home
 screen without reading history, so `ops/removal.rs` rewrites any of those

@@ -45,17 +45,45 @@ pub fn read_at(context: &Context, given: Option<&str>) -> Result<f64> {
 
 /// Resolves an answer after it is read, so accepting now means the current instant.
 fn read_instant(context: &Context, given: Option<&str>, label: &str, flag: &str) -> Result<f64> {
-    let calendar = context.calendar()?;
     let question = Question::new("time", label, flag).with_default("now");
     let given = given.or_else(|| (!std::io::stdin().is_terminal()).then_some("now"));
     read(context, given, &question, |text, interactive| {
-        let now = now_seconds();
-        if let Some(started) = clock::parse_relative(text, now) {
-            return Ok(Some(started));
-        }
-        Ok(parse_clock(context, text, interactive)?
-            .map(|time| clock::most_recent(time, now_seconds(), &calendar)))
+        parse_instant(context, text, interactive)
     })
+}
+
+/// Asks for a replacement start; `None` means keep the timer untouched on Enter.
+/// Scripts must supply a value instead of silently resetting the timer to now.
+pub fn read_edit_start(
+    context: &Context,
+    given: Option<&str>,
+    current: Option<f64>,
+) -> Result<Option<f64>> {
+    let calendar = context.calendar()?;
+    let current = current.map_or_else(
+        || "not recorded".into(),
+        |at| crate::render::format::date_time(at, &calendar),
+    );
+    let label = format!("New start time? Current: {current} (e.g. 358 am or 32 mins ago)");
+    let question =
+        Question::new("new start time", &label, "--set start=<TIME>").with_default("keep");
+    read(context, given, &question, |text, interactive| {
+        if text.trim().eq_ignore_ascii_case("keep") {
+            return Ok(Some(None));
+        }
+        Ok(parse_instant(context, text, interactive)?.map(Some))
+    })
+}
+
+/// One parser for logging, timer transitions, and corrections to a live start.
+fn parse_instant(context: &Context, text: &str, interactive: bool) -> Result<Option<f64>> {
+    let now = now_seconds();
+    if let Some(started) = clock::parse_relative(text, now) {
+        return Ok(Some(started));
+    }
+    let calendar = context.calendar()?;
+    Ok(parse_clock(context, text, interactive)?
+        .map(|time| clock::most_recent(time, now_seconds(), &calendar)))
 }
 
 /// Supplied values fail immediately; prompted values can be corrected before writing.

@@ -10,12 +10,14 @@
 //! *is* lives in [`crate::edit`], the list and the cursor in
 //! [`crate::listing`], and the questions in [`form`].
 //!
-//! One thing it deliberately cannot do: move an entry in time. A row's id in
+//! Recorded history cannot move in time. The live sleep is separate: its
+//! start can be corrected without completing it. A history row's id in
 //! Huckleberry leads with its own millisecond timestamp, so changing when
 //! something happened would leave history sorted by a time the row no longer
 //! claims. Delete it in the app and log it again.
 
 pub mod form;
+mod live;
 
 use anyhow::{Context as _, Result, bail};
 use huckleberry_api::client::now_seconds;
@@ -32,6 +34,9 @@ use crate::session::Context;
 /// Runs the command.
 pub async fn run(context: &Context, options: &EditOptions) -> Result<()> {
     let (client, cid) = super::client_and_child(context).await?;
+    if options.id.as_deref() == Some(live::TOKEN) && !options.list {
+        return live::run(context, &client, &cid, &options.set).await;
+    }
     let window = context.days(options.days);
     context.narrate(&format!("Reading {window} days from Huckleberry..."));
     let dataset = crate::dataset::pull(
@@ -45,10 +50,14 @@ pub async fn run(context: &Context, options: &EditOptions) -> Result<()> {
     .await?;
     super::persist_session(context, &client).await?;
     let calendar = Calendar::new(&dataset.timezone)?;
-    let entries: Vec<Entry> = log::build(&dataset)
+    let mut entries: Vec<Entry> = log::build(&dataset)
         .into_iter()
         .take(options.limit)
         .collect();
+
+    if let Some(ongoing) = live::entry(&dataset.live, now_seconds()) {
+        entries.insert(0, ongoing);
+    }
 
     if options.list {
         list(context, &entries, &calendar);
@@ -56,16 +65,20 @@ pub async fn run(context: &Context, options: &EditOptions) -> Result<()> {
     }
 
     let picked = match options.id.as_deref() {
-        Some(token) => Some(edit::parse_token(token)?),
+        Some(token) => Some(token.to_owned()),
         None => choose(context, &entries, &calendar)?,
     };
     // Leaving the list without picking is not a failure: nothing was asked
     // for, so nothing happened and nothing is reported as having gone wrong.
-    let Some(at) = picked else {
+    let Some(token) = picked else {
         context.report("Nothing changed.");
         return Ok(());
     };
 
+    if token == live::TOKEN {
+        return live::run(context, &client, &cid, &options.set).await;
+    }
+    let at = edit::parse_token(&token)?;
     let units = Units::from_setting(&context.config.units);
     let mut draft = edit::draft_for(&dataset, &at, units).with_context(|| {
         format!(
@@ -116,12 +129,12 @@ fn list(context: &Context, entries: &[Entry], calendar: &Calendar) {
     let mut machine = Vec::new();
     let mut rows = Vec::new();
     for entry in entries {
-        let Some(at) = &entry.at else {
+        let Some(token) = entry_token(entry) else {
             continue;
         };
         machine.push(format!(
             "{}\t{}\t{} {}\t{}\t{}",
-            edit::token_for(at),
+            token,
             entry.kind.as_str(),
             format::day_short(calendar.day_of(entry.start)),
             format::clock(entry.start, calendar),
@@ -142,7 +155,7 @@ fn list(context: &Context, entries: &[Entry], calendar: &Calendar) {
                 "Read only"
             }
             .into(),
-            edit::token_for(at),
+            token,
         ]);
     }
     context.table(
@@ -157,7 +170,7 @@ fn list(context: &Context, entries: &[Entry], calendar: &Calendar) {
 ///
 /// With no terminal there is nobody to pick, and the failure names the flag
 /// that would have answered, as every question in this tool does.
-fn choose(context: &Context, entries: &[Entry], calendar: &Calendar) -> Result<Option<RowRef>> {
+fn choose(context: &Context, entries: &[Entry], calendar: &Calendar) -> Result<Option<String>> {
     if !std::io::IsTerminal::is_terminal(&std::io::stdin()) {
         bail!(
             "no entry to change: pass --id <ENTRY> (stdin is not a terminal, so I cannot show \
@@ -186,7 +199,16 @@ fn choose(context: &Context, entries: &[Entry], calendar: &Calendar) -> Result<O
     .verb("j/k or ↑/↓ move · / searches · enter edits · q leaves")
     .choose(context.output_theme())?;
 
-    chosen.map(|token| edit::parse_token(&token)).transpose()
+    Ok(chosen)
+}
+
+/// The live selector and history references use distinct save paths.
+fn entry_token(entry: &Entry) -> Option<String> {
+    if entry.id == live::TOKEN {
+        Some(live::TOKEN.into())
+    } else {
+        entry.at.as_ref().map(edit::token_for)
+    }
 }
 
 /// Whether this tool can change an entry.
@@ -195,7 +217,10 @@ fn choose(context: &Context, entries: &[Entry], calendar: &Calendar) -> Result<O
 /// session, a meal and a sleep. A pumping session and a milestone are listed
 /// anyway, because the stream is the stream, and saying so is better than
 /// leaving somebody to wonder where their entry went.
-const fn editable(entry: &Entry) -> bool {
+fn editable(entry: &Entry) -> bool {
+    if entry.id == live::TOKEN {
+        return true;
+    }
     entry.at.is_some()
         && matches!(
             entry.kind,
@@ -275,4 +300,44 @@ async fn save(client: &Huckleberry, cid: &str, at: &RowRef, draft: &Draft) -> Re
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::types::LiveState;
+
+    #[test]
+    fn ongoing_sleep_is_selectable_without_a_history_row() {
+        let live = LiveState {
+            sleep_active: true,
+            sleep_start: Some(1000.0),
+            ..LiveState::default()
+        };
+        let entry = live::entry(&live, 1600.0).expect("ongoing sleep");
+        assert!(editable(&entry));
+        assert_eq!(entry_token(&entry).as_deref(), Some("sleep/current"));
+        assert!(
+            entry.at.is_none(),
+            "a timer must not be addressed as history"
+        );
+        let calendar = Calendar::new("UTC").unwrap();
+        let rows = crate::render::log::rows(&[entry], &calendar, &|_| None);
+        assert_eq!(rows[0].key, "sleep/current");
+        assert!(rows[0].selectable);
+    }
+
+    #[test]
+    fn completed_timers_are_not_offered_and_paused_ones_remain_editable() {
+        let mut state = LiveState {
+            sleep_start: Some(1000.0),
+            ..LiveState::default()
+        };
+        assert!(live::entry(&state, 1600.0).is_none());
+        state.sleep_active = true;
+        state.sleep_paused = true;
+        let entry = live::entry(&state, 1600.0).unwrap();
+        assert!(editable(&entry));
+        assert!(entry.description.contains("paused"));
+    }
 }

@@ -29,7 +29,7 @@ pub fn lines(
         String::new(),
         fact(theme, "Last fed", &feed_line(view, calendar, units, now)),
         fact(theme, "Diaper", &diaper_line(view, calendar, now)),
-        fact(theme, "Sleep", &sleep_line(view, calendar)),
+        sleep_line(view, dataset, theme, now),
         fact(theme, &stretch_label(view), &stretch_line(view, calendar)),
     ];
 
@@ -131,23 +131,38 @@ fn diaper_line(view: &NowView, calendar: &Calendar, now: f64) -> String {
     )
 }
 
-fn sleep_line(view: &NowView, calendar: &Calendar) -> String {
+/// Current sleep leads; the last completed sleep is secondary while asleep.
+fn sleep_line(view: &NowView, dataset: &Dataset, theme: Theme, now: f64) -> String {
     let state = &view.sleep_state;
     if state.asleep {
         let paused = if state.paused { " (timer paused)" } else { "" };
-        return state.asleep_seconds.map_or_else(
-            || format!("asleep{paused}"),
-            |seconds| format!("asleep {}{paused}", format_duration(seconds)),
+        let current = state.asleep_seconds.map_or_else(
+            || format!("currently sleeping{paused}"),
+            |seconds| {
+                format!(
+                    "currently sleeping for {}{paused}",
+                    format_duration(seconds)
+                )
+            },
         );
+        let mut line = fact(theme, "Sleep", &current);
+        if let Some(end) = state.last_sleep_end {
+            line.push(' ');
+            line.push_str(&theme.muted(&format!("(previous sleep was {})", format_ago(end, now))));
+        }
+        return line;
     }
-    match (state.awake_seconds, state.last_sleep_end) {
-        (Some(seconds), Some(end)) => format!(
-            "awake {} · last woke {}",
-            format_duration(seconds),
-            format::clock(end, calendar)
-        ),
-        _ => "no sleep logged".to_owned(),
-    }
+    let previous = dataset.last_sleep().map_or_else(
+        || "no sleep logged".to_owned(),
+        |sleep| {
+            format!(
+                "{} · slept for {}",
+                format_ago(sleep.end(), now),
+                format_duration(sleep.duration)
+            )
+        },
+    );
+    fact(theme, "Sleep", &previous)
 }
 
 /// The label the longest-stretch line gets.
@@ -213,6 +228,35 @@ mod tests {
     }
 
     #[test]
+    fn previous_sleep_is_measured_from_its_end_and_shows_its_duration() {
+        let mut data = dataset();
+        data.sleep = vec![sleep(AFTERNOON - 12600.0, 4800.0)];
+        let text = joined(&data, AFTERNOON);
+        assert!(text.contains("2h 10m ago · slept for 1h 20m"), "{text}");
+    }
+
+    #[test]
+    fn a_live_sleep_keeps_previous_sleep_as_muted_context() {
+        let mut data = dataset();
+        data.sleep = vec![sleep(AFTERNOON - 12600.0, 4800.0)];
+        data.live.sleep_active = true;
+        data.live.sleep_start = Some(AFTERNOON - 1800.0);
+        let calendar = calendar();
+        let view = now::build(&data, &calendar, AFTERNOON);
+        let theme = Theme::dark(true);
+        let text = lines(&view, &data, &calendar, theme, Units::Ml, AFTERNOON).join("\n");
+        assert!(text.contains("currently sleeping for 30m"), "{text}");
+        assert!(
+            text.contains(&theme.muted("(previous sleep was 2h 10m ago)")),
+            "{text}"
+        );
+        assert!(
+            joined(&data, AFTERNOON)
+                .contains("currently sleeping for 30m (previous sleep was 2h 10m ago)")
+        );
+    }
+
+    #[test]
     fn with_nothing_logged_the_screen_says_so_rather_than_showing_zeroes() {
         let text = joined(&dataset(), AFTERNOON);
         assert!(text.contains("Last fed"), "{text}");
@@ -274,7 +318,7 @@ mod tests {
         data.live.sleep_active = true;
         data.live.sleep_start = Some(THREE_AM - 1_800.0);
         let text = joined(&data, THREE_AM);
-        assert!(text.contains("asleep 30m"), "{text}");
+        assert!(text.contains("currently sleeping for 30m"), "{text}");
         assert!(
             text.contains("nothing finished yet"),
             "a running sleep is not a finished stretch, and the line has to \
@@ -288,7 +332,7 @@ mod tests {
         data.live.sleep_active = true;
         data.live.sleep_start = Some(AFTERNOON - 1_800.0);
         let text = joined(&data, AFTERNOON);
-        assert!(text.contains("asleep 30m"), "{text}");
+        assert!(text.contains("currently sleeping for 30m"), "{text}");
         assert!(!text.contains("awake"), "{text}");
     }
 

@@ -79,6 +79,14 @@ sign-in does. Backspace and Ctrl-U erase; Ctrl-C and Esc abandon.
 | `dash` | all of the above, full screen, live |
 | `export` | the lot, as JSON |
 
+`now` leads its Sleep row with the current session, for example
+`currently sleeping for 30m (previous sleep was 2h 10m ago)`. The parenthetical
+is muted when colour is enabled and omitted if no previous sleep is recorded.
+When no sleep is running, the row reads `2h 10m ago · slept for 1h 20m`.
+Previous-sleep elapsed time always starts at that sleep's **end**, not its
+start. The longest-night-stretch row and `now --json` retain their existing
+meanings.
+
 `log` takes `--search <TEXT>` as well, which is the same filter the `/` key
 types interactively. On a terminal it opens a list you can scroll, search and
 open an entry from; piped, it is the same rows as plain text. See
@@ -256,6 +264,24 @@ hb edit --id diaper/1758572400000-3f2a --set pee=big
 arrives with what is already recorded as its answer, so Enter keeps it and only
 what is typed changes. A field that can be empty takes `-` for "leave it out".
 
+An active sleep appears first as **Ongoing sleep**, separately from saved
+history. Selecting it asks for a new start using the same flexible clock and
+relative-minute parser as `sleep start`. Enter keeps the exact existing start;
+`now`, `358 am`, and `32 mins ago` replace it. The same operation is scriptable:
+
+```sh
+hb edit --id sleep/current --set "start=32 mins ago"
+hb edit --id sleep/current                  # asks for a new start
+```
+
+`edit --list` includes `sleep/current` while a sleep is active, even when paused.
+This edit changes only its start and synchronization timestamps: it preserves
+the existing session, details, and running or paused state. It does not finish
+the sleep or create a history entry. Future starts, starts after a paused
+sleep's endpoint, and sessions stopped or replaced while the prompt was open
+are refused. A concurrent update during the write is also refused; select the
+current sleep again to retry. Scripts must supply `--set start=<TIME>`.
+
 | Key | Does |
 | --- | --- |
 | `j`, `k`, `↑`, `↓` | move |
@@ -273,7 +299,7 @@ minutes) and `notes` on a sleep. An empty value clears the field, as in
 `--set color=`. Naming a field the entry does not have fails with the ones it
 does.
 
-Two things `edit` will not do. It does not move an entry in time: a row's id in
+Two things `edit` will not do. It does not move a saved history entry in time: a row's id in
 Huckleberry leads with its own millisecond timestamp, so changing when
 something happened would leave history sorted by a time the row no longer
 claims. And it changes only what this tool can log, so a pumping session and a
@@ -289,7 +315,8 @@ hb delete --id feed/1758572400000-3f2a --yes
 hb delete --tracker health --list          # the rows the stream does not show
 ```
 
-The same list `edit` shows, with the same keys. It removes anything that came
+The same recorded history `edit` shows, with the same keys; live timers are
+excluded. It removes anything that came
 from Huckleberry, not only what this tool can log, because taking a row away
 needs no knowledge of what is in it.
 

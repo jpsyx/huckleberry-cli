@@ -13,6 +13,7 @@ pub mod reads;
 pub mod removal;
 pub mod rows;
 pub mod sleep;
+mod sleep_edit;
 pub mod solids;
 pub mod watch;
 

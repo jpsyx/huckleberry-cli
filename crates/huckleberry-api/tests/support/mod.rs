@@ -75,6 +75,11 @@ impl Stub {
     /// Starts a stub that answers each request with the next reply in turn,
     /// and repeats the last one once the script runs out.
     pub async fn start(replies: Vec<serde_json::Value>) -> Self {
+        Self::start_with_status(replies.into_iter().map(|reply| (200, reply)).collect()).await
+    }
+
+    /// Starts a stub that can also refuse a request, such as a conditional write conflict.
+    pub async fn start_with_status(replies: Vec<(u16, serde_json::Value)>) -> Self {
         let listener = TcpListener::bind("127.0.0.1:0").await.expect("a free port");
         let address = listener.local_addr().expect("a bound address");
         let received = Arc::new(Mutex::new(Vec::new()));
@@ -90,15 +95,15 @@ impl Stub {
                     continue;
                 };
                 log.lock().await.push(request);
-                let reply = replies
+                let (status, reply) = replies
                     .get(answered)
                     .or_else(|| replies.last())
                     .cloned()
-                    .unwrap_or_else(|| serde_json::json!({}));
+                    .unwrap_or_else(|| (200, serde_json::json!({})));
                 answered += 1;
                 let body = reply.to_string();
                 let response = format!(
-                    "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+                    "HTTP/1.1 {status} Stub\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
                     body.len()
                 );
                 let _ = socket.write_all(response.as_bytes()).await;

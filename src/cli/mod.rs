@@ -58,11 +58,12 @@ pub struct Cli {
 #[derive(Debug, Clone, PartialEq, Args)]
 pub struct EditOptions {
     /// Which entry, as `edit --list` names one. Left out on a terminal, you
-    /// pick one off a list.
+    /// pick one off a list. `sleep/current` selects the ongoing sleep.
     #[arg(long, value_name = "ENTRY")]
     pub id: Option<String>,
 
     /// Change one field without being asked, for example `--set pee=big`.
+    /// For the ongoing sleep use `--set "start=32 mins ago"`.
     /// Repeat for several. An empty value clears the field. Left out on a
     /// terminal, you are asked about every field.
     #[arg(long = "set", value_name = "KEY=VALUE")]

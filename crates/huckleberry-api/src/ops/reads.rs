@@ -419,6 +419,7 @@ mod row_handling {
 
     fn document(id: &str, fields: &Json) -> Document {
         Document {
+            update_time: None,
             id: id.to_owned(),
             fields: fields.as_object().expect("an object").clone(),
         }

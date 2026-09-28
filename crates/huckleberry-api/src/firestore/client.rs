@@ -37,6 +37,8 @@ pub struct Document {
     pub id: String,
     /// The contents, untagged.
     pub fields: Map<String, Json>,
+    /// Server revision used for conditional writes.
+    pub update_time: Option<String>,
 }
 
 impl Document {
@@ -187,8 +189,7 @@ impl Firestore {
         fields: &Map<String, Json>,
         operation: &str,
     ) -> Result<()> {
-        self.patch(token, path, fields, None, false, operation)
-            .await
+        self.patch(token, path, fields, None, None, operation).await
     }
 
     /// Writes a document, leaving fields the payload does not mention alone.
@@ -211,7 +212,7 @@ impl Firestore {
     ) -> Result<()> {
         let plain: Map<String, Json> = value::fields_to_json(fields);
         let mask = field_path::leaves(&plain);
-        self.patch(token, path, fields, Some(mask), false, operation)
+        self.patch(token, path, fields, Some(mask), None, operation)
             .await
     }
 
@@ -236,8 +237,40 @@ impl Firestore {
         operation: &str,
     ) -> Result<()> {
         let (fields, mask) = field_path::document_and_mask(updates);
-        self.patch(token, path, &fields, Some(mask), true, operation)
-            .await
+        self.patch(
+            token,
+            path,
+            &fields,
+            Some(mask),
+            Some(("currentDocument.exists", "true")),
+            operation,
+        )
+        .await
+    }
+
+    /// Changes fields only if the document still has the revision that was read.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::update`], including a server refusal when another write intervened.
+    pub async fn update_if_unchanged(
+        &self,
+        token: &str,
+        path: &str,
+        updates: &[FieldUpdate],
+        update_time: &str,
+        operation: &str,
+    ) -> Result<()> {
+        let (fields, mask) = field_path::document_and_mask(updates);
+        self.patch(
+            token,
+            path,
+            &fields,
+            Some(mask),
+            Some(("currentDocument.updateTime", update_time)),
+            operation,
+        )
+        .await
     }
 
     /// Takes a document away.
@@ -275,15 +308,15 @@ impl Firestore {
         path: &str,
         fields: &Map<String, Json>,
         mask: Option<Vec<String>>,
-        require_existing: bool,
+        precondition: Option<(&str, &str)>,
         operation: &str,
     ) -> Result<()> {
         let mut request = self.http.patch(self.url(path));
         for entry in mask.unwrap_or_default() {
             request = request.query(&[("updateMask.fieldPaths", entry)]);
         }
-        if require_existing {
-            request = request.query(&[("currentDocument.exists", "true")]);
+        if let Some(condition) = precondition {
+            request = request.query(&[condition]);
         }
         let response = request
             .json(&serde_json::json!({ "fields": fields }))
@@ -344,6 +377,10 @@ pub fn document_id(name: &str) -> String {
 #[must_use]
 pub fn decode_document(payload: &Json) -> Document {
     Document {
+        update_time: payload
+            .get("updateTime")
+            .and_then(Json::as_str)
+            .map(ToOwned::to_owned),
         id: payload
             .get("name")
             .and_then(Json::as_str)
