@@ -10,6 +10,7 @@
 //! | Module | Answers |
 //! | --- | --- |
 //! | [`time`] | which local day an instant is on, and how long that day is |
+//! | [`clock`] | a time somebody typed, and the instant it means |
 //! | [`types`] | the event shapes everything downstream speaks |
 //! | [`normalize`] | the API's models turned into those shapes, once |
 //! | [`now`] | the four facts on the 3am screen |
@@ -18,6 +19,7 @@
 //! | [`reference`] | age-aware typical ranges, stated and never prescribed |
 //! | [`log`] | one merged, newest-first stream of everything |
 
+pub mod clock;
 #[cfg(test)]
 pub(crate) mod fixtures;
 pub mod log;

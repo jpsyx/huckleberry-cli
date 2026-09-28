@@ -61,6 +61,16 @@ pub fn completed_sleep(timer: &SleepTimer, now: f64) -> Option<CompletedSleep> {
     })
 }
 
+/// Whether a sleep just entered is the most recent one on the record.
+///
+/// A manual entry for last Tuesday must not become the app's "last sleep":
+/// that field is what the home screen reads, and moving it backwards would
+/// make the tool look like it had lost this morning's nap.
+#[must_use]
+pub fn replaces_last(existing_start: Option<f64>, new_start: f64) -> bool {
+    existing_start.is_none_or(|existing| new_start > existing)
+}
+
 /// The timer fields that mark a session finished or abandoned.
 ///
 /// The timer is emptied rather than deleted: the app expects the field to be
@@ -248,6 +258,69 @@ impl Huckleberry {
         Ok(Some(completed))
     }
 
+    /// Records a sleep that has already happened.
+    ///
+    /// History only: the timer is not read and not written, so a sleep in
+    /// progress stays in progress. The tracker's "last sleep" is moved only
+    /// when this one is more recent than what is there, because entering an
+    /// older sleep after the fact is not a claim about the last one.
+    ///
+    /// # Errors
+    ///
+    /// As [`Huckleberry::start_sleep`].
+    pub async fn log_sleep(&self, cid: &str, start: f64, duration: f64) -> Result<()> {
+        let operation = "recording the sleep";
+        let last = self
+            .sleep_document(cid)
+            .await?
+            .and_then(|document| document.prefs)
+            .and_then(|prefs| prefs.last_sleep)
+            .and_then(|last| last.start)
+            .map(Number::as_f64);
+
+        let offset = self.zone().offset_minutes(start);
+        let interval = SleepInterval {
+            id: None,
+            start: Number::Float(start),
+            duration: Number::Float(duration),
+            offset: Number::Float(offset),
+            end_offset: Some(Number::Float(self.zone().offset_minutes(start + duration))),
+            details: None,
+            last_updated: Some(Number::Float(now_seconds())),
+        };
+        let token = self.token().await?;
+        self.firestore()
+            .set(
+                &token,
+                &paths::history_row(paths::SLEEP, cid, &ids::sleep_interval_id()),
+                &to_fields(&interval)?,
+                operation,
+            )
+            .await?;
+
+        if !replaces_last(last, start) {
+            return Ok(());
+        }
+        let now = now_seconds();
+        let last_sleep = LastSleep {
+            start: Some(Number::Float(start)),
+            duration: Some(Number::Float(duration)),
+            offset: Some(Number::Float(offset)),
+        };
+        self.firestore()
+            .update(
+                &token,
+                &paths::tracker(paths::SLEEP, cid),
+                &[
+                    FieldUpdate::set("prefs.lastSleep", to_json(&last_sleep)?),
+                    FieldUpdate::set("prefs.timestamp", json!({ "seconds": now })),
+                    FieldUpdate::set("prefs.local_timestamp", json!(now)),
+                ],
+                operation,
+            )
+            .await
+    }
+
     /// The sleep tracker's document.
     ///
     /// # Errors
@@ -312,6 +385,26 @@ impl Huckleberry {
         ];
         self.update_history_row(cid, at, &updates, "changing the sleep")
             .await
+    }
+}
+
+#[cfg(test)]
+mod last_sleep {
+    use super::*;
+
+    #[test]
+    fn the_first_sleep_on_the_record_becomes_the_last_one() {
+        assert!(replaces_last(None, 100.0));
+    }
+
+    #[test]
+    fn a_newer_sleep_replaces_it_and_an_older_one_does_not() {
+        assert!(replaces_last(Some(100.0), 200.0));
+        assert!(!replaces_last(Some(200.0), 100.0));
+        assert!(
+            !replaces_last(Some(100.0), 100.0),
+            "the same one is not newer"
+        );
     }
 }
 

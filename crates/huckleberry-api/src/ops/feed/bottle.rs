@@ -29,6 +29,7 @@ impl Huckleberry {
         amount: f64,
         bottle_type: BottleType,
         units: VolumeUnits,
+        notes: Option<&str>,
     ) -> Result<()> {
         let now = now_seconds();
         let offset = self.zone().offset_minutes(now);
@@ -40,7 +41,7 @@ impl Huckleberry {
             units: units.clone(),
             offset: Number::Float(offset),
             end_offset: Some(Number::Float(offset)),
-            notes: None,
+            notes: note(notes).map(|text| text.to_string()),
         });
         let token = self.token().await?;
         self.firestore()

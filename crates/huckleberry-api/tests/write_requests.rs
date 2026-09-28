@@ -249,7 +249,13 @@ async fn finishing_a_nursing_session_banks_the_running_side_and_clears_the_durat
 async fn a_bottle_is_written_as_a_row_and_as_the_next_default() {
     let stub = Stub::start(vec![json!({}), json!({})]).await;
     client(&stub)
-        .log_bottle("c1", 90.0, BottleType::Formula, VolumeUnits::Millilitres)
+        .log_bottle(
+            "c1",
+            90.0,
+            BottleType::Formula,
+            VolumeUnits::Millilitres,
+            Some("took it all"),
+        )
         .await
         .expect("the write");
 
@@ -484,6 +490,7 @@ async fn editing_a_bottle_changes_the_amount_and_the_kind() {
     let document = request.document();
     assert_eq!(document["amount"], json!(120.0));
     assert_eq!(document["bottleType"], json!("Formula"));
+    assert_eq!(document["notes"], json!("took it all"));
     assert_eq!(document["units"], json!("ml"));
     assert_eq!(document["notes"], json!("took it all"));
 }
@@ -564,5 +571,72 @@ async fn editing_a_sleep_changes_how_long_it_lasted_and_what_was_noted() {
     assert!(
         !mask.contains(&"start".to_owned()),
         "an edit changes how long it was, not when it began: {mask:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_manual_sleep_is_written_to_history_without_touching_the_timer() {
+    let stub = Stub::start(vec![
+        document(
+            "sleep/c1",
+            &json!({ "prefs": { "lastSleep": { "start": 1_000.0 } } }),
+        ),
+        json!({}),
+        json!({}),
+    ])
+    .await;
+    client(&stub)
+        .log_sleep("c1", 1_758_564_000.0, 5_400.0)
+        .await
+        .expect("the write");
+
+    let requests = stub.requests().await;
+    let written = requests
+        .iter()
+        .find(|request| {
+            request
+                .path
+                .starts_with("/v1/documents/sleep/c1/intervals/")
+        })
+        .expect("a history row");
+    let row = written.document();
+    assert_eq!(row["start"], json!(1_758_564_000.0));
+    assert_eq!(row["duration"], json!(5_400.0));
+    assert!(
+        row.get("details").is_none(),
+        "a manual entry claims nothing it was not told: {row}"
+    );
+
+    assert!(
+        !requests.iter().any(|request| request
+            .update_mask()
+            .iter()
+            .any(|entry| entry.starts_with("timer"))),
+        "a manual entry is history, not a timer: a sleep in progress stays in progress"
+    );
+}
+
+#[tokio::test]
+async fn a_manual_sleep_older_than_the_last_one_leaves_the_last_one_alone() {
+    let stub = Stub::start(vec![
+        document(
+            "sleep/c1",
+            &json!({ "prefs": { "lastSleep": { "start": 1_758_564_000.0 } } }),
+        ),
+        json!({}),
+    ])
+    .await;
+    client(&stub)
+        .log_sleep("c1", 1_758_000_000.0, 3_600.0)
+        .await
+        .expect("the write");
+
+    let requests = stub.requests().await;
+    assert!(
+        !requests.iter().any(|request| request
+            .update_mask()
+            .iter()
+            .any(|entry| entry.contains("lastSleep"))),
+        "the app's `last sleep` is the last one, not the last one entered"
     );
 }

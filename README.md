@@ -80,7 +80,7 @@ name, and `BIN_DIR` chooses somewhere other than `~/.local/bin`.
 | | |
 | --- | --- |
 | **Read** | `now`, `summary`, `stripes`, `trends`, `log`, `dash`, `export` |
-| **Sleep** | `sleep start / pause / resume / stop / cancel / status` |
+| **Sleep** | `sleep start / pause / resume / stop / cancel / status`, `sleep manual` |
 | **Feeding** | `feed bottle`, `feed nursing start / switch / pause / stop`, `feed solids` |
 | **Nappies** | `diaper`, `potty` |
 | **Corrections** | `edit` |
@@ -94,9 +94,9 @@ they follow.
 
 ## Two audiences, both first class
 
-**A person who omits a value is asked for it.** `hb feed bottle`
-asks how much, offering the last amount as the default, and what was in it,
-offering the last kind. `hb diaper` asks what was in it and then every
+**A person who omits a value is asked for it.** `hb feed bottle` asks which
+units, how much, what was in it and anything to note, each with the answer it
+expects already in it. `hb diaper` asks what was in it and then every
 question that answer implies, each one taking Enter for "leave it out". Nobody
 has to read `--help` to do the obvious thing.
 

@@ -61,16 +61,39 @@ hb sleep resume
 hb sleep stop        # records it
 hb sleep cancel      # throws it away
 hb sleep status
+
+hb sleep manual                              # asks when it began and ended
+hb sleep manual --start 11:30pm --end 1:15am
 ```
 
 `sleep start` refuses to start a second sleep over a running one, because that
 would leave the first unrecorded.
 
+`sleep manual` records a sleep that has already happened, and asks two
+questions because that is all a sleep is. Neither time carries a date: a bare
+time is the most recent one, so at 3am `11:30pm` is last night, and the end is
+the first such time after the start, so a sleep across midnight needs nobody to
+say so. A time is read the way it is said: `3:57am`, `3:57 AM`, `3:57 a.m.`,
+`357am`, `0357`, `03:57`, `21:30`, `2130`, `9pm`, `7`. A bare twelve-hour time
+like `3:57` is either half of the day, so you are asked which; with `--start`
+it is refused, naming both spellings.
+
+A sleep in progress is not in the way, because the entry is history and the
+timer is a timer. They meet only when the entry runs into the running sleep,
+and then `--overlap` says which to keep. Left out on a terminal you are asked,
+in yellow, with no default: all three answers throw something away.
+
+| `--overlap` | Does |
+| --- | --- |
+| `discard-sleep` | throws the sleep in progress away, and keeps the entry |
+| `discard-manual` | keeps the sleep in progress, and throws the entry away |
+| `record-sleep` | finishes and records the sleep in progress, and throws the entry away |
+
 ### Feeding
 
 ```sh
 hb feed bottle --amount 90 --type formula
-hb feed bottle                       # asks, offering the last amount
+hb feed bottle                       # asks which units, how much, what, and notes
 
 hb feed nursing start --side left
 hb feed nursing switch
@@ -82,9 +105,20 @@ hb feed solids --food Avocado --reaction loved
 ```
 
 `--type` takes `formula`, `breast-milk`, `cow-milk`, `goat-milk`, `soy-milk`,
-`tube-feeding` or `other`. `--units` takes `ml` or `oz` and defaults to the
-`units` setting. Asked interactively, the bottle prompt offers the last amount
-and the last kind as defaults, which at 3am is most of the work.
+`tube-feeding` or `other`. `--units` takes `ml` or `oz`.
+
+Asked interactively, a bottle is four questions: which units, how much, what
+was in it, and anything to note. Every one of them arrives with an answer
+already in it, so the fast path is four presses of Enter. The `units` setting
+is what the first question offers, not what the command assumes: somebody who
+mostly records in ounces still gives the odd bottle in millilitres, and
+`hb config set units oz` changes what Enter takes. The amount offered is the
+last bottle's, **converted into the units being recorded in**: the app stores
+it in whatever units it was entered in, so offering it as it stands turned a
+last bottle of 1.15 oz into an offer of "1.15" under a question reading "How
+much, in ml?".
+
+A meal asks for the food, how much, how it went and anything to note.
 
 `feed nursing start` with no `--side` offers the side opposite the last feed,
 which is what the app suggests.
@@ -96,7 +130,12 @@ hb diaper --mode both --poo medium --color yellow --consistency loose
 hb diaper                        # asks what was in it
 hb potty --mode pee --how went-potty
 hb growth --weight 3.6
+hb growth                        # asks the system, the weight, then the rest
 ```
+
+`growth` asks which system the numbers are in, offering the `measurements`
+setting, then the weight, the length and the head circumference; only the
+weight has to be answered, and only when no measurement was passed at all.
 
 The nappy prompt asks what was in it and then asks every question that answer
 implies: how much wet, how much dirty, the colour, the consistency, whether

@@ -181,6 +181,14 @@ impl Context {
     pub fn warn(&self, message: &str) {
         eprintln!("{}", self.theme.warning(message));
     }
+
+    /// Points at something about the record that is worth a second look.
+    ///
+    /// Yellow, and never red: nothing has gone wrong with the tool, which is
+    /// what `warn` is for. See `docs/rules/cli-ux.md`.
+    pub fn attention(&self, message: &str) {
+        eprintln!("{}", self.theme.attention(message));
+    }
 }
 
 /// The failure when nobody has signed in and there is nobody to ask.

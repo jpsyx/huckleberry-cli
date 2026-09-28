@@ -2,7 +2,9 @@
 
 use clap::Subcommand;
 
-use super::values::{Amount, BottleKind, Colour, Consistency, NappyKind, Reaction, Side, Units};
+use super::values::{
+    Amount, BottleKind, Colour, Consistency, NappyKind, Overlap, Reaction, Side, Units,
+};
 
 /// What `auth` can be asked to do.
 #[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
@@ -49,6 +51,25 @@ pub enum ChildAction {
 pub enum SleepAction {
     /// Start a sleep.
     Start,
+    /// Record a sleep that has already happened.
+    Manual {
+        /// When it began, as you would say it: `9pm`, `21:00`, `0357`.
+        /// Left out on a terminal, you are asked.
+        #[arg(short, long, value_name = "TIME")]
+        start: Option<String>,
+
+        /// When it ended, read as the first such time after it began, so a
+        /// sleep across midnight needs no date. Left out on a terminal, you
+        /// are asked.
+        #[arg(short, long, value_name = "TIME")]
+        end: Option<String>,
+
+        /// What to do if it runs into a sleep that is still going. Left out
+        /// on a terminal, you are asked; there is no default, because all
+        /// three answers throw something away.
+        #[arg(long, value_enum)]
+        overlap: Option<Overlap>,
+    },
     /// Pause the running sleep.
     Pause,
     /// Resume a paused sleep.
@@ -75,9 +96,14 @@ pub enum FeedAction {
         #[arg(short = 't', long = "type", value_enum, value_name = "KIND")]
         bottle_type: Option<BottleKind>,
 
-        /// Which units the amount is in. Defaults to the `units` setting.
+        /// Which units the amount is in. Left out on a terminal, you are
+        /// asked, with the `units` setting offered as the default.
         #[arg(short, long, value_enum)]
         units: Option<Units>,
+
+        /// Anything worth writing down.
+        #[arg(short, long, value_name = "TEXT")]
+        notes: Option<String>,
     },
     /// Run the nursing timer.
     Nursing {
@@ -92,9 +118,10 @@ pub enum FeedAction {
         #[arg(short, long = "food", value_name = "NAME")]
         foods: Vec<String>,
 
-        /// How much of each, in whatever words suit.
-        #[arg(short, long, default_value = "some", value_name = "TEXT")]
-        amount: String,
+        /// How much of each, in whatever words suit. Left out on a terminal,
+        /// you are asked, with "some" offered as the default.
+        #[arg(short, long, value_name = "TEXT")]
+        amount: Option<String>,
 
         /// How it went.
         #[arg(short, long, value_enum)]

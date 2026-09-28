@@ -266,3 +266,56 @@ is nobody to pick, so `edit` fails naming `--id` and points at `--list`.
 **Revisit when.** A second screen wants to choose something. Then the picker
 becomes generic over what it is listing, rather than a second copy of it
 appearing.
+
+## Every recording command asks every question its answer implies
+
+**Decision.** In interactive mode, a command that records something asks about
+every field that entry can carry, in the tracker's own order, with the value
+the record would otherwise get already in the question. A flag answers its own
+question and no others. Nothing but the first value is required: Enter leaves a
+field out.
+
+**Why.** The rule this replaces was "the flags are the fast path, so a person
+who passed one is not asked for the rest", and what it produced was fields
+nobody could record at all. Choosing "wet" ended the nappy conversation, so
+there was no way to say it was a big one; a bottle never asked which units, so
+a family recording in ounces silently recorded millilitres. A question with its
+answer already in it costs one keystroke, which is the right price for a field
+that is otherwise unreachable.
+
+**Consequences.** `hb diaper` is up to six questions and `hb feed bottle` is
+four, each a press of Enter. The defaults do the work, so they have to be
+right: the bottle amount offered is the last bottle's **converted into the
+units being asked about**, because the app stores it in whatever units it was
+entered in. The settings (`units`, `measurements`) are what the questions
+offer, never what the commands assume, so `hb config set units oz` changes what
+Enter takes and nothing else. With no terminal nothing is asked and nothing
+changes: a missing optional value is absent, not a failure.
+
+**Revisit when.** A tracker grows a field this tool does not model. Then it is
+a question here and a field in `huckleberry-api`, in the same change.
+
+## A time is read the way it is said
+
+**Decision.** `src/domain/clock.rs` reads `3:57am`, `3:57 AM`, `3:57 a.m.`,
+`357am`, `0357`, `03:57`, `21:30`, `2130`, `9pm` and `7` as times of day, and a
+bare `3:57` as **both** times rather than as a guess. A time with no day is the
+most recent one at or before now; an end time is the first such time after the
+start.
+
+**Why.** The only person typing a sleep in after the fact is doing it at 3am
+from memory, and making them match a format is making them think. The two
+resolution rules are what a person means without saying it: "he went down at
+11:30" said at 3am is last night, and "up at 1:15" after that is the same
+night. Guessing the half of the day is the one thing the parser will not do,
+because being wrong by twelve hours puts a sleep in the wrong night and the
+mistake is invisible afterwards.
+
+**Consequences.** `sleep manual --start 3:57` is refused naming both
+spellings; asked interactively, it offers `3:57 am` and `3:57 pm` and takes the
+answer. A leading zero (`0357`, `03:57`) is read as a 24-hour clock, because
+that is what writing it out means. Everything is pure and takes `now` as an
+argument, so midnight, DST and the 3am case are tests.
+
+**Revisit when.** Somebody wants to name a day ("yesterday 9pm", "Tuesday").
+That is a date parser, and it belongs beside this one rather than inside it.

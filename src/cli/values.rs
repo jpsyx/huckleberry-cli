@@ -276,6 +276,20 @@ impl Reaction {
     }
 }
 
+/// What to do when a manual sleep runs into the one still going.
+///
+/// Named for what happens to each of the two, because "yes" and "no" are not
+/// answers to a question with three sides.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum Overlap {
+    /// Throw the running sleep away and keep the manual entry.
+    DiscardSleep,
+    /// Keep the running sleep and throw the manual entry away.
+    DiscardManual,
+    /// Finish and record the running sleep, and throw the manual entry away.
+    RecordSleep,
+}
+
 /// Which system growth measurements are in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum System {
@@ -292,6 +306,15 @@ impl System {
         match self {
             Self::Metric => MeasurementSystem::Metric,
             Self::Imperial => MeasurementSystem::Imperial,
+        }
+    }
+
+    /// The setting spelling, which is what `config set measurements` stores.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Metric => "metric",
+            Self::Imperial => "imperial",
         }
     }
 
@@ -470,6 +493,11 @@ mod tests {
         assert_eq!(Units::Oz.as_str(), "oz");
         assert_eq!(System::from_setting("imperial"), System::Imperial);
         assert_eq!(System::from_setting("anything else"), System::Metric);
+        assert_eq!(System::Imperial.as_str(), "imperial");
+        assert_eq!(
+            System::from_setting(System::Metric.as_str()),
+            System::Metric
+        );
     }
 
     #[test]

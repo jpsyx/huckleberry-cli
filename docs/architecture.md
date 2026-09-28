@@ -62,6 +62,7 @@ src/
 ├── prompt.rs        asking for a value that was left out
 ├── theme.rs         semantic colours
 ├── domain/          everything the tool works out, and nothing it prints
+│   └── clock.rs     a time somebody typed, and the instant it means
 ├── render/          domain values to lines of text
 ├── dashboard/       the full-screen version of the same values
 ├── picker/          choosing one entry off a list, full screen

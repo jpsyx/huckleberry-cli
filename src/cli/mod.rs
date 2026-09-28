@@ -21,8 +21,8 @@ pub use actions::{
     AuthAction, ChildAction, ConfigAction, FeedAction, FoodsAction, NursingAction, SleepAction,
 };
 pub use values::{
-    Amount, BottleKind, Colour, Consistency, LogKind, NappyKind, PottyOutcome, Reaction, Side,
-    System, TrendMetric, Units,
+    Amount, BottleKind, Colour, Consistency, LogKind, NappyKind, Overlap, PottyOutcome, Reaction,
+    Side, System, TrendMetric, Units,
 };
 
 /// A terminal client and dashboard for Huckleberry baby tracking.

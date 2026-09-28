@@ -4,10 +4,15 @@ use anyhow::{Result, bail};
 use huckleberry_api::GrowthMeasurements;
 
 use crate::cli::System;
-use crate::prompt::{self, Question};
+use crate::prompt::{self, Choice, Question};
 use crate::session::Context;
 
-/// Records a measurement, asking for a weight when nothing at all was given.
+/// Records a measurement, asking for everything that was not given.
+///
+/// Every measurement the app takes, in its own order: which system, then the
+/// weight, the length and the head. Only the weight has to be answered, and
+/// only when nothing at all was passed: a parent who came to record a weight
+/// should not have to produce a tape measure.
 pub async fn run(
     context: &Context,
     weight: Option<f64>,
@@ -16,17 +21,28 @@ pub async fn run(
     units: Option<System>,
 ) -> Result<()> {
     let (client, cid) = super::client_and_child(context).await?;
-    let system = units.unwrap_or_else(|| System::from_setting(&context.config.measurements));
+    let nothing_given = weight.is_none() && height.is_none() && head.is_none();
+    let configured = System::from_setting(&context.config.measurements);
+    // The `measurements` setting is the default, not the answer.
+    let system = match units {
+        Some(given) => given,
+        None => ask_for_system(context, configured)?,
+    };
 
     let mut measurements = GrowthMeasurements {
         weight,
         height,
         head,
     };
-    if measurements.is_empty() {
-        // Weight is the one a pediatrician asks for and the only one worth
-        // interrupting somebody for; the other two stay flags.
+    if nothing_given {
         measurements.weight = Some(ask_for_weight(context, system)?);
+    }
+    if measurements.height.is_none() {
+        measurements.height = ask_for_length(context, system, "Length?", "--height <NUMBER>")?;
+    }
+    if measurements.head.is_none() {
+        measurements.head =
+            ask_for_length(context, system, "Head circumference?", "--head <NUMBER>")?;
     }
     validate(&measurements)?;
 
@@ -36,6 +52,50 @@ pub async fn run(
     super::persist_session(context, &client).await?;
     context.report(&format!("Recorded {}.", describe(&measurements, system)));
     Ok(())
+}
+
+/// Which system the numbers are in.
+fn ask_for_system(context: &Context, configured: System) -> Result<System> {
+    const CHOICES: [Choice<'static>; 2] = [
+        Choice {
+            value: "metric",
+            hint: "Kilograms and centimetres",
+        },
+        Choice {
+            value: "imperial",
+            hint: "Pounds and inches",
+        },
+    ];
+    let question = Question::new("units", "In which units?", "--units <SYSTEM>")
+        .with_choices(&CHOICES)
+        .with_default(configured.as_str());
+    Ok(System::from_setting(&prompt::ask(
+        &question,
+        context.theme,
+    )?))
+}
+
+/// A length, which is optional: most visits weigh and nothing else.
+fn ask_for_length(
+    context: &Context,
+    system: System,
+    label: &str,
+    flag: &str,
+) -> Result<Option<f64>> {
+    let unit = match system {
+        System::Metric => "centimetres",
+        System::Imperial => "inches",
+    };
+    let label = format!("{label} In {unit}.");
+    let question = Question::new("length", &label, flag).optional();
+    let Some(answer) = prompt::ask_optional(&question, context.theme)? else {
+        return Ok(None);
+    };
+    answer
+        .trim()
+        .parse()
+        .map(Some)
+        .map_err(|_| anyhow::anyhow!("`{answer}` is not a number"))
 }
 
 /// Refuses a measurement that cannot be right.
