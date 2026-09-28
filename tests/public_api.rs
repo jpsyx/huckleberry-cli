@@ -79,7 +79,7 @@ fn every_action_is_reachable_without_a_prompt() {
     let diaper = Cli::try_parse_from(["huckleberry-cli", "diaper", "--mode", "both"])
         .expect("a diaper parses");
     assert!(matches!(
-        diaper.command,
+        diaper.command.unwrap(),
         Command::Diaper {
             mode: Some(DiaperKind::Both),
             ..
@@ -88,7 +88,7 @@ fn every_action_is_reachable_without_a_prompt() {
 
     let stop = Cli::try_parse_from(["huckleberry-cli", "sleep", "stop"]).expect("sleep parses");
     assert_eq!(
-        stop.command,
+        stop.command.unwrap(),
         Command::Sleep {
             action: SleepAction::Stop { at: None }
         }
@@ -97,7 +97,7 @@ fn every_action_is_reachable_without_a_prompt() {
     let set = Cli::try_parse_from(["huckleberry-cli", "config", "set", "days", "14"])
         .expect("config set parses");
     assert_eq!(
-        set.command,
+        set.command.unwrap(),
         Command::Config {
             action: ConfigAction::Set {
                 key: Some("days".to_owned()),

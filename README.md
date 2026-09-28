@@ -222,3 +222,10 @@ in [`NOTICE`](NOTICE), as that licence requires.
 Huckleberry is a product of Huckleberry Labs, Inc. This project is an
 unofficial client, is not affiliated with or endorsed by them, and uses their
 name only to say what it talks to.
+
+Run `hb` with no command to open the interactive menu. Every command and option
+is reachable there. Use arrows or J/H to move down, K/P to move up, and Enter to
+choose the highlighted default. Edit and Delete appear above Visualizations.
+Escape returns to the parent menu; Escape or Ctrl-C at home exits. Session
+options change temporary overrides, while Settings changes stored configuration.
+Without terminal input and stderr, a bare invocation prints help.

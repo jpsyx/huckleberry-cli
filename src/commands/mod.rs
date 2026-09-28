@@ -21,6 +21,7 @@ pub mod sleep;
 pub mod views;
 
 use anyhow::{Result, bail};
+use clap::CommandFactory;
 use huckleberry_api::Huckleberry;
 use huckleberry_api::client::now_seconds;
 
@@ -33,37 +34,40 @@ use crate::theme::Theme;
 
 /// Runs the command the arguments selected.
 pub async fn run(cli: &Cli, theme: Theme) -> Result<()> {
-    let context = Context::open(cli, theme)?;
-    match &cli.command {
-        Command::Auth { action } => auth::run(&context, action).await,
-        Command::Child { action } => child::run(&context, action).await,
-        Command::Now { json } => views::now(&context, *json).await,
+    if let Some(command) = &cli.command {
+        return dispatch(&Context::open(cli, theme)?, command).await;
+    }
+    if prompt::available() {
+        return Box::pin(crate::interactive::run(cli, theme)).await;
+    }
+    Cli::command().print_help()?;
+    println!();
+    Ok(())
+}
+
+/// Runs a typed command with fresh operation context.
+pub async fn dispatch(context: &Context, command: &Command) -> Result<()> {
+    match command {
+        Command::Auth { action } => auth::run(context, action).await,
+        Command::Child { action } => child::run(context, action).await,
+        Command::Now { json } => views::now(context, *json).await,
         // Boxed because the dashboard's future holds a terminal, a dataset and
         // a draw closure, and an unboxed one would make every other arm of
         // this match as large as the biggest.
-        Command::Dash { days, refresh } => Box::pin(dash::run(&context, *days, *refresh)).await,
-        Command::Summary { days, json } => views::summary(&context, *days, *json).await,
-        Command::Trends { metric, days } => views::trends(&context, *metric, *days).await,
-        Command::Stripes { days } => views::stripes(&context, *days).await,
+        Command::Dash { days, refresh } => Box::pin(dash::run(context, *days, *refresh)).await,
+        Command::Summary { days, json } => views::summary(context, *days, *json).await,
+        Command::Trends { metric, days } => views::trends(context, *metric, *days).await,
+        Command::Stripes { days } => views::stripes(context, *days).await,
         Command::Log {
             kind,
             days,
             limit,
             search,
-        } => {
-            Box::pin(views::log(
-                &context,
-                *kind,
-                *days,
-                *limit,
-                search.as_deref(),
-            ))
-            .await
-        }
-        Command::Edit { options } => Box::pin(edit::run(&context, options)).await,
-        Command::Delete { options } => Box::pin(delete::run(&context, options)).await,
-        Command::Sleep { action } => sleep::run(&context, action).await,
-        Command::Feed { action } => feed::run(&context, action).await,
+        } => Box::pin(views::log(context, *kind, *days, *limit, search.as_deref())).await,
+        Command::Edit { options } => Box::pin(edit::run(context, options)).await,
+        Command::Delete { options } => Box::pin(delete::run(context, options)).await,
+        Command::Sleep { action } => sleep::run(context, action).await,
+        Command::Feed { action } => feed::run(context, action).await,
         Command::Diaper {
             at,
             mode,
@@ -75,7 +79,7 @@ pub async fn run(cli: &Cli, theme: Theme) -> Result<()> {
             notes,
         } => {
             diaper::diaper(
-                &context,
+                context,
                 *mode,
                 crate::cli::actions::DiaperFlags {
                     pee: *pee,
@@ -98,7 +102,7 @@ pub async fn run(cli: &Cli, theme: Theme) -> Result<()> {
             notes,
         } => {
             diaper::potty(
-                &context,
+                context,
                 *mode,
                 *how,
                 *color,
@@ -114,11 +118,11 @@ pub async fn run(cli: &Cli, theme: Theme) -> Result<()> {
             height,
             head,
             units,
-        } => growth::run(&context, *weight, *height, *head, *units, at.as_deref()).await,
-        Command::Foods { action } => foods::run(&context, action).await,
-        Command::Export { days, out } => export::run(&context, *days, out.as_deref()).await,
-        Command::Config { action } => settings::run(&context, action),
-        Command::Info => info::run(&context),
+        } => growth::run(context, *weight, *height, *head, *units, at.as_deref()).await,
+        Command::Foods { action } => foods::run(context, action).await,
+        Command::Export { days, out } => export::run(context, *days, out.as_deref()).await,
+        Command::Config { action } => settings::run(context, action),
+        Command::Info => info::run(context),
     }
 }
 

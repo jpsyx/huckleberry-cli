@@ -8,7 +8,7 @@ use super::{
 };
 use crate::{
     prompt::select::{self, MenuItem},
-    session::Context,
+    theme::Theme,
 };
 use anyhow::Result;
 use clap::ArgAction;
@@ -88,7 +88,11 @@ pub fn set_value(draft: &mut CommandDraft, id: &str, values: Vec<String>) {
 }
 
 /// Edits command-specific overrides, retaining them until Run or Back.
-pub async fn edit(context: &Context, draft: &mut CommandDraft) -> Result<()> {
+pub async fn edit(
+    theme: Theme,
+    globals: &mut super::session::SessionOptions,
+    draft: &mut CommandDraft,
+) -> Result<()> {
     loop {
         let bindings = bindings(&draft.path);
         let mut labels = vec!["Done".to_owned()];
@@ -100,23 +104,36 @@ pub async fn edit(context: &Context, draft: &mut CommandDraft) -> Result<()> {
                 detail: None,
             })
             .collect::<Vec<_>>();
-        let index = select::choose("Command options", &items, 0, context.theme)?;
+        let index = select::choose("Command options", &items, 0, theme)?;
         if index == 0 {
             return Ok(());
         }
         let binding = &bindings[index - 1];
         match binding.control {
-            OptionControl::Form => edit::collect(context, draft).await?,
+            OptionControl::Form => {
+                edit::collect(&super::session::load_context(globals, theme)?, draft).await?;
+            }
             OptionControl::Session => {
-                eprintln!("Global overrides are available under More > Session options.");
+                *globals = super::session::edit_options(globals, theme).await?;
             }
             OptionControl::Help => {
                 if let Some(mut command) = metadata(&draft.path) {
                     eprintln!("{}", command.render_long_help());
+                    super::pause(theme)?;
                 }
             }
-            OptionControl::Version => eprintln!("{}", env!("CARGO_PKG_VERSION")),
-            _ => value::edit(context, draft, binding).await?,
+            OptionControl::Version => {
+                eprintln!("{}", env!("CARGO_PKG_VERSION"));
+                super::pause(theme)?;
+            }
+            _ => {
+                value::edit(
+                    &super::session::load_context(globals, theme)?,
+                    draft,
+                    binding,
+                )
+                .await?;
+            }
         }
     }
 }

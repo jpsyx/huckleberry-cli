@@ -465,3 +465,13 @@ Deletion with a named tracker and no ID opens a searchable entry picker on a
 terminal. The selected row still requires the usual confirmation, defaulting to
 No. Session options edit temporary configuration, child, verbosity and live or
 snapshot source overrides; Apply publishes the draft and Escape discards it.
+
+With no command, `hb` starts a persistent interactive session when stdin and
+stderr are terminals. Home lists diaper, feed, sleep, Edit, Delete,
+Visualizations, logs, other logging, More, and Exit. Each command offers Run,
+Options and Back. Options reaches every flag, including session overrides.
+Successful logging returns home; visualizations return to their parent menu.
+Static results remain visible until Continue. Escape cancels unfinished input
+and returns to navigation; Escape or Ctrl-C at home exits cleanly. Failures stay
+in the session without retrying the command. Bare nonterminal invocations print
+help and exit successfully. Explicit commands keep their scriptable behavior.

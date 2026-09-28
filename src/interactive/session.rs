@@ -47,7 +47,7 @@ pub async fn choose_child(context: &crate::session::Context) -> anyhow::Result<S
 impl SessionOptions {
     /// Builds an invocation without persisting session overrides.
     #[must_use]
-    pub fn to_cli(&self, command: crate::cli::Command) -> Cli {
+    pub fn to_cli(&self, command: Option<crate::cli::Command>) -> Cli {
         Cli {
             command,
             config: self.config.clone(),
@@ -69,3 +69,11 @@ pub fn finish_edit(
 }
 
 pub use super::session_menu::edit_options;
+
+/// Reopens settings before each action so persistent changes take effect immediately.
+pub fn load_context(
+    options: &SessionOptions,
+    theme: crate::theme::Theme,
+) -> anyhow::Result<crate::session::Context> {
+    crate::session::Context::open(&options.to_cli(None), theme)
+}

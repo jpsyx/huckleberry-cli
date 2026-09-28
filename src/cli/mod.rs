@@ -27,7 +27,7 @@ pub use values::{
 
 /// A terminal client and dashboard for Huckleberry baby tracking.
 #[derive(Debug, Clone, Parser)]
-#[command(version, propagate_version = true, arg_required_else_help = true)]
+#[command(version, propagate_version = true)]
 pub struct Cli {
     /// Print detailed diagnostics to stderr.
     #[arg(short, long, global = true, env = "HUCKLEBERRY_VERBOSE")]
@@ -48,7 +48,7 @@ pub struct Cli {
 
     /// The command to run.
     #[command(subcommand)]
-    pub command: Command,
+    pub command: Option<Command>,
 }
 
 /// Everything `edit` takes.
@@ -354,12 +354,8 @@ mod tests {
     }
 
     #[test]
-    fn a_bare_invocation_shows_the_help() {
-        let error = Cli::try_parse_from(["huckleberry-cli"]).expect_err("a subcommand is required");
-        assert_eq!(
-            error.kind(),
-            clap::error::ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand
-        );
+    fn a_bare_invocation_has_no_command() {
+        assert!(Cli::try_parse_from(["hb"]).unwrap().command.is_none());
     }
 
     #[test]
@@ -411,7 +407,7 @@ mod tests {
             rash,
             notes,
             ..
-        } = cli.command
+        } = cli.command.unwrap()
         else {
             panic!("expected a diaper");
         };
@@ -469,7 +465,7 @@ mod tests {
             "pee=big",
         ])
         .expect("a fully specified edit");
-        let Command::Edit { options } = cli.command else {
+        let Command::Edit { options } = cli.command.unwrap() else {
             panic!("expected an edit");
         };
         assert_eq!(options.id.as_deref(), Some("diaper/1758572400000-3f2a"));
@@ -490,7 +486,7 @@ mod tests {
             "--yes",
         ])
         .expect("a fully specified delete");
-        let Command::Delete { options } = cli.command else {
+        let Command::Delete { options } = cli.command.unwrap() else {
             panic!("expected a delete");
         };
         assert!(options.yes);

@@ -234,10 +234,7 @@ Several directories exist because a file crossed it:
 | `ops/feed/` | nursing runs a timer; a bottle is one instant event |
 | `tests/` | what a read asks for, and what a write sends |
 
-Each `mod.rs` is glue and re-exports. `src/commands/feed.rs` sits just over the
-line at around 400 and is deliberately left whole: it is one command's tree
-together with the prompts that fill it in, and splitting it would separate a
-question from the thing it asks about.
+Each `mod.rs` provides glue and re-exports for its subsystem.
 
 The shared prompt selection model in `prompt/select` interprets arrow and
 J/K/H/P navigation without terminal I/O, with bounded cursor and scroll state.
@@ -257,3 +254,8 @@ from persistent settings.
 Interactive option bindings derive from clap metadata. Specialized editors handle
 repeated foods and entry fields. Edit persistence retains original wire enum
 values when the corresponding field was not changed.
+
+The bare-command session owns navigation and temporary overrides. Each Run opens
+fresh Context and calls the same typed dispatch as an explicit CLI invocation.
+Menus release terminal ownership before handlers run, cancellation returns to
+navigation, and failed writes are never automatically replayed.

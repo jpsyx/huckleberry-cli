@@ -1,12 +1,10 @@
 //! Transactional menus for temporary command overrides.
 use super::session::{SessionOptions, choose_child, finish_edit};
 use crate::{
-    cli::Command,
     prompt::{
         self, Question,
         select::{self, MenuItem},
     },
-    session::Context,
     theme::Theme,
 };
 use anyhow::Result;
@@ -108,7 +106,7 @@ async fn child(pending: &mut SessionOptions, theme: Theme) -> Result<()> {
     )? {
         1 => pending.child = None,
         2 => {
-            let context = Context::open(&pending.to_cli(Command::Info), theme)?;
+            let context = super::session::load_context(pending, theme)?;
             pending.child = Some(choose_child(&context).await?);
         }
         3 => {

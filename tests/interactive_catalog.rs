@@ -55,7 +55,7 @@ fn drafts_resolve_repeated_values_and_positionals() {
     let cli = draft.resolve(&SessionOptions::default()).unwrap();
     let Command::Feed {
         action: app::cli::FeedAction::Solids { foods, at, .. },
-    } = cli.command
+    } = cli.command.unwrap()
     else {
         panic!("meal");
     };
@@ -65,7 +65,11 @@ fn drafts_resolve_repeated_values_and_positionals() {
     draft.set("key", vec!["units".into()]);
     draft.set("value", vec!["oz".into()]);
     assert!(matches!(
-        draft.resolve(&SessionOptions::default()).unwrap().command,
+        draft
+            .resolve(&SessionOptions::default())
+            .unwrap()
+            .command
+            .unwrap(),
         Command::Config {
             action: app::cli::ConfigAction::Set {
                 key: Some(_),
@@ -79,8 +83,14 @@ fn draft_aliases_and_invalid_choices_use_real_clap_validation() {
     let end = CommandDraft::new(catalog::CommandPath(vec!["sleep".into(), "end".into()]));
     let stop = CommandDraft::new(catalog::CommandPath(vec!["sleep".into(), "stop".into()]));
     assert_eq!(
-        end.resolve(&SessionOptions::default()).unwrap().command,
-        stop.resolve(&SessionOptions::default()).unwrap().command
+        end.resolve(&SessionOptions::default())
+            .unwrap()
+            .command
+            .unwrap(),
+        stop.resolve(&SessionOptions::default())
+            .unwrap()
+            .command
+            .unwrap()
     );
     let mut diaper = CommandDraft::new(catalog::CommandPath(vec!["diaper".into()]));
     diaper.set("mode", vec!["nonsense".into()]);

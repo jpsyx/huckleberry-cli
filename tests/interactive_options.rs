@@ -130,5 +130,5 @@ fn offline_choice_can_return_to_live() {
     let mut pending = original.clone();
     pending.offline = None;
     let saved = app::interactive::session::finish_edit(&original, pending, true);
-    assert_eq!(saved.to_cli(app::cli::Command::Info).offline, None);
+    assert_eq!(saved.to_cli(Some(app::cli::Command::Info)).offline, None);
 }
