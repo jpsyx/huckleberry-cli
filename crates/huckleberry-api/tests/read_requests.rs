@@ -110,8 +110,8 @@ async fn a_windowed_read_asks_twice_and_merges_the_answers() {
         2,
         "the loose row and the one batched row in range"
     );
-    assert_eq!(sleeps[0].start.as_i64(), 100, "oldest first");
-    assert_eq!(sleeps[1].start.as_i64(), 300);
+    assert_eq!(sleeps[0].row.start.as_i64(), 100, "oldest first");
+    assert_eq!(sleeps[1].row.start.as_i64(), 300);
 
     let ranged = stub.request(0).await;
     assert_eq!(ranged.method, "POST");
@@ -209,4 +209,32 @@ async fn credentials_are_never_put_in_a_url_or_a_firestore_request() {
     assert!(!request.path.contains("hunter2"));
     assert!(!format!("{:?}", request.query).contains("hunter2"));
     assert!(!format!("{:?}", request.body).contains("hunter2"));
+}
+
+#[tokio::test]
+async fn a_windowed_read_says_where_every_row_lives() {
+    // What an edit needs and a decoded row does not carry: the document the
+    // row is in, and the key it sits under when that document is a batch.
+    let loose = query_reply(vec![document(
+        "diaper/c1/intervals/row-one",
+        &json!({ "mode": "pee", "start": 300, "offset": 240 }),
+    )]);
+    let batched = query_reply(vec![document(
+        "diaper/c1/intervals/pack-one",
+        &json!({ "multi": true, "data": {
+            "inner": { "mode": "poo", "start": 100, "offset": 240 },
+        } }),
+    )]);
+    let stub = Stub::start(vec![loose, batched]).await;
+
+    let nappies = client(&stub)
+        .diaper_intervals("c1", Window::new(0, 1_000))
+        .await
+        .expect("the read");
+
+    assert_eq!(nappies[0].at.document_id, "pack-one");
+    assert_eq!(nappies[0].at.batch_key.as_deref(), Some("inner"));
+    assert_eq!(nappies[0].at.tracker, "diaper");
+    assert_eq!(nappies[1].at.document_id, "row-one");
+    assert_eq!(nappies[1].at.batch_key, None);
 }

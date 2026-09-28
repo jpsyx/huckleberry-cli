@@ -41,7 +41,8 @@ use core::str::FromStr;
 use huckleberry_api::models::diaper::{DiaperAmount, DiaperMode, PooColor};
 use huckleberry_api::models::feed::{BottleType, FeedSide, VolumeUnits};
 use huckleberry_api::models::health::MeasurementSystem;
-use huckleberry_api::{DiaperDetails, GrowthMeasurements, TimerChange};
+use huckleberry_api::models::solids::{FoodReference, SolidsReaction};
+use huckleberry_api::{DiaperDetails, GrowthMeasurements, RowRef, TimerChange};
 
 #[tokio::test]
 async fn starting_a_sleep_merges_rather_than_replacing_the_document() {
@@ -383,4 +384,185 @@ async fn growth_with_nothing_measured_is_refused_before_anything_is_sent() {
         .await;
     assert!(refused.is_err());
     assert!(stub.requests().await.is_empty(), "nothing was sent");
+}
+
+#[tokio::test]
+async fn editing_a_nappy_changes_the_row_it_names_and_nothing_else() {
+    let stub = Stub::start(vec![json!({})]).await;
+    let at = RowRef::loose("diaper", "1758572400000-abcdef");
+    client(&stub)
+        .update_diaper_entry(
+            "c1",
+            &at,
+            DiaperMode::Both,
+            &DiaperDetails {
+                pee_amount: Some(DiaperAmount::Big),
+                poo_amount: None,
+                color: Some(PooColor::Yellow),
+                consistency: None,
+                rash: false,
+                notes: Some("a big one".to_owned()),
+            },
+            None,
+        )
+        .await
+        .expect("the write");
+
+    let request = stub.request(0).await;
+    assert_eq!(request.method, "PATCH");
+    assert_eq!(
+        request.path,
+        "/v1/documents/diaper/c1/intervals/1758572400000-abcdef"
+    );
+    assert_eq!(
+        request.query_values("currentDocument.exists"),
+        vec!["true".to_owned()],
+        "an edit changes a row that exists; it never creates one"
+    );
+
+    let document = request.document();
+    assert_eq!(document["mode"], json!("both"));
+    assert_eq!(document["quantity"]["pee"], json!(100.0));
+    assert_eq!(document["color"], json!("yellow"));
+    assert_eq!(document["notes"], json!("a big one"));
+
+    let mask = request.update_mask();
+    assert!(mask.contains(&"consistency".to_owned()), "{mask:?}");
+    assert!(
+        document.get("consistency").is_none(),
+        "a consistency nobody gave is deleted, not written: {document}"
+    );
+    assert!(
+        !mask.contains(&"start".to_owned()),
+        "an edit changes what was in it, not when it was: {mask:?}"
+    );
+    assert!(mask.contains(&"lastUpdated".to_owned()), "{mask:?}");
+}
+
+#[tokio::test]
+async fn editing_a_row_inside_a_batch_changes_only_that_entry_of_the_batch() {
+    let stub = Stub::start(vec![json!({})]).await;
+    let at = RowRef::batched("diaper", "pack-one", "inner-key");
+    client(&stub)
+        .update_diaper_entry("c1", &at, DiaperMode::Dry, &DiaperDetails::default(), None)
+        .await
+        .expect("the write");
+
+    let request = stub.request(0).await;
+    assert_eq!(request.path, "/v1/documents/diaper/c1/intervals/pack-one");
+    let document = request.document();
+    assert_eq!(document["data"]["inner-key"]["mode"], json!("dry"));
+
+    let mask = request.update_mask();
+    assert!(
+        mask.contains(&"data.`inner-key`.mode".to_owned()),
+        "every path is inside the entry, and an awkward key is backticked: {mask:?}"
+    );
+    assert!(
+        !mask.iter().any(|entry| entry == "data"),
+        "a bare `data` in the mask would delete every other row in the batch: {mask:?}"
+    );
+}
+
+#[tokio::test]
+async fn editing_a_bottle_changes_the_amount_and_the_kind() {
+    let stub = Stub::start(vec![json!({})]).await;
+    client(&stub)
+        .update_bottle_entry(
+            "c1",
+            &RowRef::loose("feed", "row-one"),
+            120.0,
+            BottleType::Formula,
+            VolumeUnits::Millilitres,
+            Some("took it all"),
+        )
+        .await
+        .expect("the write");
+
+    let request = stub.request(0).await;
+    assert_eq!(request.path, "/v1/documents/feed/c1/intervals/row-one");
+    let document = request.document();
+    assert_eq!(document["amount"], json!(120.0));
+    assert_eq!(document["bottleType"], json!("Formula"));
+    assert_eq!(document["units"], json!("ml"));
+    assert_eq!(document["notes"], json!("took it all"));
+}
+
+#[tokio::test]
+async fn editing_a_nursing_session_changes_the_time_on_each_side() {
+    let stub = Stub::start(vec![json!({})]).await;
+    client(&stub)
+        .update_nursing_entry("c1", &RowRef::loose("feed", "row-one"), 600.0, 300.0, None)
+        .await
+        .expect("the write");
+
+    let document = stub.request(0).await.document();
+    assert_eq!(document["leftDuration"], json!(600.0));
+    assert_eq!(document["rightDuration"], json!(300.0));
+    assert!(
+        document.get("notes").is_none(),
+        "a note nobody gave is removed rather than kept: {document}"
+    );
+}
+
+#[tokio::test]
+async fn editing_a_meal_rewrites_the_foods_it_was_made_of() {
+    let stub = Stub::start(vec![json!({})]).await;
+    client(&stub)
+        .update_solids_entry(
+            "c1",
+            &RowRef::loose("feed", "row-one"),
+            &[FoodReference::custom("food-1", "Avocado", "half")],
+            Some(SolidsReaction::Loved),
+            None,
+        )
+        .await
+        .expect("the write");
+
+    let document = stub.request(0).await.document();
+    assert_eq!(
+        document["foods"]["food-1"]["created_name"],
+        json!("Avocado")
+    );
+    assert_eq!(document["reactions"]["LOVED"], json!(true));
+}
+
+#[tokio::test]
+async fn a_meal_of_nothing_is_refused_rather_than_written() {
+    let stub = Stub::start(vec![json!({})]).await;
+    let refused = client(&stub)
+        .update_solids_entry("c1", &RowRef::loose("feed", "row-one"), &[], None, None)
+        .await;
+    assert!(refused.is_err(), "a meal needs at least one food");
+    assert!(stub.requests().await.is_empty(), "and nothing was sent");
+}
+
+#[tokio::test]
+async fn editing_a_sleep_changes_how_long_it_lasted_and_what_was_noted() {
+    let stub = Stub::start(vec![json!({})]).await;
+    client(&stub)
+        .update_sleep_entry(
+            "c1",
+            &RowRef::loose("sleep", "row-one"),
+            5_400.0,
+            Some("in the carrier"),
+        )
+        .await
+        .expect("the write");
+
+    let request = stub.request(0).await;
+    assert_eq!(request.path, "/v1/documents/sleep/c1/intervals/row-one");
+    let document = request.document();
+    assert_eq!(document["duration"], json!(5_400.0));
+    assert_eq!(document["details"]["notes"], json!("in the carrier"));
+
+    let mask = request.update_mask();
+    assert!(
+        mask.contains(&"details.notes".to_owned()),
+        "only the note inside details, never details itself: {mask:?}"
+    );
+    assert!(
+        !mask.contains(&"start".to_owned()),
+        "an edit changes how long it was, not when it began: {mask:?}"
+    );
 }

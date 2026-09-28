@@ -87,6 +87,7 @@ pub mod ids;
 pub mod models;
 pub mod ops;
 pub mod paths;
+pub mod rows;
 pub mod timezone;
 
 pub use auth::Session;
@@ -98,4 +99,5 @@ pub use ops::health::GrowthMeasurements;
 pub use ops::sleep::CompletedSleep;
 pub use ops::watch::Watching;
 pub use ops::{TimerChange, Window};
+pub use rows::{Located, RowRef};
 pub use timezone::Zone;

@@ -4,7 +4,7 @@
 //! and a `howItHappened`. The app's three amount buttons are stored as the
 //! numbers 0, 50 and 100, which [`quantity`] is the only place that knows.
 
-use serde_json::json;
+use serde_json::{Value as Json, json};
 
 use crate::client::{Huckleberry, now_seconds};
 use crate::error::Result;
@@ -17,6 +17,7 @@ use crate::models::diaper::{
 };
 use crate::models::{to_fields, to_json};
 use crate::paths;
+use crate::rows::RowRef;
 
 /// Everything optional about a nappy, in one argument.
 ///
@@ -80,6 +81,56 @@ impl Huckleberry {
         details: &DiaperDetails,
     ) -> Result<()> {
         self.log_diaper_event(cid, mode, details, Some(how_it_happened))
+            .await
+    }
+
+    /// Changes a nappy or a potty trip that is already on the record.
+    ///
+    /// What was in it and everything said about it, and nothing else: the row
+    /// keeps the moment it happened, because a row's id leads with its own
+    /// timestamp and moving one would leave the collection ordered by a time
+    /// the row no longer claims. A detail left out of `details` is removed
+    /// from the row rather than left behind.
+    ///
+    /// # Errors
+    ///
+    /// As [`Huckleberry::update_history_row`], which includes the row having
+    /// been deleted since it was read.
+    pub async fn update_diaper_entry(
+        &self,
+        cid: &str,
+        at: &RowRef,
+        mode: DiaperMode,
+        details: &DiaperDetails,
+        how_it_happened: Option<PottyResult>,
+    ) -> Result<()> {
+        let quantity = quantity(details.pee_amount.as_ref(), details.poo_amount.as_ref())
+            .map(|recorded| to_json(&recorded))
+            .transpose()?;
+        let mut updates = vec![
+            FieldUpdate::set("mode", json!(mode.as_str())),
+            FieldUpdate::set_or_clear("quantity", quantity),
+            FieldUpdate::set_or_clear(
+                "color",
+                details.color.as_ref().map(|shade| json!(shade.as_str())),
+            ),
+            FieldUpdate::set_or_clear(
+                "consistency",
+                details
+                    .consistency
+                    .as_ref()
+                    .map(|texture| json!(texture.as_str())),
+            ),
+            // As on a new row: the app reads the field's absence as "no rash",
+            // and a stored `false` is a different thing to it.
+            FieldUpdate::set_or_clear("diaperRash", details.rash.then_some(Json::Bool(true))),
+            FieldUpdate::set_or_clear("notes", details.notes.as_ref().map(|text| json!(text))),
+            FieldUpdate::set("lastUpdated", json!(now_seconds())),
+        ];
+        if let Some(outcome) = how_it_happened {
+            updates.push(FieldUpdate::set("howItHappened", json!(outcome.as_str())));
+        }
+        self.update_history_row(cid, at, &updates, "changing the nappy")
             .await
     }
 

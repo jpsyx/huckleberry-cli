@@ -497,8 +497,7 @@ mod tests {
 
     #[test]
     fn an_optional_question_says_that_enter_skips_it() {
-        let question =
-            Question::new("colour", "What colour?", "--color <COLOUR>").optional();
+        let question = Question::new("colour", "What colour?", "--color <COLOUR>").optional();
         let text = render(&question, Theme::dark(false));
         assert!(text.contains("(enter to skip)"), "{text}");
         assert!(text.ends_with("> "), "{text}");

@@ -19,7 +19,9 @@ use crate::models::feed::{
 };
 use crate::models::{to_fields, to_json};
 use crate::ops::TimerChange;
+use crate::ops::feed::bottle::note;
 use crate::paths;
+use crate::rows::RowRef;
 
 /// What a finished nursing session amounts to.
 #[derive(Debug, Clone, PartialEq)]
@@ -368,6 +370,32 @@ impl Huckleberry {
             )
             .await?;
         Ok(TimerChange::Applied)
+    }
+
+    /// Changes a nursing session that is already on the record.
+    ///
+    /// How long on each side, and what was noted. Not when it started: the
+    /// row keeps the moment it happened.
+    ///
+    /// # Errors
+    ///
+    /// As [`Huckleberry::update_history_row`].
+    pub async fn update_nursing_entry(
+        &self,
+        cid: &str,
+        at: &RowRef,
+        left_seconds: f64,
+        right_seconds: f64,
+        notes: Option<&str>,
+    ) -> Result<()> {
+        let updates = [
+            FieldUpdate::set("leftDuration", json!(left_seconds)),
+            FieldUpdate::set("rightDuration", json!(right_seconds)),
+            FieldUpdate::set_or_clear("notes", note(notes)),
+            FieldUpdate::set("lastUpdated", json!(now_seconds())),
+        ];
+        self.update_history_row(cid, at, &updates, "changing the nursing session")
+            .await
     }
 }
 

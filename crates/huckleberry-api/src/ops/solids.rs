@@ -21,7 +21,9 @@ use crate::models::solids::{
     sort_curated,
 };
 use crate::models::{to_fields, to_json};
+use crate::ops::feed::bottle::note;
 use crate::paths;
+use crate::rows::RowRef;
 
 /// Turns the foods a caller named into the map a solids row stores.
 ///
@@ -257,6 +259,37 @@ impl Huckleberry {
                 ],
                 operation,
             )
+            .await
+    }
+
+    /// Changes a meal that is already on the record.
+    ///
+    /// What was eaten, how it went, and what was noted. Not when: the row
+    /// keeps the moment it happened.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Invalid`] when the meal is left with no foods in it, and
+    /// otherwise as [`Huckleberry::update_history_row`].
+    pub async fn update_solids_entry(
+        &self,
+        cid: &str,
+        at: &RowRef,
+        foods: &[FoodReference],
+        reaction: Option<SolidsReaction>,
+        notes: Option<&str>,
+    ) -> Result<()> {
+        let eaten = foods_map(foods)?;
+        let reactions = reaction
+            .as_ref()
+            .map(|taken| json!({ taken.as_str(): true }));
+        let updates = [
+            FieldUpdate::set("foods", to_json(&eaten)?),
+            FieldUpdate::set_or_clear("reactions", reactions),
+            FieldUpdate::set_or_clear("notes", note(notes)),
+            FieldUpdate::set("lastUpdated", json!(now_seconds())),
+        ];
+        self.update_history_row(cid, at, &updates, "changing the meal")
             .await
     }
 }

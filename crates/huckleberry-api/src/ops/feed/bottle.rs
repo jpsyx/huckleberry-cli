@@ -9,11 +9,13 @@ use serde_json::json;
 
 use crate::client::{Huckleberry, now_seconds};
 use crate::error::Result;
+use crate::firestore::FieldUpdate;
 use crate::ids;
 use crate::models::common::Number;
 use crate::models::feed::{BottleFeedInterval, BottleType, FeedInterval, LastBottle, VolumeUnits};
 use crate::models::{to_fields, to_json};
 use crate::paths;
+use crate::rows::RowRef;
 
 impl Huckleberry {
     /// Records a bottle. An instant event: there is no bottle timer.
@@ -82,5 +84,57 @@ impl Huckleberry {
                 "recording the bottle",
             )
             .await
+    }
+
+    /// Changes a bottle that is already on the record.
+    ///
+    /// How much, of what, in which units. Not when: the row keeps the moment
+    /// it happened. The tracker's defaults for the next bottle are left alone
+    /// too, because correcting last night's entry is not a statement about
+    /// what the next one will be.
+    ///
+    /// # Errors
+    ///
+    /// As [`Huckleberry::update_history_row`].
+    pub async fn update_bottle_entry(
+        &self,
+        cid: &str,
+        at: &RowRef,
+        amount: f64,
+        bottle_type: BottleType,
+        units: VolumeUnits,
+        notes: Option<&str>,
+    ) -> Result<()> {
+        let updates = [
+            FieldUpdate::set("amount", json!(amount)),
+            FieldUpdate::set("bottleType", json!(bottle_type.as_str())),
+            FieldUpdate::set("units", json!(units.as_str())),
+            FieldUpdate::set_or_clear("notes", note(notes)),
+            FieldUpdate::set("lastUpdated", json!(now_seconds())),
+        ];
+        self.update_history_row(cid, at, &updates, "changing the bottle")
+            .await
+    }
+}
+
+/// A note as a row stores it: what was typed, or nothing at all when it was
+/// blank. Shared by every edit, because "  " is not a note.
+#[must_use]
+pub fn note(notes: Option<&str>) -> Option<serde_json::Value> {
+    notes
+        .map(str::trim)
+        .filter(|text| !text.is_empty())
+        .map(|text| json!(text))
+}
+
+#[cfg(test)]
+mod notes {
+    use super::*;
+
+    #[test]
+    fn a_blank_note_is_no_note_rather_than_an_empty_one() {
+        assert_eq!(note(None), None);
+        assert_eq!(note(Some("   ")), None);
+        assert_eq!(note(Some(" fussy ")), Some(json!("fussy")));
     }
 }

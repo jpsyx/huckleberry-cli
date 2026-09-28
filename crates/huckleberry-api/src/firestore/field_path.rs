@@ -44,6 +44,19 @@ impl FieldUpdate {
         }
     }
 
+    /// Writes a value, or removes the field when there is none.
+    ///
+    /// What an edit of an optional field is: a colour nobody gave this time is
+    /// a colour that is no longer on the row, not a colour left over from the
+    /// last time somebody answered.
+    #[must_use]
+    pub fn set_or_clear(path: &str, value: Option<Json>) -> Self {
+        Self {
+            path: split(path),
+            value,
+        }
+    }
+
     /// Deletes whatever is at a dotted path.
     #[must_use]
     pub fn delete(path: &str) -> Self {

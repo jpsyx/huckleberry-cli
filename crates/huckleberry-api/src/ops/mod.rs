@@ -10,6 +10,7 @@ pub mod diaper;
 pub mod feed;
 pub mod health;
 pub mod reads;
+pub mod rows;
 pub mod sleep;
 pub mod solids;
 pub mod watch;

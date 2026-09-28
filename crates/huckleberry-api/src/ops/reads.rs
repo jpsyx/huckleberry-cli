@@ -24,6 +24,7 @@ use crate::models::pump::PumpInterval;
 use crate::models::sleep::SleepInterval;
 use crate::models::user::UserDocument;
 use crate::paths;
+use crate::rows::{Located, RowRef};
 
 /// A window of history, in Unix seconds.
 ///
@@ -108,7 +109,11 @@ impl Huckleberry {
     /// # Errors
     ///
     /// As [`Huckleberry::user`].
-    pub async fn sleep_intervals(&self, cid: &str, window: Window) -> Result<Vec<SleepInterval>> {
+    pub async fn sleep_intervals(
+        &self,
+        cid: &str,
+        window: Window,
+    ) -> Result<Vec<Located<SleepInterval>>> {
         self.history(paths::SLEEP, cid, window, "reading sleep history")
             .await
     }
@@ -118,7 +123,11 @@ impl Huckleberry {
     /// # Errors
     ///
     /// As [`Huckleberry::user`].
-    pub async fn feed_intervals(&self, cid: &str, window: Window) -> Result<Vec<FeedInterval>> {
+    pub async fn feed_intervals(
+        &self,
+        cid: &str,
+        window: Window,
+    ) -> Result<Vec<Located<FeedInterval>>> {
         self.history(paths::FEED, cid, window, "reading feed history")
             .await
     }
@@ -128,7 +137,11 @@ impl Huckleberry {
     /// # Errors
     ///
     /// As [`Huckleberry::user`].
-    pub async fn diaper_intervals(&self, cid: &str, window: Window) -> Result<Vec<DiaperEntry>> {
+    pub async fn diaper_intervals(
+        &self,
+        cid: &str,
+        window: Window,
+    ) -> Result<Vec<Located<DiaperEntry>>> {
         self.history(paths::DIAPER, cid, window, "reading nappy history")
             .await
     }
@@ -138,7 +151,11 @@ impl Huckleberry {
     /// # Errors
     ///
     /// As [`Huckleberry::user`].
-    pub async fn health_entries(&self, cid: &str, window: Window) -> Result<Vec<HealthEntry>> {
+    pub async fn health_entries(
+        &self,
+        cid: &str,
+        window: Window,
+    ) -> Result<Vec<Located<HealthEntry>>> {
         self.history(paths::HEALTH, cid, window, "reading health history")
             .await
     }
@@ -148,7 +165,11 @@ impl Huckleberry {
     /// # Errors
     ///
     /// As [`Huckleberry::user`].
-    pub async fn pump_intervals(&self, cid: &str, window: Window) -> Result<Vec<PumpInterval>> {
+    pub async fn pump_intervals(
+        &self,
+        cid: &str,
+        window: Window,
+    ) -> Result<Vec<Located<PumpInterval>>> {
         self.history(paths::PUMP, cid, window, "reading pumping history")
             .await
     }
@@ -162,10 +183,12 @@ impl Huckleberry {
     ///
     /// As [`Huckleberry::user`].
     pub async fn milestones(&self, cid: &str) -> Result<Vec<Milestone>> {
-        let rows = self
+        Ok(self
             .collection_rows(paths::MILESTONES, cid, "reading milestones")
-            .await?;
-        Ok(decode_rows(rows))
+            .await?
+            .into_iter()
+            .filter_map(|row| serde_json::from_value(row).ok())
+            .collect())
     }
 
     /// Every row of a tracker's history, untyped and unwindowed.
@@ -183,6 +206,29 @@ impl Huckleberry {
         cid: &str,
         operation: &str,
     ) -> Result<Vec<Json>> {
+        Ok(self
+            .located_rows(tracker, cid, operation)
+            .await?
+            .into_iter()
+            .map(|(_, row)| row)
+            .collect())
+    }
+
+    /// Every row of a tracker's history, each with the place it came from.
+    ///
+    /// As [`Huckleberry::collection_rows`], and the answer to "which document
+    /// is this row actually in", which is what an edit needs and a decoded row
+    /// does not carry.
+    ///
+    /// # Errors
+    ///
+    /// As [`Huckleberry::user`].
+    pub async fn located_rows(
+        &self,
+        tracker: &str,
+        cid: &str,
+        operation: &str,
+    ) -> Result<Vec<(RowRef, Json)>> {
         let token = self.token().await?;
         let documents = self
             .firestore()
@@ -196,7 +242,7 @@ impl Huckleberry {
 
         let mut rows = Vec::new();
         for document in documents {
-            rows.extend(expand(document.into_json()));
+            rows.extend(expand(tracker, document));
         }
         sort_by_start(&mut rows);
         Ok(rows)
@@ -234,7 +280,7 @@ impl Huckleberry {
         cid: &str,
         window: Window,
         operation: &str,
-    ) -> Result<Vec<T>> {
+    ) -> Result<Vec<Located<T>>> {
         let token = self.token().await?;
         let parent = paths::tracker(tracker, cid);
         let collection = paths::history_collection(tracker);
@@ -245,13 +291,13 @@ impl Huckleberry {
             .order_by("start");
         let batched = Query::on(collection).filter("multi", Op::Equal, json!(true));
 
-        let mut rows: Vec<Json> = self
+        let mut rows: Vec<(RowRef, Json)> = self
             .firestore()
             .query(&token, &parent, &loose, operation)
             .await?
             .into_iter()
-            .map(Document::into_json)
-            .filter(|row| !is_batch(row))
+            .filter(|document| !is_batch_document(document))
+            .map(|document| (RowRef::loose(tracker, &document.id), document.into_json()))
             .collect();
 
         for document in self
@@ -260,9 +306,9 @@ impl Huckleberry {
             .await?
         {
             rows.extend(
-                expand(document.into_json())
+                expand(tracker, document)
                     .into_iter()
-                    .filter(|row| start_of(row).is_some_and(|start| window.contains(start))),
+                    .filter(|(_, row)| start_of(row).is_some_and(|start| window.contains(start))),
             );
         }
 
@@ -271,18 +317,32 @@ impl Huckleberry {
     }
 }
 
-/// Whether a document is one of the batched containers.
+/// Whether a row is one of the batched containers.
 fn is_batch(row: &Json) -> bool {
     row.get("multi") == Some(&Json::Bool(true))
 }
 
-/// One document into the rows it holds: itself, or the rows inside the batch.
-fn expand(document: Json) -> Vec<Json> {
-    if !is_batch(&document) {
-        return vec![document];
+/// The same question of a document that has not been unwrapped yet.
+fn is_batch_document(document: &Document) -> bool {
+    document.fields.get("multi") == Some(&Json::Bool(true))
+}
+
+/// One document into the rows it holds, each with the place it came from:
+/// itself, or the entries inside the batch.
+fn expand(tracker: &str, document: Document) -> Vec<(RowRef, Json)> {
+    let id = document.id.clone();
+    let contents = document.into_json();
+    if !is_batch(&contents) {
+        return vec![(RowRef::loose(tracker, &id), contents)];
     }
-    serde_json::from_value::<MultiContainer<Json>>(document)
-        .map(|container| container.data.into_values().collect())
+    serde_json::from_value::<MultiContainer<Json>>(contents)
+        .map(|container| {
+            container
+                .data
+                .into_iter()
+                .map(|(key, row)| (RowRef::batched(tracker, &id, &key), row))
+                .collect()
+        })
         .unwrap_or_default()
 }
 
@@ -293,19 +353,23 @@ fn start_of(row: &Json) -> Option<f64> {
 
 /// Oldest first, which is the order every caller in this crate wants and the
 /// order the two queries do not arrive in.
-fn sort_by_start(rows: &mut [Json]) {
+fn sort_by_start(rows: &mut [(RowRef, Json)]) {
     rows.sort_by(|left, right| {
-        start_of(left)
+        start_of(&left.1)
             .unwrap_or(f64::MIN)
-            .partial_cmp(&start_of(right).unwrap_or(f64::MIN))
+            .partial_cmp(&start_of(&right.1).unwrap_or(f64::MIN))
             .unwrap_or(core::cmp::Ordering::Equal)
     });
 }
 
-/// Decodes what decodes, drops what does not.
-fn decode_rows<T: DeserializeOwned>(rows: Vec<Json>) -> Vec<T> {
+/// Decodes what decodes, drops what does not, keeping each row's place.
+fn decode_rows<T: DeserializeOwned>(rows: Vec<(RowRef, Json)>) -> Vec<Located<T>> {
     rows.into_iter()
-        .filter_map(|row| serde_json::from_value(row).ok())
+        .filter_map(|(at, row)| {
+            serde_json::from_value(row)
+                .ok()
+                .map(|decoded| Located::new(at, decoded))
+        })
         .collect()
 }
 
@@ -333,61 +397,101 @@ mod windows {
 #[cfg(test)]
 mod row_handling {
     use super::*;
+    use crate::firestore::Document;
 
-    #[test]
-    fn an_ordinary_document_is_one_row() {
-        let rows = expand(json!({ "start": 1.0, "mode": "pee" }));
-        assert_eq!(rows.len(), 1);
+    fn document(id: &str, fields: &Json) -> Document {
+        Document {
+            id: id.to_owned(),
+            fields: fields.as_object().expect("an object").clone(),
+        }
     }
 
     #[test]
-    fn a_batch_becomes_the_rows_inside_it() {
-        let rows = expand(json!({
-            "multi": true,
-            "data": {
-                "a": { "start": 2.0, "mode": "pee" },
-                "b": { "start": 1.0, "mode": "poo" },
-            },
-        }));
+    fn an_ordinary_document_is_one_row_that_knows_where_it_lives() {
+        let rows = expand(
+            "diaper",
+            document("row-one", &json!({ "start": 1.0, "mode": "pee" })),
+        );
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].0, RowRef::loose("diaper", "row-one"));
+    }
+
+    #[test]
+    fn a_batch_becomes_the_rows_inside_it_each_under_its_own_key() {
+        let rows = expand(
+            "diaper",
+            document(
+                "pack",
+                &json!({
+                    "multi": true,
+                    "data": {
+                        "a": { "start": 2.0, "mode": "pee" },
+                        "b": { "start": 1.0, "mode": "poo" },
+                    },
+                }),
+            ),
+        );
         assert_eq!(rows.len(), 2);
+        let keys: Vec<Option<&str>> = rows.iter().map(|(at, _)| at.batch_key.as_deref()).collect();
+        assert!(
+            keys.contains(&Some("a")) && keys.contains(&Some("b")),
+            "{keys:?}"
+        );
+        assert!(rows.iter().all(|(at, _)| at.document_id == "pack"));
     }
 
     #[test]
     fn a_batch_that_does_not_parse_yields_nothing_rather_than_panicking() {
-        assert!(expand(json!({ "multi": true, "data": 7 })).is_empty());
+        assert!(
+            expand(
+                "diaper",
+                document("pack", &json!({ "multi": true, "data": 7 }))
+            )
+            .is_empty()
+        );
     }
 
     #[test]
     fn rows_come_out_oldest_first() {
         let mut rows = vec![
-            json!({ "start": 30 }),
-            json!({ "start": 10 }),
-            json!({ "start": 20 }),
+            (RowRef::loose("diaper", "c"), json!({ "start": 30 })),
+            (RowRef::loose("diaper", "a"), json!({ "start": 10 })),
+            (RowRef::loose("diaper", "b"), json!({ "start": 20 })),
         ];
         sort_by_start(&mut rows);
-        let starts: Vec<f64> = rows.iter().filter_map(start_of).collect();
+        let starts: Vec<f64> = rows.iter().filter_map(|(_, row)| start_of(row)).collect();
         assert_eq!(starts, vec![10.0, 20.0, 30.0]);
     }
 
     #[test]
     fn a_row_with_no_start_sorts_first_rather_than_being_lost() {
-        let mut rows = vec![json!({ "start": 10 }), json!({ "note": "no start" })];
+        let mut rows = vec![
+            (RowRef::loose("diaper", "a"), json!({ "start": 10 })),
+            (RowRef::loose("diaper", "b"), json!({ "note": "no start" })),
+        ];
         sort_by_start(&mut rows);
-        assert!(rows[0].get("start").is_none());
+        assert!(rows[0].1.get("start").is_none());
     }
 
     #[test]
     fn a_row_this_crate_cannot_read_is_skipped_and_the_rest_survive() {
         let rows = vec![
-            json!({ "mode": "pee", "start": 1.0, "offset": 0.0 }),
-            json!({ "mode": "pee" }),
-            json!({ "mode": "poo", "start": 2.0, "offset": 0.0 }),
+            (
+                RowRef::loose("diaper", "a"),
+                json!({ "mode": "pee", "start": 1.0, "offset": 0.0 }),
+            ),
+            (RowRef::loose("diaper", "b"), json!({ "mode": "pee" })),
+            (
+                RowRef::loose("diaper", "c"),
+                json!({ "mode": "poo", "start": 2.0, "offset": 0.0 }),
+            ),
         ];
-        let decoded: Vec<DiaperEntry> = decode_rows(rows);
+        let decoded: Vec<Located<DiaperEntry>> = decode_rows(rows);
         assert_eq!(
             decoded.len(),
             2,
             "the row with no start went, the others stayed"
         );
+        assert_eq!(decoded[1].at.document_id, "c");
     }
 }

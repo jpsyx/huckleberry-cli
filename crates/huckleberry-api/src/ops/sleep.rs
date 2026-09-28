@@ -14,7 +14,9 @@ use crate::ids;
 use crate::models::common::{Number, Timestamp};
 use crate::models::sleep::{LastSleep, SleepDetails, SleepDocument, SleepInterval, SleepTimer};
 use crate::models::{to_fields, to_json};
+use crate::ops::feed::bottle::note;
 use crate::paths;
+use crate::rows::RowRef;
 
 /// What a finished sleep amounts to.
 #[derive(Debug, Clone, PartialEq)]
@@ -284,6 +286,32 @@ impl Huckleberry {
             )
             .await?;
         Ok(TimerChange::Applied)
+    }
+
+    /// Changes a sleep that is already on the record.
+    ///
+    /// How long it lasted, and what was noted. Not when it began: the row
+    /// keeps the moment it happened, and the note is written inside `details`
+    /// one field at a time so that everything else recorded about the sleep
+    /// (where it happened, how it started, how it ended) survives the edit.
+    ///
+    /// # Errors
+    ///
+    /// As [`Huckleberry::update_history_row`].
+    pub async fn update_sleep_entry(
+        &self,
+        cid: &str,
+        at: &RowRef,
+        duration_seconds: f64,
+        notes: Option<&str>,
+    ) -> Result<()> {
+        let updates = [
+            FieldUpdate::set("duration", json!(duration_seconds)),
+            FieldUpdate::set_or_clear("details.notes", note(notes)),
+            FieldUpdate::set("lastUpdated", json!(now_seconds())),
+        ];
+        self.update_history_row(cid, at, &updates, "changing the sleep")
+            .await
     }
 }
 

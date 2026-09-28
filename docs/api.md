@@ -125,6 +125,28 @@ batches are fetched whole and filtered in memory.
 The two results are merged and sorted by `start`. The Python client returns
 them in query order, which is neither.
 
+### 5. A row comes back knowing where it lives
+
+Every windowed read returns `Located<T>`: the decoded row, and a `RowRef`
+saying which document holds it and, when that document is a batch, which key
+inside it. The Python client returns bare rows, which is enough to read history
+and not enough to change it, because a decoded row carries nothing that
+identifies the document it came out of.
+
+`update_history_row(cid, at, updates, operation)` is the write that takes one
+back. A loose row is patched where it lives; a batched row is patched at the
+batch with every field path moved inside its own entry, so the mask never names
+a bare `data` and the row's neighbours survive the write. The typed edits
+(`update_diaper_entry`, `update_bottle_entry`, `update_nursing_entry`,
+`update_solids_entry`, `update_sleep_entry`) are that method with the fields of
+one tracker filled in.
+
+Two things every edit holds to. It never writes `start`: a row's id leads with
+its own millisecond timestamp, so moving the moment would leave the collection
+ordered by a time the row no longer claims. And an optional field left out is
+*removed* rather than left behind, because a colour nobody gave this time is
+not last time's colour.
+
 ## Name mapping
 
 The models drop the `Firebase` prefix, because the crate name is the namespace.
@@ -169,6 +191,7 @@ The models drop the `Firebase` prefix, because the crate name is the namespace.
 | `create_solids_custom_food` | `create_custom_food` |
 | `setup_*_listener` | `watch_*` (polling; see above) |
 | — | `pump_intervals`, `milestones`, `collection_rows` (new) |
+| — | `located_rows`, `update_history_row`, `update_*_entry` (new: editing) |
 
 ## Four things that catch people out
 
