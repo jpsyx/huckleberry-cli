@@ -199,3 +199,50 @@ fn long_selected_labels_wrap_inside_the_viewport() {
             .all(|line| ratatui::text::Line::raw(line).width() < 20)
     );
 }
+
+#[test]
+fn bold_menu_highlight_follows_arrow_navigation() {
+    use app::prompt::select::{MenuItem, render};
+    use app::theme::Theme;
+
+    let items = ["First", "Second"].map(|label| MenuItem {
+        label: label.into(),
+        detail: None,
+    });
+    let mut state = Selection::new(items.len(), 0);
+    for (key, cursor) in [(KeyCode::Down, 1), (KeyCode::Up, 0)] {
+        state.apply(KeyEvent::new(key, KeyModifiers::NONE), items.len(), 10);
+        let lines = render("Choose", &items, &state, 80, 10, Theme::dark(true));
+        assert_eq!(
+            lines[cursor + 1],
+            format!("\x1b[1;97m> {}. {}\x1b[0m", cursor + 1, items[cursor].label)
+        );
+        assert!(!lines[2 - cursor].contains('\x1b'));
+        let plain = render("Choose", &items, &state, 80, 10, Theme::dark(false));
+        assert!(plain.iter().all(|line| !line.contains('\x1b')));
+    }
+}
+
+#[test]
+fn wrapped_highlighted_menu_labels_are_bold_on_every_line() {
+    use app::prompt::select::{MenuItem, render};
+    use app::theme::Theme;
+
+    let items = [MenuItem {
+        label: "A long menu label that wraps".into(),
+        detail: None,
+    }];
+    let lines = render(
+        "Choose",
+        &items,
+        &Selection::new(1, 0),
+        15,
+        20,
+        Theme::dark(true),
+    );
+    assert!(lines.len() > 3);
+    for line in &lines[1..lines.len() - 1] {
+        assert!(line.starts_with("\x1b[1;97m"));
+        assert!(line.ends_with("\x1b[0m"));
+    }
+}

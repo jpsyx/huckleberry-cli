@@ -445,7 +445,9 @@ hb --offline snapshot.json dash
 Write commands refuse `--offline` rather than pretending.
 
 Fixed-choice prompts are numbered menus: arrows or J/H move down and K/P move
-up; Enter accepts the highlighted default. Optional choices include Skip.
+up; Enter accepts the highlighted default. The highlighted item is bold bright
+white, including wrapped label lines, when terminal styling is enabled. Optional
+choices include Skip.
 Optional text offers Skip or Enter text, and existing values can be kept or
 cleared. Esc and Ctrl-C cancel the current question without accepting it.
 
@@ -466,8 +468,8 @@ No. Session options edit temporary configuration, child, verbosity and live or
 snapshot source overrides; Apply publishes the draft and Escape discards it.
 
 With no command, `hb` starts a persistent interactive session when stdin and
-stderr are terminals. Home lists diaper, feed, sleep, Edit, Delete,
-Visualizations, logs, other logging, More, and Exit. Each command offers Run,
+stderr are terminals. Home lists diaper, feed, sleep, Edit,
+Visualizations, logs, other logging, Delete, More, and Exit. Each command offers Run,
 Options and Back. Options reaches every flag, including session overrides.
 Successful logging returns home; visualizations return to their parent menu.
 Static results remain visible until Continue. Escape cancels unfinished input

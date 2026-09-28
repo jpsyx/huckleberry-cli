@@ -25,6 +25,8 @@ pub enum Tone {
     Accent,
     /// A value, or text that carries the answer.
     Value,
+    /// The menu item currently under the cursor.
+    Selected,
     /// Secondary text: hints, units, anything the eye may skip.
     Muted,
     /// Something finished and worked.
@@ -77,7 +79,7 @@ impl Tone {
             // Bold on top of the bright white the other rows already use, so
             // today reads as brighter rather than as a different kind of
             // thing.
-            Self::Today => "1;97",
+            Self::Today | Self::Selected => "1;97",
             // Faint, so the block at the foot of a table stays secondary
             // while still carrying its colour. A terminal that ignores SGR 2
             // simply shows the bright colour, which is no worse than before.
@@ -113,7 +115,7 @@ impl Tone {
             Self::Info | Self::Sleep => 12,
             Self::Heading | Self::Diaper => 13,
             Self::Accent | Self::Prompt | Self::Feeding => 14,
-            Self::Value | Self::Today => 15,
+            Self::Value | Self::Today | Self::Selected => 15,
         }
     }
 }
@@ -240,10 +242,11 @@ pub fn color_enabled() -> bool {
 mod tests {
     use super::*;
 
-    const EVERY_TONE: [Tone; 17] = [
+    const EVERY_TONE: [Tone; 18] = [
         Tone::Heading,
         Tone::Accent,
         Tone::Value,
+        Tone::Selected,
         Tone::Muted,
         Tone::Success,
         Tone::Warning,

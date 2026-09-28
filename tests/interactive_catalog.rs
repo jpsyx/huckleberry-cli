@@ -29,10 +29,10 @@ fn home_order_and_all_commands_are_reachable() {
             "Log a feed",
             "Log sleep",
             "Edit",
-            "Delete",
             "Visualizations",
             "View logs",
             "Other logging",
+            "Delete",
             "More",
             "Exit"
         ]

@@ -83,10 +83,10 @@ pub fn entries(id: MenuId) -> Vec<MenuEntry> {
             menu("Log a feed", MenuId::Feed),
             menu("Log sleep", MenuId::Sleep),
             command("Edit", "edit"),
-            command("Delete", "delete"),
             menu("Visualizations", MenuId::Visualizations),
             command("View logs", "log"),
             menu("Other logging", MenuId::OtherLogging),
+            command("Delete", "delete"),
             menu("More", MenuId::More),
             MenuEntry {
                 label: "Exit".into(),

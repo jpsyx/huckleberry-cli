@@ -1,6 +1,6 @@
 //! Menu lines with terminal-cell bounded labels.
 use super::{MenuItem, Selection};
-use crate::theme::Theme;
+use crate::theme::{Theme, Tone};
 
 /// Clips text to terminal cells, keeping multibyte characters intact.
 #[must_use]
@@ -44,7 +44,7 @@ pub fn render(
                 break;
             }
             lines.push(if index == state.cursor {
-                theme.value(line)
+                theme.paint(Tone::Selected, line)
             } else {
                 line.clone()
             });
