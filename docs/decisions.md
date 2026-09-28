@@ -217,3 +217,52 @@ discipline extends to `render`, which returns `Vec<String>` rather than
 printing, so every screen is asserted line by line.
 
 **Revisit when.** It does not need revisiting; it needs keeping.
+
+## An entry is corrected by asking again, not by a flag per field
+
+**Decision.** `hb edit` finds a row, fills a draft with what is on it, and
+runs the tracker's own questions with those values as the defaults. The
+non-interactive path is `--id <ENTRY> --set key=value`, one generic setter for
+every kind of entry, rather than a flag per field per tracker.
+
+**Why.** Six kinds of entry with five to seven fields each is forty flags, and
+most of them would differ from the create command's only in being optional. A
+person does not want them anyway: what they want is to be asked again, with
+last time's answers in front of them, because the mistake they are fixing is
+usually one answer out of six. `--set` keeps the agent path complete without
+paying for it in surface area, and `--list` gives a script the name of the
+entry it means, so both audiences stay first class as
+`docs/rules/cli-ux.md` requires.
+
+**Consequences.** `--set` values are the app's own spellings (`--set
+type="Breast Milk"`), with this tool's spellings taken as well where they
+differ. An empty value clears a field, which is the only way to say "there is
+no colour after all". A field a kind does not have fails naming the ones it
+does, and that list is [`crate::edit::Draft::fields`], so the failure cannot
+drift from what `set` accepts. `edit` never writes `start`: a row's id leads
+with its own millisecond timestamp, and moving the moment would leave history
+sorted by a time the row no longer claims. Deleting is still the app's job.
+
+**Revisit when.** Somebody needs to correct *when* something happened. That is
+a delete and a re-log, which needs a delete this crate does not have yet.
+
+## The full-screen picker is the one exception to `src/prompt.rs`
+
+**Decision.** Choosing which entry to edit is a `ratatui` screen in
+`src/picker/`, not a numbered prompt.
+
+**Why.** The prompt module's decision above left the door open for exactly
+this: "a question this shape cannot express … a full-screen picker". Forty
+entries over a week is not a numbered list anybody can read, and the answer a
+person is looking for is "the nappy at about half ten", which they find by
+scrolling to it.
+
+**Consequences.** The picker is split like the dashboard: `state.rs` decides
+and is pure, `draw.rs` draws, and `commands/edit` owns the terminal. It is
+deliberately the only one: a question with a fixed set of answers still belongs
+in `src/prompt.rs`, and the edit form itself is prompts. With no terminal there
+is nobody to pick, so `edit` fails naming `--id` and points at `--list`.
+
+**Revisit when.** A second screen wants to choose something. Then the picker
+becomes generic over what it is listing, rather than a second copy of it
+appearing.

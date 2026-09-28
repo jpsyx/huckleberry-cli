@@ -50,6 +50,18 @@ impl VolumeUnits {
             Self::Millilitres | Self::Unknown(_) => amount,
         }
     }
+    /// The same amount the other way: millilitres as these units count them.
+    ///
+    /// What an edit needs, and the exact inverse of
+    /// [`VolumeUnits::to_millilitres`], so a bottle shown in ounces and saved
+    /// again is the bottle it was.
+    #[must_use]
+    pub fn from_millilitres(&self, millilitres: f64) -> f64 {
+        match self {
+            Self::Ounces => millilitres / MILLILITRES_PER_OUNCE,
+            Self::Millilitres | Self::Unknown(_) => millilitres,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -61,6 +73,13 @@ mod conversions {
         let four_ounces = VolumeUnits::Ounces.to_millilitres(4.0);
         assert!((four_ounces - 118.294_118_25).abs() < 0.001);
         assert!((VolumeUnits::Millilitres.to_millilitres(120.0) - 120.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn a_volume_survives_a_trip_into_ounces_and_back() {
+        let there = VolumeUnits::Ounces.from_millilitres(120.0);
+        assert!((VolumeUnits::Ounces.to_millilitres(there) - 120.0).abs() < 0.000_001);
+        assert!((there - 4.057).abs() < 0.001, "{there}");
     }
 
     #[test]

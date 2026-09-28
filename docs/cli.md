@@ -39,6 +39,7 @@ sign-in does. Backspace and Ctrl-U erase; Ctrl-C and Esc abandon.
 | `stripes` | a 24-hour chart of where sleep lands, one row per day |
 | `trends --metric <M>` | one number over time, as bars |
 | `log` | everything, newest first |
+| `edit --list` | the same, with the name each entry answers to |
 | `dash` | all of the above, full screen, live |
 | `export` | the lot, as JSON |
 
@@ -114,6 +115,42 @@ hb foods add "Sweet potato"
 
 `foods list` shows the family's own foods and Huckleberry's curated database,
 the latter flagged for common allergens and choking hazards.
+
+### Correcting an entry
+
+```sh
+hb edit                                   # pick one off a list, then answer
+hb edit --list                            # what there is, and what each is called
+hb edit --id diaper/1758572400000-3f2a --set pee=big
+```
+
+`edit` is the submission process again, with one difference: every question
+arrives with what is already recorded as its answer, so Enter keeps it and only
+what is typed changes. A field that can be empty takes `-` for "leave it out".
+
+| Key | Does |
+| --- | --- |
+| `j`, `k`, `↑`, `↓` | move |
+| `PgUp`, `PgDn`, `Ctrl-U`, `Ctrl-D` | move ten |
+| `g`, `G`, `Home`, `End` | first, last |
+| `Enter` | edit this one |
+| `q`, `Esc`, `Ctrl-C` | leave, changing nothing |
+
+`--set` takes the fields of whichever entry it is: `mode`, `pee`, `poo`,
+`color`, `consistency`, `rash` and `notes` on a nappy; `mode`, `how`, `color`,
+`consistency` and `notes` on a potty trip; `amount`, `type`, `units` and
+`notes` on a bottle; `left`, `right` and `notes` on a nursing session (in
+minutes); `foods`, `amount`, `reaction` and `notes` on a meal; `duration` (in
+minutes) and `notes` on a sleep. An empty value clears the field, as in
+`--set color=`. Naming a field the entry does not have fails with the ones it
+does.
+
+Two things `edit` will not do. It does not move an entry in time: a row's id in
+Huckleberry leads with its own millisecond timestamp, so changing when
+something happened would leave history sorted by a time the row no longer
+claims. And it changes only what this tool can log, so a pumping session and a
+milestone are listed but read-only; `--list` says which is which in its own
+column.
 
 ## Settings
 

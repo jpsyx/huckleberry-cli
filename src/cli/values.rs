@@ -358,6 +358,51 @@ pub enum TrendMetric {
     Pumped,
 }
 
+/// Gives a value enum a way back from what Huckleberry stores.
+///
+/// Reading a row is the other half of writing one: an edit shows what is on
+/// the record now, and the record is in the app's spellings (`Breast Milk`,
+/// `wentPotty`, `LOVED`), not this tool's. Deriving the reader from `to_api`
+/// rather than writing a second `match` is what keeps the two from drifting:
+/// there is one table, walked in both directions.
+macro_rules! readable_back {
+    ($type:ty) => {
+        impl $type {
+            /// Reads back the value Huckleberry stores, or `None` when it is
+            /// a word this tool has no spelling for.
+            #[must_use]
+            pub fn from_stored(stored: &str) -> Option<Self> {
+                <Self as ValueEnum>::value_variants()
+                    .iter()
+                    .copied()
+                    .find(|variant| variant.to_api().as_str() == stored)
+            }
+        }
+    };
+}
+
+readable_back!(BottleKind);
+readable_back!(Units);
+readable_back!(Side);
+readable_back!(NappyKind);
+readable_back!(Amount);
+readable_back!(Colour);
+readable_back!(Consistency);
+readable_back!(PottyOutcome);
+readable_back!(Reaction);
+
+impl Amount {
+    /// The button that matches a size read off a row.
+    #[must_use]
+    pub const fn from_size(size: crate::domain::types::Size) -> Self {
+        match size {
+            crate::domain::types::Size::Small => Self::Little,
+            crate::domain::types::Size::Medium => Self::Medium,
+            crate::domain::types::Size::Large => Self::Big,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -425,6 +470,52 @@ mod tests {
         assert_eq!(Units::Oz.as_str(), "oz");
         assert_eq!(System::from_setting("imperial"), System::Imperial);
         assert_eq!(System::from_setting("anything else"), System::Metric);
+    }
+
+    #[test]
+    fn every_stored_spelling_reads_back_as_the_value_that_wrote_it() {
+        // One table walked both ways: if a `to_api` arm is ever changed
+        // without its reader, this is what notices.
+        macro_rules! round_trips {
+            ($type:ty) => {
+                for variant in <$type as ValueEnum>::value_variants() {
+                    let stored = variant.to_api();
+                    assert_eq!(
+                        <$type>::from_stored(stored.as_str()),
+                        Some(*variant),
+                        "{variant:?} stores as `{}`",
+                        stored.as_str()
+                    );
+                }
+            };
+        }
+        round_trips!(BottleKind);
+        round_trips!(Units);
+        round_trips!(Side);
+        round_trips!(NappyKind);
+        round_trips!(Amount);
+        round_trips!(Colour);
+        round_trips!(Consistency);
+        round_trips!(PottyOutcome);
+        round_trips!(Reaction);
+    }
+
+    #[test]
+    fn a_word_this_tool_has_no_spelling_for_reads_back_as_nothing() {
+        assert_eq!(Colour::from_stored("aubergine"), None);
+        assert_eq!(
+            BottleKind::from_stored("formula"),
+            None,
+            "the app capitalises it"
+        );
+    }
+
+    #[test]
+    fn a_size_on_a_row_is_the_button_that_wrote_it() {
+        use crate::domain::types::Size;
+        assert_eq!(Amount::from_size(Size::Small), Amount::Little);
+        assert_eq!(Amount::from_size(Size::Medium), Amount::Medium);
+        assert_eq!(Amount::from_size(Size::Large), Amount::Big);
     }
 
     #[test]

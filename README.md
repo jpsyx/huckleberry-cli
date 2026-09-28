@@ -83,6 +83,7 @@ name, and `BIN_DIR` chooses somewhere other than `~/.local/bin`.
 | **Sleep** | `sleep start / pause / resume / stop / cancel / status` |
 | **Feeding** | `feed bottle`, `feed nursing start / switch / pause / stop`, `feed solids` |
 | **Nappies** | `diaper`, `potty` |
+| **Corrections** | `edit` |
 | **Health** | `growth` |
 | **Foods** | `foods list`, `foods add` |
 | **Setup** | `auth login / status / logout`, `child list / use / show`, `config` |
@@ -95,7 +96,8 @@ they follow.
 
 **A person who omits a value is asked for it.** `hb feed bottle`
 asks how much, offering the last amount as the default, and what was in it,
-offering the last kind. `hb diaper` asks what was in it. Nobody
+offering the last kind. `hb diaper` asks what was in it and then every
+question that answer implies, each one taking Enter for "leave it out". Nobody
 has to read `--help` to do the obvious thing.
 
 **An agent or a script drives everything with flags.** No action is reachable

@@ -132,6 +132,33 @@ pub enum Command {
         limit: usize,
     },
 
+    /// Change an entry that is already on the record.
+    Edit {
+        /// Which entry, as `edit --list` names one. Left out on a terminal,
+        /// you pick one off a list.
+        #[arg(long, value_name = "ENTRY")]
+        id: Option<String>,
+
+        /// Change one field without being asked, for example
+        /// `--set pee=big`. Repeat for several. An empty value clears the
+        /// field. Left out on a terminal, you are asked about every field.
+        #[arg(long = "set", value_name = "KEY=VALUE")]
+        set: Vec<String>,
+
+        /// Print one `entry<TAB>kind<TAB>when<TAB>what` line per entry and
+        /// change nothing. How a script finds the entry it means.
+        #[arg(long)]
+        list: bool,
+
+        /// How many days to look back.
+        #[arg(short, long, value_name = "DAYS")]
+        days: Option<u32>,
+
+        /// At most this many entries.
+        #[arg(short, long, default_value_t = 40, value_name = "COUNT")]
+        limit: usize,
+    },
+
     /// Start, pause, finish or check a sleep.
     Sleep {
         /// What to do with the sleep timer.
@@ -345,6 +372,7 @@ mod tests {
             vec!["feed", "solids"],
             vec!["child", "use"],
             vec!["config", "set"],
+            vec!["edit"],
             vec!["auth", "login"],
             vec!["foods", "add"],
         ] {
@@ -356,6 +384,27 @@ mod tests {
                 words.join(" ")
             );
         }
+    }
+
+    #[test]
+    fn an_entry_can_be_changed_without_a_single_prompt() {
+        let cli = Cli::try_parse_from([
+            "huckleberry-cli",
+            "edit",
+            "--id",
+            "diaper/1758572400000-3f2a",
+            "--set",
+            "mode=both",
+            "--set",
+            "pee=big",
+        ])
+        .expect("a fully specified edit");
+        let Command::Edit { id, set, list, .. } = cli.command else {
+            panic!("expected an edit");
+        };
+        assert_eq!(id.as_deref(), Some("diaper/1758572400000-3f2a"));
+        assert_eq!(set, vec!["mode=both".to_owned(), "pee=big".to_owned()]);
+        assert!(!list);
     }
 
     #[test]

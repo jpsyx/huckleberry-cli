@@ -5,6 +5,8 @@
 //! collection appears exactly once, in time order, and nothing is summarized
 //! away.
 
+use huckleberry_api::RowRef;
+
 use super::types::{Dataset, FeedEvent};
 
 /// Which tracker a row came from.
@@ -58,6 +60,9 @@ impl Kind {
 pub struct Entry {
     /// A stable identifier.
     pub id: String,
+    /// Where the row lives in Huckleberry, when it came from there. What
+    /// `edit` needs and what a snapshot read off disk does not have.
+    pub at: Option<RowRef>,
     /// Which tracker it came from.
     pub kind: Kind,
     /// When it was.
@@ -78,6 +83,7 @@ pub fn build(dataset: &Dataset) -> Vec<Entry> {
     for sleep in &dataset.sleep {
         entries.push(Entry {
             id: format!("sleep:{}", sleep.id),
+            at: sleep.at.clone(),
             kind: Kind::Sleep,
             start: sleep.start,
             title: "Sleep".to_owned(),
@@ -90,6 +96,7 @@ pub fn build(dataset: &Dataset) -> Vec<Entry> {
         let (title, description) = describe_feed(feed);
         entries.push(Entry {
             id: format!("feed:{}", feed.id()),
+            at: feed.at().cloned(),
             kind: Kind::Feed,
             start: feed.start(),
             title,
@@ -114,6 +121,7 @@ pub fn build(dataset: &Dataset) -> Vec<Entry> {
         }
         entries.push(Entry {
             id: format!("diaper:{}", nappy.id),
+            at: nappy.at.clone(),
             kind: Kind::Diaper,
             start: nappy.start,
             title: if nappy.potty { "Potty" } else { "Nappy" }.to_owned(),
@@ -138,6 +146,7 @@ pub fn build(dataset: &Dataset) -> Vec<Entry> {
         }
         entries.push(Entry {
             id: format!("pump:{}", session.id),
+            at: session.at.clone(),
             kind: Kind::Pump,
             start: session.start,
             title: "Pumping".to_owned(),
@@ -149,6 +158,7 @@ pub fn build(dataset: &Dataset) -> Vec<Entry> {
     for milestone in &dataset.milestones {
         entries.push(Entry {
             id: format!("milestone:{}", milestone.id),
+            at: milestone.at.clone(),
             kind: Kind::Milestone,
             start: milestone.start,
             title: "Milestone".to_owned(),
@@ -294,6 +304,22 @@ mod tests {
         let description = &build(&data)[0].description;
         assert!(description.contains("yellow"), "{description}");
         assert!(description.contains("rash noted"), "{description}");
+    }
+
+    #[test]
+    fn an_entry_carries_the_row_it_came_from_so_it_can_be_edited() {
+        let mut data = dataset();
+        let mut event = nappy(AFTERNOON, true, false);
+        event.at = Some(RowRef::loose("diaper", "row-one"));
+        data.diapers = vec![event];
+        assert_eq!(build(&data)[0].at, Some(RowRef::loose("diaper", "row-one")));
+    }
+
+    #[test]
+    fn an_entry_read_off_a_snapshot_has_no_row_to_edit() {
+        let mut data = dataset();
+        data.diapers = vec![nappy(AFTERNOON, true, false)];
+        assert_eq!(build(&data)[0].at, None);
     }
 
     #[test]

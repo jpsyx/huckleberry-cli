@@ -170,6 +170,29 @@ exactly one file that decides what a role means. They are indexed rather than
 RGB, so the dashboard inherits the palette the person has chosen for their
 terminal.
 
+## `edit`
+
+The seventh screen, and the only one that is a question rather than an answer:
+the same stream as `log`, one line per entry, with a cursor.
+
+```
+Which entry? 33 in this window
+› Sun 27 Sep  10:32 pm  Nappy      pee
+  Sun 27 Sep   7:47 pm  Nappy      both (brown, loose) · rash noted
+  Sun 27 Sep   7:00 pm  Bottle     34 ml of Breast Milk
+  Sun 27 Sep   5:21 pm  Pumping    59 ml (L 30, R 30)
+  …
+j/k or ↑/↓ move · enter edits · q leaves
+```
+
+The keys are the dashboard's, and three of them leave. The cursor stops at each
+end rather than wrapping: a list of times reads as a line, and jumping from
+last night to this morning because a key was held is disorienting.
+
+An entry this tool cannot change is listed and drawn muted rather than left
+out, because the stream is the stream. Pressing Enter on one says why on the
+line at the foot instead of doing nothing at a keystroke somebody meant.
+
 ## Testing a screen
 
 Every renderer takes values and returns `Vec<String>`, and the dashboard is

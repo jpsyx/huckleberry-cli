@@ -58,11 +58,13 @@ src/
 ├── credentials.rs   the secrets: a 0600 file, and the environment
 ├── session.rs       from a configuration file to a working client
 ├── dataset.rs       pulling one child into one value, and the snapshot format
+├── edit.rs          what an edit is: which row, which fields, what they hold
 ├── prompt.rs        asking for a value that was left out
 ├── theme.rs         semantic colours
 ├── domain/          everything the tool works out, and nothing it prints
 ├── render/          domain values to lines of text
 ├── dashboard/       the full-screen version of the same values
+├── picker/          choosing one entry off a list, full screen
 └── commands/        one thin module per command
 tests/
 └── public_api.rs    the library surface, driven from outside the crate
@@ -74,7 +76,7 @@ tests/
 | --- | --- | --- |
 | `huckleberry-api` | Firestore, Huckleberry's shapes | this tool |
 | `domain` | events, days, arithmetic | the clock, the network, a terminal |
-| `render` / `dashboard` | text, colour, widgets | the network, the clock |
+| `render` / `dashboard` / `picker` | text, colour, widgets | the network, the clock |
 | `commands` | all of the above, and the outside world | arithmetic worth asserting |
 
 `domain` takes `now` as an argument everywhere. That is the whole reason a
@@ -104,6 +106,21 @@ before anything is put in it.
 
 `HUCKLEBERRY_EMAIL` and `HUCKLEBERRY_PASSWORD` override the file, and a
 password that came from the environment is never written back to disk.
+
+## Changing something already recorded
+
+Reading a row and changing it are different requests, and the difference is
+structural: a decoded row carries nothing that says which document it came out
+of, and Huckleberry packs older history into batch documents with the rows
+nested under `data`. So every windowed read hands back `Located<T>`: the row,
+and a `RowRef` naming its document and, inside a batch, its key. `normalize`
+puts that reference on the event, the snapshot carries it, and `hb edit` takes
+it back to `update_history_row`.
+
+The write is a field update rather than a rewrite. A row has fields this
+repository does not model, and a batched row has neighbours in the same
+document; naming the fields that change is what leaves both alone. See
+[`api.md`](api.md).
 
 ## Reading without an account
 
@@ -153,6 +170,8 @@ Several directories exist because a file crossed it:
 | `domain/` | one module per question the tool answers |
 | `render/` | one module per screen |
 | `dashboard/draw/` | the frame, and one function per tab |
+| `picker/` | what is on the list, and what it looks like |
+| `commands/edit/` | the command, and the questions it asks |
 | `models/sleep/` | what was recorded, the timer, the history |
 | `models/feed/` | the words, the timer, the summaries, the history |
 | `ops/feed/` | nursing runs a timer; a bottle is one instant event |

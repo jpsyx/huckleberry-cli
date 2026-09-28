@@ -10,6 +10,7 @@
 //! volume, because a parent who forgot to type the number did not give the
 //! baby nothing.
 
+use huckleberry_api::Located;
 use huckleberry_api::models::child::ChildDocument;
 use huckleberry_api::models::common::Number;
 use huckleberry_api::models::diaper::DiaperEntry;
@@ -18,7 +19,6 @@ use huckleberry_api::models::health::GrowthEntry;
 use huckleberry_api::models::milestone::Milestone;
 use huckleberry_api::models::pump::PumpInterval;
 use huckleberry_api::models::sleep::{SleepDocument, SleepInterval};
-use huckleberry_api::{Located, RowRef};
 
 use super::types::{
     Child, DiaperEvent, FeedEvent, GrowthPoint, LiveState, MilestoneEvent, PumpEvent, Size,
@@ -292,7 +292,12 @@ fn order(left: f64, right: f64) -> core::cmp::Ordering {
 fn located<T>(rows: Vec<T>) -> Vec<Located<T>> {
     rows.into_iter()
         .enumerate()
-        .map(|(position, row)| Located::new(RowRef::loose("test", &format!("row-{position}")), row))
+        .map(|(position, row)| {
+            Located::new(
+                huckleberry_api::RowRef::loose("test", &format!("row-{position}")),
+                row,
+            )
+        })
         .collect()
 }
 
