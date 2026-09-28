@@ -110,9 +110,13 @@ Every value a command needs is looked for in the same order:
 4. a failure naming the flag, when there is not.
 
 Event times keep their noninteractive default of now. `prompt/time.rs` shares
-the clock reader and AM/PM question between manual sleeps, instant recordings
-and timer transitions. Timer-start and timer-end readers delegate to the same
-instant reader for defaults, helper formatting, retries and parsing; `sleep end`
+one relative/clock parser, question builder, helper text and AM/PM question
+between manual sleeps, instant recordings, timer transitions and time edits.
+Callers supply only the date rule for clock-only answers: most recent occurrence,
+first occurrence after a manual start, or the existing history date. Relative
+answers always retain their full instant and bypass those clock-only rules.
+Manual sleeps require both times; event and timer questions default to now, and
+edits default to keeping the original. `sleep end`
 and `sleep stop` dispatch to the same handler. `domain/clock.rs` parses relative minutes using an
 explicit `now`. Time is the first activity question. Times resolve against the clock after that
 answer is read, before the remaining details.

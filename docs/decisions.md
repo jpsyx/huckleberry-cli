@@ -305,7 +305,10 @@ a question here and a field in `huckleberry-api`, in the same change.
 `357am`, `0357`, `03:57`, `21:30`, `2130`, `9pm` and `7` as times of day, and a
 bare `3:57` as **both** times rather than as a guess. A time with no day is the
 most recent one at or before now; an end time is the first such time after the
-start.
+start. All activity-time inputs, including both manual-sleep endpoints, also
+accept `now` and relative minutes through the same parser. Relative answers
+retain their full timestamp instead of being converted to a clock time and
+assigned a new date. Their examples and retry hints come from one shared string.
 
 **Why.** The only person typing a sleep in after the fact is doing it at 3am
 from memory, and making them match a format is making them think. The two

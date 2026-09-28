@@ -5,7 +5,16 @@ fn main() -> anyhow::Result<()> {
     let mode = std::env::args().nth(1).unwrap_or_default();
     let choices = [Choice { value: "yes", hint: "Yes" }, Choice { value: "no", hint: "No" }];
     let question = Question::new("choice", "Choose answer", "--answer").with_choices(&choices).with_default("no");
-    if mode == "fields" {
+    if mode == "manual_time" {
+        let context = app::session::Context { config: app::config::Config::default(), config_path: "synthetic.toml".into(), credentials_path: "synthetic-credentials.json".into(), theme, verbose: false, child_override: None, offline: None };
+        let started = app::prompt::time::read_manual_start(&context, None)?;
+        let ended = app::prompt::time::read_manual_end(&context, None, started)?;
+        assert!((119.0 * 60.0..121.0 * 60.0).contains(&(ended - started)));
+        println!("MANUAL_RELATIVE_OK");
+        let event = app::prompt::time::read_at(&context, None)?;
+        assert!((31.0 * 60.0..33.0 * 60.0).contains(&(ended - event)));
+        println!("EVENT_RELATIVE_OK");
+    } else if mode == "fields" {
         let context = app::session::Context { config: app::config::Config::default(), config_path: "synthetic.toml".into(), credentials_path: "synthetic-credentials.json".into(), theme, verbose: false, child_override: None, offline: None };
         let draft = app::edit::Draft::Diaper(app::edit::DiaperDraft { potty: true, mode: app::cli::DiaperKind::Pee, pee: None, poo: None, color: None, consistency: None, rash: false, how: None, notes: None });
         let runtime = tokio::runtime::Builder::new_multi_thread().enable_all().build()?;

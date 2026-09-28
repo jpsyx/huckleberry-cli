@@ -217,6 +217,17 @@ pub fn first_after(time: TimeOfDay, from: f64, calendar: &Calendar) -> f64 {
     if candidate >= from {
         return candidate;
     }
+    // A relative start may lie in the second occurrence of a repeated hour.
+    // Try that occurrence before assuming this clock time means tomorrow.
+    if let Ok(later) = calendar
+        .zoned(from)
+        .time_zone()
+        .to_ambiguous_timestamp(day.at(time.hour, time.minute, 0, 0))
+        .later()
+        && later.as_second() as f64 >= from
+    {
+        return later.as_second() as f64;
+    }
     calendar.at(calendar.offset_day(day, 1), time.hour, time.minute)
 }
 
@@ -516,6 +527,25 @@ mod resolving {
 #[cfg(test)]
 mod relative_reading {
     use super::*;
+
+    #[test]
+    fn relative_times_preserve_elapsed_minutes_across_midnight_and_dst() {
+        let calendar = Calendar::new("America/New_York").unwrap();
+        for (local_now, expected_start) in [
+            ("2025-01-02T00:30:15-05:00", "2025-01-01T22:30:15-05:00"),
+            ("2025-03-09T03:30:15-04:00", "2025-03-09T00:30:15-05:00"),
+            ("2025-11-02T02:30:15-05:00", "2025-11-02T01:30:15-04:00"),
+        ] {
+            let now = local_now.parse::<jiff::Timestamp>().unwrap().as_second() as f64;
+            let expected = expected_start
+                .parse::<jiff::Timestamp>()
+                .unwrap()
+                .as_second() as f64;
+            let started = parse_relative("120 mins ago", now).unwrap();
+            assert_eq!(started.to_bits(), expected.to_bits(), "{local_now}");
+            assert_eq!(calendar.zoned(started).second(), 15);
+        }
+    }
 
     #[test]
     fn relative_minutes_are_subtracted_from_the_supplied_clock() {

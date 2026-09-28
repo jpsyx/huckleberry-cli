@@ -47,6 +47,126 @@ fn context() -> app::session::Context {
 }
 
 #[test]
+fn all_time_readers_accept_the_same_relative_inputs_without_losing_the_date() {
+    let context = context();
+    let original = 1_735_732_800.125;
+    for (input, seconds) in [
+        ("32 min ago", 1920.0),
+        ("40 minutes ago.", 2400.0),
+        ("3000m ago", 180_000.0),
+        ("now", 0.0),
+        ("right now!", 0.0),
+    ] {
+        let before = huckleberry_api::client::now_seconds();
+        let results = [
+            app::prompt::time::read_at(&context, Some(input)),
+            app::prompt::time::read_start(&context, Some(input)),
+            app::prompt::time::read_end(&context, Some(input)),
+            app::prompt::time::read_manual_start(&context, Some(input)),
+            app::prompt::time::read_manual_end(&context, Some(input), original),
+            app::prompt::time::read_edit_at(&context, Some(input), original),
+            app::prompt::time::read_edit_start(&context, Some(input), Some(original))
+                .map(Option::unwrap),
+            app::prompt::time::read_edit_start(&context, Some(input), None).map(Option::unwrap),
+        ];
+        let after = huckleberry_api::client::now_seconds();
+        for result in results {
+            let instant = result.unwrap();
+            assert!(
+                (before - seconds..=after - seconds).contains(&instant),
+                "{input}"
+            );
+        }
+    }
+}
+
+#[test]
+fn manual_sleep_can_mix_clock_and_relative_inputs() {
+    let context = context();
+    let calendar = context.calendar().unwrap();
+    let now = huckleberry_api::client::now_seconds();
+    let clock_start = calendar.zoned(now - 7200.0).strftime("%I:%M%p").to_string();
+    let started = app::prompt::time::read_manual_start(&context, Some(&clock_start)).unwrap();
+    let ended = app::prompt::time::read_manual_end(&context, Some("now"), started).unwrap();
+    assert!((now..=huckleberry_api::client::now_seconds()).contains(&ended));
+    assert!(ended > started);
+
+    let started = app::prompt::time::read_manual_start(&context, Some("180m ago")).unwrap();
+    let clock_end = calendar.zoned(now - 3600.0).strftime("%I:%M%p").to_string();
+    let ended = app::prompt::time::read_manual_end(&context, Some(&clock_end), started).unwrap();
+    assert_eq!(
+        calendar.zoned(ended).strftime("%I:%M%p").to_string(),
+        clock_end
+    );
+    assert!(ended > started);
+}
+
+#[test]
+fn manual_clock_end_uses_the_first_occurrence_after_a_relative_start_in_a_repeated_hour() {
+    let context = context();
+    let now = "2025-11-02T02:30:00-05:00"
+        .parse::<jiff::Timestamp>()
+        .unwrap()
+        .as_second() as f64;
+    for input in ["60 min ago", "120 min ago"] {
+        let started = app::domain::clock::parse_relative(input, now).unwrap();
+        let ended = app::prompt::time::read_manual_end(&context, Some("1:45am"), started).unwrap();
+        assert_eq!((ended - started).to_bits(), 900.0_f64.to_bits(), "{input}");
+        assert!(ended < now);
+    }
+}
+
+#[test]
+fn manual_sleep_keeps_overnight_clock_resolution() {
+    let context = context();
+    let started = app::prompt::time::read_manual_start(&context, Some("11:30pm")).unwrap();
+    let ended = app::prompt::time::read_manual_end(&context, Some("01:15"), started).unwrap();
+    assert_eq!(context.calendar().unwrap().zoned(ended).hour(), 1);
+    assert_eq!(context.calendar().unwrap().zoned(ended).minute(), 15);
+    assert!(ended > started);
+}
+
+#[test]
+fn manual_sleep_still_requires_both_times_without_a_terminal() {
+    if std::io::IsTerminal::is_terminal(&std::io::stdin()) {
+        return;
+    }
+    let context = context();
+    let error = app::prompt::time::read_manual_start(&context, None).unwrap_err();
+    assert!(error.to_string().contains("--start <TIME>"));
+    let error = app::prompt::time::read_manual_end(&context, None, 1000.0).unwrap_err();
+    assert!(error.to_string().contains("--end <TIME>"));
+}
+
+#[test]
+fn manual_sleep_rejects_invalid_inputs_and_ambiguous_flags() {
+    let context = context();
+    for input in ["-40 min ago", "1.5 min ago", "nope", "3:58"] {
+        assert!(app::prompt::time::read_manual_start(&context, Some(input)).is_err());
+        assert!(app::prompt::time::read_manual_end(&context, Some(input), 1000.0).is_err());
+    }
+}
+
+#[test]
+fn all_time_readers_reject_relative_times_before_the_unix_epoch() {
+    let context = context();
+    let input = Some("4294967295m ago");
+    let original = 1_735_732_800.125;
+    for result in [
+        app::prompt::time::read_at(&context, input),
+        app::prompt::time::read_start(&context, input),
+        app::prompt::time::read_end(&context, input),
+        app::prompt::time::read_manual_start(&context, input),
+        app::prompt::time::read_manual_end(&context, input, original),
+        app::prompt::time::read_edit_at(&context, input, original),
+        app::prompt::time::read_edit_start(&context, input, Some(original)).map(Option::unwrap),
+        app::prompt::time::read_edit_start(&context, input, None).map(Option::unwrap),
+    ] {
+        assert!(result.is_err(), "pre-epoch input must fail: {result:?}");
+    }
+}
+
+#[test]
 fn event_times_use_the_sleep_parser_and_noninteractive_default() {
     let context = context();
     let before = huckleberry_api::client::now_seconds();

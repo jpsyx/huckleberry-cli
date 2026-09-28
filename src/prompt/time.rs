@@ -7,23 +7,33 @@ use huckleberry_api::client::now_seconds;
 
 use super::{Choice, Question};
 use crate::domain::clock::{self, TimeOfDay, Typed};
+use crate::domain::time::Calendar;
 use crate::session::Context;
 
 /// Examples for questions accepting both clock times and relative minutes.
 const TIME_HELP: &str = "E.g. '1:23 pm' or '123pm' or '32 min ago' are all valid";
 
-/// Reads a clock time, asking which half of the day an ambiguous answer meant.
-pub fn read_clock(
-    context: &Context,
-    given: Option<&str>,
-    label: &str,
-    flag: &str,
-) -> Result<TimeOfDay> {
-    let question = Question::new("time", label, flag)
-        .with_help("E.g. '1:23 pm' or '123pm' or '21:30' are all valid");
+/// Reads a required manual-sleep start, preserving the date of relative answers.
+pub fn read_manual_start(context: &Context, given: Option<&str>) -> Result<f64> {
+    let question = create_time_question("When did it begin?", "--start <TIME>");
     read(context, given, &question, |text, interactive| {
-        parse_clock(context, text, interactive)
+        parse_instant(context, text, interactive, clock::most_recent)
     })
+}
+
+/// Reads a required manual end; only clock-only answers roll forward after the start.
+pub fn read_manual_end(context: &Context, given: Option<&str>, started: f64) -> Result<f64> {
+    let question = create_time_question("When did it end?", "--end <TIME>");
+    read(context, given, &question, |text, interactive| {
+        parse_instant(context, text, interactive, |time, _, calendar| {
+            clock::first_after(time, started, calendar)
+        })
+    })
+}
+
+/// Builds every time question with the same examples and muted helper style.
+const fn create_time_question<'a>(label: &'a str, flag: &'a str) -> Question<'a> {
+    Question::new("time", label, flag).with_help(TIME_HELP)
 }
 
 /// Reads a timer start, offering now and accepting relative minutes or a clock time.
@@ -44,12 +54,10 @@ pub fn read_at(context: &Context, given: Option<&str>) -> Result<f64> {
 
 /// Resolves an answer after it is read, so accepting now means the current instant.
 fn read_instant(context: &Context, given: Option<&str>, label: &str, flag: &str) -> Result<f64> {
-    let question = Question::new("time", label, flag)
-        .with_help(TIME_HELP)
-        .with_default("now");
+    let question = create_time_question(label, flag).with_default("now");
     let given = given.or_else(|| (!std::io::stdin().is_terminal()).then_some("now"));
     read(context, given, &question, |text, interactive| {
-        parse_instant(context, text, interactive)
+        parse_instant(context, text, interactive, clock::most_recent)
     })
 }
 
@@ -75,9 +83,7 @@ fn read_existing(
 ) -> Result<f64> {
     let calendar = context.calendar()?;
     let shown = calendar.zoned(current).strftime(DATED_FORMAT).to_string();
-    let question = Question::new("time", "When?", flag)
-        .with_help(TIME_HELP)
-        .with_default(&shown);
+    let question = create_time_question("When?", flag).with_default(&shown);
     read(context, given, &question, |text, interactive| {
         if text.trim() == shown || text.trim().eq_ignore_ascii_case("keep") {
             return Ok(Some(current));
@@ -89,14 +95,13 @@ fn read_existing(
                     + f64::from(zoned.timestamp().subsec_nanosecond()) / 1e9,
             ));
         }
-        if keep_date {
-            if let Some(relative) = clock::parse_relative(text, now_seconds()) {
-                return Ok(Some(relative));
+        parse_instant(context, text, interactive, |time, now, calendar| {
+            if keep_date {
+                calendar.at(calendar.day_of(current), time.hour, time.minute)
+            } else {
+                clock::most_recent(time, now, calendar)
             }
-            return Ok(parse_clock(context, text, interactive)?
-                .map(|time| calendar.at(calendar.day_of(current), time.hour, time.minute)));
-        }
-        parse_instant(context, text, interactive)
+        })
     })
 }
 
@@ -127,26 +132,32 @@ pub fn read_edit_start(
         |at| crate::render::format::date_time(at, &calendar),
     );
     let label = format!("New start time? Current: {current}");
-    let question = Question::new("new start time", &label, "--set start=<TIME>")
-        .with_help(TIME_HELP)
-        .with_default("keep");
+    let question = create_time_question(&label, "--set start=<TIME>").with_default("keep");
     read(context, given, &question, |text, interactive| {
         if text.trim().eq_ignore_ascii_case("keep") {
             return Ok(Some(None));
         }
-        Ok(parse_instant(context, text, interactive)?.map(Some))
+        Ok(parse_instant(context, text, interactive, clock::most_recent)?.map(Some))
     })
 }
 
-/// One parser for logging, timer transitions, and corrections to a live start.
-fn parse_instant(context: &Context, text: &str, interactive: bool) -> Result<Option<f64>> {
+/// Parses all activity times; callers supply only the date rule for clock-only answers.
+fn parse_instant(
+    context: &Context,
+    text: &str,
+    interactive: bool,
+    resolve_clock: impl FnOnce(TimeOfDay, f64, &Calendar) -> f64,
+) -> Result<Option<f64>> {
     let now = now_seconds();
     if let Some(started) = clock::parse_relative(text, now) {
+        if started < 0.0 {
+            bail!("choose a time between the Unix epoch and now");
+        }
         return Ok(Some(started));
     }
     let calendar = context.calendar()?;
     Ok(parse_clock(context, text, interactive)?
-        .map(|time| clock::most_recent(time, now_seconds(), &calendar)))
+        .map(|time| resolve_clock(time, now_seconds(), &calendar)))
 }
 
 /// Supplied values fail immediately; prompted values can be corrected before writing.
@@ -182,9 +193,9 @@ fn parse_clock(context: &Context, text: &str, interactive: bool) -> Result<Optio
     }
 }
 
-/// Examples shared by both time readers when a value cannot be parsed.
+/// The same examples appear in initial hints and failed parsing guidance.
 fn unreadable_message(text: &str) -> String {
-    format!("`{text}` is not a time I can read: try `9pm`, `21:00` or `0357`")
+    format!("`{text}` is not a time I can read. {TIME_HELP}")
 }
 
 /// Asks which half of the day a bare time meant.

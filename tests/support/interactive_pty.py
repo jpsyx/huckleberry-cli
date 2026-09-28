@@ -96,10 +96,27 @@ def prompts():
         finally:
             terminal.close()
 
-        for mode in ("keep_clear", "failure", "list", "cancel_text", "secret", "waiting", "fields"):
+        for mode in ("manual_time", "keep_clear", "failure", "list", "cancel_text", "secret", "waiting", "fields"):
             terminal = Terminal([driver, mode])
             try:
-                if mode == "fields":
+                if mode == "manual_time":
+                    helper = "E.g. '1:23 pm' or '123pm' or '32 min ago' are all valid"
+                    terminal.expect("When did it begin?")
+                    terminal.expect(helper)
+                    terminal.send("not a time\r")
+                    terminal.expect("is not a time I can read")
+                    terminal.expect("When did it begin?")
+                    terminal.expect(helper)
+                    terminal.send("120 minutes ago.\r")
+                    terminal.expect("When did it end?")
+                    terminal.expect(helper)
+                    terminal.send("now\r")
+                    terminal.expect("MANUAL_RELATIVE_OK")
+                    terminal.expect("When?")
+                    terminal.expect(helper)
+                    terminal.send("32 min ago\r")
+                    terminal.expect("EVENT_RELATIVE_OK")
+                elif mode == "fields":
                     terminal.expect("Fields to change")
                     terminal.send("\r")
                     terminal.expect("FIELDS_KEPT")

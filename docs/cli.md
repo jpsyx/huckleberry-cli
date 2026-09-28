@@ -109,9 +109,8 @@ switches, also ask when. Cancel and status do not record an event and need no ti
 Every **When?** prompt, including history and ongoing-timer edits, shows
 `E.g. '1:23 pm' or '123pm' or '32 min ago' are all valid` beneath the question
 in the muted hint colour. The helper remains readable as plain text when
-colour is disabled. Timer-start questions use the same helper. Both manual-sleep
-questions show clock-only examples (`1:23 pm`, `123pm`, `21:30`) in the same
-muted style, since manual sleep accepts clock times rather than relative minutes.
+colour is disabled. Timer-start and both manual-sleep questions use the same
+helper, and parsing errors repeat these examples.
 
 All these questions share the sleep-start parser: `358 am`, `3:58 a.m.`,
 `0358`, `21:30`, `9pm`, or whole relative minutes such as `32 mins ago`.
@@ -159,6 +158,8 @@ hb sleep status
 
 hb sleep manual                              # asks when it began and ended
 hb sleep manual --start 11:30pm --end 1:15am
+hb sleep manual --start "120 mins ago" --end "30 mins ago"
+hb sleep manual --start "32 min ago" --end now
 ```
 
 `sleep end` (also `sleep stop`) asks **When did it end?** using the same
@@ -190,13 +191,24 @@ values must include AM or PM. `--start now` starts immediately, and without a
 terminal an omitted `--start` keeps the existing default of now.
 
 `sleep manual` records a sleep that has already happened, and asks two
-questions because that is all a sleep is. Neither time carries a date: a bare
-time is the most recent one, so at 3am `11:30pm` is last night, and the end is
+questions because that is all a sleep is. Both accept `now`, relative minutes
+and flexible clock times, in prompts and flags. Relative answers count elapsed
+minutes back from when each answer is read, preserving their date and seconds
+across midnight and daylight-saving changes. Clock and relative answers can be
+mixed. Both times are required when there is no terminal.
+
+A bare start clock time is the most recent one, so at 3am `11:30pm` is last night,
+and a clock-only end is
 the first such time after the start, so a sleep across midnight needs nobody to
 say so. A time is read the way it is said: `3:57am`, `3:57 AM`, `3:57 a.m.`,
 `357am`, `0357`, `03:57`, `21:30`, `2130`, `9pm`, `7`. A bare twelve-hour time
 like `3:57` is either half of the day, so you are asked which; with `--start`
-it is refused, naming both spellings.
+it is refused, naming both spellings. The end must be after the start and no
+later than now; relative end times are never rolled forward to repair an invalid
+interval. During a repeated daylight-saving hour, a clock-only end uses the
+first matching occurrence at or after the start, including the second occurrence
+of that hour. Relative offsets that reach before the Unix epoch are rejected for
+every activity-time input.
 
 A sleep in progress is not in the way, because the entry is history and the
 timer is a timer. They meet only when the entry runs into the running sleep,

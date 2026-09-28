@@ -58,14 +58,14 @@ pub enum SleepAction {
     },
     /// Record a sleep that has already happened.
     Manual {
-        /// When it began, as you would say it: `9pm`, `21:00`, `0357`.
+        /// When it began: `now`, `358 am`, or `32 mins ago`.
         /// Left out on a terminal, you are asked.
         #[arg(short, long, value_name = "TIME")]
         start: Option<String>,
 
-        /// When it ended, read as the first such time after it began, so a
-        /// sleep across midnight needs no date. Left out on a terminal, you
-        /// are asked.
+        /// When it ended: `now`, `358 am`, or `32 mins ago`.
+        /// Clock times mean the first occurrence after it began, so a sleep
+        /// across midnight needs no date. Left out on a terminal, you are asked.
         #[arg(short, long, value_name = "TIME")]
         end: Option<String>,
 

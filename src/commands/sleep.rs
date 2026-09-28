@@ -7,7 +7,6 @@ use huckleberry_api::{Huckleberry, TimerChange};
 use crate::cli::{Overlap, SleepAction};
 use crate::domain::clock;
 use crate::domain::time::format_duration;
-use crate::prompt::time::read_clock;
 use crate::prompt::{self, Choice, Question};
 use crate::render::{format, output};
 use crate::session::Context;
@@ -107,7 +106,8 @@ async fn start(
 /// Two questions, because that is all a sleep is: when it began and when it
 /// ended. Neither carries a date. A bare time is the most recent one, so at
 /// 3am `11:30pm` is last night, and the end is the first such time after the
-/// start, so a sleep across midnight needs nobody to say so.
+/// start, so a sleep across midnight needs nobody to say so. Relative answers
+/// use elapsed minutes before the moment each answer is read.
 ///
 /// A sleep in progress is not in the way: the entry is history and the timer
 /// is a timer. They only meet when the entry runs into the running sleep, and
@@ -122,22 +122,13 @@ async fn manual(
     overlap: Option<Overlap>,
 ) -> Result<()> {
     let calendar = context.calendar()?;
+    let began = prompt::time::read_manual_start(context, start)?;
+    let ended = prompt::time::read_manual_end(context, end, began)?;
     let now = now_seconds();
-
-    let began = clock::most_recent(
-        read_clock(context, start, "When did it begin?", "--start <TIME>")?,
-        now,
-        &calendar,
-    );
-    let ended = clock::first_after(
-        read_clock(context, end, "When did it end?", "--end <TIME>")?,
-        began,
-        &calendar,
-    );
 
     let duration = ended - began;
     if duration <= 0.0 {
-        bail!("a sleep has to last: that one begins and ends at the same moment");
+        bail!("a sleep's end must be after its start");
     }
     if ended > now {
         bail!(
