@@ -10,7 +10,6 @@
 //! with no terminal the failure names `--yes` rather than assuming consent.
 
 use anyhow::{Context as _, Result, bail};
-use crossterm::event::{Event, KeyEventKind};
 use huckleberry_api::client::now_seconds;
 use huckleberry_api::{Huckleberry, RowRef};
 
@@ -18,7 +17,7 @@ use crate::cli::DeleteOptions;
 use crate::domain::log::Entry;
 use crate::domain::{Calendar, log};
 use crate::edit;
-use crate::picker::{Action, Picker, Purpose, action_for, draw};
+use crate::listing::Listing;
 use crate::prompt;
 use crate::render::format;
 use crate::session::Context;
@@ -75,13 +74,12 @@ pub async fn run(context: &Context, options: &DeleteOptions) -> Result<()> {
                 .cloned();
             Some((at, entry))
         }
-        None => choose(entries, &calendar)?.map(|entry| {
-            (
-                entry.at.clone().unwrap_or_else(|| {
-                    unreachable!("the picker only hands back an entry that has a row")
-                }),
-                Some(entry),
-            )
+        None => choose(context, &entries, &calendar)?.map(|at| {
+            let entry = entries
+                .iter()
+                .find(|entry| entry.at.as_ref() == Some(&at))
+                .cloned();
+            (at, entry)
         }),
     };
     let Some((at, entry)) = chosen else {
@@ -230,7 +228,7 @@ async fn remove(
 }
 
 /// Puts the entries on the screen and waits for one to be picked.
-fn choose(entries: Vec<Entry>, calendar: &Calendar) -> Result<Option<Entry>> {
+fn choose(context: &Context, entries: &[Entry], calendar: &Calendar) -> Result<Option<RowRef>> {
     if !std::io::IsTerminal::is_terminal(&std::io::stdin()) {
         bail!(
             "no entry to delete: pass --id <ENTRY> (stdin is not a terminal, so I cannot show \
@@ -240,43 +238,24 @@ fn choose(entries: Vec<Entry>, calendar: &Calendar) -> Result<Option<Entry>> {
     if entries.is_empty() {
         bail!("nothing logged in this window: try a longer --days");
     }
-    let mut picker = Picker::for_purpose(entries, Purpose::Delete);
+    let today = format::day_short(calendar.day_of(now_seconds()));
+    // Anything that came from Huckleberry can be removed, because taking a row
+    // away needs no knowledge of what is in it.
+    let chosen = Listing::new(
+        "Delete which entry?",
+        "entries",
+        &crate::render::log::COLUMNS,
+    )
+    .rows(crate::render::log::rows(entries, calendar, &|entry| {
+        entry
+            .at
+            .is_none()
+            .then(|| "that entry came from a snapshot rather than from Huckleberry".to_owned())
+    }))
+    .today(|heading| heading == today)
+    .empty("nothing logged in this window")
+    .verb("j/k or ↑/↓ move · / searches · enter deletes · q leaves")
+    .choose(context.output_theme())?;
 
-    let mut terminal = ratatui::init();
-    let chosen = pick(&mut terminal, &mut picker, calendar);
-    ratatui::restore();
-    chosen
-}
-
-/// The keyboard loop, with the terminal already set up.
-fn pick(
-    terminal: &mut ratatui::DefaultTerminal,
-    picker: &mut Picker,
-    calendar: &Calendar,
-) -> Result<Option<Entry>> {
-    loop {
-        terminal
-            .draw(|frame| draw(frame, picker, calendar))
-            .context("drawing the list")?;
-
-        let Event::Key(key) = crossterm::event::read().context("reading a keystroke")? else {
-            continue;
-        };
-        if key.kind != KeyEventKind::Press {
-            continue;
-        }
-        picker.trouble = None;
-        match action_for(key) {
-            Action::Cancel => return Ok(None),
-            Action::Move(delta) => picker.move_by(delta),
-            Action::First => picker.first(),
-            Action::Last => picker.last(),
-            Action::Take => {
-                if let Some(entry) = picker.take() {
-                    return Ok(Some(entry));
-                }
-            }
-            Action::Ignore => {}
-        }
-    }
+    chosen.map(|token| edit::parse_token(&token)).transpose()
 }

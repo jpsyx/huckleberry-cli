@@ -88,6 +88,10 @@ name, and `BIN_DIR` chooses somewhere other than `~/.local/bin`.
 | **Foods** | `foods list`, `foods add` |
 | **Setup** | `auth login / status / logout`, `child list / use / show`, `config` |
 
+Lists browse and search: `log`, `edit`, `delete` and `foods list` open a
+scrollable view on a terminal where `/` filters as you type, and print plain
+aligned rows when piped.
+
 [`docs/cli.md`](docs/cli.md) has the full surface;
 [`docs/dashboards.md`](docs/dashboards.md) describes each screen and the rules
 they follow.

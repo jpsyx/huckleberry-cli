@@ -74,10 +74,15 @@ sign-in does. Backspace and Ctrl-U erase; Ctrl-C and Esc abandon.
 | `summary` | one row per day: feeds, milk, sleep, diapers, and the typical ranges |
 | `stripes` | a 24-hour chart of where sleep lands, one row per day |
 | `trends --metric <M>` | one number over time, as bars |
-| `log` | everything, newest first |
+| `log` | everything, newest first: browsable, and searchable with `/` |
 | `edit --list` | the same, with the name each entry answers to |
 | `dash` | all of the above, full screen, live |
 | `export` | the lot, as JSON |
+
+`log` takes `--search <TEXT>` as well, which is the same filter the `/` key
+types interactively. On a terminal it opens a list you can scroll, search and
+open an entry from; piped, it is the same rows as plain text. See
+[`dashboards.md`](dashboards.md) for the keys.
 
 `now` and `summary` take `--json`. `summary`, `stripes`, `trends`, `log` and
 `export` take `--days`. `log` takes `--kind` and `--limit`.
@@ -202,7 +207,9 @@ hb foods add "Sweet potato"
 ```
 
 `foods list` shows the family's own foods and Huckleberry's curated database,
-the latter flagged for common allergens and choking hazards.
+the latter flagged for common allergens and choking hazards. Two hundred foods
+is the listing this tool most needs a search in, so it opens browsable: press
+`/` and type. `--search` is the same filter for a script.
 
 ### Correcting an entry
 

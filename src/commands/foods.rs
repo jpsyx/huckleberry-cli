@@ -3,9 +3,11 @@
 use anyhow::Result;
 
 use crate::cli::FoodsAction;
+use crate::listing::{Column, Listing, Role, Row};
 use crate::prompt::{self, Question};
 use crate::render::format;
 use crate::session::Context;
+use crate::theme::Tone;
 
 /// Runs the chosen action.
 pub async fn run(context: &Context, action: &FoodsAction) -> Result<()> {
@@ -29,37 +31,24 @@ async fn list(
     archived: bool,
 ) -> Result<()> {
     let (client, cid) = super::client_and_child(context).await?;
-    let wanted = search.map(str::to_lowercase);
-    let matches = |name: &str| {
-        wanted
-            .as_ref()
-            .is_none_or(|needle| name.to_lowercase().contains(needle))
-    };
 
-    let mut shown = 0usize;
     let mut rows = Vec::new();
-    let mut machine = Vec::new();
     if !curated_only {
         for food in client.custom_foods(&cid, archived).await? {
-            if !matches(&food.name) {
-                continue;
-            }
-            let state = if food.archived { "\tarchived" } else { "" };
-            machine.push(format!("custom\t{}{state}", food.name));
-            rows.push(vec![
-                food.name,
-                "Family food".into(),
-                if food.archived { "Archived" } else { "" }.into(),
-            ]);
-            shown += 1;
+            let state = if food.archived { "archived" } else { "" };
+            rows.push(
+                Row::new(
+                    food.name.clone(),
+                    [food.name, "Family food".to_owned(), state.to_owned()],
+                )
+                .group("Your foods")
+                .tone(Tone::Feeding),
+            );
         }
     }
     if !custom_only {
         context.detail("downloading the curated food database");
         for food in client.curated_foods().await? {
-            if !matches(&food.name) {
-                continue;
-            }
             let flags: Vec<&str> = [
                 food.is_common_allergen
                     .unwrap_or(false)
@@ -71,29 +60,40 @@ async fn list(
             .into_iter()
             .flatten()
             .collect();
-            let note = if flags.is_empty() {
-                String::new()
-            } else {
-                format!("\t{}", flags.join(", "))
-            };
-            machine.push(format!("curated\t{}{note}", food.name));
-            rows.push(vec![food.name, "Food database".into(), flags.join(", ")]);
-            shown += 1;
+            rows.push(
+                Row::new(
+                    food.name.clone(),
+                    [food.name, "Food database".to_owned(), flags.join(", ")],
+                )
+                .group("Huckleberry's foods")
+                .tone(if flags.is_empty() {
+                    Tone::Accent
+                } else {
+                    Tone::Attention
+                }),
+            );
         }
     }
     super::persist_session(context, &client).await?;
 
-    if shown == 0 {
-        context.warn(&search.map_or_else(
-            || "No foods.".to_owned(),
-            |needle| format!("No food matches `{needle}`."),
-        ));
-    } else {
-        context.table("🥑 Foods", &["Food", "Source", "Notes"], &rows, &machine);
-        context.detail(&format!("{shown} foods"));
-    }
-    Ok(())
+    // Hundreds of curated foods is the listing this tool most needs a search
+    // in, so `/` is where the filtering happens and `--search` is the same
+    // thing for a script.
+    Listing::new("🥑 Foods", "foods", &COLUMNS)
+        .rows(rows)
+        .group_heading(str::to_owned)
+        .empty("no foods")
+        .query(search)
+        .verb("j/k or ↑/↓ move · / searches · q leaves")
+        .show(context.output_theme())
 }
+
+/// What a food listing shows.
+const COLUMNS: [Column; 3] = [
+    Column::new("food", Role::Value),
+    Column::new("source", Role::Kind),
+    Column::new("notes", Role::Muted),
+];
 
 /// Adds a food to the family's own list.
 async fn add(context: &Context, name: Option<String>) -> Result<()> {

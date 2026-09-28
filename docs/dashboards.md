@@ -170,32 +170,48 @@ exactly one file that decides what a role means. They are indexed rather than
 RGB, so the dashboard inherits the palette the person has chosen for their
 terminal.
 
-## `edit` and `delete`
+## Every list: `log`, `edit`, `delete`, `foods list`
 
-The seventh screen, and the only one that is a question rather than an answer:
-the same stream as `log`, one line per entry, with a cursor. One picker serves
-both commands (`src/picker/`), because a list somebody scrolls to find last
-night's diaper is the same list whichever of the two they came to do.
+One module draws them all (`src/listing/`), because a list somebody scrolls to
+find last night's diaper is the same list whichever command they came to run.
+Ported from the listing view in this author's `jpsyx` CLI, which arrived at
+this shape over a dozen commands.
 
 ```
-Which entry? 33 in this window
-› Sun 27 Sep  10:32 pm  Diaper      pee
-  Sun 27 Sep   7:47 pm  Diaper      both (brown, loose) · rash noted
-  Sun 27 Sep   7:00 pm  Bottle     34 ml of Breast Milk
-  Sun 27 Sep   5:21 pm  Pumping    59 ml (L 30, R 30)
-  …
-j/k or ↑/↓ move · enter edits · q leaves
+Auggie 40 entries
+
+  when      what     detail
+Sun 27 Sep
+› 11:00 pm  Sleep    slept 2h 30m
+  10:41 pm  Bottle   37 ml of Formula
+  10:32 pm  Diaper   pee · big
+  7:47 pm   Diaper   mixed · little pee · medium poop (brown, loose) · rash noted
+  5:21 pm   Pumping  59 ml (L 30, R 30)
+j/k or ↑/↓ move · / searches · enter opens one · q leaves
 ```
 
-The keys are the dashboard's, and three of them leave. The cursor stops at each
-end rather than wrapping: a list of times reads as a line, and jumping from
-last night to this morning because a key was held is disorienting.
+| Key | Does |
+| --- | --- |
+| `j`, `k`, `↑`, `↓`, `Ctrl-J`, `Ctrl-K` | move |
+| `u`, `d`, `PgUp`, `PgDn` | move a half screen |
+| `g`, `G`, `Home`, `End` | first, last |
+| `/` | search: type and the list narrows |
+| `Enter` | open what is under the cursor |
+| `q`, `Esc`, `Ctrl-C` | leave |
 
-An entry the command cannot act on is listed and drawn muted rather than left
-out, because the stream is the stream. Pressing Enter on one says why on the
-line at the foot instead of doing nothing at a keystroke somebody meant. The
-two commands differ in what that means: `edit` changes what this tool can log,
-and `delete` removes anything that came from Huckleberry.
+The search matches every whitespace-separated word against the whole row — its
+cells, its heading and its note — so `diaper mixed` narrows rather than widens.
+A group keeps its heading while one of its rows survives, because the heading
+is context for the rows and not one of them. `Esc` clears the filter before it
+leaves the list, so backing out of a search never costs the screen.
+
+What `Enter` opens depends on the command: `edit` fills the entry's form again,
+`delete` asks to confirm, and a listing nobody is choosing from prints what is
+known about the row.
+
+A row the command cannot act on is listed and drawn back rather than left out,
+because the stream is the stream. Pressing Enter on one says why on the line at
+the foot instead of doing nothing at a keystroke somebody meant.
 
 Each tracker has a colour of its own — sleep blue, feeding cyan, diapers
 magenta, pumping green, milestones yellow — so forty entries can be read by
@@ -210,6 +226,17 @@ sizes that were recorded: `mixed · little pee · big poop`. A size nobody
 recorded is left out rather than guessed at, and a diaper with one thing in it
 needs no label on its size (`pee · big`), because there is nothing else it
 could be the size of.
+
+Columns are laid out once across every group, so the rows under one heading
+line up with the rows under every other. When the terminal is too narrow for
+that, the columns share out what there is: narrow ones keep their natural width
+and the greedy ones split the rest, so one long description cannot push the
+time and the kind off the screen.
+
+**A listing is only browsable when both ends are a terminal.** Piped output and
+anything an agent runs are the same rows as plain, aligned text, so a listing
+stays parseable; and naming a filter (`--search`, `edit --list`) says "just show
+me", which prints and gets out of the way.
 
 ## Testing a screen
 

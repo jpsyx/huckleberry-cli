@@ -8,7 +8,7 @@
 //!
 //! This module owns the terminal, the keyboard and the network. What an edit
 //! *is* lives in [`crate::edit`], the list and the cursor in
-//! [`crate::picker`], and the questions in [`form`].
+//! [`crate::listing`], and the questions in [`form`].
 //!
 //! One thing it deliberately cannot do: move an entry in time. A row's id in
 //! Huckleberry leads with its own millisecond timestamp, so changing when
@@ -18,7 +18,6 @@
 pub mod form;
 
 use anyhow::{Context as _, Result, bail};
-use crossterm::event::{Event, KeyEventKind};
 use huckleberry_api::client::now_seconds;
 use huckleberry_api::{DiaperDetails, Huckleberry, RowRef};
 
@@ -26,7 +25,7 @@ use crate::cli::{Amount, Colour, Consistency, EditOptions, PottyOutcome, Units};
 use crate::domain::log::Entry;
 use crate::domain::{Calendar, log};
 use crate::edit::{self, Draft};
-use crate::picker::{Action, Picker, action_for, draw};
+use crate::listing::Listing;
 use crate::render::format;
 use crate::session::Context;
 
@@ -58,7 +57,7 @@ pub async fn run(context: &Context, options: &EditOptions) -> Result<()> {
 
     let picked = match options.id.as_deref() {
         Some(token) => Some(edit::parse_token(token)?),
-        None => choose(entries, &calendar)?,
+        None => choose(context, &entries, &calendar)?,
     };
     // Leaving the list without picking is not a failure: nothing was asked
     // for, so nothing happened and nothing is reported as having gone wrong.
@@ -126,7 +125,7 @@ fn list(context: &Context, entries: &[Entry], calendar: &Calendar) {
             entry.kind.as_str(),
             format::day_short(calendar.day_of(entry.start)),
             format::clock(entry.start, calendar),
-            if crate::picker::editable(entry) {
+            if editable(entry) {
                 "editable"
             } else {
                 "read-only"
@@ -137,7 +136,7 @@ fn list(context: &Context, entries: &[Entry], calendar: &Calendar) {
             format::date_time(entry.start, calendar),
             crate::render::output::words(entry.kind.as_str()),
             entry.description.clone(),
-            if crate::picker::editable(entry) {
+            if editable(entry) {
                 "Editable"
             } else {
                 "Read only"
@@ -158,7 +157,7 @@ fn list(context: &Context, entries: &[Entry], calendar: &Calendar) {
 ///
 /// With no terminal there is nobody to pick, and the failure names the flag
 /// that would have answered, as every question in this tool does.
-fn choose(entries: Vec<Entry>, calendar: &Calendar) -> Result<Option<RowRef>> {
+fn choose(context: &Context, entries: &[Entry], calendar: &Calendar) -> Result<Option<RowRef>> {
     if !std::io::IsTerminal::is_terminal(&std::io::stdin()) {
         bail!(
             "no entry to change: pass --id <ENTRY> (stdin is not a terminal, so I cannot show \
@@ -168,61 +167,43 @@ fn choose(entries: Vec<Entry>, calendar: &Calendar) -> Result<Option<RowRef>> {
     if entries.is_empty() {
         bail!("nothing logged in this window: try a longer --days");
     }
-    let mut picker = Picker::new(entries);
-
-    // As the dashboard: `ratatui::init` installs a panic hook that restores
-    // the terminal, so a panic leaves a usable shell behind.
-    let mut terminal = ratatui::init();
-    let chosen = pick(&mut terminal, &mut picker, calendar);
-    ratatui::restore();
-    let chosen = chosen?;
-
-    chosen
-        .map(|entry| {
-            entry
-                .at
-                .context("that entry did not come from Huckleberry, so there is nothing to change")
+    let today = format::day_short(calendar.day_of(now_seconds()));
+    let chosen = Listing::new(
+        "Change which entry?",
+        "entries",
+        &crate::render::log::COLUMNS,
+    )
+    .rows(crate::render::log::rows(entries, calendar, &|entry| {
+        (!editable(entry)).then(|| {
+            format!(
+                "this tool does not log a {}, so it cannot change one",
+                entry.title.to_lowercase()
+            )
         })
-        .transpose()
+    }))
+    .today(|heading| heading == today)
+    .empty("nothing logged in this window")
+    .verb("j/k or ↑/↓ move · / searches · enter edits · q leaves")
+    .choose(context.output_theme())?;
+
+    chosen.map(|token| edit::parse_token(&token)).transpose()
 }
 
-/// The keyboard loop, with the terminal already set up.
-fn pick(
-    terminal: &mut ratatui::DefaultTerminal,
-    picker: &mut Picker,
-    calendar: &Calendar,
-) -> Result<Option<Entry>> {
-    loop {
-        terminal
-            .draw(|frame| draw(frame, picker, calendar))
-            .context("drawing the list")?;
-
-        let Event::Key(key) = crossterm::event::read().context("reading a keystroke")? else {
-            continue;
-        };
-        // Windows reports press and release; acting on both would move two
-        // entries for one keystroke.
-        if key.kind != KeyEventKind::Press {
-            continue;
-        }
-        // Any keystroke clears the last complaint: it was about the one
-        // before it.
-        picker.trouble = None;
-        match action_for(key) {
-            Action::Cancel => return Ok(None),
-            Action::Move(delta) => picker.move_by(delta),
-            Action::First => picker.first(),
-            Action::Last => picker.last(),
-            Action::Take => {
-                if let Some(entry) = picker.take() {
-                    return Ok(Some(entry));
-                }
-            }
-            Action::Ignore => {}
-        }
-    }
+/// Whether this tool can change an entry.
+///
+/// It edits what it can log: a diaper, a potty trip, a bottle, a nursing
+/// session, a meal and a sleep. A pumping session and a milestone are listed
+/// anyway, because the stream is the stream, and saying so is better than
+/// leaving somebody to wonder where their entry went.
+const fn editable(entry: &Entry) -> bool {
+    entry.at.is_some()
+        && matches!(
+            entry.kind,
+            crate::domain::log::Kind::Sleep
+                | crate::domain::log::Kind::Feed
+                | crate::domain::log::Kind::Diaper
+        )
 }
-
 /// Writes the draft back to the row it came from.
 async fn save(client: &Huckleberry, cid: &str, at: &RowRef, draft: &Draft) -> Result<()> {
     match draft {

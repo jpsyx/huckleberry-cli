@@ -370,3 +370,51 @@ the cursor.
 **Revisit when.** A sixth tracker is listed. Eight bright colours minus grey,
 white and red does not stretch much further, and that is the moment to weigh
 256-colour hues against inheriting the terminal's palette.
+
+## One module draws every list
+
+**Decision.** `src/listing/` owns every list this tool shows: `log`, `edit`,
+`delete` and `foods list` hand it rows and it owns the columns, the group
+headings, the colours, the search and the scrolling. It is a port of the
+listing view in this author's `jpsyx` CLI.
+
+**Why.** The first two lists here were written twice — `edit` and `delete` each
+had a picker — and the third would have been written a third time. `jpsyx`
+reached the same point across a dozen commands and answered it with one module,
+and the shape it arrived at is worth taking whole: rows carry a group key and a
+detail, the query matches every word against the whole row, and everything
+except drawing and reading keys is pure, so the layout and the interaction are
+tested without a terminal.
+
+**Consequences.** A new list is a `Vec<Row>` and a set of columns. Adding a
+column to the stream is one line, and it is searchable for free. The interactive
+half is opt-out rather than opt-in: a listing opens browsable when both ends are
+a terminal, and is plain text otherwise, which is what keeps `hb log | grep`
+working. The one thing it does not do is edit in place; Enter hands the row's
+key back to the command, which is why `edit` and `delete` can share it and mean
+different things by it.
+
+**Revisit when.** A list needs more than one line per row, or columns that are
+not text. Both would change the layout pass rather than the rest of it.
+
+## A receipt is a table, a list is a listing
+
+**Decision.** Two renderers, deliberately: `render::output::table` draws a
+bordered receipt for a fixed handful of labelled values (a write's
+confirmation, `child list`, `config show`), and `listing` draws a list somebody
+scrolls, searches and chooses from.
+
+**Why.** They answer different questions. A receipt is the answer to "what did
+that do", is read once, and wants a border and a title so it reads as a block.
+A listing is the answer to "which of these", is read down, and wants alignment
+and quiet so the eye can travel. Forcing either shape onto the other makes one
+of them worse, and the choice is not about how many rows there happen to be.
+
+**Consequences.** Both pick their colours from `src/theme.rs`, so they agree on
+what a heading is, and neither knows about the other. A command showing a
+handful of labelled values reaches for `context.table`; a command showing rows
+somebody might be looking through reaches for `Listing`.
+
+**Revisit when.** A receipt grows long enough to want scrolling, or a listing
+short enough that a person misses the border. The first is the more likely, and
+it is a `Listing` with a heading rather than a new renderer.
