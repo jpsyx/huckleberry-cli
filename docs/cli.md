@@ -473,10 +473,20 @@ snapshot source overrides; Apply publishes the draft and Escape discards it.
 With no command, `hb` starts a persistent interactive session when stdin and
 stderr are terminals. Home starts with View latest (the same command as
 `hb now`), followed by diaper, feed, sleep, Edit,
-Visualizations, logs, other logging, Delete, More, and Exit. Each command offers Run,
-Options and Back. Options reaches every flag, including session overrides.
-Successful logging returns home; visualizations return to their parent menu.
-Static results remain visible until Continue. Escape cancels unfinished input
+Visualizations, logs, other logging, Delete, More, and Exit. Read-only views run
+immediately when selected: latest/current status, Dashboard, Trends, Summary,
+Sleep stripes, logs, sleep/nursing status, food lists, child lists/profiles,
+authentication status, configuration display/paths, and build information.
+After the result (or leaving a full-screen view), Back is selected by default;
+Change options opens the existing flag editor. Done runs the view again with
+those options. This menu keeps static results visible without a separate Continue
+prompt. Trends still asks for its required metric before displaying a chart.
+Failed views offer Back, Change options, and an explicit Retry; they never retry
+automatically. Escape leaves the view or unfinished options and returns to navigation.
+Commands that record, edit, delete, change settings/account state, or export keep
+Run, Options and Back before execution. Options reaches every flag, including
+session overrides. Successful logging returns home; views return to their parent
+menu. Other static results remain visible until Continue. Escape cancels unfinished input
 and returns to navigation; Escape or Ctrl-C at home exits cleanly. Failures stay
 in the session without retrying the command. Bare nonterminal invocations print
 help and exit successfully. Explicit commands keep their scriptable behavior.

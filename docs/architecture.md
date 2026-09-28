@@ -257,10 +257,16 @@ Interactive option bindings derive from clap metadata. Specialized editors handl
 repeated foods and entry fields. Edit persistence retains original wire enum
 values when the corresponding field was not changed.
 
-The bare-command session owns navigation and temporary overrides. Each Run opens
-fresh Context and calls the same typed dispatch as an explicit CLI invocation.
-Menus release terminal ownership before handlers run, cancellation returns to
-navigation, and failed writes are never automatically replayed.
+The bare-command session owns navigation and temporary overrides. A typed command
+policy in `interactive/operation` lets read-only views execute on selection,
+then offers Back (the default) or Change options. Completing the options editor
+reruns the view; failures require an explicit Retry or options edit. This follow-up
+menu also holds static output on screen, replacing the separate pause. Mutating
+commands and export retain their pre-execution Run/Options/Back menu.
+Each execution opens a fresh Context and calls the same typed dispatch as an
+explicit CLI invocation. Menus release terminal ownership before handlers run,
+cancellation returns to navigation, and failed writes are never automatically
+replayed.
 
 History editing now collects explicit field changes rather than rewriting a
 normalized draft. The CLI maps those selected fields to the API's existing
