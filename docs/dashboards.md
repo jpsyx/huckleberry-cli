@@ -8,10 +8,22 @@ allowed to be shown.
 These came from the parent the original dashboard was built for, and they are
 enforced by tests rather than by good intentions.
 
-- **Nothing is ever painted red, flagged, or alarmed.** Typical ranges appear
-  as grey text. A number outside a band is visibly outside it, and the decision
-  about what to do is the reader's. A test asserts that the day table emits no
-  `error` or `warning` tone at all.
+- **Nothing is ever painted red, flagged, or alarmed.** A figure outside a
+  typical range is yellow, which means look again, not something is wrong. Red
+  is a verdict and this tool is in no position to deliver one. A test asserts
+  that the day table emits no `error` tone at all, and `Tone::Attention`
+  exists separately from `Tone::Warning` so that "outside the usual" and "the
+  tool has a problem" cannot drift into the same colour.
+- **Today is the brightest row, never the dimmest.** Wherever several days are
+  shown, today is what somebody is looking for, so it is bold bright white
+  while the other days stay fully legible in plain bright white. This holds in
+  `summary`, `trends`, `stripes`, `log` and every dashboard table. Brightening
+  one row is the rule; dimming the rest is not.
+- **A figure with no band to judge it stays grey.** Unjudged is not the same as
+  approved, which is why daily milk never turns green.
+- **Colour is never the only carrier.** Each band line says where the week sits
+  in words as well, so the meaning survives a pipe, a screenshot and colour
+  blindness.
 - **No typical range for milk volume, at any age.** The obvious rule, 150 to
   200 ml per kilogram per day, describes established feeding from about two
   weeks on, not the first week when intake is still ramping. Drawing it for a
@@ -64,10 +76,16 @@ Sat 26 Sep       9      443         299        144   1h 1m   13.1    9.9   2h 38
 
 average over 6 complete days: 9.0 feeds · 441 ml milk · 13.8h sleep · 8.0 wet · 3.5 dirty
 Wren is 21 days old
-  typical at this age: 8 to 12 feeds a day
-  typical from day 5: 6 or more wet nappies a day
+  typical at this age: 8 to 12 feeds a day (this week is in that range)
   typical at this age: 14 to 17 hours in 24 (this week is under that)
+  typical from day 5: 6 or more wet nappies a day (this week is in that range)
+  typical at this age: 3 or more dirty nappies a day (this week is in that range)
 ```
+
+Today's row is bold bright white. In the block underneath, each figure and each
+band line is faint green when the week is inside the range and faint yellow
+when it is not, with milk grey because it has no range. Faint keeps the block
+secondary; the colour is what makes it scannable.
 
 One asymmetry is worth knowing about. Sleep **seconds** are split across
 midnight, so a sleep beginning at 23:46 contributes to both days. Sleep

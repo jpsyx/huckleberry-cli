@@ -209,7 +209,7 @@ pub(super) fn draw_feeding(frame: &mut Frame, area: Rect, state: &State, units: 
                 format::duration(row.nursing_seconds),
             ])
             .style(Style::default().fg(tone(if row.partial {
-                Tone::Muted
+                Tone::Today
             } else {
                 Tone::Value
             })))
@@ -268,7 +268,7 @@ pub(super) fn draw_nappies(frame: &mut Frame, area: Rect, state: &State, at: f64
                 format::count(row.rash_count),
             ])
             .style(Style::default().fg(tone(if row.partial {
-                Tone::Muted
+                Tone::Today
             } else {
                 Tone::Value
             })))

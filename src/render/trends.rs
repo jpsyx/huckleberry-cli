@@ -125,8 +125,14 @@ pub fn lines(rows: &[DaySummary], metric: TrendMetric, theme: Theme, units: Unit
         let label = format::pad(&format::day_short(row.day), 11);
         let figure = format::pad_left(&metric.render(value, units), 8);
         let line = format!("{label} {figure} {drawn}");
+        // Today is brightest, and still says it is unfinished so its short
+        // bar is not read as a drop.
         lines.push(if row.partial {
-            theme.muted(&format!("{line}  (today, still going)"))
+            format!(
+                "{}{}",
+                theme.today(&line),
+                theme.muted("  (today, still going)")
+            )
         } else {
             theme.value(&line)
         });

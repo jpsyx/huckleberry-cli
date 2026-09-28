@@ -46,11 +46,24 @@ log dump.
 ## All color is semantic, and the terminal is dark
 
 Every color decision names a role, never an escape code: `heading`, `accent`,
-`value`, `muted`, `success`, `warning`, `error`, `info`, `prompt`. They live in
-`src/theme.rs`, and that is the only file allowed to know what a role looks
-like. Style by meaning (a failure is `error`, a command name is `accent`, a
-hint is `muted`), and be sparing: color guides the eye, it does not paint
-everything.
+`value`, `muted`, `success`, `warning`, `error`, `info`, `prompt`, `today`,
+`good`, `attention`. They live in `src/theme.rs`, and that is the only file
+allowed to know what a role looks like. Style by meaning (a failure is `error`,
+a command name is `accent`, a hint is `muted`), and be sparing: color guides
+the eye, it does not paint everything.
+
+Three roles carry rules of their own, because they are about somebody's baby
+rather than about the tool:
+
+- **`today` is brighter, and the other days are not dimmer.** Wherever several
+  days appear, today is the row being looked for. Brighten it; leave the rest
+  fully legible.
+- **`attention` is yellow and is never red.** It means a figure sits outside
+  what is typical for this age, which is worth a second look and is not an
+  emergency. `error` and `warning` stay for the tool's own problems, and a test
+  fails if a screen about a baby paints with either.
+- **Color never carries a meaning on its own.** Say it in words too, so it
+  survives a pipe, a screenshot, and colour blindness.
 
 Terminals do not reliably report whether they are light or dark, so the palette
 assumes **dark** and uses the bright half of the ANSI palette. A dark

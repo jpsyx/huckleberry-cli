@@ -38,6 +38,21 @@ pub enum Tone {
     Info,
     /// An interactive question waiting on an answer.
     Prompt,
+    /// The row that is today, among rows that are other days.
+    ///
+    /// Today is the row a person is looking for, so it is the brightest thing
+    /// on the screen rather than the dimmest. The other days stay fully
+    /// legible: this brightens one row, it does not dim the rest.
+    Today,
+    /// A figure sitting inside what is typical for this age.
+    Good,
+    /// A figure sitting outside it.
+    ///
+    /// Yellow, and never red. This is a tool a frightened parent opens at 3am,
+    /// and a red number is a verdict it is in no position to deliver. The
+    /// distinction from [`Tone::Warning`] is the point: that one is for the
+    /// tool's own problems, this one is an observation about a number.
+    Attention,
 }
 
 impl Tone {
@@ -54,6 +69,15 @@ impl Tone {
             Self::Error => "91",
             Self::Info => "94",
             Self::Prompt => "1;96",
+            // Bold on top of the bright white the other rows already use, so
+            // today reads as brighter rather than as a different kind of
+            // thing.
+            Self::Today => "1;97",
+            // Faint, so the block at the foot of a table stays secondary
+            // while still carrying its colour. A terminal that ignores SGR 2
+            // simply shows the bright colour, which is no worse than before.
+            Self::Good => "2;92",
+            Self::Attention => "2;93",
         }
     }
 
@@ -65,12 +89,15 @@ impl Tone {
         match self {
             Self::Muted => 8,
             Self::Error => 9,
-            Self::Success => 10,
-            Self::Warning => 11,
+            // Green means the same thing to a renderer that paints with
+            // colour values; the two roles differ in what they are *for*, and
+            // in whether they are drawn faint.
+            Self::Success | Self::Good => 10,
+            Self::Warning | Self::Attention => 11,
             Self::Info => 12,
             Self::Heading => 13,
             Self::Accent | Self::Prompt => 14,
-            Self::Value => 15,
+            Self::Value | Self::Today => 15,
         }
     }
 }
@@ -160,6 +187,24 @@ impl Theme {
         self.paint(Tone::Prompt, text)
     }
 
+    /// The row that is today.
+    #[must_use]
+    pub fn today(self, text: &str) -> String {
+        self.paint(Tone::Today, text)
+    }
+
+    /// A figure inside what is typical for this age.
+    #[must_use]
+    pub fn good(self, text: &str) -> String {
+        self.paint(Tone::Good, text)
+    }
+
+    /// A figure outside it. Yellow, never red.
+    #[must_use]
+    pub fn attention(self, text: &str) -> String {
+        self.paint(Tone::Attention, text)
+    }
+
     /// One labelled failure line, as the binary prints it.
     #[must_use]
     pub fn error_line(self, label: &str, message: &str) -> String {
@@ -179,7 +224,7 @@ pub fn color_enabled() -> bool {
 mod tests {
     use super::*;
 
-    const EVERY_TONE: [Tone; 9] = [
+    const EVERY_TONE: [Tone; 12] = [
         Tone::Heading,
         Tone::Accent,
         Tone::Value,
@@ -189,6 +234,9 @@ mod tests {
         Tone::Error,
         Tone::Info,
         Tone::Prompt,
+        Tone::Today,
+        Tone::Good,
+        Tone::Attention,
     ];
 
     #[test]
@@ -234,6 +282,40 @@ mod tests {
                 tone.ansi_index(),
                 code - 82,
                 "{tone:?} paints two different colors"
+            );
+        }
+    }
+
+    #[test]
+    fn today_is_brighter_than_the_days_around_it() {
+        // The rows around it are `Value`. Today has to be more than that, not
+        // less: it is the row somebody is looking for.
+        assert_eq!(Tone::Today.ansi_index(), Tone::Value.ansi_index());
+        assert!(
+            Tone::Today.sgr().starts_with("1;"),
+            "today should be bold on top of the same white: {}",
+            Tone::Today.sgr()
+        );
+        assert!(!Tone::Value.sgr().starts_with("1;"));
+    }
+
+    #[test]
+    fn a_figure_outside_what_is_typical_is_yellow_and_never_red() {
+        assert_eq!(Tone::Attention.ansi_index(), 11, "yellow");
+        assert_ne!(
+            Tone::Attention.ansi_index(),
+            Tone::Error.ansi_index(),
+            "a number about a baby is never painted as an error"
+        );
+    }
+
+    #[test]
+    fn the_foot_of_a_table_keeps_its_colour_while_staying_faint() {
+        for tone in [Tone::Good, Tone::Attention] {
+            assert!(
+                tone.sgr().starts_with("2;"),
+                "{tone:?} should be faint: {}",
+                tone.sgr()
             );
         }
     }

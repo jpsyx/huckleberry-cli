@@ -9,11 +9,11 @@
 //! visibly outside it, and what to do about that is the reader's call.
 
 use crate::cli::Units;
-use crate::domain::reference::{self, Metric};
+use crate::domain::reference::{self, Metric, Standing};
 use crate::domain::summaries::{self, DaySummary};
 use crate::domain::time::Calendar;
 use crate::domain::types::Dataset;
-use crate::theme::Theme;
+use crate::theme::{Theme, Tone};
 
 use super::format;
 
@@ -99,17 +99,22 @@ pub fn lines(
     let mut lines = vec![theme.heading(&heading_row(units))];
     for row in rows {
         let text = data_row(row, units);
+        // Today is the row somebody is looking for, so it is the brightest
+        // one rather than the dimmest. The rest stay fully legible.
         lines.push(if row.partial {
-            // Today is still happening, so its numbers are not comparable with
-            // the rest. Muted rather than hidden: a parent wants to see it.
-            theme.muted(&text)
+            theme.today(&text)
         } else {
             theme.value(&text)
         });
     }
     lines.push(String::new());
-    lines.extend(averages(rows, theme, units));
-    lines.extend(bands(rows, dataset, calendar, theme, now));
+    let age = dataset
+        .child
+        .birthdate
+        .as_deref()
+        .and_then(|birthdate| calendar.age_in_days(birthdate, now));
+    lines.extend(averages(rows, theme, units, age));
+    lines.extend(bands(rows, dataset, theme, age));
     lines
 }
 
@@ -160,8 +165,68 @@ pub fn data_row(row: &DaySummary, units: Units) -> String {
         .join("  ")
 }
 
+/// One averaged figure, and the band it is judged against.
+type Figure = (
+    fn(&DaySummary) -> f64,
+    fn(f64, Units) -> String,
+    Option<Metric>,
+);
+
+/// What the average line reports, in the order it reports it.
+///
+/// Milk has no band, deliberately and permanently: see [`crate::domain::reference`].
+const AVERAGED: &[Figure] = &[
+    (
+        |row| row.feed_count as f64,
+        |value, _| format!("{value:.1} feeds"),
+        Some(Metric::FeedsPerDay),
+    ),
+    (
+        |row| row.total_ml,
+        |value, units| format!("{} milk", format::volume(Some(value), units)),
+        None,
+    ),
+    (
+        |row| row.sleep_seconds,
+        |value, _| format!("{:.1}h sleep", value / 3600.0),
+        Some(Metric::SleepPerDay),
+    ),
+    (
+        |row| row.wet_count as f64,
+        |value, _| format!("{value:.1} wet"),
+        Some(Metric::WetPerDay),
+    ),
+    (
+        |row| row.dirty_count as f64,
+        |value, _| format!("{value:.1} dirty"),
+        Some(Metric::DirtyPerDay),
+    ),
+];
+
+/// How a figure should be painted, given where it sits.
+///
+/// A figure with no band to judge it against is not "fine", it is unjudged,
+/// and it stays grey. That distinction is the whole reason milk never turns
+/// green.
+#[must_use]
+pub const fn tone_for(standing: Option<Standing>) -> Tone {
+    match standing {
+        Some(Standing::Inside) => Tone::Good,
+        Some(Standing::Below | Standing::Above) => Tone::Attention,
+        None => Tone::Muted,
+    }
+}
+
+/// Where an averaged figure sits, if there is a band and a figure.
+fn standing_of(rows: &[DaySummary], figure: &Figure, age: Option<i64>) -> Option<Standing> {
+    let (pick, _, metric) = figure;
+    let mean = summaries::average(rows, pick)?;
+    let band = reference::band_for((*metric)?, age)?;
+    Some(band.standing(mean))
+}
+
 /// The mean of each figure across the complete days that have data.
-fn averages(rows: &[DaySummary], theme: Theme, units: Units) -> Vec<String> {
+fn averages(rows: &[DaySummary], theme: Theme, units: Units, age: Option<i64>) -> Vec<String> {
     let counted = rows
         .iter()
         .filter(|row| !row.partial && row.has_data)
@@ -169,67 +234,52 @@ fn averages(rows: &[DaySummary], theme: Theme, units: Units) -> Vec<String> {
     if counted == 0 {
         return vec![theme.muted("no complete days with anything logged yet")];
     }
-    let mean = |pick: fn(&DaySummary) -> f64| summaries::average(rows, pick);
-    let parts = [
-        mean(|row| row.feed_count as f64).map(|value| format!("{value:.1} feeds")),
-        mean(|row| row.total_ml)
-            .map(|value| format!("{} milk", format::volume(Some(value), units))),
-        mean(|row| row.sleep_seconds).map(|value| format!("{:.1}h sleep", value / 3600.0)),
-        mean(|row| row.wet_count as f64).map(|value| format!("{value:.1} wet")),
-        mean(|row| row.dirty_count as f64).map(|value| format!("{value:.1} dirty")),
-    ];
-    let joined = parts.into_iter().flatten().collect::<Vec<_>>().join(" · ");
-    vec![theme.muted(&format!(
-        "average over {counted} complete day{}: {joined}",
-        if counted == 1 { "" } else { "s" }
-    ))]
+
+    let painted: Vec<String> = AVERAGED
+        .iter()
+        .filter_map(|figure| {
+            let (pick, render, _) = figure;
+            let mean = summaries::average(rows, pick)?;
+            let standing = standing_of(rows, figure, age);
+            Some(theme.paint(tone_for(standing), &render(mean, units)))
+        })
+        .collect();
+
+    vec![format!(
+        "{}{}",
+        theme.muted(&format!(
+            "average over {counted} complete day{}: ",
+            if counted == 1 { "" } else { "s" }
+        )),
+        painted.join(&theme.muted(" · "))
+    )]
 }
 
-/// The typical ranges for this baby's age, as grey text under the table.
-fn bands(
-    rows: &[DaySummary],
-    dataset: &Dataset,
-    calendar: &Calendar,
-    theme: Theme,
-    now: f64,
-) -> Vec<String> {
-    let Some(age) = dataset
-        .child
-        .birthdate
-        .as_deref()
-        .and_then(|birthdate| calendar.age_in_days(birthdate, now))
-    else {
+/// The typical ranges for this baby's age, each painted by where the week sits.
+///
+/// Yellow, never red. A figure outside a typical range is worth a second look
+/// and is not an emergency, and this tool is in no position to say which.
+fn bands(rows: &[DaySummary], dataset: &Dataset, theme: Theme, age: Option<i64>) -> Vec<String> {
+    let Some(age) = age else {
         return Vec::new();
     };
 
     let mut lines = vec![theme.muted(&format!("{} is {age} days old", dataset.child.name))];
-    for (metric, mean) in [
-        (
-            Metric::FeedsPerDay,
-            summaries::average(rows, |row| row.feed_count as f64),
-        ),
-        (
-            Metric::WetPerDay,
-            summaries::average(rows, |row| row.wet_count as f64),
-        ),
-        (
-            Metric::DirtyPerDay,
-            summaries::average(rows, |row| row.dirty_count as f64),
-        ),
-        (
-            Metric::SleepPerDay,
-            summaries::average(rows, |row| row.sleep_seconds),
-        ),
-    ] {
-        let Some(band) = reference::band_for(metric, Some(age)) else {
+    for figure in AVERAGED {
+        let (pick, _, metric) = figure;
+        let Some(band) = metric.and_then(|metric| reference::band_for(metric, Some(age))) else {
             continue;
         };
-        let standing = mean.map_or(String::new(), |value| match band.standing(value) {
-            reference::Standing::Inside => String::new(),
-            reference::Standing::Below => " (this week is under that)".to_owned(),
-            reference::Standing::Above => " (this week is over that)".to_owned(),
-        });
-        lines.push(theme.muted(&format!("  {}{standing}", band.label)));
+        let standing = summaries::average(rows, pick).map(|mean| band.standing(mean));
+        let aside = match standing {
+            Some(Standing::Below) => " (this week is under that)",
+            Some(Standing::Above) => " (this week is over that)",
+            // Said in words as well as in colour, so the meaning survives a
+            // pipe, a screenshot, and colour blindness.
+            Some(Standing::Inside) => " (this week is in that range)",
+            None => "",
+        };
+        lines.push(theme.paint(tone_for(standing), &format!("  {}{aside}", band.label)));
     }
     lines
 }
@@ -353,6 +403,115 @@ mod tests {
         let mut data = dataset();
         data.child.birthdate = None;
         assert!(!table(&data, 3).contains("typical"));
+    }
+
+    /// A week with exactly six wet nappies a day, which is inside the band
+    /// for a three-week-old, and almost no sleep, which is under it.
+    fn lopsided_week() -> Dataset {
+        let mut data = dataset();
+        for back in 1..=6 {
+            for hour in 0..6 {
+                data.diapers.push(nappy(
+                    AFTERNOON - f64::from(back) * 86_400.0 - f64::from(hour) * 3_600.0,
+                    true,
+                    false,
+                ));
+            }
+        }
+        data
+    }
+
+    fn painted(data: &Dataset, days: usize) -> String {
+        let calendar = calendar();
+        let rows = summaries::build(data, &calendar, AFTERNOON, days);
+        lines(
+            &rows,
+            data,
+            &calendar,
+            Theme::dark(true),
+            Units::Ml,
+            AFTERNOON,
+        )
+        .join("\n")
+    }
+
+    fn sequence(tone: Tone) -> String {
+        format!("\u{1b}[{}m", tone.sgr())
+    }
+
+    #[test]
+    fn today_is_the_brightest_row_and_the_rest_stay_legible() {
+        let drawn = painted(&lopsided_week(), 3);
+        let today: Vec<&str> = drawn
+            .lines()
+            .filter(|line| line.contains(&format::day_short("2025-09-22".parse().expect("a date"))))
+            .collect();
+        assert_eq!(today.len(), 1, "one row is today");
+        assert!(
+            today[0].starts_with(&sequence(Tone::Today)),
+            "today should be the brightest row: {:?}",
+            today[0]
+        );
+
+        let yesterday: Vec<&str> = drawn
+            .lines()
+            .filter(|line| line.contains(&format::day_short("2025-09-21".parse().expect("a date"))))
+            .collect();
+        assert!(
+            yesterday[0].starts_with(&sequence(Tone::Value)),
+            "the other days stay fully legible: {:?}",
+            yesterday[0]
+        );
+    }
+
+    #[test]
+    fn a_figure_inside_its_band_is_green_and_one_outside_it_is_yellow() {
+        let drawn = painted(&lopsided_week(), 7);
+        let wet = drawn
+            .lines()
+            .find(|line| line.contains("wet nappies a day"))
+            .expect("the wet nappy band");
+        assert!(wet.starts_with(&sequence(Tone::Good)), "{wet:?}");
+        assert!(wet.contains("in that range"), "{wet:?}");
+
+        let sleep = drawn
+            .lines()
+            .find(|line| line.contains("hours in 24"))
+            .expect("the sleep band");
+        assert!(sleep.starts_with(&sequence(Tone::Attention)), "{sleep:?}");
+        assert!(sleep.contains("under that"), "{sleep:?}");
+    }
+
+    #[test]
+    fn a_figure_with_no_band_to_judge_it_is_grey_rather_than_green() {
+        // Milk has no band at any age, so it must never read as approved.
+        assert_eq!(tone_for(None), Tone::Muted);
+        assert_eq!(tone_for(Some(Standing::Inside)), Tone::Good);
+        assert_eq!(tone_for(Some(Standing::Below)), Tone::Attention);
+        assert_eq!(tone_for(Some(Standing::Above)), Tone::Attention);
+    }
+
+    #[test]
+    fn the_average_line_carries_colour_figure_by_figure() {
+        let drawn = painted(&lopsided_week(), 7);
+        let average = drawn
+            .lines()
+            .find(|line| line.contains("average over"))
+            .expect("the average line");
+        assert!(average.contains(&sequence(Tone::Good)), "{average:?}");
+        assert!(average.contains(&sequence(Tone::Attention)), "{average:?}");
+        assert!(
+            average.contains(&sequence(Tone::Muted)),
+            "milk has no band, so it stays grey: {average:?}"
+        );
+    }
+
+    #[test]
+    fn the_meaning_survives_a_pipe_with_no_colour_at_all() {
+        let plain = table(&lopsided_week(), 7);
+        assert!(plain.contains("in that range"), "{plain}");
+        assert!(plain.contains("under that"), "{plain}");
+        assert!(!plain.contains('\u{1b}'));
     }
 
     #[test]

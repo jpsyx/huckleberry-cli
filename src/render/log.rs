@@ -12,13 +12,21 @@ use super::format;
 /// How wide the title column is.
 const TITLE_WIDTH: usize = 9;
 
-/// The stream, newest first, grouped by day.
+/// The stream, newest first, grouped by day. `now` decides which heading
+/// is today's.
 #[must_use]
-pub fn lines(entries: &[Entry], calendar: &Calendar, theme: Theme, limit: usize) -> Vec<String> {
+pub fn lines(
+    entries: &[Entry],
+    calendar: &Calendar,
+    theme: Theme,
+    limit: usize,
+    now: f64,
+) -> Vec<String> {
     if entries.is_empty() {
         return vec![theme.muted("nothing logged in this window")];
     }
 
+    let today = calendar.day_of(now);
     let mut lines = Vec::new();
     let mut current_day = None;
     for entry in entries.iter().take(limit) {
@@ -27,7 +35,14 @@ pub fn lines(entries: &[Entry], calendar: &Calendar, theme: Theme, limit: usize)
             if current_day.is_some() {
                 lines.push(String::new());
             }
-            lines.push(theme.heading(&format::day_short(day)));
+            // Today's heading is the brightest on the screen, as it is
+            // everywhere else a list of days appears.
+            let label = format::day_short(day);
+            lines.push(if day == today {
+                theme.today(&label)
+            } else {
+                theme.heading(&label)
+            });
             current_day = Some(day);
         }
         lines.push(row(entry, calendar, theme));
@@ -80,7 +95,14 @@ mod tests {
     }
 
     fn rendered(data: &crate::domain::types::Dataset, limit: usize) -> String {
-        lines(&log::build(data), &calendar(), Theme::dark(false), limit).join("\n")
+        lines(
+            &log::build(data),
+            &calendar(),
+            Theme::dark(false),
+            limit,
+            AFTERNOON,
+        )
+        .join("\n")
     }
 
     #[test]

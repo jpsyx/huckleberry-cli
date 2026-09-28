@@ -103,6 +103,7 @@ pub async fn log(
         &calendar,
         context.theme,
         limit,
+        now_seconds(),
     ));
     Ok(())
 }

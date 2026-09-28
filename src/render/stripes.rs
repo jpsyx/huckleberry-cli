@@ -115,7 +115,7 @@ pub fn lines(rows: &[StripeRow], theme: Theme) -> Vec<String> {
         let hours = format::pad_left(&format::hours(total_asleep(row)), 5);
         let line = format!("{label}│{strip}│{hours}h");
         lines.push(if row.partial {
-            theme.muted(&line)
+            theme.today(&line)
         } else {
             theme.value(&line)
         });
