@@ -1,14 +1,16 @@
 //! `diaper` and `potty`: the nappy tracker.
 //!
 //! Both write to the same collection, so they share this module and most of
-//! their prompting. The interactive path is deliberately short: at 3am the
-//! question is what was in it, and everything else is optional and only asked
-//! for when the answer implies there is something to describe.
+//! their prompting. Every question the mode implies is asked, in order, and
+//! every one of them takes Enter for "leave it out": a person who answered
+//! "wet" is still asked how much, because a detail that is never asked for is
+//! a detail that cannot be recorded. Which questions a mode implies is
+//! [`crate::cli::actions::unanswered`], which is pure and tested.
 
 use anyhow::Result;
 use huckleberry_api::DiaperDetails;
 
-use crate::cli::actions::NappyFlags;
+use crate::cli::actions::{NappyDetail, NappyFlags, unanswered};
 use crate::cli::{Amount, Colour, Consistency, NappyKind, PottyOutcome};
 use crate::prompt::{self, Choice, Question};
 use crate::session::Context;
@@ -25,7 +27,7 @@ pub async fn nappy(
         Some(given) => given,
         None => ask_for_mode(context, "What was in it?")?,
     };
-    let details = details(context, mode, flags, notes)?;
+    let details = details(context, Record::Nappy, mode, flags, notes)?;
 
     client.log_diaper(&cid, mode.to_api(), &details).await?;
     super::persist_session(context, &client).await?;
@@ -51,14 +53,19 @@ pub async fn potty(
         Some(given) => given,
         None => ask_for_outcome(context)?,
     };
-    let details = DiaperDetails {
-        pee_amount: None,
-        poo_amount: None,
-        color: color.map(Colour::to_api),
-        consistency: consistency.map(Consistency::to_api),
-        rash: false,
-        notes: notes.map(ToOwned::to_owned),
-    };
+    let details = details(
+        context,
+        Record::Potty,
+        mode,
+        NappyFlags {
+            pee: None,
+            poo: None,
+            color,
+            consistency,
+            rash: false,
+        },
+        notes,
+    )?;
 
     client
         .log_potty(&cid, mode.to_api(), how.to_api(), &details)
@@ -68,13 +75,14 @@ pub async fn potty(
     Ok(())
 }
 
-/// Everything beyond the mode, asked for only when it is worth asking.
+/// Everything beyond the mode, asked for one question at a time.
 ///
-/// A person who passed any detail flag has said what they want recorded and is
-/// not asked for the rest: the flags are the fast path, and interrupting them
-/// with questions would make the fast path slower than the slow one.
+/// A flag answers its own question and no others, so `--pee big` still leaves
+/// the colour worth asking about. Nothing here is required: an empty answer
+/// leaves the field out, and with no terminal nothing is asked at all.
 fn details(
     context: &Context,
+    record: Record,
     mode: NappyKind,
     flags: NappyFlags,
     notes: Option<&str>,
@@ -88,20 +96,50 @@ fn details(
         notes: notes.map(ToOwned::to_owned),
     };
 
-    let worth_asking = flags.is_bare()
-        && notes.is_none()
-        && NappyFlags::describes_dirt(mode)
-        && std::io::IsTerminal::is_terminal(&std::io::stdin());
-    if !worth_asking {
-        return Ok(details);
-    }
-    // Only for a dirty nappy, only when nothing was said, and only ever
-    // optional: an empty answer moves on.
-    if prompt::confirm("Note the colour and consistency?", false, context.theme)? {
-        details.color = Some(ask_for_colour(context)?.to_api());
-        details.consistency = Some(ask_for_consistency(context)?.to_api());
+    for detail in unanswered(mode, &flags, notes)
+        .into_iter()
+        .filter(|detail| record.asks(*detail))
+    {
+        match detail {
+            NappyDetail::PeeAmount => {
+                details.pee_amount =
+                    ask_for_amount(context, "How much wet?", "--pee <AMOUNT>")?.map(Amount::to_api);
+            }
+            NappyDetail::PooAmount => {
+                details.poo_amount = ask_for_amount(context, "How much dirty?", "--poo <AMOUNT>")?
+                    .map(Amount::to_api);
+            }
+            NappyDetail::Colour => {
+                details.color = ask_for_colour(context)?.map(Colour::to_api);
+            }
+            NappyDetail::Consistency => {
+                details.consistency = ask_for_consistency(context)?.map(Consistency::to_api);
+            }
+            NappyDetail::Rash => details.rash = prompt::confirm("Any rash?", false, context.theme)?,
+            NappyDetail::Notes => details.notes = ask_for_notes(context)?,
+        }
     }
     Ok(details)
+}
+
+/// Which of the two records is being described.
+///
+/// The same questions, minus the ones the record has no field for: the app has
+/// no rash toggle on a potty trip, so asking about one would offer to record
+/// something Huckleberry will not show.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Record {
+    /// A nappy change.
+    Nappy,
+    /// A potty trip.
+    Potty,
+}
+
+impl Record {
+    /// Whether this record has a field for that detail.
+    const fn asks(self, detail: NappyDetail) -> bool {
+        !matches!(self, Self::Potty) || !matches!(detail, NappyDetail::Rash)
+    }
 }
 
 fn ask_for_mode(context: &Context, label: &str) -> Result<NappyKind> {
@@ -156,7 +194,7 @@ fn ask_for_outcome(context: &Context) -> Result<PottyOutcome> {
     })
 }
 
-fn ask_for_colour(context: &Context) -> Result<Colour> {
+fn ask_for_colour(context: &Context) -> Result<Option<Colour>> {
     const CHOICES: [Choice<'static>; 6] = [
         Choice {
             value: "yellow",
@@ -185,18 +223,20 @@ fn ask_for_colour(context: &Context) -> Result<Colour> {
     ];
     let question = Question::new("colour", "What colour?", "--color <COLOUR>")
         .with_choices(&CHOICES)
-        .with_default("yellow");
-    Ok(match prompt::ask(&question, context.theme)?.as_str() {
-        "brown" => Colour::Brown,
-        "green" => Colour::Green,
-        "black" => Colour::Black,
-        "red" => Colour::Red,
-        "gray" => Colour::Gray,
-        _ => Colour::Yellow,
-    })
+        .optional();
+    Ok(
+        prompt::ask_optional(&question, context.theme)?.map(|answer| match answer.as_str() {
+            "brown" => Colour::Brown,
+            "green" => Colour::Green,
+            "black" => Colour::Black,
+            "red" => Colour::Red,
+            "gray" => Colour::Gray,
+            _ => Colour::Yellow,
+        }),
+    )
 }
 
-fn ask_for_consistency(context: &Context) -> Result<Consistency> {
+fn ask_for_consistency(context: &Context) -> Result<Option<Consistency>> {
     const CHOICES: [Choice<'static>; 7] = [
         Choice {
             value: "loose",
@@ -233,14 +273,53 @@ fn ask_for_consistency(context: &Context) -> Result<Consistency> {
         "--consistency <TEXTURE>",
     )
     .with_choices(&CHOICES)
-    .with_default("loose");
-    Ok(match prompt::ask(&question, context.theme)?.as_str() {
-        "runny" => Consistency::Runny,
-        "solid" => Consistency::Solid,
-        "mucousy" => Consistency::Mucousy,
-        "hard" => Consistency::Hard,
-        "pebbles" => Consistency::Pebbles,
-        "diarrhea" => Consistency::Diarrhea,
-        _ => Consistency::Loose,
-    })
+    .optional();
+    Ok(
+        prompt::ask_optional(&question, context.theme)?.map(|answer| match answer.as_str() {
+            "runny" => Consistency::Runny,
+            "solid" => Consistency::Solid,
+            "mucousy" => Consistency::Mucousy,
+            "hard" => Consistency::Hard,
+            "pebbles" => Consistency::Pebbles,
+            "diarrhea" => Consistency::Diarrhea,
+            _ => Consistency::Loose,
+        }),
+    )
+}
+
+/// How much, as the app's three buttons. Asked for the wet half and for the
+/// dirty half, which is why the label and the flag are arguments.
+fn ask_for_amount(context: &Context, label: &str, flag: &str) -> Result<Option<Amount>> {
+    const CHOICES: [Choice<'static>; 3] = [
+        Choice {
+            value: "little",
+            hint: "A little",
+        },
+        Choice {
+            value: "medium",
+            hint: "A medium amount",
+        },
+        Choice {
+            value: "big",
+            hint: "A lot",
+        },
+    ];
+    let question = Question::new("amount", label, flag)
+        .with_choices(&CHOICES)
+        .optional();
+    Ok(
+        prompt::ask_optional(&question, context.theme)?.map(|answer| match answer.as_str() {
+            "little" => Amount::Little,
+            "big" => Amount::Big,
+            _ => Amount::Medium,
+        }),
+    )
+}
+
+/// Anything worth writing down, which every entry can carry.
+fn ask_for_notes(context: &Context) -> Result<Option<String>> {
+    let question = Question::new("notes", "Anything to note?", "--notes <TEXT>").optional();
+    Ok(prompt::ask_optional(&question, context.theme)?
+        .map(|text| text.trim().to_owned())
+        .filter(|text| !text.is_empty()))
 }

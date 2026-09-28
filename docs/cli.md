@@ -97,9 +97,12 @@ hb potty --mode pee --how went-potty
 hb growth --weight 3.6
 ```
 
-The nappy prompt asks what was in it and stops there. It offers the colour and
-consistency only when the answer was dirty, only when no detail flag was
-passed, and only as a yes-or-no first.
+The nappy prompt asks what was in it and then asks every question that answer
+implies: how much wet, how much dirty, the colour, the consistency, whether
+there was a rash, and anything to note. Each one takes Enter for "leave it
+out", so the fast path is still a few keystrokes, and a flag answers its own
+question only: `--pee big` is not a statement about the colour. A potty trip is
+asked the same questions minus the rash, which the app has no field for.
 
 ### Foods
 

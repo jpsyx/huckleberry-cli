@@ -43,6 +43,8 @@ pub struct Question<'a> {
     pub choices: &'a [Choice<'a>],
     /// What an empty answer means, if anything.
     pub default: Option<&'a str>,
+    /// Whether an empty answer is itself an answer: leave the value out.
+    pub skippable: bool,
 }
 
 impl<'a> Question<'a> {
@@ -55,6 +57,7 @@ impl<'a> Question<'a> {
             flag,
             choices: &[],
             default: None,
+            skippable: false,
         }
     }
 
@@ -69,6 +72,14 @@ impl<'a> Question<'a> {
     #[must_use]
     pub const fn with_default(mut self, default: &'a str) -> Self {
         self.default = Some(default);
+        self
+    }
+
+    /// Marks the value as one the record can do without, so that pressing
+    /// Enter leaves it out rather than asking again.
+    #[must_use]
+    pub const fn optional(mut self) -> Self {
+        self.skippable = true;
         self
     }
 }
@@ -135,8 +146,13 @@ pub fn render(question: &Question<'_>, theme: Theme) -> String {
         || "> ".to_owned(),
         |default| format!("[{}] > ", theme.value(default)),
     );
+    let hint = if question.skippable && question.default.is_none() {
+        format!(" {}", theme.muted("(enter to skip)"))
+    } else {
+        String::new()
+    };
     format!(
-        "{}\n{}{answer_line}",
+        "{}{hint}\n{}{answer_line}",
         theme.prompt(question.label),
         choices.concat()
     )
@@ -172,6 +188,37 @@ pub fn ask(question: &Question<'_>, theme: Theme) -> Result<String> {
         match interpret(&line, question.choices, question.default) {
             Reply::Accepted(answer) => return Ok(answer),
             Reply::Blank => complain(theme, "an answer is required"),
+            Reply::Unknown(answer) => {
+                complain(theme, &format!("`{answer}` is not one of the choices"));
+            }
+        }
+    }
+}
+
+/// Asks a question whose answer the record can do without.
+///
+/// An empty answer is an answer: `None`, and the field is left out. With no
+/// terminal nothing is asked and nothing is missing, so this returns `None`
+/// rather than failing the way [`ask`] does: an optional value nobody supplied
+/// is not an unanswered question.
+pub fn ask_optional(question: &Question<'_>, theme: Theme) -> Result<Option<String>> {
+    if !std::io::stdin().is_terminal() {
+        return Ok(None);
+    }
+    let question = question.optional();
+    loop {
+        write_question(&question, theme)?;
+
+        let mut line = String::new();
+        let read = std::io::stdin()
+            .read_line(&mut line)
+            .context("reading the answer")?;
+        if read == 0 {
+            return Ok(None);
+        }
+        match interpret(&line, question.choices, question.default) {
+            Reply::Accepted(answer) => return Ok(Some(answer)),
+            Reply::Blank => return Ok(None),
             Reply::Unknown(answer) => {
                 complain(theme, &format!("`{answer}` is not one of the choices"));
             }
@@ -446,6 +493,25 @@ mod tests {
         assert!(text.contains("1) greeting  the opening word"), "{text}");
         assert!(text.contains("2) verbose   more detail"), "{text}");
         assert!(text.ends_with("[greeting] > "), "{text}");
+    }
+
+    #[test]
+    fn an_optional_question_says_that_enter_skips_it() {
+        let question =
+            Question::new("colour", "What colour?", "--color <COLOUR>").optional();
+        let text = render(&question, Theme::dark(false));
+        assert!(text.contains("(enter to skip)"), "{text}");
+        assert!(text.ends_with("> "), "{text}");
+    }
+
+    #[test]
+    fn a_question_with_a_default_shows_the_default_rather_than_the_skip_hint() {
+        let question = Question::new("colour", "What colour?", "--color <COLOUR>")
+            .optional()
+            .with_default("yellow");
+        let text = render(&question, Theme::dark(false));
+        assert!(!text.contains("(enter to skip)"), "{text}");
+        assert!(text.ends_with("[yellow] > "), "{text}");
     }
 
     #[test]
