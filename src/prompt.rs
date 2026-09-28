@@ -39,6 +39,8 @@ pub struct Question<'a> {
     pub subject: &'a str,
     /// What to ask, as a person reads it: "Who should I greet?".
     pub label: &'a str,
+    /// Guidance shown beneath the question in the muted hint colour.
+    pub help: Option<&'a str>,
     /// The flag or argument that answers this without being asked.
     pub flag: &'a str,
     /// The answers on offer. Empty means free text.
@@ -56,11 +58,19 @@ impl<'a> Question<'a> {
         Self {
             subject,
             label,
+            help: None,
             flag,
             choices: &[],
             default: None,
             skippable: false,
         }
+    }
+
+    /// Adds secondary guidance beneath the question.
+    #[must_use]
+    pub const fn with_help(mut self, help: &'a str) -> Self {
+        self.help = Some(help);
+        self
     }
 
     /// Offers a fixed set of answers, pickable by name or by number.
@@ -153,8 +163,11 @@ pub fn render(question: &Question<'_>, theme: Theme) -> String {
     } else {
         String::new()
     };
+    let help = question
+        .help
+        .map_or_else(String::new, |text| format!("{}\n", theme.muted(text)));
     format!(
-        "{}{hint}\n{}{answer_line}",
+        "{}{hint}\n{help}{}{answer_line}",
         theme.prompt(question.label),
         choices.concat()
     )
@@ -495,6 +508,26 @@ mod tests {
         assert!(text.contains("1) greeting  the opening word"), "{text}");
         assert!(text.contains("2) verbose   more detail"), "{text}");
         assert!(text.ends_with("[greeting] > "), "{text}");
+    }
+
+    #[test]
+    fn helper_text_is_muted_and_keeps_the_default_on_the_answer_line() {
+        let help = "E.g. '1:23 pm' or '123pm' or '32 min ago' are all valid";
+        let question = Question::new("time", "When?", "--at <TIME>")
+            .with_help(help)
+            .with_default("now");
+        for color in [false, true] {
+            let theme = Theme::dark(color);
+            assert_eq!(
+                render(&question, theme),
+                format!(
+                    "{}\n{}\n[{}] > ",
+                    theme.prompt("When?"),
+                    theme.muted(help),
+                    theme.value("now")
+                )
+            );
+        }
     }
 
     #[test]

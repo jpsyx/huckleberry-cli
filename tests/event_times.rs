@@ -17,6 +17,7 @@ fn every_recording_and_timer_action_accepts_a_time_flag() {
         "sleep pause",
         "sleep resume",
         "sleep stop",
+        "sleep end",
     ] {
         for time in ["now", "358 am", "32 mins ago"] {
             let mut arguments = vec!["hb"];
@@ -211,4 +212,47 @@ fn history_time_defaults_are_shown_and_read_as_a_clock_with_am_or_pm() {
     let padded =
         app::prompt::time::read_edit_at(&context, Some("2025-01-02 08:00 am"), original).unwrap();
     assert_eq!(padded.to_bits(), 1_735_822_800.0_f64.to_bits());
+}
+
+#[test]
+fn sleep_end_is_an_alias_for_stop_with_or_without_an_explicit_time() {
+    for extra in [vec![], vec!["--at", "32 min ago"]] {
+        let mut end = vec!["hb", "sleep", "end"];
+        let mut stop = vec!["hb", "sleep", "stop"];
+        end.extend(&extra);
+        stop.extend(&extra);
+        assert_eq!(
+            Cli::try_parse_from(end).unwrap().command,
+            Cli::try_parse_from(stop).unwrap().command
+        );
+    }
+}
+
+#[test]
+fn sleep_end_reuses_start_time_parsing_and_defaults() {
+    let context = context();
+    for input in ["1:23 pm", "123pm", "0358", "21:30"] {
+        assert_eq!(
+            app::prompt::time::read_end(&context, Some(input))
+                .unwrap()
+                .to_bits(),
+            app::prompt::time::read_start(&context, Some(input))
+                .unwrap()
+                .to_bits()
+        );
+    }
+    let before = huckleberry_api::client::now_seconds();
+    let relative = app::prompt::time::read_end(&context, Some("32 min ago")).unwrap();
+    let now = app::prompt::time::read_end(&context, Some("now")).unwrap();
+    let after = huckleberry_api::client::now_seconds();
+    assert!((before - 1920.0..=after - 1920.0).contains(&relative));
+    assert!((before..=after).contains(&now));
+    if !std::io::IsTerminal::is_terminal(&std::io::stdin()) {
+        let before = huckleberry_api::client::now_seconds();
+        let default = app::prompt::time::read_end(&context, None).unwrap();
+        assert!((before..=huckleberry_api::client::now_seconds()).contains(&default));
+    }
+    for input in ["nonsense", "32 hours ago", "1:23"] {
+        assert!(app::prompt::time::read_end(&context, Some(input)).is_err());
+    }
 }

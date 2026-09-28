@@ -89,7 +89,8 @@ pub enum SleepAction {
         #[arg(long, value_name = "TIME")]
         at: Option<String>,
     },
-    /// Finish the running sleep and record it.
+    /// Finish the running sleep and record it, asking when it ended on a terminal.
+    #[command(visible_alias = "end")]
     Stop {
         /// When it happened: `now`, `358 am`, or `32 mins ago`.
         /// Left out on a terminal, you are asked; otherwise defaults to now.

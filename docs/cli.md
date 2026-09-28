@@ -106,6 +106,11 @@ after its other questions. Enter accepts `now`. Nursing starts ask when they
 started; sleep and nursing pause, resume and stop actions, plus nursing side
 switches, also ask when. Cancel and status do not record an event and need no time.
 
+Every **When?** prompt, including history and ongoing-timer edits, shows
+`E.g. '1:23 pm' or '123pm' or '32 min ago' are all valid` beneath the question
+in the muted hint colour. The helper remains readable as plain text when
+colour is disabled. Timer-start questions use the same helper.
+
 All these questions share the sleep-start parser: `358 am`, `3:58 a.m.`,
 `0358`, `21:30`, `9pm`, or whole relative minutes such as `32 mins ago`.
 An ambiguous clock time prompts for AM or PM. Clock times mean their most recent
@@ -146,13 +151,19 @@ hb sleep start --start "28m ago"
 hb sleep start --start "358 am"
 hb sleep pause
 hb sleep resume
-hb sleep stop        # records it
+hb sleep end         # asks when it ended, then records it (alias for sleep stop)
 hb sleep cancel      # throws it away
 hb sleep status
 
 hb sleep manual                              # asks when it began and ended
 hb sleep manual --start 11:30pm --end 1:15am
 ```
+
+`sleep end` (also `sleep stop`) asks **When did it end?** using the same
+time reader, dimmed examples and `now` default as `sleep start`. Pass
+`--at "32 min ago"` or `--at "1:23 pm"` to supply the end without a prompt.
+Without a terminal, an omitted time defaults to now. A paused sleep still
+ends at its recorded pause time.
 
 `sleep start` refuses to start a second sleep over a running one, because that
 would leave the first unrecorded. On a terminal it asks when the sleep started,

@@ -266,7 +266,7 @@ async fn stop(
     cid: &str,
     at: Option<&str>,
 ) -> Result<()> {
-    let at = prompt::time::read_at(context, at)?;
+    let at = prompt::time::read_end(context, at)?;
     if let Some(completed) = client.complete_sleep_at(cid, at).await? {
         let calendar = context.calendar()?;
         context.receipt(

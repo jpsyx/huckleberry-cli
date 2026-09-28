@@ -111,7 +111,9 @@ Every value a command needs is looked for in the same order:
 
 Event times keep their noninteractive default of now. `prompt/time.rs` shares
 the clock reader and AM/PM question between manual sleeps, instant recordings
-and timer transitions; `domain/clock.rs` parses relative minutes using an
+and timer transitions. Timer-start and timer-end readers delegate to the same
+instant reader for defaults, helper formatting, retries and parsing; `sleep end`
+and `sleep stop` dispatch to the same handler. `domain/clock.rs` parses relative minutes using an
 explicit `now`. Time is the first activity question. Times resolve against the clock after that
 answer is read, before the remaining details.
 Commands pass them to explicit-time API operations, which keep event times
