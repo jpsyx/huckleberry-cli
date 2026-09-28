@@ -3,7 +3,7 @@
 use clap::Subcommand;
 
 use super::values::{
-    Amount, BottleKind, Colour, Consistency, NappyKind, Overlap, Reaction, Side, Units,
+    Amount, BottleKind, Colour, Consistency, DiaperKind, Overlap, Reaction, Side, Units,
 };
 
 /// What `auth` can be asked to do.
@@ -207,9 +207,9 @@ pub enum ConfigAction {
     Path,
 }
 
-/// Everything optional about a nappy or a potty trip, as the flags give it.
+/// Everything optional about a diaper or a potty trip, as the flags give it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct NappyFlags {
+pub struct DiaperFlags {
     /// How much wet.
     pub pee: Option<Amount>,
     /// How much dirty.
@@ -222,21 +222,21 @@ pub struct NappyFlags {
     pub rash: bool,
 }
 
-impl NappyFlags {
+impl DiaperFlags {
     /// Whether the mode implies there is anything dirty to describe.
     #[must_use]
-    pub const fn describes_dirt(mode: NappyKind) -> bool {
-        matches!(mode, NappyKind::Poo | NappyKind::Both)
+    pub const fn describes_dirt(mode: DiaperKind) -> bool {
+        matches!(mode, DiaperKind::Poo | DiaperKind::Both)
     }
 }
 
-/// One thing a nappy can carry beyond what was in it.
+/// One thing a diaper can carry beyond what was in it.
 ///
 /// A list rather than a series of `if`s in the command, so that "which
-/// questions does a wet nappy have" is a pure function with a test on it
+/// questions does a wet diaper have" is a pure function with a test on it
 /// rather than the shape of a function that also talks to a terminal.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum NappyDetail {
+pub enum DiaperQuestion {
     /// How much wet.
     PeeAmount,
     /// How much dirty.
@@ -251,34 +251,38 @@ pub enum NappyDetail {
     Notes,
 }
 
-/// Everything about a nappy of this mode that the flags left unanswered, in
+/// Everything about a diaper of this mode that the flags left unanswered, in
 /// the order a person should be asked.
 ///
 /// Every question a mode implies is asked, and a flag answers only its own:
 /// passing `--pee big` is not a statement that there is nothing to say about
 /// the colour. Each answer is optional, so the fast path is Enter.
 #[must_use]
-pub fn unanswered(mode: NappyKind, flags: &NappyFlags, notes: Option<&str>) -> Vec<NappyDetail> {
+pub fn unanswered(
+    mode: DiaperKind,
+    flags: &DiaperFlags,
+    notes: Option<&str>,
+) -> Vec<DiaperQuestion> {
     let mut asking = Vec::new();
-    if matches!(mode, NappyKind::Pee | NappyKind::Both) && flags.pee.is_none() {
-        asking.push(NappyDetail::PeeAmount);
+    if matches!(mode, DiaperKind::Pee | DiaperKind::Both) && flags.pee.is_none() {
+        asking.push(DiaperQuestion::PeeAmount);
     }
-    if NappyFlags::describes_dirt(mode) {
+    if DiaperFlags::describes_dirt(mode) {
         if flags.poo.is_none() {
-            asking.push(NappyDetail::PooAmount);
+            asking.push(DiaperQuestion::PooAmount);
         }
         if flags.color.is_none() {
-            asking.push(NappyDetail::Colour);
+            asking.push(DiaperQuestion::Colour);
         }
         if flags.consistency.is_none() {
-            asking.push(NappyDetail::Consistency);
+            asking.push(DiaperQuestion::Consistency);
         }
     }
     if !flags.rash {
-        asking.push(NappyDetail::Rash);
+        asking.push(DiaperQuestion::Rash);
     }
     if notes.is_none() {
-        asking.push(NappyDetail::Notes);
+        asking.push(DiaperQuestion::Notes);
     }
     asking
 }
@@ -287,7 +291,7 @@ pub fn unanswered(mode: NappyKind, flags: &NappyFlags, notes: Option<&str>) -> V
 mod tests {
     use super::*;
 
-    const BARE: NappyFlags = NappyFlags {
+    const BARE: DiaperFlags = DiaperFlags {
         pee: None,
         poo: None,
         color: None,
@@ -296,72 +300,72 @@ mod tests {
     };
 
     #[test]
-    fn only_a_dirty_nappy_has_a_colour_worth_asking_about() {
-        assert!(NappyFlags::describes_dirt(NappyKind::Poo));
-        assert!(NappyFlags::describes_dirt(NappyKind::Both));
-        assert!(!NappyFlags::describes_dirt(NappyKind::Pee));
-        assert!(!NappyFlags::describes_dirt(NappyKind::Dry));
+    fn only_a_dirty_diaper_has_a_colour_worth_asking_about() {
+        assert!(DiaperFlags::describes_dirt(DiaperKind::Poo));
+        assert!(DiaperFlags::describes_dirt(DiaperKind::Both));
+        assert!(!DiaperFlags::describes_dirt(DiaperKind::Pee));
+        assert!(!DiaperFlags::describes_dirt(DiaperKind::Dry));
     }
 
     #[test]
-    fn a_wet_nappy_is_asked_how_much_wet() {
+    fn a_wet_diaper_is_asked_how_much_wet() {
         // The bug this test exists for: picking "pee" used to end the
-        // conversation, so a big wet nappy could not be recorded at all.
-        let asked = unanswered(NappyKind::Pee, &BARE, None);
+        // conversation, so a big wet diaper could not be recorded at all.
+        let asked = unanswered(DiaperKind::Pee, &BARE, None);
         assert_eq!(
             asked,
             vec![
-                NappyDetail::PeeAmount,
-                NappyDetail::Rash,
-                NappyDetail::Notes
+                DiaperQuestion::PeeAmount,
+                DiaperQuestion::Rash,
+                DiaperQuestion::Notes
             ]
         );
     }
 
     #[test]
-    fn a_dirty_nappy_is_asked_about_the_dirt_and_nothing_about_wet() {
-        let asked = unanswered(NappyKind::Poo, &BARE, None);
-        assert!(asked.contains(&NappyDetail::PooAmount));
-        assert!(asked.contains(&NappyDetail::Colour));
-        assert!(asked.contains(&NappyDetail::Consistency));
-        assert!(!asked.contains(&NappyDetail::PeeAmount));
+    fn a_dirty_diaper_is_asked_about_the_dirt_and_nothing_about_wet() {
+        let asked = unanswered(DiaperKind::Poo, &BARE, None);
+        assert!(asked.contains(&DiaperQuestion::PooAmount));
+        assert!(asked.contains(&DiaperQuestion::Colour));
+        assert!(asked.contains(&DiaperQuestion::Consistency));
+        assert!(!asked.contains(&DiaperQuestion::PeeAmount));
     }
 
     #[test]
-    fn a_nappy_with_both_in_it_is_asked_about_both() {
-        let asked = unanswered(NappyKind::Both, &BARE, None);
-        assert!(asked.contains(&NappyDetail::PeeAmount));
-        assert!(asked.contains(&NappyDetail::PooAmount));
+    fn a_diaper_with_both_in_it_is_asked_about_both() {
+        let asked = unanswered(DiaperKind::Both, &BARE, None);
+        assert!(asked.contains(&DiaperQuestion::PeeAmount));
+        assert!(asked.contains(&DiaperQuestion::PooAmount));
     }
 
     #[test]
-    fn a_dry_nappy_is_asked_nothing_about_what_was_not_in_it() {
-        let asked = unanswered(NappyKind::Dry, &BARE, None);
-        assert_eq!(asked, vec![NappyDetail::Rash, NappyDetail::Notes]);
+    fn a_dry_diaper_is_asked_nothing_about_what_was_not_in_it() {
+        let asked = unanswered(DiaperKind::Dry, &BARE, None);
+        assert_eq!(asked, vec![DiaperQuestion::Rash, DiaperQuestion::Notes]);
     }
 
     #[test]
     fn a_flag_answers_its_own_question_and_no_others() {
         let asked = unanswered(
-            NappyKind::Both,
-            &NappyFlags {
+            DiaperKind::Both,
+            &DiaperFlags {
                 pee: Some(Amount::Big),
                 ..BARE
             },
             None,
         );
-        assert!(!asked.contains(&NappyDetail::PeeAmount));
+        assert!(!asked.contains(&DiaperQuestion::PeeAmount));
         assert!(
-            asked.contains(&NappyDetail::Colour),
+            asked.contains(&DiaperQuestion::Colour),
             "one flag is not a statement about the rest: {asked:?}"
         );
     }
 
     #[test]
-    fn a_nappy_described_entirely_in_flags_is_asked_nothing() {
+    fn a_diaper_described_entirely_in_flags_is_asked_nothing() {
         let asked = unanswered(
-            NappyKind::Both,
-            &NappyFlags {
+            DiaperKind::Both,
+            &DiaperFlags {
                 pee: Some(Amount::Big),
                 poo: Some(Amount::Medium),
                 color: Some(Colour::Yellow),

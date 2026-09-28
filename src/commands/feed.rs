@@ -99,7 +99,7 @@ async fn bottle(
         .await?;
     context.report(&format!(
         "Recorded {} {} of {}.",
-        tidy(amount, units),
+        format::amount_in(amount, units),
         units.as_str(),
         kind.to_api()
     ));
@@ -147,21 +147,10 @@ pub fn offered_amount(
     recorded_in: Option<&huckleberry_api::models::feed::VolumeUnits>,
     wanted: Units,
 ) -> Option<f64> {
-    let millilitres = last? * recorded_in.map_or(1.0, |units| units.to_millilitres(1.0));
-    Some(wanted.to_api().from_millilitres(millilitres))
-}
-
-/// An amount as that unit is read: millilitres whole, ounces to two places
-/// with nothing trailing.
-#[must_use]
-pub fn tidy(amount: f64, units: Units) -> String {
-    match units {
-        Units::Ml => format!("{amount:.0}"),
-        Units::Oz => {
-            let text = format!("{amount:.2}");
-            text.trim_end_matches('0').trim_end_matches('.').to_owned()
-        }
-    }
+    let recorded_in = recorded_in
+        .and_then(|units| Units::from_stored(units.as_str()))
+        .unwrap_or(wanted);
+    last.map(|amount| format::convert(amount, recorded_in, wanted))
 }
 
 /// Offers the last bottle's amount as the default, which is almost always the
@@ -186,7 +175,7 @@ async fn ask_for_amount(
         prefs.as_ref().and_then(|prefs| prefs.bottle_units.as_ref()),
         units,
     )
-    .map(|amount| tidy(amount, units));
+    .map(|amount| format::amount_in(amount, units));
 
     let label = format!("How much, in {}?", units.as_str());
     let mut question = Question::new("amount", &label, "--amount <NUMBER>");
@@ -585,13 +574,6 @@ mod amounts {
             offered_amount(None, Some(&VolumeUnits::Ounces), Units::Ml),
             None
         );
-    }
-
-    #[test]
-    fn an_offered_amount_is_written_the_way_that_unit_is_read() {
-        assert_eq!(tidy(33.999, Units::Ml), "34");
-        assert_eq!(tidy(1.15, Units::Oz), "1.15");
-        assert_eq!(tidy(4.0, Units::Oz), "4", "no trailing zeros to delete");
     }
 }
 

@@ -22,7 +22,7 @@ use crossterm::event::{Event, KeyEventKind};
 use huckleberry_api::client::now_seconds;
 use huckleberry_api::{DiaperDetails, Huckleberry, RowRef};
 
-use crate::cli::{Amount, Colour, Consistency, PottyOutcome, Units};
+use crate::cli::{Amount, Colour, Consistency, EditOptions, PottyOutcome, Units};
 use crate::domain::log::Entry;
 use crate::domain::{Calendar, log};
 use crate::edit::{self, Draft};
@@ -31,16 +31,9 @@ use crate::render::format;
 use crate::session::Context;
 
 /// Runs the command.
-pub async fn run(
-    context: &Context,
-    id: Option<&str>,
-    set: &[String],
-    listing: bool,
-    days: Option<u32>,
-    limit: usize,
-) -> Result<()> {
+pub async fn run(context: &Context, options: &EditOptions) -> Result<()> {
     let (client, cid) = super::client_and_child(context).await?;
-    let window = context.days(days);
+    let window = context.days(options.days);
     context.narrate(&format!("Reading {window} days from Huckleberry..."));
     let dataset = crate::dataset::pull(
         &client,
@@ -53,14 +46,17 @@ pub async fn run(
     .await?;
     super::persist_session(context, &client).await?;
     let calendar = Calendar::new(&dataset.timezone)?;
-    let entries: Vec<Entry> = log::build(&dataset).into_iter().take(limit).collect();
+    let entries: Vec<Entry> = log::build(&dataset)
+        .into_iter()
+        .take(options.limit)
+        .collect();
 
-    if listing {
+    if options.list {
         list(&entries, &calendar);
         return Ok(());
     }
 
-    let picked = match id {
+    let picked = match options.id.as_deref() {
         Some(token) => Some(edit::parse_token(token)?),
         None => choose(entries, &calendar)?,
     };
@@ -79,17 +75,30 @@ pub async fn run(
         )
     })?;
 
-    if set.is_empty() {
+    // Kept so the confirmation can say what changed rather than only what the
+    // entry now says, which reads as the old value when nothing moved.
+    let before = draft.clone();
+    if options.set.is_empty() {
         form::fill(context, &client, &cid, &mut draft).await?;
     } else {
-        draft.apply(set)?;
+        draft.apply(&options.set)?;
+    }
+
+    if draft == before {
+        context.report(&format!(
+            "The {} is unchanged: {}.",
+            draft.what(),
+            edit::summary(&draft)
+        ));
+        return Ok(());
     }
 
     save(&client, &cid, &at, &draft).await?;
     super::persist_session(context, &client).await?;
     context.report(&format!(
-        "Changed the {}: {}.",
+        "Changed the {}: from {} to {}.",
         draft.what(),
+        edit::summary(&before),
         edit::summary(&draft)
     ));
     println!("entry\t{}", edit::token_for(&at));
@@ -194,22 +203,22 @@ fn pick(
 /// Writes the draft back to the row it came from.
 async fn save(client: &Huckleberry, cid: &str, at: &RowRef, draft: &Draft) -> Result<()> {
     match draft {
-        Draft::Nappy(nappy) => {
+        Draft::Diaper(diaper) => {
             let details = DiaperDetails {
-                pee_amount: nappy.pee.map(Amount::to_api),
-                poo_amount: nappy.poo.map(Amount::to_api),
-                color: nappy.color.map(Colour::to_api),
-                consistency: nappy.consistency.map(Consistency::to_api),
-                rash: nappy.rash,
-                notes: nappy.notes.clone(),
+                pee_amount: diaper.pee.map(Amount::to_api),
+                poo_amount: diaper.poo.map(Amount::to_api),
+                color: diaper.color.map(Colour::to_api),
+                consistency: diaper.consistency.map(Consistency::to_api),
+                rash: diaper.rash,
+                notes: diaper.notes.clone(),
             };
             client
                 .update_diaper_entry(
                     cid,
                     at,
-                    nappy.mode.to_api(),
+                    diaper.mode.to_api(),
                     &details,
-                    nappy.how.map(PottyOutcome::to_api),
+                    diaper.how.map(PottyOutcome::to_api),
                 )
                 .await?;
         }

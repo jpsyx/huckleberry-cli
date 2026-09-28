@@ -44,13 +44,13 @@ pub struct DaySummary {
     pub average_feed_gap_seconds: Option<f64>,
     /// The longest gap between milk feeds.
     pub longest_feed_gap_seconds: Option<f64>,
-    /// Wet nappies.
+    /// Wet diapers.
     pub wet_count: usize,
-    /// Dirty nappies.
+    /// Dirty diapers.
     pub dirty_count: usize,
-    /// Nappies of any kind.
+    /// Diapers of any kind.
     pub diaper_count: usize,
-    /// Nappies on which a rash was noted.
+    /// Diapers on which a rash was noted.
     pub rash_count: usize,
     /// Total sleep, apportioned to the days it actually covered.
     pub sleep_seconds: f64,
@@ -73,7 +73,7 @@ pub struct DaySummary {
     /// False means a gap in the record, not a quiet day. Pumping and
     /// milestones deliberately do not count towards it: a pumping session
     /// belongs to the parent and a milestone is a memory, so neither makes a
-    /// day eligible to be averaged into a feeding or nappy figure.
+    /// day eligible to be averaged into a feeding or diaper figure.
     pub has_data: bool,
 }
 
@@ -146,19 +146,19 @@ pub fn build(dataset: &Dataset, calendar: &Calendar, now: f64, days: usize) -> V
         rows[slot].average_feed_gap_seconds = Some(gaps.iter().sum::<f64>() / gaps.len() as f64);
     }
 
-    for nappy in &dataset.diapers {
-        let Some(slot) = index(calendar.day_of(nappy.start)) else {
+    for diaper in &dataset.diapers {
+        let Some(slot) = index(calendar.day_of(diaper.start)) else {
             continue;
         };
         let row = &mut rows[slot];
         row.diaper_count += 1;
-        if nappy.wet {
+        if diaper.wet {
             row.wet_count += 1;
         }
-        if nappy.dirty {
+        if diaper.dirty {
             row.dirty_count += 1;
         }
-        if nappy.rash {
+        if diaper.rash {
             row.rash_count += 1;
         }
     }
@@ -271,7 +271,7 @@ fn gaps_between(starts: &mut [f64]) -> Vec<f64> {
 /// Today is excluded because a half-finished day drags every average down.
 /// Days with nothing logged at all are excluded for a sharper reason: a day
 /// before the parents started logging is not a day the baby had no wet
-/// nappies, and averaging it in shows a frightened parent a number well under
+/// diapers, and averaging it in shows a frightened parent a number well under
 /// the typical range for no reason but a gap in the record.
 #[must_use]
 pub fn average(rows: &[DaySummary], pick: impl Fn(&DaySummary) -> f64) -> Option<f64> {
@@ -287,7 +287,7 @@ pub fn average(rows: &[DaySummary], pick: impl Fn(&DaySummary) -> f64) -> Option
 
 #[cfg(test)]
 mod tests {
-    use super::super::fixtures::{AFTERNOON, bottle, dataset, nappy, sleep};
+    use super::super::fixtures::{AFTERNOON, bottle, dataset, diaper, sleep};
     use super::*;
 
     fn calendar() -> Calendar {
@@ -435,11 +435,11 @@ mod tests {
     }
 
     #[test]
-    fn nappies_are_counted_by_what_was_in_them() {
+    fn diapers_are_counted_by_what_was_in_them() {
         let mut data = dataset();
         data.diapers = vec![
-            nappy(AFTERNOON - 3600.0, true, false),
-            nappy(AFTERNOON - 7200.0, true, true),
+            diaper(AFTERNOON - 3600.0, true, false),
+            diaper(AFTERNOON - 7200.0, true, true),
         ];
         let rows = build(&data, &calendar(), AFTERNOON, 1);
         assert_eq!(rows[0].diaper_count, 2);
@@ -456,9 +456,9 @@ mod tests {
     #[test]
     fn averages_skip_today_and_skip_days_with_nothing_logged() {
         let mut data = dataset();
-        // Six wet nappies yesterday, two so far today, nothing the day before.
+        // Six wet diapers yesterday, two so far today, nothing the day before.
         for hour in 0..6 {
-            data.diapers.push(nappy(
+            data.diapers.push(diaper(
                 AFTERNOON - 86_400.0 - f64::from(hour) * 3600.0,
                 true,
                 false,
@@ -466,7 +466,7 @@ mod tests {
         }
         for hour in 0..2 {
             data.diapers
-                .push(nappy(AFTERNOON - f64::from(hour) * 3600.0, true, false));
+                .push(diaper(AFTERNOON - f64::from(hour) * 3600.0, true, false));
         }
         let rows = build(&data, &calendar(), AFTERNOON, 3);
         let mean = average(&rows, |row| row.wet_count as f64).expect("an average");

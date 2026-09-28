@@ -1,6 +1,6 @@
-//! Nappies and potty trips.
+//! Diapers and potty trips.
 //!
-//! One collection holds both: a potty trip is a nappy row with `isPotty` set
+//! One collection holds both: a potty trip is a diaper row with `isPotty` set
 //! and a `howItHappened`. The app's three amount buttons are stored as the
 //! numbers 0, 50 and 100, which [`quantity`] is the only place that knows.
 
@@ -19,7 +19,7 @@ use crate::models::{to_fields, to_json};
 use crate::paths;
 use crate::rows::RowRef;
 
-/// Everything optional about a nappy, in one argument.
+/// Everything optional about a diaper, in one argument.
 ///
 /// A struct rather than eight parameters, so a caller cannot transpose the
 /// colour and the consistency and have it compile.
@@ -54,7 +54,7 @@ pub fn quantity(pee: Option<&DiaperAmount>, poo: Option<&DiaperAmount>) -> Optio
 }
 
 impl Huckleberry {
-    /// Records a nappy change.
+    /// Records a diaper change.
     ///
     /// # Errors
     ///
@@ -84,7 +84,7 @@ impl Huckleberry {
             .await
     }
 
-    /// Changes a nappy or a potty trip that is already on the record.
+    /// Changes a diaper or a potty trip that is already on the record.
     ///
     /// What was in it and everything said about it, and nothing else: the row
     /// keeps the moment it happened, because a row's id leads with its own
@@ -130,11 +130,11 @@ impl Huckleberry {
         if let Some(outcome) = how_it_happened {
             updates.push(FieldUpdate::set("howItHappened", json!(outcome.as_str())));
         }
-        self.update_history_row(cid, at, &updates, "changing the nappy")
+        self.update_history_row(cid, at, &updates, "changing the diaper")
             .await
     }
 
-    /// The nappy tracker's document, which carries the last of each.
+    /// The diaper tracker's document, which carries the last of each.
     ///
     /// # Errors
     ///
@@ -142,7 +142,7 @@ impl Huckleberry {
     pub async fn diaper_document(&self, cid: &str) -> Result<Option<DiaperDocument>> {
         self.document(
             &paths::tracker(paths::DIAPER, cid),
-            "reading the nappy tracker",
+            "reading the diaper tracker",
         )
         .await
     }
@@ -159,7 +159,7 @@ impl Huckleberry {
         let operation = if is_potty {
             "recording the potty trip"
         } else {
-            "recording the nappy"
+            "recording the diaper"
         };
         let now = now_seconds();
         let offset = self.zone().offset_minutes(now);

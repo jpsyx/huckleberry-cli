@@ -1,7 +1,7 @@
 //! Where one row of history lives, and how to carry that beside the row.
 //!
 //! A decoded row cannot be written back. Huckleberry packs older history into
-//! batch documents with the rows nested under `data`, so "this nappy" is not a
+//! batch documents with the rows nested under `data`, so "this diaper" is not a
 //! document id: it is a document id and, sometimes, a key inside it. Reading a
 //! row and editing it are different requests, and this is what ties them
 //! together.

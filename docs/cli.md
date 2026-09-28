@@ -34,8 +34,8 @@ sign-in does. Backspace and Ctrl-U erase; Ctrl-C and Esc abandon.
 
 | Command | Shows |
 | --- | --- |
-| `now` | last feed, last nappy, asleep or awake, the night's longest stretch |
-| `summary` | one row per day: feeds, milk, sleep, nappies, and the typical ranges |
+| `now` | last feed, last diaper, asleep or awake, the night's longest stretch |
+| `summary` | one row per day: feeds, milk, sleep, diapers, and the typical ranges |
 | `stripes` | a 24-hour chart of where sleep lands, one row per day |
 | `trends --metric <M>` | one number over time, as bars |
 | `log` | everything, newest first |
@@ -123,7 +123,7 @@ A meal asks for the food, how much, how it went and anything to note.
 `feed nursing start` with no `--side` offers the side opposite the last feed,
 which is what the app suggests.
 
-### Nappies, potty and growth
+### Diapers, potty and growth
 
 ```sh
 hb diaper --mode both --poo medium --color yellow --consistency loose
@@ -137,7 +137,7 @@ hb growth                        # asks the system, the weight, then the rest
 setting, then the weight, the length and the head circumference; only the
 weight has to be answered, and only when no measurement was passed at all.
 
-The nappy prompt asks what was in it and then asks every question that answer
+The diaper prompt asks what was in it and then asks every question that answer
 implies: how much wet, how much dirty, the colour, the consistency, whether
 there was a rash, and anything to note. Each one takes Enter for "leave it
 out", so the fast path is still a few keystrokes, and a flag answers its own
@@ -176,7 +176,7 @@ what is typed changes. A field that can be empty takes `-` for "leave it out".
 | `q`, `Esc`, `Ctrl-C` | leave, changing nothing |
 
 `--set` takes the fields of whichever entry it is: `mode`, `pee`, `poo`,
-`color`, `consistency`, `rash` and `notes` on a nappy; `mode`, `how`, `color`,
+`color`, `consistency`, `rash` and `notes` on a diaper; `mode`, `how`, `color`,
 `consistency` and `notes` on a potty trip; `amount`, `type`, `units` and
 `notes` on a bottle; `left`, `right` and `notes` on a nursing session (in
 minutes); `foods`, `amount`, `reaction` and `notes` on a meal; `duration` (in
@@ -190,6 +190,34 @@ something happened would leave history sorted by a time the row no longer
 claims. And it changes only what this tool can log, so a pumping session and a
 milestone are listed but read-only; `--list` says which is which in its own
 column.
+
+### Removing an entry
+
+```sh
+hb delete                                  # pick one off the list, then confirm
+hb delete --list                           # what there is, and what each is called
+hb delete --id feed/1758572400000-3f2a --yes
+hb delete --tracker health --list          # the rows the stream does not show
+```
+
+The same list `edit` shows, with the same keys. It removes anything that came
+from Huckleberry, not only what this tool can log, because taking a row away
+needs no knowledge of what is in it.
+
+Deleting is the one thing here that cannot be undone, so it is the one thing
+that asks twice: the entry is described back before the question, and with no
+terminal the failure names `--yes` rather than assuming consent.
+
+`--tracker <NAME>` works on one tracker's own rows instead of the merged
+stream, which is how a growth measurement or a temperature is reached at all:
+`--list` there prints each row as it is stored.
+
+A delete also puts the tracker's own shortcuts back. Every tracker keeps a copy
+of its most recent entry (`prefs.lastDiaper`, `prefs.lastBottle`,
+`prefs.lastGrowthEntry`) so the app can draw a home screen without reading
+history; removing the row one of those describes would leave the app showing an
+entry that is no longer there, so it is rewritten from whatever is now the most
+recent of that kind, or taken away when there is none.
 
 ## Settings
 

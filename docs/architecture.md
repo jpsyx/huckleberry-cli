@@ -123,6 +123,13 @@ repository does not model, and a batched row has neighbours in the same
 document; naming the fields that change is what leaves both alone. See
 [`api.md`](api.md).
 
+Removing one is the same reference and one more step. Every tracker keeps a
+copy of its most recent entry on its own document so the app can draw a home
+screen without reading history, so `ops/removal.rs` rewrites any of those
+copies that described the row that has gone. `hb edit` and `hb delete` share
+one list (`src/picker/`), one set of tokens and one confirmation style; they
+differ only in what they do with the entry they are handed.
+
 ## Reading without an account
 
 `export` writes a snapshot, and `--offline <PATH>` makes any read-only command

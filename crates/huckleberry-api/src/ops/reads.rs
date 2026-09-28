@@ -132,7 +132,7 @@ impl Huckleberry {
             .await
     }
 
-    /// Nappies and potty trips inside the window.
+    /// Diapers and potty trips inside the window.
     ///
     /// # Errors
     ///
@@ -142,7 +142,7 @@ impl Huckleberry {
         cid: &str,
         window: Window,
     ) -> Result<Vec<Located<DiaperEntry>>> {
-        self.history(paths::DIAPER, cid, window, "reading nappy history")
+        self.history(paths::DIAPER, cid, window, "reading diaper history")
             .await
     }
 
@@ -189,6 +189,24 @@ impl Huckleberry {
             .into_iter()
             .filter_map(|row| serde_json::from_value(row).ok())
             .collect())
+    }
+
+    /// One tracker's own document, untyped.
+    ///
+    /// The escape hatch beside [`Huckleberry::collection_rows`]: a caller that
+    /// wants a preference this crate does not model, or that wants to see what
+    /// a summary actually holds, reads it here.
+    ///
+    /// # Errors
+    ///
+    /// As [`Huckleberry::user`].
+    pub async fn tracker_document(&self, tracker: &str, cid: &str) -> Result<Option<Json>> {
+        let token = self.token().await?;
+        Ok(self
+            .firestore()
+            .get(&token, &paths::tracker(tracker, cid), "reading the tracker")
+            .await?
+            .map(Document::into_json))
     }
 
     /// Every row of a tracker's history, untyped and unwindowed.

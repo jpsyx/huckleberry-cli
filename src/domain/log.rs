@@ -7,7 +7,7 @@
 
 use huckleberry_api::RowRef;
 
-use super::types::{Dataset, FeedEvent};
+use super::types::{Dataset, DiaperEvent, FeedEvent, Size};
 
 /// Which tracker a row came from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -16,7 +16,7 @@ pub enum Kind {
     Sleep,
     /// A feed of any sort.
     Feed,
-    /// A nappy or a potty trip.
+    /// A diaper or a potty trip.
     Diaper,
     /// A pumping session.
     Pump,
@@ -105,28 +105,15 @@ pub fn build(dataset: &Dataset) -> Vec<Entry> {
         });
     }
 
-    for nappy in &dataset.diapers {
-        let extras: Vec<&str> = [nappy.color.as_deref(), nappy.consistency.as_deref()]
-            .into_iter()
-            .flatten()
-            .collect();
-        let mut description = nappy.mode.clone();
-        if !extras.is_empty() {
-            description.push_str(" (");
-            description.push_str(&extras.join(", "));
-            description.push(')');
-        }
-        if nappy.rash {
-            description.push_str(" · rash noted");
-        }
+    for diaper in &dataset.diapers {
         entries.push(Entry {
-            id: format!("diaper:{}", nappy.id),
-            at: nappy.at.clone(),
+            id: format!("diaper:{}", diaper.id),
+            at: diaper.at.clone(),
             kind: Kind::Diaper,
-            start: nappy.start,
-            title: if nappy.potty { "Potty" } else { "Nappy" }.to_owned(),
-            description,
-            notes: nappy.notes.clone(),
+            start: diaper.start,
+            title: if diaper.potty { "Potty" } else { "Diaper" }.to_owned(),
+            description: describe_diaper(diaper),
+            notes: diaper.notes.clone(),
         });
     }
 
@@ -174,6 +161,63 @@ pub fn build(dataset: &Dataset) -> Vec<Entry> {
             .unwrap_or(core::cmp::Ordering::Equal)
     });
     entries
+}
+
+/// What was in a diaper, in the words the app's own buttons use.
+///
+/// The size is the part a parent came back for: "mixed" says what happened and
+/// "mixed · little pee · big poop" says how the night went. A size nobody
+/// recorded is left out rather than guessed at, and a diaper with one thing in
+/// it needs no label on its size, because there is nothing it could be the
+/// size of but that.
+#[must_use]
+fn describe_diaper(diaper: &DiaperEvent) -> String {
+    let mut said = vec![mode_word(&diaper.mode).to_owned()];
+    let both = diaper.wet && diaper.dirty;
+    for (size, what) in [(diaper.pee_size, "pee"), (diaper.poo_size, "poop")] {
+        let Some(size) = size else { continue };
+        said.push(if both {
+            format!("{} {what}", size_word(size))
+        } else {
+            size_word(size).to_owned()
+        });
+    }
+    let mut description = said.join(" · ");
+
+    let extras: Vec<&str> = [diaper.color.as_deref(), diaper.consistency.as_deref()]
+        .into_iter()
+        .flatten()
+        .collect();
+    if !extras.is_empty() {
+        description.push_str(" (");
+        description.push_str(&extras.join(", "));
+        description.push(')');
+    }
+    if diaper.rash {
+        description.push_str(" · rash noted");
+    }
+    description
+}
+
+/// The app's word for what was in it. Huckleberry stores `poo` and `both`;
+/// the screen says what a parent says.
+#[must_use]
+pub fn mode_word(mode: &str) -> &str {
+    match mode {
+        "poo" => "poop",
+        "both" => "mixed",
+        other => other,
+    }
+}
+
+/// The app's word for one of its three size buttons.
+#[must_use]
+const fn size_word(size: Size) -> &'static str {
+    match size {
+        Size::Small => "little",
+        Size::Medium => "medium",
+        Size::Large => "big",
+    }
 }
 
 fn describe_feed(feed: &FeedEvent) -> (String, String) {
@@ -228,7 +272,7 @@ fn describe_feed(feed: &FeedEvent) -> (String, String) {
 
 #[cfg(test)]
 mod tests {
-    use super::super::fixtures::{AFTERNOON, bottle, dataset, nappy, sleep};
+    use super::super::fixtures::{AFTERNOON, bottle, dataset, diaper, sleep};
     use super::*;
     use crate::domain::types::{MilestoneEvent, PumpEvent};
 
@@ -237,7 +281,7 @@ mod tests {
         let mut data = dataset();
         data.sleep = vec![sleep(AFTERNOON - 7200.0, 3600.0)];
         data.feeds = vec![bottle(AFTERNOON - 3600.0, 90.0)];
-        data.diapers = vec![nappy(AFTERNOON - 1800.0, true, false)];
+        data.diapers = vec![diaper(AFTERNOON - 1800.0, true, false)];
         data.pumps = vec![PumpEvent {
             at: None,
             id: "p1".to_owned(),
@@ -288,16 +332,62 @@ mod tests {
     #[test]
     fn a_potty_trip_is_titled_as_one() {
         let mut data = dataset();
-        let mut trip = nappy(AFTERNOON, true, false);
+        let mut trip = diaper(AFTERNOON, true, false);
         trip.potty = true;
         data.diapers = vec![trip];
         assert_eq!(build(&data)[0].title, "Potty");
     }
 
     #[test]
+    fn a_diaper_says_what_was_in_it_in_the_words_the_app_uses() {
+        let mut data = dataset();
+        let mut mixed = diaper(AFTERNOON, true, true);
+        mixed.mode = "both".to_owned();
+        data.diapers = vec![mixed];
+        assert_eq!(build(&data)[0].description, "mixed");
+
+        let mut data = dataset();
+        let mut dirty = diaper(AFTERNOON, false, true);
+        dirty.mode = "poo".to_owned();
+        data.diapers = vec![dirty];
+        assert_eq!(build(&data)[0].description, "poop");
+    }
+
+    #[test]
+    fn a_diaper_with_both_in_it_says_the_size_of_each() {
+        let mut data = dataset();
+        let mut mixed = diaper(AFTERNOON, true, true);
+        mixed.mode = "both".to_owned();
+        mixed.pee_size = Some(Size::Small);
+        mixed.poo_size = Some(Size::Large);
+        data.diapers = vec![mixed];
+        assert_eq!(build(&data)[0].description, "mixed · little pee · big poop");
+    }
+
+    #[test]
+    fn only_the_size_that_was_noted_is_shown() {
+        let mut data = dataset();
+        let mut mixed = diaper(AFTERNOON, true, true);
+        mixed.mode = "both".to_owned();
+        mixed.poo_size = Some(Size::Medium);
+        data.diapers = vec![mixed];
+        assert_eq!(build(&data)[0].description, "mixed · medium poop");
+    }
+
+    #[test]
+    fn a_diaper_with_one_thing_in_it_needs_no_label_on_its_size() {
+        let mut data = dataset();
+        let mut wet = diaper(AFTERNOON, true, false);
+        wet.mode = "pee".to_owned();
+        wet.pee_size = Some(Size::Large);
+        data.diapers = vec![wet];
+        assert_eq!(build(&data)[0].description, "pee · big");
+    }
+
+    #[test]
     fn a_rash_is_carried_into_the_description() {
         let mut data = dataset();
-        let mut sore = nappy(AFTERNOON, true, true);
+        let mut sore = diaper(AFTERNOON, true, true);
         sore.rash = true;
         sore.color = Some("yellow".to_owned());
         data.diapers = vec![sore];
@@ -309,7 +399,7 @@ mod tests {
     #[test]
     fn an_entry_carries_the_row_it_came_from_so_it_can_be_edited() {
         let mut data = dataset();
-        let mut event = nappy(AFTERNOON, true, false);
+        let mut event = diaper(AFTERNOON, true, false);
         event.at = Some(RowRef::loose("diaper", "row-one"));
         data.diapers = vec![event];
         assert_eq!(build(&data)[0].at, Some(RowRef::loose("diaper", "row-one")));
@@ -318,7 +408,7 @@ mod tests {
     #[test]
     fn an_entry_read_off_a_snapshot_has_no_row_to_edit() {
         let mut data = dataset();
-        data.diapers = vec![nappy(AFTERNOON, true, false)];
+        data.diapers = vec![diaper(AFTERNOON, true, false)];
         assert_eq!(build(&data)[0].at, None);
     }
 
@@ -328,6 +418,6 @@ mod tests {
             assert_eq!(Kind::parse(kind.as_str()), Some(kind));
         }
         assert_eq!(Kind::parse("SLEEP"), Some(Kind::Sleep));
-        assert_eq!(Kind::parse("nappies"), None);
+        assert_eq!(Kind::parse("diapers"), None);
     }
 }

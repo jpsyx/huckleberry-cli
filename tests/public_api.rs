@@ -8,7 +8,7 @@
 //! Nothing here touches the network. The screens are driven from a snapshot,
 //! which is the same path `--offline` takes.
 
-use app::cli::{Cli, Command, ConfigAction, NappyKind, SleepAction, Units};
+use app::cli::{Cli, Command, ConfigAction, DiaperKind, SleepAction, Units};
 use app::config::{self, Config};
 use app::credentials::{self, Resolved, Stored};
 use app::domain::types::Dataset;
@@ -27,7 +27,7 @@ fn snapshot_json() -> String {
     let now = 1_758_564_000.0_f64; // 2025-09-22T18:00:00Z, 2pm in New York.
     let day = 86_400.0;
     let mut feeds = Vec::new();
-    let mut nappies = Vec::new();
+    let mut diapers = Vec::new();
     let mut sleeps = Vec::new();
     for back in 0..7_i32 {
         let base = now - f64::from(back) * day;
@@ -37,7 +37,7 @@ fn snapshot_json() -> String {
                 r#"{{"kind":"bottle","id":"f{back}-{index}","start":{at},"amount_ml":90,
                    "bottle_type":"Formula","notes":null}}"#
             ));
-            nappies.push(format!(
+            diapers.push(format!(
                 r#"{{"id":"d{back}-{index}","start":{at},"mode":"pee","wet":true,"dirty":false,
                    "pee_size":null,"poo_size":null,"color":null,"consistency":null,
                    "rash":false,"potty":false,"notes":null}}"#
@@ -58,7 +58,7 @@ fn snapshot_json() -> String {
            "live":{{}},"notes":[]}}"#,
         sleeps.join(","),
         feeds.join(","),
-        nappies.join(",")
+        diapers.join(",")
     )
 }
 
@@ -76,12 +76,12 @@ fn the_command_line_surface_is_well_formed() {
 
 #[test]
 fn every_action_is_reachable_without_a_prompt() {
-    let nappy = Cli::try_parse_from(["huckleberry-cli", "diaper", "--mode", "both"])
-        .expect("a nappy parses");
+    let diaper = Cli::try_parse_from(["huckleberry-cli", "diaper", "--mode", "both"])
+        .expect("a diaper parses");
     assert!(matches!(
-        nappy.command,
+        diaper.command,
         Command::Diaper {
-            mode: Some(NappyKind::Both),
+            mode: Some(DiaperKind::Both),
             ..
         }
     ));

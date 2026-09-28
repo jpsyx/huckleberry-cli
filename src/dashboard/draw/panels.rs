@@ -47,7 +47,7 @@ pub(super) fn draw_now(frame: &mut Frame, area: Rect, state: &State, units: Unit
         }),
     ));
     lines.push(big(
-        "Nappy",
+        "Diaper",
         &view.last_diaper.as_ref().map_or_else(
             || "nothing logged".to_owned(),
             |last| format_ago(last.start, at),
@@ -155,7 +155,7 @@ pub(super) fn draw_stripe_chart(
     }
 
     lines.push(Line::from(Span::styled(
-        "            █ asleep   ▼ feed   ◦ nappy   · night",
+        "            █ asleep   ▼ feed   ◦ diaper   · night",
         Style::default().fg(tone(Tone::Muted)),
     )));
     frame.render_widget(
@@ -247,8 +247,8 @@ pub(super) fn draw_feeding(frame: &mut Frame, area: Rect, state: &State, units: 
     );
 }
 
-/// The Nappies tab: counts per day, with a sparkline of wet nappies.
-pub(super) fn draw_nappies(frame: &mut Frame, area: Rect, state: &State, at: f64) {
+/// The Diapers tab: counts per day, with a sparkline of wet diapers.
+pub(super) fn draw_diapers(frame: &mut Frame, area: Rect, state: &State, at: f64) {
     let rows = summaries::build(&state.dataset, &state.calendar, at, state.days);
     let areas = Layout::default()
         .direction(Direction::Vertical)
@@ -287,7 +287,7 @@ pub(super) fn draw_nappies(frame: &mut Frame, area: Rect, state: &State, at: f64
             ],
         )
         .header(header)
-        .block(bordered("Nappies")),
+        .block(bordered("Diapers")),
         areas[0],
     );
 
@@ -296,7 +296,7 @@ pub(super) fn draw_nappies(frame: &mut Frame, area: Rect, state: &State, at: f64
         Sparkline::default()
             .data(&series)
             .style(Style::default().fg(tone(Tone::Info)))
-            .block(bordered("Wet nappies per day")),
+            .block(bordered("Wet diapers per day")),
         areas[1],
     );
 }

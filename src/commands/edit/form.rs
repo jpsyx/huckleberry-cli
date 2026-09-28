@@ -12,9 +12,10 @@
 use anyhow::Result;
 use huckleberry_api::Huckleberry;
 
-use crate::cli::{Amount, BottleKind, Colour, Consistency, NappyKind, PottyOutcome, Reaction};
-use crate::edit::{BottleDraft, Draft, NappyDraft, NursingDraft, SleepDraft, SolidsDraft};
+use crate::cli::{Amount, BottleKind, Colour, Consistency, DiaperKind, PottyOutcome, Reaction};
+use crate::edit::{BottleDraft, DiaperDraft, Draft, NursingDraft, SleepDraft, SolidsDraft};
 use crate::prompt::{self, Choice, Question};
+use crate::render::format;
 use crate::session::Context;
 
 /// What clears a field that can be empty.
@@ -29,7 +30,7 @@ pub async fn fill(
     draft: &mut Draft,
 ) -> Result<()> {
     match draft {
-        Draft::Nappy(nappy) => nappy_form(context, nappy),
+        Draft::Diaper(diaper) => diaper_form(context, diaper),
         Draft::Bottle(bottle) => bottle_form(context, bottle),
         Draft::Nursing(nursing) => nursing_form(context, nursing),
         Draft::Solids(meal) => solids_form(context, client, cid, meal).await,
@@ -193,21 +194,21 @@ const REACTIONS: [Choice<'static>; 4] = [
     },
 ];
 
-fn nappy_form(context: &Context, nappy: &mut NappyDraft) -> Result<()> {
-    nappy.mode = required(
+fn diaper_form(context: &Context, diaper: &mut DiaperDraft) -> Result<()> {
+    diaper.mode = required(
         context,
         "what was in it",
         "What was in it?",
         "--set mode=...",
         &MODES,
-        nappy.mode.to_api().as_str(),
-        NappyKind::from_stored,
+        diaper.mode.to_api().as_str(),
+        DiaperKind::from_stored,
     )?;
-    if nappy.potty {
-        let current = nappy
+    if diaper.potty {
+        let current = diaper
             .how
             .map(|outcome| outcome.to_api().as_str().to_owned());
-        nappy.how = Some(required(
+        diaper.how = Some(required(
             context,
             "how it went",
             "How did it go?",
@@ -217,79 +218,79 @@ fn nappy_form(context: &Context, nappy: &mut NappyDraft) -> Result<()> {
             PottyOutcome::from_stored,
         )?);
     }
-    if !nappy.potty {
-        if matches!(nappy.mode, NappyKind::Pee | NappyKind::Both) {
-            nappy.pee = optional(
+    if !diaper.potty {
+        if matches!(diaper.mode, DiaperKind::Pee | DiaperKind::Both) {
+            diaper.pee = optional(
                 context,
                 "amount",
                 "How much wet?",
                 "--set pee=...",
                 &AMOUNTS,
-                nappy
+                diaper
                     .pee
                     .map(|amount| amount.to_api().as_str().to_owned())
                     .as_deref(),
                 Amount::from_stored,
             )?;
         } else {
-            nappy.pee = None;
+            diaper.pee = None;
         }
     }
-    if matches!(nappy.mode, NappyKind::Poo | NappyKind::Both) {
-        if !nappy.potty {
-            nappy.poo = optional(
+    if matches!(diaper.mode, DiaperKind::Poo | DiaperKind::Both) {
+        if !diaper.potty {
+            diaper.poo = optional(
                 context,
                 "amount",
                 "How much dirty?",
                 "--set poo=...",
                 &AMOUNTS,
-                nappy
+                diaper
                     .poo
                     .map(|amount| amount.to_api().as_str().to_owned())
                     .as_deref(),
                 Amount::from_stored,
             )?;
         }
-        nappy.color = optional(
+        diaper.color = optional(
             context,
             "colour",
             "What colour?",
             "--set color=...",
             &COLOURS,
-            nappy
+            diaper
                 .color
                 .map(|shade| shade.to_api().as_str().to_owned())
                 .as_deref(),
             Colour::from_stored,
         )?;
-        nappy.consistency = optional(
+        diaper.consistency = optional(
             context,
             "consistency",
             "What consistency?",
             "--set consistency=...",
             &CONSISTENCIES,
-            nappy
+            diaper
                 .consistency
                 .map(|texture| texture.to_api().as_str().to_owned())
                 .as_deref(),
             Consistency::from_stored,
         )?;
     } else {
-        // What is not in it is not described: a nappy changed from dirty to
+        // What is not in it is not described: a diaper changed from dirty to
         // wet keeps no colour.
-        nappy.poo = None;
-        nappy.color = None;
-        nappy.consistency = None;
+        diaper.poo = None;
+        diaper.color = None;
+        diaper.consistency = None;
     }
-    if !nappy.potty {
-        nappy.rash = prompt::confirm("Any rash?", nappy.rash, context.theme)?;
+    if !diaper.potty {
+        diaper.rash = prompt::confirm("Any rash?", diaper.rash, context.theme)?;
     }
-    nappy.notes = notes(context, nappy.notes.as_deref())?;
+    diaper.notes = notes(context, diaper.notes.as_deref())?;
     Ok(())
 }
 
 fn bottle_form(context: &Context, bottle: &mut BottleDraft) -> Result<()> {
-    bottle.units = required(
+    let chosen = required(
         context,
         "units",
         "In which units?",
@@ -298,8 +299,20 @@ fn bottle_form(context: &Context, bottle: &mut BottleDraft) -> Result<()> {
         bottle.units.to_api().as_str(),
         crate::cli::Units::from_stored,
     )?;
+    // Asking in ounces and then offering the millilitres is how somebody is
+    // shown "[30]" under "How much, in oz?".
+    if chosen != bottle.units {
+        bottle.amount = format::convert(bottle.amount, bottle.units, chosen);
+        bottle.units = chosen;
+    }
     let label = format!("How much, in {}?", bottle.units.as_str());
-    bottle.amount = number(context, "amount", &label, "--set amount=...", bottle.amount)?;
+    bottle.amount = number(
+        context,
+        "amount",
+        &label,
+        "--set amount=...",
+        &format::amount_in(bottle.amount, bottle.units),
+    )?;
     bottle.kind = required(
         context,
         "bottle type",
@@ -319,14 +332,14 @@ fn nursing_form(context: &Context, nursing: &mut NursingDraft) -> Result<()> {
         "minutes on the left",
         "How many minutes on the left?",
         "--set left=...",
-        nursing.left_minutes,
+        &format!("{:.0}", nursing.left_minutes),
     )?;
     nursing.right_minutes = number(
         context,
         "minutes on the right",
         "How many minutes on the right?",
         "--set right=...",
-        nursing.right_minutes,
+        &format!("{:.0}", nursing.right_minutes),
     )?;
     nursing.notes = notes(context, nursing.notes.as_deref())?;
     Ok(())
@@ -385,7 +398,7 @@ fn sleep_form(context: &Context, sleep: &mut SleepDraft) -> Result<()> {
         "a length in minutes",
         "How many minutes did it last?",
         "--set duration=...",
-        sleep.minutes,
+        &format!("{:.0}", sleep.minutes),
     )?;
     sleep.notes = notes(context, sleep.notes.as_deref())?;
     Ok(())
@@ -443,9 +456,8 @@ fn optional<T>(
 }
 
 /// A number, with what is there now as the default.
-fn number(context: &Context, subject: &str, label: &str, flag: &str, current: f64) -> Result<f64> {
-    let shown = format!("{current:.0}");
-    let question = Question::new(subject, label, flag).with_default(&shown);
+fn number(context: &Context, subject: &str, label: &str, flag: &str, shown: &str) -> Result<f64> {
+    let question = Question::new(subject, label, flag).with_default(shown);
     let answer = prompt::ask(&question, context.theme)?;
     answer
         .trim()

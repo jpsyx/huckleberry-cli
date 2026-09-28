@@ -8,6 +8,7 @@
 pub mod auth;
 pub mod child;
 pub mod dash;
+pub mod delete;
 pub mod diaper;
 pub mod edit;
 pub mod export;
@@ -45,23 +46,8 @@ pub async fn run(cli: &Cli, theme: Theme) -> Result<()> {
         Command::Trends { metric, days } => views::trends(&context, *metric, *days).await,
         Command::Stripes { days } => views::stripes(&context, *days).await,
         Command::Log { kind, days, limit } => views::log(&context, *kind, *days, *limit).await,
-        Command::Edit {
-            id,
-            set,
-            list,
-            days,
-            limit,
-        } => {
-            Box::pin(edit::run(
-                &context,
-                id.as_deref(),
-                set,
-                *list,
-                *days,
-                *limit,
-            ))
-            .await
-        }
+        Command::Edit { options } => Box::pin(edit::run(&context, options)).await,
+        Command::Delete { options } => Box::pin(delete::run(&context, options)).await,
         Command::Sleep { action } => sleep::run(&context, action).await,
         Command::Feed { action } => feed::run(&context, action).await,
         Command::Diaper {
@@ -73,10 +59,10 @@ pub async fn run(cli: &Cli, theme: Theme) -> Result<()> {
             rash,
             notes,
         } => {
-            diaper::nappy(
+            diaper::diaper(
                 &context,
                 *mode,
-                crate::cli::actions::NappyFlags {
+                crate::cli::actions::DiaperFlags {
                     pee: *pee,
                     poo: *poo,
                     color: *color,

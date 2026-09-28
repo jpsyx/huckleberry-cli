@@ -62,7 +62,7 @@ pub fn bottle(start: f64, amount: f64) -> FeedEvent {
     }
 }
 
-pub fn nappy(start: f64, wet: bool, dirty: bool) -> DiaperEvent {
+pub fn diaper(start: f64, wet: bool, dirty: bool) -> DiaperEvent {
     DiaperEvent {
         at: None,
         id: format!("diaper-{start}"),

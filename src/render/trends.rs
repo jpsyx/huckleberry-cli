@@ -6,7 +6,7 @@
 //! rather than a set of numbers.
 //!
 //! The scale always starts at zero. A chart of daily totals scaled from its
-//! own minimum turns eleven, twelve and thirteen wet nappies into a crisis and
+//! own minimum turns eleven, twelve and thirteen wet diapers into a crisis and
 //! a recovery, which is the opposite of what this is for.
 
 use crate::cli::{TrendMetric, Units};
@@ -28,8 +28,8 @@ impl TrendMetric {
             Self::Sleep => "Total sleep",
             Self::NightSleep => "Night sleep",
             Self::LongestSleep => "Longest sleep",
-            Self::Wet => "Wet nappies",
-            Self::Dirty => "Dirty nappies",
+            Self::Wet => "Wet diapers",
+            Self::Dirty => "Dirty diapers",
             Self::Nursing => "Time nursing",
             Self::Pumped => "Milk expressed",
         }

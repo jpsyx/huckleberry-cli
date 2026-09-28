@@ -287,7 +287,7 @@ fn bands(rows: &[DaySummary], dataset: &Dataset, theme: Theme, age: Option<i64>)
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::fixtures::{AFTERNOON, bottle, dataset, nappy};
+    use crate::domain::fixtures::{AFTERNOON, bottle, dataset, diaper};
 
     fn calendar() -> Calendar {
         Calendar::new("America/New_York").expect("a real timezone")
@@ -356,7 +356,7 @@ mod tests {
     fn the_average_counts_only_the_complete_days_that_have_data() {
         let mut data = dataset();
         for hour in 0..6 {
-            data.diapers.push(nappy(
+            data.diapers.push(diaper(
                 AFTERNOON - 86_400.0 - f64::from(hour) * 3_600.0,
                 true,
                 false,
@@ -374,7 +374,7 @@ mod tests {
     fn the_typical_ranges_are_shown_with_the_babys_age() {
         let mut data = dataset();
         for hour in 0..6 {
-            data.diapers.push(nappy(
+            data.diapers.push(diaper(
                 AFTERNOON - 86_400.0 - f64::from(hour) * 3_600.0,
                 true,
                 false,
@@ -405,13 +405,13 @@ mod tests {
         assert!(!table(&data, 3).contains("typical"));
     }
 
-    /// A week with exactly six wet nappies a day, which is inside the band
+    /// A week with exactly six wet diapers a day, which is inside the band
     /// for a three-week-old, and almost no sleep, which is under it.
     fn lopsided_week() -> Dataset {
         let mut data = dataset();
         for back in 1..=6 {
             for hour in 0..6 {
-                data.diapers.push(nappy(
+                data.diapers.push(diaper(
                     AFTERNOON - f64::from(back) * 86_400.0 - f64::from(hour) * 3_600.0,
                     true,
                     false,
@@ -469,8 +469,8 @@ mod tests {
         let drawn = painted(&lopsided_week(), 7);
         let wet = drawn
             .lines()
-            .find(|line| line.contains("wet nappies a day"))
-            .expect("the wet nappy band");
+            .find(|line| line.contains("wet diapers a day"))
+            .expect("the wet diaper band");
         assert!(wet.starts_with(&sequence(Tone::Good)), "{wet:?}");
         assert!(wet.contains("in that range"), "{wet:?}");
 
@@ -517,7 +517,7 @@ mod tests {
     #[test]
     fn nothing_is_ever_painted_as_a_warning_or_an_error() {
         let mut data = dataset();
-        data.diapers = vec![nappy(AFTERNOON - 86_400.0, true, false)];
+        data.diapers = vec![diaper(AFTERNOON - 86_400.0, true, false)];
         let calendar = calendar();
         let rows = summaries::build(&data, &calendar, AFTERNOON, 3);
         let painted = lines(

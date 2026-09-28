@@ -38,8 +38,8 @@ every request still carries a signed-in user's token.
 | `sleep/{cid}/intervals` | sleep history |
 | `feed/{cid}` | the nursing timer, and the last feed of each kind |
 | `feed/{cid}/intervals` | nursing, bottles and solids, in one collection |
-| `diaper/{cid}` | the last nappy and the last potty trip |
-| `diaper/{cid}/intervals` | nappies and potty trips, in one collection |
+| `diaper/{cid}` | the last diaper and the last potty trip |
+| `diaper/{cid}/intervals` | diapers and potty trips, in one collection |
 | `health/{cid}` | the last growth, medication and temperature entries |
 | `health/{cid}/data` | health history. **`data`, not `intervals`** |
 | `pump/{cid}/intervals` | pumping sessions |
@@ -147,6 +147,22 @@ ordered by a time the row no longer claims. And an optional field left out is
 *removed* rather than left behind, because a colour nobody gave this time is
 not last time's colour.
 
+### 6. A delete tidies up after itself
+
+`delete_history_row` removes the row (a `DELETE` for a row of its own, a masked
+`PATCH` for one key of a batch) and then repairs the tracker. Every tracker
+keeps a copy of its most recent entry on its own document — `prefs.lastDiaper`,
+`prefs.lastBottle`, `prefs.lastGrowthEntry` and the rest — which the app reads
+instead of history. A summary that described the removed row is rewritten from
+whatever is now the newest row of that kind, or deleted when there is none
+left; a summary that is missing while history has one to fill it is written
+too, so the repair heals a document somebody else left inconsistent.
+
+Which rows fill which summary, and which of their fields it copies, is one
+table in `ops/removal.rs`. Health's summaries are the entry itself, which is
+why they copy the whole row: [`models::health::GrowthEntry`] requires
+`lastUpdated`, so a summary written without it is one nothing can read back.
+
 ## Name mapping
 
 The models drop the `Firebase` prefix, because the crate name is the namespace.
@@ -192,6 +208,7 @@ The models drop the `Firebase` prefix, because the crate name is the namespace.
 | `setup_*_listener` | `watch_*` (polling; see above) |
 | — | `pump_intervals`, `milestones`, `collection_rows` (new) |
 | — | `located_rows`, `update_history_row`, `update_*_entry` (new: editing) |
+| — | `delete_history_row`, `repair_summaries`, `tracker_document` (new) |
 
 ## Four things that catch people out
 

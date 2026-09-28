@@ -11,7 +11,7 @@
 //! stream with no REST equivalent, so `setup_*_listener` in the Python client
 //! becomes polling here. See [`crate::watch`].
 //!
-//! Everything below is one of five requests:
+//! Everything below is one of six requests:
 //!
 //! | Method | Firestore | Used for |
 //! | --- | --- | --- |
@@ -20,6 +20,7 @@
 //! | [`Firestore::list`] | `GET .../{parent}/{collection}` | a whole subcollection, paged |
 //! | [`Firestore::set`] | `PATCH .../{path}` | write or overwrite |
 //! | [`Firestore::update`] | `PATCH .../{path}` with a mask | change named fields |
+//! | [`Firestore::remove`] | `DELETE .../{path}` | take a document away |
 
 use serde_json::{Map, Value as Json};
 
@@ -237,6 +238,29 @@ impl Firestore {
         let (fields, mask) = field_path::document_and_mask(updates);
         self.patch(token, path, &fields, Some(mask), true, operation)
             .await
+    }
+
+    /// Takes a document away.
+    ///
+    /// Deleting something that is not there is not a failure: Firestore
+    /// answers 200, and a caller removing a row it has just been told about
+    /// wants "it is gone" either way.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::Api`] when Firestore refuses the request (403 for a tracker
+    /// this account cannot write, 401 for an expired token),
+    /// [`Error::Network`] when it cannot be reached, and [`Error::Decode`]
+    /// when the reply is not JSON.
+    pub async fn remove(&self, token: &str, path: &str, operation: &str) -> Result<()> {
+        let response = self
+            .http
+            .delete(self.url(path))
+            .bearer_auth(token)
+            .send()
+            .await
+            .map_err(|source| Error::network(operation, source))?;
+        read_json(response, operation).await.map(|_| ())
     }
 
     /// The one write request the four methods above differ only in the

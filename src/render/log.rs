@@ -5,12 +5,27 @@
 
 use crate::domain::log::{Entry, Kind};
 use crate::domain::time::Calendar;
-use crate::theme::Theme;
+use crate::theme::{Theme, Tone};
 
 use super::format;
 
 /// How wide the title column is.
 const TITLE_WIDTH: usize = 9;
+
+/// The colour each kind of entry is drawn in.
+///
+/// One mapping, so the one-shot stream and the full-screen picker agree: a
+/// diaper is the same colour wherever a person meets it.
+#[must_use]
+pub const fn tone_for(kind: Kind) -> Tone {
+    match kind {
+        Kind::Sleep => Tone::Sleep,
+        Kind::Feed => Tone::Feeding,
+        Kind::Diaper => Tone::Diaper,
+        Kind::Pump => Tone::Pumping,
+        Kind::Milestone => Tone::Milestone,
+    }
+}
 
 /// The stream, newest first, grouped by day. `now` decides which heading
 /// is today's.
@@ -67,7 +82,10 @@ pub fn row(entry: &Entry, calendar: &Calendar, theme: Theme) -> String {
     format!(
         "  {}  {}  {}",
         theme.muted(&format::pad_left(&format::clock(entry.start, calendar), 8)),
-        theme.accent(&format::pad(&entry.title, TITLE_WIDTH)),
+        theme.paint(
+            tone_for(entry.kind),
+            &format::pad(&entry.title, TITLE_WIDTH)
+        ),
         theme.value(&entry.description)
     )
 }
@@ -87,7 +105,7 @@ pub fn only(entries: Vec<Entry>, kind: Option<Kind>) -> Vec<Entry> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::fixtures::{AFTERNOON, bottle, dataset, nappy, sleep};
+    use crate::domain::fixtures::{AFTERNOON, bottle, dataset, diaper, sleep};
     use crate::domain::log;
 
     fn calendar() -> Calendar {
@@ -125,7 +143,7 @@ mod tests {
     #[test]
     fn a_note_is_shown_under_the_entry_it_belongs_to() {
         let mut data = dataset();
-        let mut noted = nappy(AFTERNOON - 900.0, true, false);
+        let mut noted = diaper(AFTERNOON - 900.0, true, false);
         noted.notes = Some("a bit sore".to_owned());
         data.diapers = vec![noted];
         let text = rendered(&data, 40);
@@ -166,6 +184,26 @@ mod tests {
         data.feeds = vec![bottle(AFTERNOON, 90.0)];
         data.sleep = vec![sleep(AFTERNOON - 7_200.0, 3_600.0)];
         assert_eq!(only(log::build(&data), None).len(), 2);
+    }
+
+    #[test]
+    fn every_kind_of_entry_is_drawn_in_its_own_colour() {
+        let mut data = dataset();
+        data.feeds = vec![bottle(AFTERNOON, 90.0)];
+        data.diapers = vec![diaper(AFTERNOON - 60.0, true, false)];
+        data.sleep = vec![sleep(AFTERNOON - 7_200.0, 3_600.0)];
+        let entries = log::build(&data);
+        let painted: Vec<String> = entries
+            .iter()
+            .map(|entry| row(entry, &calendar(), Theme::dark(true)))
+            .collect();
+        for (entry, line) in entries.iter().zip(&painted) {
+            assert!(
+                line.contains(tone_for(entry.kind).sgr()),
+                "{:?} is not in its own colour: {line:?}",
+                entry.kind
+            );
+        }
     }
 
     #[test]

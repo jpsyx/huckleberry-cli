@@ -53,6 +53,16 @@ pub enum Tone {
     /// distinction from [`Tone::Warning`] is the point: that one is for the
     /// tool's own problems, this one is an observation about a number.
     Attention,
+    /// A sleep, wherever entries of several kinds are listed together.
+    Sleep,
+    /// A feed of any sort.
+    Feeding,
+    /// A diaper or a potty trip.
+    Diaper,
+    /// A pumping session.
+    Pumping,
+    /// A milestone.
+    Milestone,
 }
 
 impl Tone {
@@ -61,13 +71,9 @@ impl Tone {
     pub const fn sgr(self) -> &'static str {
         match self {
             Self::Heading => "1;95",
-            Self::Accent => "96",
             Self::Value => "97",
             Self::Muted => "90",
-            Self::Success => "92",
-            Self::Warning => "93",
             Self::Error => "91",
-            Self::Info => "94",
             Self::Prompt => "1;96",
             // Bold on top of the bright white the other rows already use, so
             // today reads as brighter rather than as a different kind of
@@ -78,6 +84,17 @@ impl Tone {
             // simply shows the bright colour, which is no worse than before.
             Self::Good => "2;92",
             Self::Attention => "2;93",
+            // One hue per tracker, so a stream of forty entries can be read by
+            // shape before it is read by word. A kind shares its colour with a
+            // role it never appears beside: `Pumping` is the green of
+            // `Success` and means nothing of the sort, because in a list of
+            // kinds a colour is a category and not a verdict, and every row
+            // says its kind in words as well.
+            Self::Success | Self::Pumping => "92",
+            Self::Warning | Self::Milestone => "93",
+            Self::Info | Self::Sleep => "94",
+            Self::Diaper => "95",
+            Self::Accent | Self::Feeding => "96",
         }
     }
 
@@ -92,11 +109,11 @@ impl Tone {
             // Green means the same thing to a renderer that paints with
             // colour values; the two roles differ in what they are *for*, and
             // in whether they are drawn faint.
-            Self::Success | Self::Good => 10,
-            Self::Warning | Self::Attention => 11,
-            Self::Info => 12,
-            Self::Heading => 13,
-            Self::Accent | Self::Prompt => 14,
+            Self::Success | Self::Good | Self::Pumping => 10,
+            Self::Warning | Self::Attention | Self::Milestone => 11,
+            Self::Info | Self::Sleep => 12,
+            Self::Heading | Self::Diaper => 13,
+            Self::Accent | Self::Prompt | Self::Feeding => 14,
             Self::Value | Self::Today => 15,
         }
     }
@@ -224,7 +241,7 @@ pub fn color_enabled() -> bool {
 mod tests {
     use super::*;
 
-    const EVERY_TONE: [Tone; 12] = [
+    const EVERY_TONE: [Tone; 17] = [
         Tone::Heading,
         Tone::Accent,
         Tone::Value,
@@ -237,6 +254,21 @@ mod tests {
         Tone::Today,
         Tone::Good,
         Tone::Attention,
+        Tone::Sleep,
+        Tone::Feeding,
+        Tone::Diaper,
+        Tone::Pumping,
+        Tone::Milestone,
+    ];
+
+    /// The tone every kind of entry is drawn in, wherever they are listed
+    /// together.
+    const EVERY_KIND: [Tone; 5] = [
+        Tone::Sleep,
+        Tone::Feeding,
+        Tone::Diaper,
+        Tone::Pumping,
+        Tone::Milestone,
     ];
 
     #[test]
@@ -282,6 +314,38 @@ mod tests {
                 tone.ansi_index(),
                 code - 82,
                 "{tone:?} paints two different colors"
+            );
+        }
+    }
+
+    #[test]
+    fn every_kind_of_entry_has_a_colour_of_its_own() {
+        // A list of forty entries is read by shape first. Two kinds sharing a
+        // hue would undo that, which is what this notices.
+        for (position, tone) in EVERY_KIND.iter().enumerate() {
+            for other in &EVERY_KIND[position + 1..] {
+                assert_ne!(
+                    tone.ansi_index(),
+                    other.ansi_index(),
+                    "{tone:?} and {other:?} are the same colour"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_kind_is_drawn_plainly_so_the_cursor_can_be_the_bright_one() {
+        // The row under the cursor is bold white; a kind that was also bold
+        // would compete with it.
+        for tone in EVERY_KIND {
+            assert!(
+                !tone.sgr().contains("1;"),
+                "{tone:?} is bold, which belongs to the cursor"
+            );
+            assert_ne!(
+                tone.ansi_index(),
+                Tone::Today.ansi_index(),
+                "{tone:?} is the colour the cursor uses"
             );
         }
     }

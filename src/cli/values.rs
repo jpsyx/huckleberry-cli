@@ -111,9 +111,9 @@ impl Side {
     }
 }
 
-/// What was in the nappy.
+/// What was in the diaper.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub enum NappyKind {
+pub enum DiaperKind {
     /// Wet only.
     Pee,
     /// Dirty only.
@@ -124,7 +124,7 @@ pub enum NappyKind {
     Dry,
 }
 
-impl NappyKind {
+impl DiaperKind {
     /// The value Huckleberry stores.
     #[must_use]
     pub const fn to_api(self) -> DiaperMode {
@@ -336,7 +336,7 @@ pub enum LogKind {
     Sleep,
     /// Feeds of any sort.
     Feed,
-    /// Nappies and potty trips.
+    /// Diapers and potty trips.
     Diaper,
     /// Pumping sessions.
     Pump,
@@ -371,9 +371,9 @@ pub enum TrendMetric {
     NightSleep,
     /// The longest unbroken sleep per day.
     LongestSleep,
-    /// Wet nappies per day.
+    /// Wet diapers per day.
     Wet,
-    /// Dirty nappies per day.
+    /// Dirty diapers per day.
     Dirty,
     /// Minutes nursing per day.
     Nursing,
@@ -407,7 +407,7 @@ macro_rules! readable_back {
 readable_back!(BottleKind);
 readable_back!(Units);
 readable_back!(Side);
-readable_back!(NappyKind);
+readable_back!(DiaperKind);
 readable_back!(Amount);
 readable_back!(Colour);
 readable_back!(Consistency);
@@ -454,12 +454,12 @@ mod tests {
     }
 
     #[test]
-    fn every_nappy_value_maps_to_one_the_app_knows() {
+    fn every_diaper_value_maps_to_one_the_app_knows() {
         for kind in [
-            NappyKind::Pee,
-            NappyKind::Poo,
-            NappyKind::Both,
-            NappyKind::Dry,
+            DiaperKind::Pee,
+            DiaperKind::Poo,
+            DiaperKind::Both,
+            DiaperKind::Dry,
         ] {
             assert!(kind.to_api().is_known(), "{kind:?}");
         }
@@ -520,7 +520,7 @@ mod tests {
         round_trips!(BottleKind);
         round_trips!(Units);
         round_trips!(Side);
-        round_trips!(NappyKind);
+        round_trips!(DiaperKind);
         round_trips!(Amount);
         round_trips!(Colour);
         round_trips!(Consistency);

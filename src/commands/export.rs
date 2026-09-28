@@ -32,7 +32,7 @@ pub fn summary_line(dataset: &crate::domain::types::Dataset) -> String {
     let counts = [
         ("sleeps", dataset.sleep.len()),
         ("feeds", dataset.feeds.len()),
-        ("nappies", dataset.diapers.len()),
+        ("diapers", dataset.diapers.len()),
         ("pumps", dataset.pumps.len()),
         ("milestones", dataset.milestones.len()),
     ];
@@ -60,7 +60,7 @@ mod tests {
         let line = summary_line(&data);
         assert!(line.contains("1 feeds"), "{line}");
         assert!(line.contains("1 sleeps"), "{line}");
-        assert!(!line.contains("nappies"), "{line}");
+        assert!(!line.contains("diapers"), "{line}");
     }
 
     #[test]

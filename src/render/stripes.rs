@@ -1,7 +1,7 @@
 //! The 24-hour stripe chart, in text.
 //!
 //! One row per day, each row a strip of cells across midnight-to-midnight.
-//! Sleep fills a cell, a feed marks one, a nappy marks one, and the night
+//! Sleep fills a cell, a feed marks one, a diaper marks one, and the night
 //! shows as a dimmer background. At a glance it answers the question a week of
 //! numbers does not: *where* is the sleep actually landing.
 //!
@@ -28,7 +28,7 @@ pub enum Cell {
     Asleep,
     /// A feed happened in this cell.
     Feed,
-    /// A nappy happened in this cell.
+    /// A diaper happened in this cell.
     Diaper,
     /// The part of today that has not happened yet.
     Unlived,
@@ -122,7 +122,7 @@ pub fn lines(rows: &[StripeRow], theme: Theme) -> Vec<String> {
     }
     lines.push(String::new());
     lines.push(theme.muted(&format!(
-        "{}█ asleep   ▼ feed   ◦ nappy   · night",
+        "{}█ asleep   ▼ feed   ◦ diaper   · night",
         format::pad("", 12)
     )));
     lines
@@ -158,7 +158,7 @@ fn total_asleep(row: &StripeRow) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::fixtures::{AFTERNOON, bottle, dataset, nappy, sleep};
+    use crate::domain::fixtures::{AFTERNOON, bottle, dataset, diaper, sleep};
     use crate::domain::{Calendar, stripes};
 
     fn calendar() -> Calendar {
@@ -205,11 +205,11 @@ mod tests {
     }
 
     #[test]
-    fn a_nappy_marks_its_cell() {
+    fn a_diaper_marks_its_cell() {
         let calendar = calendar();
         let mut data = dataset();
         let noon = calendar.at("2025-09-21".parse().expect("a date"), 12, 0);
-        data.diapers = vec![nappy(noon, true, false)];
+        data.diapers = vec![diaper(noon, true, false)];
         assert_eq!(cells(&rows(&data, 2)[1])[CELLS / 2], Cell::Diaper);
     }
 
