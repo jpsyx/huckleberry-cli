@@ -229,6 +229,7 @@ mod tests {
         data.feeds = vec![bottle(AFTERNOON - 3600.0, 90.0)];
         data.diapers = vec![nappy(AFTERNOON - 1800.0, true, false)];
         data.pumps = vec![PumpEvent {
+            at: None,
             id: "p1".to_owned(),
             start: AFTERNOON - 900.0,
             left_ml: Some(60.0),
@@ -238,6 +239,7 @@ mod tests {
             notes: None,
         }];
         data.milestones = vec![MilestoneEvent {
+            at: None,
             id: "m1".to_owned(),
             start: AFTERNOON - 300.0,
             name: "First smile".to_owned(),
@@ -263,6 +265,7 @@ mod tests {
     fn a_bottle_with_no_amount_says_so_rather_than_saying_zero() {
         let mut data = dataset();
         data.feeds = vec![crate::domain::types::FeedEvent::Bottle {
+            at: None,
             id: "b1".to_owned(),
             start: AFTERNOON,
             amount_ml: None,

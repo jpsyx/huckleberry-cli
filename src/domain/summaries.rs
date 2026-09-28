@@ -296,6 +296,7 @@ mod tests {
 
     fn nursing(start: f64, left: f64, right: f64) -> super::super::types::FeedEvent {
         super::super::types::FeedEvent::Nursing {
+            at: None,
             id: format!("feed-{start}"),
             start,
             left_seconds: left,
@@ -320,6 +321,7 @@ mod tests {
         data.feeds = vec![
             bottle(AFTERNOON - 3600.0, 90.0),
             super::super::types::FeedEvent::Bottle {
+                at: None,
                 id: "b2".to_owned(),
                 start: AFTERNOON - 7200.0,
                 amount_ml: Some(60.0),
@@ -337,6 +339,7 @@ mod tests {
     fn a_bottle_with_no_amount_counts_as_a_feed_and_adds_no_volume() {
         let mut data = dataset();
         data.feeds = vec![super::super::types::FeedEvent::Bottle {
+            at: None,
             id: "b1".to_owned(),
             start: AFTERNOON - 3600.0,
             amount_ml: None,
@@ -362,6 +365,7 @@ mod tests {
     fn a_meal_is_counted_separately_from_milk() {
         let mut data = dataset();
         data.feeds = vec![super::super::types::FeedEvent::Solids {
+            at: None,
             id: "s1".to_owned(),
             start: AFTERNOON - 3600.0,
             foods: vec!["Avocado".to_owned()],

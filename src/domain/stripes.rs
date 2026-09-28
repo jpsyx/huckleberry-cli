@@ -250,6 +250,7 @@ mod tests {
         let calendar = calendar();
         let mut data = dataset();
         data.feeds = vec![super::super::types::FeedEvent::Bottle {
+            at: None,
             id: "b1".to_owned(),
             start: calendar.at(date("2025-09-21"), 12, 0),
             amount_ml: None,

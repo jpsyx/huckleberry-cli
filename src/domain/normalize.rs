@@ -18,6 +18,7 @@ use huckleberry_api::models::health::GrowthEntry;
 use huckleberry_api::models::milestone::Milestone;
 use huckleberry_api::models::pump::PumpInterval;
 use huckleberry_api::models::sleep::{SleepDocument, SleepInterval};
+use huckleberry_api::{Located, RowRef};
 
 use super::types::{
     Child, DiaperEvent, FeedEvent, GrowthPoint, LiveState, MilestoneEvent, PumpEvent, Size,
@@ -47,12 +48,14 @@ pub fn child(cid: &str, fallback_name: Option<&str>, profile: Option<&ChildDocum
 
 /// Sleeps, oldest first.
 #[must_use]
-pub fn sleeps(rows: &[SleepInterval]) -> Vec<SleepEvent> {
+pub fn sleeps(rows: &[Located<SleepInterval>]) -> Vec<SleepEvent> {
     let mut events: Vec<SleepEvent> = rows
         .iter()
-        .map(|row| {
+        .map(|located| {
+            let row = &located.row;
             let details = row.details.as_ref();
             SleepEvent {
+                at: Some(located.at.clone()),
                 id: row
                     .id
                     .clone()
@@ -81,12 +84,13 @@ pub fn sleeps(rows: &[SleepInterval]) -> Vec<SleepEvent> {
 
 /// Feeds, oldest first.
 #[must_use]
-pub fn feeds(rows: &[FeedInterval]) -> Vec<FeedEvent> {
+pub fn feeds(rows: &[Located<FeedInterval>]) -> Vec<FeedEvent> {
     let mut events: Vec<FeedEvent> = rows
         .iter()
         .enumerate()
-        .map(|(position, row)| match row {
+        .map(|(position, located)| match &located.row {
             FeedInterval::Bottle(bottle) => FeedEvent::Bottle {
+                at: Some(located.at.clone()),
                 id: format!("feed-{position}-{}", bottle.start.as_i64()),
                 start: bottle.start.as_f64(),
                 amount_ml: Some(bottle.millilitres()),
@@ -94,6 +98,7 @@ pub fn feeds(rows: &[FeedInterval]) -> Vec<FeedEvent> {
                 notes: bottle.notes.clone(),
             },
             FeedInterval::Breast(nursing) => FeedEvent::Nursing {
+                at: Some(located.at.clone()),
                 id: format!("feed-{position}-{}", nursing.start.as_i64()),
                 start: nursing.start.as_f64(),
                 left_seconds: nursing.left_duration.as_f64(),
@@ -102,6 +107,7 @@ pub fn feeds(rows: &[FeedInterval]) -> Vec<FeedEvent> {
                 notes: nursing.notes.clone(),
             },
             FeedInterval::Solids(meal) => FeedEvent::Solids {
+                at: Some(located.at.clone()),
                 id: format!("feed-{position}-{}", meal.start.as_i64()),
                 start: meal.start.as_f64(),
                 foods: meal
@@ -125,34 +131,38 @@ pub fn feeds(rows: &[FeedInterval]) -> Vec<FeedEvent> {
 
 /// Nappies and potty trips, oldest first.
 #[must_use]
-pub fn diapers(rows: &[DiaperEntry]) -> Vec<DiaperEvent> {
+pub fn diapers(rows: &[Located<DiaperEntry>]) -> Vec<DiaperEvent> {
     let mut events: Vec<DiaperEvent> = rows
         .iter()
         .enumerate()
-        .map(|(position, row)| DiaperEvent {
-            id: format!("diaper-{position}-{}", row.start.as_i64()),
-            start: row.start.as_f64(),
-            mode: row.mode.as_str().to_owned(),
-            wet: row.mode.is_wet(),
-            dirty: row.mode.is_dirty(),
-            pee_size: row
-                .quantity
-                .as_ref()
-                .and_then(|amounts| amounts.pee)
-                .map(size_from),
-            poo_size: row
-                .quantity
-                .as_ref()
-                .and_then(|amounts| amounts.poo)
-                .map(size_from),
-            color: row.color.as_ref().map(|shade| shade.as_str().to_owned()),
-            consistency: row
-                .consistency
-                .as_ref()
-                .map(|texture| texture.as_str().to_owned()),
-            rash: row.has_rash(),
-            potty: row.is_potty_trip(),
-            notes: row.notes.clone(),
+        .map(|(position, located)| {
+            let row = &located.row;
+            DiaperEvent {
+                at: Some(located.at.clone()),
+                id: format!("diaper-{position}-{}", row.start.as_i64()),
+                start: row.start.as_f64(),
+                mode: row.mode.as_str().to_owned(),
+                wet: row.mode.is_wet(),
+                dirty: row.mode.is_dirty(),
+                pee_size: row
+                    .quantity
+                    .as_ref()
+                    .and_then(|amounts| amounts.pee)
+                    .map(size_from),
+                poo_size: row
+                    .quantity
+                    .as_ref()
+                    .and_then(|amounts| amounts.poo)
+                    .map(size_from),
+                color: row.color.as_ref().map(|shade| shade.as_str().to_owned()),
+                consistency: row
+                    .consistency
+                    .as_ref()
+                    .map(|texture| texture.as_str().to_owned()),
+                rash: row.has_rash(),
+                potty: row.is_potty_trip(),
+                notes: row.notes.clone(),
+            }
         })
         .collect();
     events.sort_by(|left, right| order(left.start, right.start));
@@ -161,22 +171,26 @@ pub fn diapers(rows: &[DiaperEntry]) -> Vec<DiaperEvent> {
 
 /// Pumping sessions, oldest first.
 #[must_use]
-pub fn pumps(rows: &[PumpInterval]) -> Vec<PumpEvent> {
+pub fn pumps(rows: &[Located<PumpInterval>]) -> Vec<PumpEvent> {
     let mut events: Vec<PumpEvent> = rows
         .iter()
         .enumerate()
-        .map(|(position, row)| PumpEvent {
-            id: format!("pump-{position}-{}", row.start.as_i64()),
-            start: row.start.as_f64(),
-            left_ml: row
-                .left_amount
-                .map(|amount| row.units.to_millilitres(amount.as_f64())),
-            right_ml: row
-                .right_amount
-                .map(|amount| row.units.to_millilitres(amount.as_f64())),
-            total_ml: row.total_millilitres(),
-            duration_seconds: row.duration.map(Number::as_f64),
-            notes: row.notes.clone(),
+        .map(|(position, located)| {
+            let row = &located.row;
+            PumpEvent {
+                at: Some(located.at.clone()),
+                id: format!("pump-{position}-{}", row.start.as_i64()),
+                start: row.start.as_f64(),
+                left_ml: row
+                    .left_amount
+                    .map(|amount| row.units.to_millilitres(amount.as_f64())),
+                right_ml: row
+                    .right_amount
+                    .map(|amount| row.units.to_millilitres(amount.as_f64())),
+                total_ml: row.total_millilitres(),
+                duration_seconds: row.duration.map(Number::as_f64),
+                notes: row.notes.clone(),
+            }
         })
         .collect();
     events.sort_by(|left, right| order(left.start, right.start));
@@ -190,6 +204,9 @@ pub fn milestones(rows: &[Milestone]) -> Vec<MilestoneEvent> {
         .iter()
         .enumerate()
         .map(|(position, row)| MilestoneEvent {
+            // The milestones collection is read whole rather than windowed,
+            // and nothing edits a milestone, so there is no reference to keep.
+            at: None,
             id: row
                 .milestone_id
                 .clone()
@@ -270,6 +287,15 @@ fn order(left: f64, right: f64) -> core::cmp::Ordering {
         .unwrap_or(core::cmp::Ordering::Equal)
 }
 
+/// Rows as a read hands them over: each at a place of its own.
+#[cfg(test)]
+fn located<T>(rows: Vec<T>) -> Vec<Located<T>> {
+    rows.into_iter()
+        .enumerate()
+        .map(|(position, row)| Located::new(RowRef::loose("test", &format!("row-{position}")), row))
+        .collect()
+}
+
 #[cfg(test)]
 mod children {
     use super::*;
@@ -320,7 +346,7 @@ mod rows {
             "amount": 3, "units": "oz", "offset": 0,
         }]))
         .expect("a feed row");
-        let normalized = feeds(&rows);
+        let normalized = feeds(&located(rows));
         let millilitres = normalized[0].millilitres().expect("an amount");
         assert!((millilitres - 88.72).abs() < 0.01, "{millilitres}");
     }
@@ -332,7 +358,7 @@ mod rows {
             { "mode": "bottle", "start": 100, "bottleType": "Formula", "amount": 1, "units": "ml", "offset": 0 },
         ]))
         .expect("feed rows");
-        let normalized = feeds(&rows);
+        let normalized = feeds(&located(rows));
         assert!((normalized[0].start() - 100.0).abs() < f64::EPSILON);
     }
 
@@ -341,7 +367,7 @@ mod rows {
         let rows: Vec<DiaperEntry> =
             serde_json::from_value(json!([{ "mode": "both", "start": 1, "offset": 0 }]))
                 .expect("a nappy row");
-        let normalized = diapers(&rows);
+        let normalized = diapers(&located(rows));
         assert!(normalized[0].wet && normalized[0].dirty);
     }
 
@@ -352,7 +378,7 @@ mod rows {
             "quantity": { "pee": 0.0, "poo": 100.0 },
         }]))
         .expect("a nappy row");
-        let normalized = diapers(&rows);
+        let normalized = diapers(&located(rows));
         assert_eq!(normalized[0].pee_size, Some(Size::Small));
         assert_eq!(normalized[0].poo_size, Some(Size::Large));
     }
@@ -364,7 +390,7 @@ mod rows {
             "details": { "sleepLocations": { "onOwnInBed": true, "car": false } },
         }]))
         .expect("a sleep row");
-        assert_eq!(sleeps(&rows)[0].locations, vec!["onOwnInBed"]);
+        assert_eq!(sleeps(&located(rows))[0].locations, vec!["onOwnInBed"]);
     }
 
     #[test]
@@ -373,7 +399,7 @@ mod rows {
             "start": 1, "entryMode": "leftright", "units": "ml", "offset": 0, "duration": 900,
         }]))
         .expect("a pump row");
-        let normalized = pumps(&rows);
+        let normalized = pumps(&located(rows));
         assert_eq!(normalized[0].total_ml, None);
         assert_eq!(normalized[0].duration_seconds, Some(900.0));
     }
@@ -388,7 +414,7 @@ mod rows {
         .expect("a solids row");
         let FeedEvent::Solids {
             foods, reaction, ..
-        } = &feeds(&rows)[0]
+        } = &feeds(&located(rows))[0]
         else {
             panic!("expected a meal");
         };

@@ -40,6 +40,7 @@ pub fn dataset() -> Dataset {
 
 pub fn sleep(start: f64, duration: f64) -> SleepEvent {
     SleepEvent {
+        at: None,
         id: format!("sleep-{start}"),
         start,
         duration,
@@ -52,6 +53,7 @@ pub fn sleep(start: f64, duration: f64) -> SleepEvent {
 
 pub fn bottle(start: f64, amount: f64) -> FeedEvent {
     FeedEvent::Bottle {
+        at: None,
         id: format!("feed-{start}"),
         start,
         amount_ml: Some(amount),
@@ -62,6 +64,7 @@ pub fn bottle(start: f64, amount: f64) -> FeedEvent {
 
 pub fn nappy(start: f64, wet: bool, dirty: bool) -> DiaperEvent {
     DiaperEvent {
+        at: None,
         id: format!("diaper-{start}"),
         start,
         mode: "both".to_owned(),

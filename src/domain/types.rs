@@ -11,6 +11,7 @@
 //! Nothing in `domain` reads the clock. Every function takes `now`, which is
 //! what makes the day-boundary and timezone cases testable.
 
+use huckleberry_api::RowRef;
 use serde::{Deserialize, Serialize};
 
 /// A Unix timestamp in seconds.
@@ -19,6 +20,10 @@ pub type Seconds = f64;
 /// One sleep.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SleepEvent {
+    /// Where the row lives in Huckleberry, when it came from there rather
+    /// than from a snapshot written before this tool could say.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at: Option<RowRef>,
     /// A stable identifier for this row.
     pub id: String,
     /// When it started.
@@ -49,6 +54,9 @@ impl SleepEvent {
 pub enum FeedEvent {
     /// A bottle.
     Bottle {
+        /// Where the row lives in Huckleberry, when it came from there.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        at: Option<RowRef>,
         /// A stable identifier for this row.
         id: String,
         /// When it was given.
@@ -63,6 +71,9 @@ pub enum FeedEvent {
     },
     /// A nursing session.
     Nursing {
+        /// Where the row lives in Huckleberry, when it came from there.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        at: Option<RowRef>,
         /// A stable identifier for this row.
         id: String,
         /// When it started.
@@ -78,6 +89,9 @@ pub enum FeedEvent {
     },
     /// A meal.
     Solids {
+        /// Where the row lives in Huckleberry, when it came from there.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        at: Option<RowRef>,
         /// A stable identifier for this row.
         id: String,
         /// When it was.
@@ -99,6 +113,16 @@ impl FeedEvent {
             Self::Bottle { start, .. }
             | Self::Nursing { start, .. }
             | Self::Solids { start, .. } => *start,
+        }
+    }
+
+    /// Where the row lives in Huckleberry, when it came from there.
+    #[must_use]
+    pub const fn at(&self) -> Option<&RowRef> {
+        match self {
+            Self::Bottle { at, .. } | Self::Nursing { at, .. } | Self::Solids { at, .. } => {
+                at.as_ref()
+            }
         }
     }
 
@@ -164,6 +188,10 @@ pub enum Size {
 /// One nappy, or one potty trip.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DiaperEvent {
+    /// Where the row lives in Huckleberry, when it came from there rather
+    /// than from a snapshot written before this tool could say.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at: Option<RowRef>,
     /// A stable identifier for this row.
     pub id: String,
     /// When it was.
@@ -193,6 +221,10 @@ pub struct DiaperEvent {
 /// One pumping session.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PumpEvent {
+    /// Where the row lives in Huckleberry, when it came from there rather
+    /// than from a snapshot written before this tool could say.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at: Option<RowRef>,
     /// A stable identifier for this row.
     pub id: String,
     /// When it was.
@@ -212,6 +244,10 @@ pub struct PumpEvent {
 /// One milestone.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MilestoneEvent {
+    /// Where the row lives in Huckleberry, when it came from there rather
+    /// than from a snapshot written before this tool could say.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at: Option<RowRef>,
     /// A stable identifier for this row.
     pub id: String,
     /// When it happened.
@@ -373,6 +409,7 @@ mod tests {
 
     fn bottle(amount: Option<f64>) -> FeedEvent {
         FeedEvent::Bottle {
+            at: None,
             id: "b1".to_owned(),
             start: 100.0,
             amount_ml: amount,
@@ -390,6 +427,7 @@ mod tests {
     #[test]
     fn a_nursing_session_adds_its_two_sides() {
         let nursing = FeedEvent::Nursing {
+            at: None,
             id: "n1".to_owned(),
             start: 100.0,
             left_seconds: 300.0,
@@ -404,6 +442,7 @@ mod tests {
     #[test]
     fn solids_are_a_feed_but_not_a_milk_feed() {
         let meal = FeedEvent::Solids {
+            at: None,
             id: "s1".to_owned(),
             start: 100.0,
             foods: vec!["Avocado".to_owned()],
@@ -417,6 +456,7 @@ mod tests {
     #[test]
     fn a_sleep_knows_when_it_ended() {
         let sleep = SleepEvent {
+            at: None,
             id: "s".to_owned(),
             start: 1_000.0,
             duration: 3_600.0,
@@ -444,6 +484,7 @@ mod tests {
             growth: None,
             sleep: vec![
                 SleepEvent {
+                    at: None,
                     id: "late-start".to_owned(),
                     start: 500.0,
                     duration: 10.0,
@@ -453,6 +494,7 @@ mod tests {
                     notes: None,
                 },
                 SleepEvent {
+                    at: None,
                     id: "early-start-later-end".to_owned(),
                     start: 100.0,
                     duration: 1_000.0,
@@ -467,6 +509,7 @@ mod tests {
             feeds: vec![
                 bottle(Some(90.0)),
                 FeedEvent::Bottle {
+                    at: None,
                     id: "older".to_owned(),
                     start: 1.0,
                     amount_ml: Some(10.0),
