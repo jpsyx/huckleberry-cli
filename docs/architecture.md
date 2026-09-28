@@ -238,3 +238,6 @@ Each `mod.rs` is glue and re-exports. `src/commands/feed.rs` sits just over the
 line at around 400 and is deliberately left whole: it is one command's tree
 together with the prompts that fill it in, and splitting it would separate a
 question from the thing it asks about.
+
+The shared prompt selection model in `prompt/select` interprets arrow and
+J/K/H/P navigation without terminal I/O, with bounded cursor and scroll state.

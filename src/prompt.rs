@@ -12,6 +12,7 @@
 //! flag instead of hanging on input that will never arrive. See
 //! `docs/rules/cli-ux.md`.
 
+pub mod select;
 pub mod time;
 
 use std::io::{IsTerminal, Write};

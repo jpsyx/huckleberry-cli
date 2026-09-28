@@ -1,6 +1,6 @@
 # One-handed interactive CLI
 
-Status: written specification for review. The conversational design is approved;
+Status: approved written specification. The conversational design is approved;
 this document incorporates Edit above Visualizations and a visible Delete entry.
 
 ## Purpose and scope
@@ -51,14 +51,13 @@ available where useful, but selecting an existing item never requires search.
 | --- | --- |
 | Down, J/j | Move down |
 | Up, K/k | Move up |
-| H/h | Move down (proposed extra binding) |
-| P/p | Move up (proposed extra binding) |
+| H/h | Move down |
+| P/p | Move up |
 | Enter | Select highlighted item |
 | Esc | Back out of a menu, or cancel the current operation |
 | Ctrl-C | Cancel the current operation; exit at the home menu |
 
-H down and P up is an explicit design assumption because the requested H/P
-pair did not assign directions. It can be changed during specification review.
+H down and P up is the mapping accepted with this specification.
 While a text field or search has focus, letters are text. Arrow navigation still
 works in searchable lists; Esc first leaves search. Existing paging shortcuts
 remain available. On the dashboard, H/P navigate rows when a list has focus;
