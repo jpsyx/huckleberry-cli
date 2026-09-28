@@ -45,10 +45,40 @@ pub use sleep::{
 pub use solids::{CuratedFood, CustomFood, FoodReference, SolidsFoodEntry, SolidsReaction};
 pub use user::{UserChildRef, UserDocument};
 
-use serde::Serialize;
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{Map, Value as Json};
 
 use crate::error::{Error, Result};
+
+/// Reads an optional field, and gives up on it rather than on the document.
+///
+/// Every optional field in every model here goes through this. The rule it
+/// enforces is worth stating plainly: **a required field must be right, and an
+/// optional field this crate cannot read becomes absent rather than fatal.**
+///
+/// The schema is Huckleberry's, not ours. It has fields this crate has never
+/// seen, fields it has typed wrongly, and fields whose type will change
+/// without warning. Without this, any one of those costs the caller the whole
+/// document: a subscription expiry stored as a number where this crate
+/// expected text is not a reason to be unable to read your own account, and
+/// that is exactly what it was before.
+///
+/// Required fields are deliberately left strict. A sleep with no `start` is
+/// not a sleep, and silently keeping it would be worse than dropping it.
+///
+/// # Errors
+///
+/// Only when the underlying format is malformed. A value of the wrong *type*
+/// is not an error here; it is a `None`.
+pub fn lenient<'de, D, T>(deserializer: D) -> std::result::Result<Option<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: DeserializeOwned,
+{
+    let value = Json::deserialize(deserializer)?;
+    Ok(serde_json::from_value(value).ok())
+}
 
 /// Turns a model into the Firestore document body that writes it.
 ///

@@ -20,23 +20,33 @@ pub struct FeedTimer {
     /// Whether it is paused.
     pub paused: bool,
     /// When the document last changed.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub timestamp: Option<Timestamp>,
     /// The same moment, as a bare number.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub local_timestamp: Option<Number>,
     /// When the whole feed started, in seconds.
     #[serde(
         rename = "feedStartTime",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub feed_start_time: Option<Number>,
     /// When the current side started, in seconds. Resets on switch and resume.
     #[serde(
         rename = "timerStartTime",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub timer_start_time: Option<Number>,
     /// This session's identifier.
@@ -45,24 +55,32 @@ pub struct FeedTimer {
     #[serde(
         rename = "leftDuration",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub left_duration: Option<Number>,
     /// Seconds banked on the right so far.
     #[serde(
         rename = "rightDuration",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub right_duration: Option<Number>,
     /// The side last fed on, or `none` mid-transition.
-    #[serde(rename = "lastSide", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "lastSide",
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub last_side: Option<FeedSide>,
     /// The side being fed on now.
     #[serde(
         rename = "activeSide",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub active_side: Option<FeedSide>,
 }
@@ -123,10 +141,18 @@ impl FeedTimer {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct FeedDocument {
     /// The nursing session in progress, if there is one.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub timer: Option<FeedTimer>,
     /// The last feed of each kind, and the tracker's settings.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub prefs: Option<FeedPrefs>,
 }
 

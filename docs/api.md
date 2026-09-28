@@ -64,13 +64,32 @@ interval and costs one read per interval per watcher. For a dashboard
 refreshing every few seconds that trade is fine, and it is the only one
 available without a gRPC stack.
 
-### 2. An unknown enum value is carried, not rejected
+### 2. A field this crate cannot read becomes absent, not fatal
 
-The Python models use `Literal[...]`, which is strict: a poo colour Huckleberry
-adds next year makes the whole read fail validation. Here every such type has
-an `Unknown(String)` variant, so an unfamiliar value round-trips unchanged and
-one odd row cannot cost a caller a month of history. `FromStr` is the strict
-door, and it is the one a command-line argument comes through.
+The rule, in one line: **a required field must be right, and an optional field
+this crate cannot read becomes absent rather than fatal.**
+
+Two mechanisms enforce it.
+
+*Unknown enum values are carried.* The Python models use `Literal[...]`, which
+is strict: a poo colour Huckleberry adds next year makes the whole read fail
+validation. Here every such type has an `Unknown(String)` variant, so an
+unfamiliar value round-trips unchanged. `FromStr` is the strict door, and it is
+the one a command-line argument comes through.
+
+*Optional fields of a surprising type degrade to `None`.* Every `Option<T>`
+field on every model deserializes through `models::lenient`, which tries the
+type and gives up on the field rather than on the document.
+
+This is not defensive programming for its own sake. The schema is
+Huckleberry's, and this crate shipped with `subscription.free_trial_expiration`
+typed as text where the app stores a timestamp. The consequence, before this
+rule existed, was that an account with a trial on it could not be read at all:
+one field nothing in this crate looks at, and `user()` returned
+`invalid type: integer 1789657330, expected a string`.
+
+Required fields stay strict on purpose. A sleep with no `start` is not a sleep,
+and keeping it would be worse than dropping it.
 
 ### 3. Failures travel rather than being logged
 

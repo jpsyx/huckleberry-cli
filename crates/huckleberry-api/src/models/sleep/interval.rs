@@ -13,13 +13,25 @@ use crate::models::common::{MultiContainer, Number, Timestamp};
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct LastSleep {
     /// When it started, in seconds.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub start: Option<Number>,
     /// How long it lasted, in seconds.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub duration: Option<Number>,
     /// The timezone offset in force, in minutes.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub offset: Option<Number>,
 }
 
@@ -27,26 +39,41 @@ pub struct LastSleep {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct SleepPrefs {
     /// The last completed sleep.
-    #[serde(rename = "lastSleep", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "lastSleep",
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub last_sleep: Option<LastSleep>,
     /// When the preferences last changed.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub timestamp: Option<Timestamp>,
     /// The same moment, as a bare number.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub local_timestamp: Option<Number>,
     /// Which nap prediction the app shows.
     #[serde(
         rename = "sweetSpotWhich",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub sweet_spot_which: Option<Number>,
     /// Whether the app notifies about the prediction.
     #[serde(
         rename = "sweetSpotNotify",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub sweet_spot_notify: Option<Number>,
 }
@@ -55,10 +82,18 @@ pub struct SleepPrefs {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct SleepDocument {
     /// The sleep in progress, if there is one.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub timer: Option<SleepTimer>,
     /// The last completed sleep and the tracker's settings.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub prefs: Option<SleepPrefs>,
 }
 
@@ -74,7 +109,12 @@ impl SleepDocument {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SleepInterval {
     /// The row's own identifier, when it carries one.
-    #[serde(rename = "_id", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "_id",
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub id: Option<String>,
     /// When the sleep started, in seconds.
     pub start: Number,
@@ -84,16 +124,25 @@ pub struct SleepInterval {
     pub offset: Number,
     /// The timezone offset at the end, in minutes. Differs from `offset`
     /// across a DST change, which a sleep is quite capable of spanning.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub end_offset: Option<Number>,
     /// What was recorded about the sleep.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub details: Option<SleepDetails>,
     /// When the row last changed.
     #[serde(
         rename = "lastUpdated",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub last_updated: Option<Number>,
 }

@@ -15,27 +15,41 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct SleepCondition {
     /// Settled happily.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub happy: Option<bool>,
     /// Took a long time to fall asleep.
     #[serde(
         rename = "longTimeToFallAsleep",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub long_time_to_fall_asleep: Option<bool>,
     /// Was upset.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub upset: Option<bool>,
     /// The sleep ended because somebody woke the baby.
     #[serde(
         rename = "wokeUpChild",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub woke_up_child: Option<bool>,
     /// Settled in under ten minutes.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub under_10_minutes: Option<bool>,
     /// Settled in ten to twenty minutes. The key on the wire is
     /// `10-20_minutes`, which is not a Rust identifier and is not a bare
@@ -43,7 +57,8 @@ pub struct SleepCondition {
     #[serde(
         rename = "10-20_minutes",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub ten_to_twenty_minutes: Option<bool>,
 }
@@ -98,43 +113,71 @@ impl SleepCondition {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct SleepLocations {
     /// In the car.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub car: Option<bool>,
     /// While nursing.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub nursing: Option<bool>,
     /// Worn or held.
     #[serde(
         rename = "wornOrHeld",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub worn_or_held: Option<bool>,
     /// In the stroller.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub stroller: Option<bool>,
     /// Co-sleeping.
-    #[serde(rename = "coSleep", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "coSleep",
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub co_sleep: Option<bool>,
     /// Next to a carer.
     #[serde(
         rename = "nextToCarer",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub next_to_carer: Option<bool>,
     /// On their own, in bed.
     #[serde(
         rename = "onOwnInBed",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub on_own_in_bed: Option<bool>,
     /// With a bottle.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub bottle: Option<bool>,
     /// In the swing.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub swing: Option<bool>,
 }
 
@@ -219,25 +262,32 @@ pub struct SleepDetails {
     #[serde(
         rename = "startSleepCondition",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub start_sleep_condition: Option<SleepCondition>,
     /// Where the baby slept.
     #[serde(
         rename = "sleepLocations",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub sleep_locations: Option<SleepLocations>,
     /// How the baby woke.
     #[serde(
         rename = "endSleepCondition",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub end_sleep_condition: Option<SleepCondition>,
     /// Whatever the parent typed.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub notes: Option<String>,
 }
 

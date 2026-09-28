@@ -81,10 +81,20 @@ impl MeasurementSystem {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GrowthEntry {
     /// The row's own identifier.
-    #[serde(rename = "_id", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "_id",
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub id: Option<String>,
     /// Always `health`.
-    #[serde(rename = "type", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "type",
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub kind: Option<String>,
     /// When it was taken, in seconds.
     pub start: Number,
@@ -94,36 +104,64 @@ pub struct GrowthEntry {
     /// The timezone offset, in minutes.
     pub offset: Number,
     /// Whether the app filed it as an overnight entry.
-    #[serde(rename = "isNight", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "isNight",
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub is_night: Option<bool>,
     /// The batch this row came out of.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub multientry_key: Option<String>,
     /// Weight.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub weight: Option<Number>,
     /// In what units.
     #[serde(
         rename = "weightUnits",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub weight_units: Option<WeightUnits>,
     /// Length.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub height: Option<Number>,
     /// In what units.
     #[serde(
         rename = "heightUnits",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub height_units: Option<HeightUnits>,
     /// Head circumference.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub head: Option<Number>,
     /// In what units.
-    #[serde(rename = "headUnits", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "headUnits",
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub head_units: Option<HeadUnits>,
 }
 
@@ -150,7 +188,12 @@ impl GrowthEntry {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MedicationEntry {
     /// Always `health`.
-    #[serde(rename = "type", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "type",
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub kind: Option<String>,
     /// When it was given, in seconds.
     pub start: Number,
@@ -160,22 +203,46 @@ pub struct MedicationEntry {
     /// The timezone offset, in minutes.
     pub offset: Number,
     /// Which medication, by id.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub medication_id: Option<String>,
     /// Which medication, by name.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub medication_name: Option<String>,
     /// How much.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub amount: Option<Number>,
     /// In what units.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub units: Option<MedicationUnits>,
     /// Whatever the parent typed.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub notes: Option<String>,
     /// The batch this row came out of.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub multientry_key: Option<String>,
 }
 
@@ -183,7 +250,12 @@ pub struct MedicationEntry {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TemperatureEntry {
     /// Always `health`.
-    #[serde(rename = "type", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "type",
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub kind: Option<String>,
     /// When it was taken, in seconds.
     pub start: Number,
@@ -193,13 +265,25 @@ pub struct TemperatureEntry {
     /// The timezone offset, in minutes.
     pub offset: Number,
     /// The reading.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub amount: Option<Number>,
     /// Which scale.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub units: Option<TemperatureUnits>,
     /// The batch this row came out of.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub multientry_key: Option<String>,
 }
 
@@ -235,35 +319,47 @@ pub struct HealthPrefs {
     #[serde(
         rename = "lastGrowthEntry",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub last_growth_entry: Option<GrowthEntry>,
     /// The last dose.
     #[serde(
         rename = "lastMedication",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub last_medication: Option<MedicationEntry>,
     /// The last temperature.
     #[serde(
         rename = "lastTemperature",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub last_temperature: Option<TemperatureEntry>,
     /// The medication reminder.
     #[serde(
         rename = "reminderV2",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub reminder: Option<ReminderV2>,
     /// When the preferences last changed.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub timestamp: Option<Timestamp>,
     /// The same moment, as a bare number.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub local_timestamp: Option<Number>,
 }
 
@@ -271,7 +367,11 @@ pub struct HealthPrefs {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct HealthDocument {
     /// The last entry of each kind, and the tracker's settings.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub prefs: Option<HealthPrefs>,
 }
 

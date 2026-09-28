@@ -23,18 +23,24 @@ pub struct ChildSweetspot {
     #[serde(
         rename = "selectedNapDay",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub selected_nap_day: Option<Number>,
     /// The predicted times, keyed by the app's own labels.
     #[serde(
         rename = "sweetSpotTimes",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub sweet_spot_times: Option<BTreeMap<String, Number>>,
     /// The prediction's identifier.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub uuid: Option<String>,
 }
 
@@ -46,29 +52,52 @@ pub struct ChildDocument {
     #[serde(
         rename = "childsName",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub childs_name: Option<String>,
     /// Date of birth, as text (`2025-09-01`) or as an epoch.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub birthdate: Option<TextOrNumber>,
     /// When the profile was made.
-    #[serde(rename = "createdAt", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "createdAt",
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub created_at: Option<Number>,
     /// The gender on the profile.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub gender: Option<Gender>,
     /// A Firebase Storage filename.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub picture: Option<String>,
     /// The colour the app paints this child in.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub color: Option<String>,
     /// When the night begins, as an hour. See [`Self::night_start_hour`].
     #[serde(
         rename = "nightStart",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub night_start: Option<TextOrNumber>,
     /// When the morning begins, as an hour on a 24-hour clock: `6.75` is
@@ -76,62 +105,85 @@ pub struct ChildDocument {
     #[serde(
         rename = "morningCutoff",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub morning_cutoff: Option<TextOrNumber>,
     /// How many naps a day the app expects.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub naps: Option<String>,
     /// The nap prediction.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub sweetspot: Option<ChildSweetspot>,
     /// Whether the child was premature, in weeks.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub pre: Option<Number>,
     /// How many single-entry interval documents exist.
     #[serde(
         rename = "singleIntervalCount",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub single_interval_count: Option<Number>,
     /// When insights were last requested.
     #[serde(
         rename = "lastInsightRequest",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub last_insight_request: Option<Number>,
     /// Which trackers are switched on. A tracker that is off here is one the
     /// account will be refused when it reads.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub categories: Option<BTreeMap<String, bool>>,
     /// Which insights have been dismissed.
     #[serde(
         rename = "disabledInsights",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub disabled_insights: Option<BTreeMap<String, bool>>,
     /// How far through the onboarding questionnaire the account is.
     #[serde(
         rename = "questionnaireProgress",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub questionnaire_progress: Option<Number>,
     /// Which app version last completed the questionnaire.
     #[serde(
         rename = "lastQuestionnaireAppVersion",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub last_questionnaire_app_version: Option<String>,
     /// When the questionnaire was last completed.
     #[serde(
         rename = "lastQuestionnaireCompleteTime",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub last_questionnaire_complete_time: Option<Number>,
 }

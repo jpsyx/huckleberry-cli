@@ -37,7 +37,11 @@ pub struct SolidsFoodEntry {
     /// Which database it came from.
     pub source: SolidsFoodSource,
     /// How much, in whatever the app let the parent say.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub amount: Option<TextOrNumber>,
 }
 
@@ -115,28 +119,60 @@ pub struct CuratedFood {
     /// Always `curated`.
     pub source: SolidsFoodSource,
     /// Other names it goes by.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub aka: Option<Vec<String>>,
     /// Whether it is one of the common allergens.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub is_common_allergen: Option<bool>,
     /// Whether it is a choking risk.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub is_high_choking_hazard: Option<bool>,
     /// The age in months the app suggests starting at.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub recommended_age_to_start: Option<Number>,
     /// Which food groups it belongs to.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub category: Option<BTreeMap<String, bool>>,
     /// The key the app uses to link to more about it.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub link_key: Option<String>,
     /// Where it sorts in the app's own list. Lower is earlier.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub rank: Option<Number>,
     /// A Firebase Storage filename.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub image: Option<String>,
 }
 
@@ -158,7 +194,11 @@ pub fn sort_curated(foods: &mut [CuratedFood]) {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct AvailableTypes {
     /// Whether solids is switched on.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub solids: Option<bool>,
 }
 
@@ -166,7 +206,11 @@ pub struct AvailableTypes {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct TypesDocument {
     /// The trackers this child has.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub available_types: Option<AvailableTypes>,
 }
 

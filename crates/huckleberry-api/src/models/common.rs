@@ -69,7 +69,11 @@ pub struct Timestamp {
     /// Seconds since the Unix epoch.
     pub seconds: Number,
     /// The sub-second part, when the app bothered to write one.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub nanos: Option<i64>,
 }
 
@@ -140,14 +144,16 @@ pub struct MultiContainer<T> {
     #[serde(
         rename = "hasMoreRoom",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub has_more_room: Option<bool>,
     /// When the batch last changed.
     #[serde(
         rename = "lastUpdated",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub last_updated: Option<Number>,
     /// The rows, keyed by their own identifiers.
@@ -216,18 +222,24 @@ pub struct ReminderV2 {
     #[serde(
         rename = "atReminder",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub at_reminder: Option<std::collections::BTreeMap<String, AtReminderEntry>>,
     /// An interval since the last event.
     #[serde(
         rename = "inReminder",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub in_reminder: Option<ReminderIn>,
     /// Which of the two is in use.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub mode: Option<ReminderMode>,
 }
 

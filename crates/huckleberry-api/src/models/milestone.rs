@@ -15,47 +15,67 @@ pub struct Milestone {
     /// When it happened, in seconds.
     pub start: Number,
     /// What it was.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub name: Option<String>,
     /// The milestone's own identifier in Huckleberry's catalogue.
     #[serde(
         rename = "milestoneId",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub milestone_id: Option<String>,
     /// Which group of milestones it belongs to.
     #[serde(
         rename = "milestoneCategory",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub category: Option<String>,
     /// Where the milestone came from: the catalogue, or the parent.
     #[serde(
         rename = "milestoneSource",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub source: Option<String>,
     /// The age range the catalogue expects it in.
     #[serde(
         rename = "milestoneAgeRange",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub age_range: Option<String>,
     /// Whatever the parent typed.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub notes: Option<String>,
     /// A Firebase Storage filename.
     ///
     /// Downloading it needs an access token the document does not carry, so
     /// this is a record that a photo exists rather than a way to fetch it.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub photo: Option<String>,
     /// The timezone offset, in minutes.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub offset: Option<Number>,
 }
 

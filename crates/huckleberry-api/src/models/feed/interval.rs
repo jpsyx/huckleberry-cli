@@ -24,7 +24,8 @@ pub struct BreastFeedInterval {
     #[serde(
         rename = "lastUpdated",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub last_updated: Option<Number>,
     /// Seconds on the left.
@@ -36,10 +37,18 @@ pub struct BreastFeedInterval {
     /// The timezone offset at the start, in minutes.
     pub offset: Number,
     /// The timezone offset at the end, in minutes.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub end_offset: Option<Number>,
     /// Whatever the parent typed.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub notes: Option<String>,
 }
 
@@ -60,7 +69,8 @@ pub struct BottleFeedInterval {
     #[serde(
         rename = "lastUpdated",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub last_updated: Option<Number>,
     /// What was in it.
@@ -73,10 +83,18 @@ pub struct BottleFeedInterval {
     /// The timezone offset at the start, in minutes.
     pub offset: Number,
     /// The timezone offset at the end, in minutes.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub end_offset: Option<Number>,
     /// Whatever the parent typed.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub notes: Option<String>,
 }
 
@@ -97,32 +115,54 @@ pub struct SolidsFeedInterval {
     #[serde(
         rename = "lastUpdated",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub last_updated: Option<Number>,
     /// The timezone offset, in minutes.
     pub offset: Number,
     /// What was eaten, keyed by food id.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub foods: Option<BTreeMap<String, SolidsFoodEntry>>,
     /// How it went.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub reactions: Option<BTreeMap<String, bool>>,
     /// Whatever the parent typed.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub notes: Option<String>,
     /// A Firebase Storage filename for a photo of the meal.
     #[serde(
         rename = "foodNoteImage",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub food_note_image: Option<String>,
     /// The batch this row came out of, when it came out of one.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub multientry_key: Option<String>,
     /// The timezone offset at the end, in minutes.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub end_offset: Option<Number>,
 }
 

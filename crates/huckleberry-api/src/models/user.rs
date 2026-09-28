@@ -16,13 +16,25 @@ pub struct UserChildRef {
     pub cid: String,
     /// What the account calls this child. The profile's `childsName` wins
     /// when there is one.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub nickname: Option<String>,
     /// A Firebase Storage filename.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub picture: Option<String>,
     /// The colour the app paints this child in.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub color: Option<String>,
 }
 
@@ -38,81 +50,151 @@ pub struct HbChildRef {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct UserSubscription {
     /// Which plan.
-    #[serde(rename = "type", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "type",
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub kind: Option<Number>,
     /// The trial entitlement identifier.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub free_trial_entitlement: Option<String>,
     /// The trial plan identifier.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub free_trial_plan: Option<String>,
     /// Whether the app has shown the trial-expired dialog.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub trial_expired_modal: Option<bool>,
     /// When the trial started.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub free_trial_time: Option<Number>,
     /// When the subscription lapses.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub expiration: Option<Number>,
     /// When the trial lapses.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub free_trial_expiration: Option<String>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
+    pub free_trial_expiration: Option<Number>,
 }
 
 /// `users/{uid}`.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct UserDocument {
     /// The account's email address.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub email: Option<String>,
     /// Given name.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub firstname: Option<String>,
     /// Family name.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub lastname: Option<String>,
     /// Every child on the account. This is the list `child list` prints.
     #[serde(rename = "childList", default)]
     pub child_list: Vec<UserChildRef>,
     /// The child the app last had open.
-    #[serde(rename = "lastChild", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "lastChild",
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub last_child: Option<String>,
     /// When the child list last changed.
     #[serde(
         rename = "childrenUpdatedAt",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub children_updated_at: Option<Number>,
     /// Children keyed by id, with when each was added.
-    #[serde(rename = "hbChilds", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "hbChilds",
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub hb_childs: Option<BTreeMap<String, HbChildRef>>,
     /// Whether onboarding finished.
     #[serde(
         rename = "isOnboardingCompleted",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub is_onboarding_completed: Option<bool>,
     /// The timezone the app last reported.
     #[serde(
         rename = "latestTimezone",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub latest_timezone: Option<String>,
     /// Which platform the account signed up on.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub onboarding_platform: Option<String>,
     /// The subscription, when there is one.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub subscription: Option<UserSubscription>,
     /// Push tokens, keyed by device.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub tokens: Option<BTreeMap<String, String>>,
     /// Which tooltips have been dismissed.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub tooltips: Option<BTreeMap<String, bool>>,
     /// Fields the app writes in more than one shape, kept untyped rather than
     /// modelled: `appsFlyerId` is a string or a list of them, `installedApps`
@@ -120,14 +202,16 @@ pub struct UserDocument {
     #[serde(
         rename = "appsFlyerId",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub apps_flyer_id: Option<serde_json::Value>,
     /// See [`Self::apps_flyer_id`].
     #[serde(
         rename = "installedApps",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub installed_apps: Option<serde_json::Value>,
 }
@@ -200,6 +284,41 @@ mod tests {
             ..UserDocument::default()
         };
         assert_eq!(user.full_name(), "Ada");
+    }
+
+    #[test]
+    fn a_subscription_expiry_is_a_timestamp_and_not_text() {
+        let user: UserDocument = serde_json::from_value(json!({
+            "childList": [{ "cid": "child-one" }],
+            "subscription": { "free_trial_expiration": 1_789_657_330_i64 },
+        }))
+        .expect("an account with a trial on it");
+        assert_eq!(
+            user.subscription
+                .and_then(|plan| plan.free_trial_expiration)
+                .map(Number::as_i64),
+            Some(1_789_657_330)
+        );
+    }
+
+    #[test]
+    fn a_field_of_a_surprising_type_does_not_cost_the_whole_account() {
+        // Huckleberry's schema is not ours, and a field this crate reads
+        // wrongly must not be the difference between seeing the account and
+        // seeing nothing.
+        let user: UserDocument = serde_json::from_value(json!({
+            "firstname": "Ada",
+            "childList": [{ "cid": "child-one" }],
+            "latestTimezone": 12_345,
+            "isOnboardingCompleted": "yes",
+            "hbChilds": { "child-one": { "addedAt": 1_789_657_330_i64 } },
+        }))
+        .expect("an account with three surprises on it");
+        assert_eq!(user.first_child().expect("a child").cid, "child-one");
+        assert_eq!(user.firstname.as_deref(), Some("Ada"));
+        assert_eq!(user.latest_timezone, None, "unreadable, so absent");
+        assert_eq!(user.is_onboarding_completed, None);
+        assert_eq!(user.hb_childs, None);
     }
 
     #[test]

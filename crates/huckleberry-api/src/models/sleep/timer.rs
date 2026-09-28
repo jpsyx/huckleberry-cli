@@ -13,28 +13,60 @@ use crate::models::common::{Number, Timestamp};
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct SleepSwsDataShown {
     /// Which nap the first prediction was for.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub nap_number_a: Option<Number>,
     /// Which nap the second prediction was for.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub nap_number_b: Option<Number>,
     /// The first predicted time.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub prediction_time_a: Option<Number>,
     /// The second predicted time.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub prediction_time_b: Option<Number>,
     /// Where the first prediction came from.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub source_a: Option<String>,
     /// Where the second prediction came from.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub source_b: Option<String>,
     /// Which wake window the first prediction was for.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub wake_window_number_a: Option<Number>,
     /// Which wake window the second prediction was for.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub wake_window_number_b: Option<Number>,
 }
 
@@ -42,16 +74,32 @@ pub struct SleepSwsDataShown {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct SleepSwsAnalytics {
     /// When the previous sleep ended.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub previous_sleep_end_time: Option<Number>,
     /// The previous sleep's interval id.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub previous_sleep_interval_key: Option<String>,
     /// What the app showed.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub sws_data_shown: Option<SleepSwsDataShown>,
     /// When it showed it.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub timestamp: Option<Number>,
 }
 
@@ -64,35 +112,50 @@ pub struct SleepTimer {
     /// Whether the running sleep is paused.
     pub paused: bool,
     /// When the document last changed.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub timestamp: Option<Timestamp>,
     /// The same moment, as a bare number.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub local_timestamp: Option<Number>,
     /// When the sleep started, **in milliseconds**.
     #[serde(
         rename = "timerStartTime",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub timer_start_time: Option<Number>,
     /// When a paused sleep was paused, in milliseconds.
     #[serde(
         rename = "timerEndTime",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub timer_end_time: Option<Number>,
     /// This session's identifier.
     pub uuid: String,
     /// What has been recorded about this sleep so far.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub details: Option<SleepDetails>,
     /// Nap-prediction analytics.
     #[serde(
         rename = "swsAnalytics",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub sws_analytics: Option<SleepSwsAnalytics>,
 }

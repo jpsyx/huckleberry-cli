@@ -106,10 +106,18 @@ impl DiaperAmount {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct DiaperQuantity {
     /// How much wet.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub pee: Option<Number>,
     /// How much dirty.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub poo: Option<Number>,
 }
 
@@ -134,38 +142,62 @@ pub struct DiaperEntry {
     #[serde(
         rename = "lastUpdated",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub last_updated: Option<Number>,
     /// The timezone offset, in minutes.
     pub offset: Number,
     /// How much of each.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub quantity: Option<DiaperQuantity>,
     /// The colour.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub color: Option<PooColor>,
     /// The consistency.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub consistency: Option<PooConsistency>,
     /// Whether a rash was noted.
     #[serde(
         rename = "diaperRash",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub diaper_rash: Option<bool>,
     /// Whatever the parent typed.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub notes: Option<String>,
     /// Whether this was a potty trip rather than a nappy.
-    #[serde(rename = "isPotty", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "isPotty",
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub is_potty: Option<bool>,
     /// How the potty trip went.
     #[serde(
         rename = "howItHappened",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub how_it_happened: Option<PottyResult>,
 }
@@ -188,13 +220,25 @@ impl DiaperEntry {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct LastDiaper {
     /// When it was, in seconds.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub start: Option<Number>,
     /// What was in it.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub mode: Option<DiaperMode>,
     /// The timezone offset, in minutes.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub offset: Option<Number>,
 }
 
@@ -202,13 +246,25 @@ pub struct LastDiaper {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct LastPotty {
     /// What happened.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub mode: Option<DiaperMode>,
     /// When it was, in seconds.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub start: Option<Number>,
     /// The timezone offset, in minutes.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub offset: Option<Number>,
 }
 
@@ -219,24 +275,39 @@ pub struct DiaperPrefs {
     #[serde(
         rename = "lastDiaper",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub last_diaper: Option<LastDiaper>,
     /// The last potty trip.
-    #[serde(rename = "lastPotty", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "lastPotty",
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub last_potty: Option<LastPotty>,
     /// The nappy reminder.
     #[serde(
         rename = "reminderV2",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub reminder: Option<ReminderV2>,
     /// When the preferences last changed.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub timestamp: Option<Timestamp>,
     /// The same moment, as a bare number.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub local_timestamp: Option<Number>,
 }
 
@@ -244,7 +315,11 @@ pub struct DiaperPrefs {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct DiaperDocument {
     /// The last nappy, the last potty trip, and the tracker's settings.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub prefs: Option<DiaperPrefs>,
 }
 

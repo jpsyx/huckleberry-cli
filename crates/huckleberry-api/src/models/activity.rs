@@ -31,16 +31,25 @@ pub struct ActivityInterval {
     /// The timezone offset, in minutes.
     pub offset: Number,
     /// How long it lasted, in seconds.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub duration: Option<Number>,
     /// The timezone offset at the end, in minutes.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
+    )]
     pub end_offset: Option<Number>,
     /// When the row last changed.
     #[serde(
         rename = "lastUpdated",
         default,
-        skip_serializing_if = "Option::is_none"
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::models::lenient"
     )]
     pub last_updated: Option<Number>,
 }
