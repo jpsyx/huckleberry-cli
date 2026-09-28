@@ -2,12 +2,27 @@
 //! tracking app: read a child's sleep, feeds, nappies, pumping, health and
 //! milestones, and write new entries back.
 //!
-//! This is a port of the Python client
-//! [`py-huckleberry-api`](https://github.com/Woyken/py-huckleberry-api), with
-//! the same coverage and the same field-for-field fidelity to what the app
-//! itself writes. `docs/api.md` in this repository lists every method beside
-//! its Python original and records the four places the two deliberately
-//! differ.
+//! # Credit
+//!
+//! **This crate is a Rust port of
+//! [`py-huckleberry-api`](https://github.com/Woyken/py-huckleberry-api) by
+//! [Woyken](https://github.com/Woyken), and it exists because that project
+//! exists.**
+//!
+//! Huckleberry publishes no API and no documentation for one. Working out that
+//! it is a Firebase application, which collection holds what, what every field
+//! is called, which units each one is in, and what sequence of writes the app
+//! expects for each operation is original research, and all of it is
+//! Woyken's. This crate translates that knowledge into Rust; it does not
+//! originate it.
+//!
+//! py-huckleberry-api is MIT licensed, Copyright (c) 2025 Woyken, and its
+//! notice travels with this port in `NOTICE`.
+//!
+//! The port has the same coverage and the same field-for-field fidelity to
+//! what the app itself writes. `docs/api.md` in the repository lists every
+//! method beside its Python original and records the four places the two
+//! deliberately differ.
 //!
 //! # How it talks to Huckleberry
 //!

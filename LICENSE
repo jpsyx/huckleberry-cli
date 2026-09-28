@@ -19,3 +19,9 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+This project contains a Rust port of py-huckleberry-api
+(https://github.com/Woyken/py-huckleberry-api), MIT licensed,
+Copyright (c) 2025 Woyken. That notice is reproduced in full in NOTICE.

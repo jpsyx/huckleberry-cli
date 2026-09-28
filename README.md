@@ -12,7 +12,14 @@ Two packages in one repository:
   its own.
 - **`src/`**, the command-line tool that consumes it.
 
+> **The client is a port of [py-huckleberry-api] by [Woyken].** That project
+> worked out how Huckleberry's Firebase application fits together, and this one
+> translates that into Rust. See [Credit](#credit).
+
 Both are MIT licensed.
+
+[py-huckleberry-api]: https://github.com/Woyken/py-huckleberry-api
+[Woyken]: https://github.com/Woyken
 
 ## The screen this exists for
 
@@ -180,9 +187,32 @@ Agent skills are not tracked in git, but `skills-lock.json` is.
 `just skills-install` restores them after a clone. See
 [`docs/skills.md`](docs/skills.md).
 
+## Credit
+
+**`crates/huckleberry-api` is a Rust port of
+[py-huckleberry-api](https://github.com/Woyken/py-huckleberry-api) by
+[Woyken](https://github.com/Woyken).**
+
+That project did the hard part. Huckleberry publishes no API and no
+documentation for one. Working out that it is a Firebase application, which
+collection holds what, what every field is called, which units each one is in,
+and what sequence of writes the app expects for each operation is original
+research, and all of it is Woyken's. This repository translates that knowledge
+into Rust and builds a terminal client on top. It does not originate it.
+
+Where the port deliberately differs from the original,
+[`docs/api.md`](docs/api.md) says so and says why. Everything else is a
+translation, field for field.
+
+If this is useful to you, the upstream project is the one to star.
+
 ## Licence
 
 MIT. See [`LICENSE`](LICENSE).
 
-Huckleberry is a trademark of its owners; this project is not affiliated with
-or endorsed by them.
+py-huckleberry-api is also MIT, and its copyright notice travels with this port
+in [`NOTICE`](NOTICE), as that licence requires.
+
+Huckleberry is a product of Huckleberry Labs, Inc. This project is an
+unofficial client, is not affiliated with or endorsed by them, and uses their
+name only to say what it talks to.

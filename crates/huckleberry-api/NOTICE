@@ -1,0 +1,56 @@
+NOTICE
+======
+
+huckleberry-cli and huckleberry-api
+Copyright (c) 2026 Juan Pablo Sarmiento
+Licensed under the MIT License. See LICENSE.
+
+
+Third-party work this project is built on
+-----------------------------------------
+
+`crates/huckleberry-api` is a Rust **port of py-huckleberry-api by Woyken**:
+
+    https://github.com/Woyken/py-huckleberry-api
+
+That project did the hard part. Working out how Huckleberry's Firebase
+application is put together, which collection holds what, what every field is
+called, which units each one is in, and what sequence of writes the app
+expects for each operation, is original research, and all of it is Woyken's.
+This port translates that knowledge into Rust. It does not originate it.
+
+Where this port deliberately differs from the original, `docs/api.md` says so
+and says why. Everything else is a translation.
+
+py-huckleberry-api is distributed under the MIT License. Its notice is
+reproduced below in full, as that licence requires.
+
+    MIT License
+
+    Copyright (c) 2025 Woyken
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+
+
+Not affiliated with Huckleberry
+-------------------------------
+
+Huckleberry is a product of Huckleberry Labs, Inc. This project is an
+unofficial client, is not affiliated with or endorsed by them, and uses their
+name only to say what it talks to.

@@ -4,9 +4,26 @@ An async Rust client for [Huckleberry](https://huckleberrycare.com), the baby
 tracking app. Read a child's sleep, feeds, nappies, pumping, health entries and
 milestones, and write new entries back.
 
-This is a port of the Python client
-[`py-huckleberry-api`](https://github.com/Woyken/py-huckleberry-api), with the
-same coverage and the same fidelity to the shapes the app itself writes.
+> ### Credit
+>
+> **This crate is a Rust port of
+> [py-huckleberry-api](https://github.com/Woyken/py-huckleberry-api) by
+> [Woyken](https://github.com/Woyken), and it exists because that project
+> exists.**
+>
+> Huckleberry publishes no API and no documentation for one. Working out that
+> it is a Firebase application, which collection holds what, what every field
+> is called, which units each one is in, and what sequence of writes the app
+> expects for each operation is original research, and all of it is Woyken's.
+> This crate translates that knowledge into Rust. It does not originate it.
+>
+> py-huckleberry-api is MIT licensed, and its copyright notice travels with
+> this port in [NOTICE](NOTICE). If this crate is useful to you, the upstream
+> project is the one to star.
+
+The port has the same coverage and the same fidelity to the shapes the app
+itself writes. Where it deliberately differs, `docs/api.md` in the repository
+says so and says why.
 
 ```toml
 [dependencies]
@@ -82,4 +99,10 @@ history.
 
 ## Licence
 
-MIT.
+MIT, Copyright (c) 2026 Juan Pablo Sarmiento.
+
+Derived from py-huckleberry-api, MIT, Copyright (c) 2025 Woyken. The full
+upstream notice is in [NOTICE](NOTICE).
+
+Huckleberry is a product of Huckleberry Labs, Inc. This crate is an unofficial
+client and is not affiliated with or endorsed by them.

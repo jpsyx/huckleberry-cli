@@ -1,9 +1,18 @@
 # The Huckleberry API, in Rust
 
-`crates/huckleberry-api` is a port of
-[`py-huckleberry-api`](https://github.com/Woyken/py-huckleberry-api). It covers
-everything the Python client covers, in the same shapes, and it is a package in
-its own right: nothing in it mentions this command-line tool.
+`crates/huckleberry-api` is a Rust port of
+[`py-huckleberry-api`](https://github.com/Woyken/py-huckleberry-api) by
+[Woyken](https://github.com/Woyken), MIT licensed, Copyright (c) 2025 Woyken.
+It covers everything the Python client covers, in the same shapes, and it is a
+package in its own right: nothing in it mentions this command-line tool.
+
+**Everything in the next section is Woyken's research, not ours.** Huckleberry
+publishes no API and no documentation for one. That the app is a Firebase
+project called `simpleintervals`, that sleep history lives in `intervals` while
+health history lives in `data`, that the sleep timer is in milliseconds and the
+feed timer in seconds, that older rows get packed into batched documents: all
+of it was worked out there first. This port translates it. The upstream notice
+travels with the crate in `NOTICE`, as the MIT licence requires.
 
 ## How Huckleberry works
 

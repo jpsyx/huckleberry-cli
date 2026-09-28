@@ -9,6 +9,12 @@
   typed errors rather than `anyhow`, and prints nothing. Keep it that way: it
   is meant to be publishable on its own. Read
   [`docs/api.md`](docs/api.md) before changing it.
+- **That crate is a port of
+  [py-huckleberry-api](https://github.com/Woyken/py-huckleberry-api) by Woyken,
+  MIT licensed.** The schema, the field names, the units and the operation
+  semantics are its original research. Keep the credit in `README.md`,
+  `NOTICE`, `docs/api.md` and the crate docs intact and accurate, and when you
+  port something new from it, say so.
 - `src/` is the command-line tool. The command-line surface is **clap**
   (derive), the settings are a **serde** struct stored as **TOML**, the
   full-screen dashboard is **ratatui**, and failures travel as **anyhow**
