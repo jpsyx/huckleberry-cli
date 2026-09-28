@@ -109,32 +109,7 @@ pub async fn edit(
             return Ok(());
         }
         let binding = &bindings[index - 1];
-        match binding.control {
-            OptionControl::Form => {
-                edit::collect(&super::session::load_context(globals, theme)?, draft).await?;
-            }
-            OptionControl::Session => {
-                *globals = super::session::edit_options(globals, theme).await?;
-            }
-            OptionControl::Help => {
-                if let Some(mut command) = metadata(&draft.path) {
-                    eprintln!("{}", command.render_long_help());
-                    super::pause(theme)?;
-                }
-            }
-            OptionControl::Version => {
-                eprintln!("{}", env!("CARGO_PKG_VERSION"));
-                super::pause(theme)?;
-            }
-            _ => {
-                value::edit(
-                    &super::session::load_context(globals, theme)?,
-                    draft,
-                    binding,
-                )
-                .await?;
-            }
-        }
+        apply_binding(theme, globals, draft, binding).await?;
     }
 }
 
@@ -188,4 +163,44 @@ pub fn choices_for(draft: &CommandDraft, id: &str) -> Vec<String> {
                 })
         })
         .unwrap_or_default()
+}
+
+async fn apply_binding(
+    theme: Theme,
+    globals: &mut super::session::SessionOptions,
+    draft: &mut CommandDraft,
+    binding: &OptionBinding,
+) -> Result<()> {
+    match binding.control {
+        OptionControl::Form => {
+            edit::collect(&super::session::load_context(globals, theme)?, draft).await?;
+        }
+        OptionControl::Session => {
+            let previous = globals.clone();
+            *globals = super::session::edit_options(globals, theme).await?;
+            if draft.invalidate_context(&previous, globals) {
+                eprintln!("Context changed. Pending options cleared; select the entry again.");
+                super::pause(theme)?;
+            }
+        }
+        OptionControl::Help => {
+            if let Some(mut command) = metadata(&draft.path) {
+                eprintln!("{}", command.render_long_help());
+                super::pause(theme)?;
+            }
+        }
+        OptionControl::Version => {
+            eprintln!("{}", env!("CARGO_PKG_VERSION"));
+            super::pause(theme)?;
+        }
+        _ => {
+            value::edit(
+                &super::session::load_context(globals, theme)?,
+                draft,
+                binding,
+            )
+            .await?;
+        }
+    }
+    Ok(())
 }

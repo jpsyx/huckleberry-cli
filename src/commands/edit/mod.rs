@@ -1,8 +1,8 @@
 //! `edit`: changing an entry that is already on the record.
 //!
 //! The two audiences meet here the way they do everywhere else in this tool.
-//! A person runs `edit`, picks an entry off a full-screen list, and is asked
-//! about every field with what is already there as the answer to keep. A
+//! A person runs `edit`, picks an entry, then chooses fields to change.
+//! Every unselected field keeps its exact stored value. A
 //! script runs `edit --list` to find the entry it means and
 //! `edit --id <ENTRY> --set key=value` to change it, and never meets a prompt.
 //!
@@ -17,8 +17,9 @@ pub mod form;
 mod history;
 mod live;
 pub mod pick;
-pub mod preserve;
-mod save;
+pub mod save;
+mod save_foods;
+mod save_values;
 
 use anyhow::{Result, bail};
 #[cfg(test)]

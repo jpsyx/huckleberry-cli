@@ -860,7 +860,7 @@ dependencies = [
 
 [[package]]
 name = "huckleberry-cli"
-version = "0.18.1"
+version = "0.18.2"
 dependencies = [
  "anyhow",
  "clap",
@@ -2542,6 +2542,7 @@ dependencies = [
  "libc",
  "mio",
  "pin-project-lite",
+ "signal-hook-registry",
  "socket2",
  "tokio-macros",
  "windows-sys 0.61.2",

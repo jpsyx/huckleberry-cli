@@ -1,6 +1,7 @@
 //! Persistent one-handed navigation over the existing typed command handlers.
 pub mod catalog;
 pub mod draft;
+pub mod interrupt;
 mod operation;
 pub mod options;
 pub mod session;
@@ -66,12 +67,12 @@ pub async fn run(cli: &Cli, theme: Theme) -> Result<()> {
         if let Some(frame) = stack.last_mut() {
             frame.1 = index;
         }
-        let result = Box::pin(visit(
+        let result = interrupt::run(Box::pin(visit(
             &entries[index].target,
             &mut globals,
             &mut stack,
             theme,
-        ))
+        )))
         .await;
         if let Err(error) = result {
             if !prompt::is_cancelled(&error) {

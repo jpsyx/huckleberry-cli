@@ -93,7 +93,12 @@ pub async fn run(
     let mut started = current;
     let mut draft = edit::draft_for(dataset, &at, Units::from_setting(&context.config.units));
     let before = draft.clone();
-    fill(context, client, cid, changes, &mut draft, &mut started).await?;
+    let changes = if changes.is_empty() {
+        super::form::collect(context, draft.as_ref(), started, false, vec![]).await?
+    } else {
+        changes.to_vec()
+    };
+    fill(context, &changes, &mut draft, &mut started)?;
     let explicit_details = changes.iter().any(|change| !change.starts_with("at="));
     if draft == before && !explicit_details && started.to_bits() == current.to_bits() {
         context.report("The entry is unchanged.");
@@ -101,10 +106,8 @@ pub async fn run(
     }
     if (draft != before || explicit_details)
         && let Some(details) = &draft
-        && let Some(before) = &before
     {
-        let original = super::preserve::Original::from_entry(dataset, &at, before, changes);
-        super::save::run(client, cid, &at, details, &original).await?;
+        super::save::run(client, cid, &at, details, &changes).await?;
     }
     let saved =
         if started.to_bits() == current.to_bits() {
@@ -126,23 +129,17 @@ pub async fn run(
 }
 
 /// Resolves and validates all answers before any detail or time writes.
-async fn fill(
+fn fill(
     context: &Context,
-    client: &Huckleberry,
-    cid: &str,
     changes: &[String],
     draft: &mut Option<Draft>,
     started: &mut f64,
 ) -> Result<()> {
-    if changes.is_empty() {
-        super::form::fill(context, client, cid, draft, started).await
-    } else {
-        let (time, details) = split_changes(changes)?;
-        if let Some(time) = time {
-            *started = crate::prompt::time::read_edit_at(context, Some(time), *started)?;
-        }
-        apply_details(draft, &details)
+    let (time, details) = split_changes(changes)?;
+    if let Some(time) = time {
+        *started = crate::prompt::time::read_edit_at(context, Some(time), *started)?;
     }
+    apply_details(draft, &details)
 }
 
 /// Finds the stored instant even when an explicit selector is outside the picker window.

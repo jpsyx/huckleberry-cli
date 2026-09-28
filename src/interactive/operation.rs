@@ -25,7 +25,7 @@ pub(super) async fn run(
         )?;
         let result = match index {
             0 => execute(&draft, globals, theme).await.map(Some),
-            1 => options::edit(theme, globals, &mut draft)
+            1 => Box::pin(options::edit(theme, globals, &mut draft))
                 .await
                 .map(|()| None),
             _ => return Ok(false),

@@ -66,7 +66,7 @@ pub struct EditOptions {
     /// Every saved entry accepts `--set "at=8am"`; clock-only edits keep its date.
     /// For the ongoing sleep use `--set "start=32 mins ago"`.
     /// Repeat for several. An empty value clears the field. Left out on a
-    /// terminal, you are asked about every field.
+    /// terminal, choose which fields to change from a menu.
     #[arg(long = "set", value_name = "KEY=VALUE")]
     pub set: Vec<String>,
 

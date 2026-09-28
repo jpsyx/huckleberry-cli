@@ -36,7 +36,28 @@ impl CommandDraft {
     /// A completed field picker with every field kept must not reopen the form.
     #[must_use]
     pub fn is_unchanged_edit(&self) -> bool {
-        self.path.0 == ["edit"] && self.values.get("set").is_some_and(Vec::is_empty)
+        self.path.0 == ["edit"]
+            && self.values.get("set").is_some_and(Vec::is_empty)
+            && self
+                .values
+                .get("list")
+                .and_then(|values| values.first())
+                .map(String::as_str)
+                != Some("true")
+    }
+    /// Discards pending values when their account, child or data source changes.
+    pub fn invalidate_context(
+        &mut self,
+        previous: &SessionOptions,
+        current: &SessionOptions,
+    ) -> bool {
+        let changed = previous.config != current.config
+            || previous.child != current.child
+            || previous.offline != current.offline;
+        if changed {
+            self.values.clear();
+        }
+        changed
     }
     /// Validates the pending command with the actual CLI parser.
     pub fn resolve(&self, globals: &SessionOptions) -> Result<Cli> {

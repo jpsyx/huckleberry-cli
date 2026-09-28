@@ -283,15 +283,14 @@ hb edit --list                            # what there is, and what each is call
 hb edit --id diaper/1758572400000-3f2a --set pee=big
 ```
 
-`edit` is the submission process again, with one difference: every question
-arrives with what is already recorded as its answer, so Enter keeps it and only
-what is typed changes. **When?** is the first question after selecting an entry,
-with its stored date and time as the default, written the way a person reads
-one: `2026-09-27 8:00 AM`. Enter preserves the exact instant, including seconds
-and fractional seconds. A clock-only answer such as `8am` uses the entry's
-original local date; a dated answer in that same shape, or in plain
-`2026-09-27 08:00` order, can change the date too.
-`now` and relative minutes are resolved when answered. A field that can be empty takes `-` for "leave it out".
+`edit` selects an entry, then offers its editable fields. Done keeps all fields
+that were not changed. Each selected field offers Keep and, when optional, Clear.
+Selecting the time field opens **When?** with the stored date and time as its
+default, for example `2026-09-27 8:00 AM`. Keep and Enter preserve the exact
+instant, including fractional seconds. A clock-only answer such as `8am` keeps
+the entry's local date; a dated answer such as `2026-09-27 08:00` can move days.
+Relative minutes resolve when answered. Fixed alternatives use lists; only times,
+notes, custom amounts and numeric measurements require typing.
 
 An active sleep appears first as **Ongoing sleep**, separately from saved
 history. Selecting it asks for a new start using the same flexible clock and
@@ -313,7 +312,7 @@ current sleep again to retry. Scripts must supply `--set start=<TIME>`.
 
 | Key | Does |
 | --- | --- |
-| `j`, `k`, `↑`, `↓` | move |
+| `j`/`h`, `k`/`p`, `↑`, `↓` (either case) | move |
 | `PgUp`, `PgDn`, `Ctrl-U`, `Ctrl-D` | move ten |
 | `g`, `G`, `Home`, `End` | first, last |
 | `Enter` | edit this one |
@@ -479,3 +478,11 @@ help and exit successfully. Explicit commands keep their scriptable behavior.
 Long menu labels wrap within the visible terminal area. Completing Edit's field
 picker without changing any fields reports that the entry is unchanged. Menu
 output remains on stderr even when command results are redirected to a file.
+
+History edits ask which fields to change; Done keeps every other field. Keep
+preserves stored quantities, unknown values, potty outcomes and food metadata;
+Clear removes just the chosen optional field. During network waits, Ctrl-C
+returns to navigation. A submitted write may already have completed, so the
+session asks you to check logs before retrying. Changing session account, child
+or source clears pending options so a selected entry cannot follow that switch.
+Long text input scrolls to keep the insertion point visible.

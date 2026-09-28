@@ -259,3 +259,15 @@ The bare-command session owns navigation and temporary overrides. Each Run opens
 fresh Context and calls the same typed dispatch as an explicit CLI invocation.
 Menus release terminal ownership before handlers run, cancellation returns to
 navigation, and failed writes are never automatically replayed.
+
+History editing now collects explicit field changes rather than rewriting a
+normalized draft. The CLI maps those selected fields to the API's existing
+`update_history_row` operation; omitted fields stay untouched, including unknown
+values and meal food metadata. A changed meal amount updates only amounts in the
+original food map. Direct edits and interactive Options share the field picker.
+The API crate and its operation semantics are unchanged.
+
+The session installs a Tokio Ctrl-C listener around operations, including picker
+reads. Interruption stops waiting and returns to navigation, with a reminder to
+check logs if a write might already have reached the service. Switching account,
+child or data source clears pending command options and requires reselection.

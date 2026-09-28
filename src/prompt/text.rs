@@ -67,7 +67,7 @@ fn draw(output: &mut impl Write, question: &Question<'_>, typed: &str, secret: b
         typed.to_owned()
     };
     let width = usize::from(terminal::size().unwrap_or((80, 24)).0).saturating_sub(1);
-    let line = super::select::clip(&format!("{prefix}{visible}"), width);
+    let line = preview(&prefix, &visible, width);
     execute!(
         output,
         cursor::MoveToColumn(0),
@@ -76,4 +76,36 @@ fn draw(output: &mut impl Write, question: &Question<'_>, typed: &str, secret: b
     )?;
     write!(output, "{line}")?;
     output.flush().context("drawing input")
+}
+
+fn preview(prefix: &str, value: &str, width: usize) -> String {
+    let prefix = super::select::clip(prefix, if value.is_empty() { width } else { width / 3 });
+    let available = width.saturating_sub(ratatui::text::Line::raw(&prefix).width());
+    let mut tail = String::new();
+    for character in value
+        .chars()
+        .rev()
+        .filter(|character| !character.is_control())
+    {
+        let candidate = format!("{character}{tail}");
+        if ratatui::text::Line::raw(&candidate).width() > available {
+            break;
+        }
+        tail = candidate;
+    }
+    format!("{prefix}{tail}")
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn long_input_keeps_the_insertion_point_visible() {
+        let line = super::preview(
+            "[a very long default] > ",
+            "beginning of a long note END",
+            18,
+        );
+        assert!(line.ends_with("END"));
+        assert!(ratatui::text::Line::raw(line).width() <= 18);
+    }
 }

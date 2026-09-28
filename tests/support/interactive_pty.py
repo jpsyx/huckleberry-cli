@@ -61,11 +61,12 @@ def prompts():
     subprocess.run(["cargo", "build", "-p", "huckleberry-cli"], cwd=ROOT, check=True, capture_output=True)
     with tempfile.TemporaryDirectory(prefix="hb-prompts-") as directory:
         driver = str(pathlib.Path(directory) / "prompt-driver")
+        tokio = max(glob.glob(str(ROOT / "target/debug/deps/libtokio-*.rlib")), key=os.path.getmtime)
         anyhow = max(glob.glob(str(ROOT / "target/debug/deps/libanyhow-*.rlib")), key=os.path.getmtime)
         subprocess.run([
             "rustc", "--edition=2024", "tests/support/prompt_driver.rs", "-o", driver,
             "-L", "dependency=target/debug/deps", "--extern", "app=target/debug/libapp.rlib",
-            "--extern", f"anyhow={anyhow}",
+            "--extern", f"anyhow={anyhow}", "--extern", f"tokio={tokio}",
         ], cwd=ROOT, check=True, capture_output=True)
         terminal = Terminal([driver])
         try:
@@ -93,10 +94,31 @@ def prompts():
         finally:
             terminal.close()
 
-        for mode in ("keep_clear", "failure", "list", "cancel_text", "secret"):
+        for mode in ("keep_clear", "failure", "list", "cancel_text", "secret", "waiting", "fields"):
             terminal = Terminal([driver, mode])
             try:
-                if mode == "keep_clear":
+                if mode == "fields":
+                    terminal.expect("Fields to change")
+                    terminal.send("\r")
+                    terminal.expect("FIELDS_KEPT")
+                    terminal.expect("Fields to change")
+                    terminal.send("jjj\r")
+                    terminal.expect("Keep current value")
+                    terminal.send("jjjj\r")
+                    terminal.expect("Fields to change")
+                    terminal.send("\r")
+                    terminal.expect("OUTCOME_CLEARED")
+                elif mode == "waiting":
+                    terminal.expect("WAITING_FOR_INTERRUPT")
+                    # PTYs created by this harness are not controlling terminals.
+                    # Deliver the same SIGINT a cooked terminal sends for Ctrl-C.
+                    time.sleep(0.1)
+                    terminal.process.send_signal(2)
+                    terminal.expect("INTERRUPTED")
+                    terminal.expect("Choose answer")
+                    terminal.send("\r")
+                    terminal.expect("AFTER=no")
+                elif mode == "keep_clear":
                     terminal.expect("Existing note")
                     terminal.send("\r")
                     terminal.expect('KEPT=Some("exact stored note")')

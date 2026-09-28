@@ -28,23 +28,7 @@ pub fn render(
 ) -> Vec<String> {
     let width = usize::from(width).saturating_sub(1).max(1);
     let count = usize::from(height).saturating_sub(2).max(1);
-    let rows = items
-        .iter()
-        .enumerate()
-        .map(|(index, item)| {
-            let marker = if index == state.cursor { ">" } else { " " };
-            let prefix = format!("{marker} {}. ", index + 1);
-            let detail = item
-                .detail
-                .as_ref()
-                .map_or_else(String::new, |text| format!(": {text}"));
-            wrapped(
-                &format!("{prefix}{}{detail}", item.label),
-                width,
-                prefix.len(),
-            )
-        })
-        .collect::<Vec<_>>();
+    let rows = item_lines(items, state.cursor, width);
     let mut top = state
         .top
         .min(state.cursor)
@@ -87,4 +71,24 @@ fn wrapped(text: &str, width: usize, indent: usize) -> Vec<String> {
     }
     lines.push(line);
     lines
+}
+
+fn item_lines(items: &[MenuItem], cursor: usize, width: usize) -> Vec<Vec<String>> {
+    items
+        .iter()
+        .enumerate()
+        .map(|(index, item)| {
+            let marker = if index == cursor { ">" } else { " " };
+            let prefix = format!("{marker} {}. ", index + 1);
+            let detail = item
+                .detail
+                .as_ref()
+                .map_or_else(String::new, |text| format!(": {text}"));
+            wrapped(
+                &format!("{prefix}{}{detail}", item.label),
+                width,
+                prefix.len(),
+            )
+        })
+        .collect()
 }

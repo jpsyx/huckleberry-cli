@@ -5,7 +5,24 @@ fn main() -> anyhow::Result<()> {
     let mode = std::env::args().nth(1).unwrap_or_default();
     let choices = [Choice { value: "yes", hint: "Yes" }, Choice { value: "no", hint: "No" }];
     let question = Question::new("choice", "Choose answer", "--answer").with_choices(&choices).with_default("no");
-    if mode == "failure" {
+    if mode == "fields" {
+        let context = app::session::Context { config: app::config::Config::default(), config_path: "synthetic.toml".into(), credentials_path: "synthetic-credentials.json".into(), theme, verbose: false, child_override: None, offline: None };
+        let draft = app::edit::Draft::Diaper(app::edit::DiaperDraft { potty: true, mode: app::cli::DiaperKind::Pee, pee: None, poo: None, color: None, consistency: None, rash: false, how: None, notes: None });
+        let runtime = tokio::runtime::Builder::new_multi_thread().enable_all().build()?;
+        let kept = runtime.block_on(app::commands::edit::form::collect(&context, Some(&draft), 1000.0, false, vec![]))?;
+        assert!(kept.is_empty());
+        println!("FIELDS_KEPT");
+        let cleared = runtime.block_on(app::commands::edit::form::collect(&context, Some(&draft), 1000.0, false, vec![]))?;
+        assert_eq!(cleared, ["how="]);
+        println!("OUTCOME_CLEARED");
+    } else if mode == "waiting" {
+        let runtime = tokio::runtime::Builder::new_multi_thread().enable_all().build()?;
+        println!("WAITING_FOR_INTERRUPT");
+        let result = runtime.block_on(app::interactive::interrupt::run(std::future::pending::<anyhow::Result<()>>()));
+        assert!(prompt::is_cancelled(&result.unwrap_err()));
+        println!("INTERRUPTED");
+        println!("AFTER={}", prompt::ask(&question, theme)?);
+    } else if mode == "failure" {
         let result: anyhow::Result<()> = (|| {
             let _guard = prompt::terminal::TerminalGuard::enter()?;
             Err(std::io::Error::other("synthetic I/O failure").into())

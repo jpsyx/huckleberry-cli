@@ -151,3 +151,31 @@ fn completing_an_edit_without_changes_is_a_noop() {
     draft.set("set", vec!["notes=new note".into()]);
     assert!(!draft.is_unchanged_edit());
 }
+
+#[test]
+fn switching_child_or_account_invalidates_selected_targets() {
+    let original = SessionOptions {
+        child: Some("child-a".into()),
+        ..Default::default()
+    };
+    let mut draft = CommandDraft::new(CommandPath(vec!["edit".into()]));
+    draft.set("id", vec!["sleep/current".into()]);
+    draft.set("set", vec!["start=40 min ago".into()]);
+    let mut changed = original.clone();
+    changed.child = Some("child-b".into());
+    assert!(draft.invalidate_context(&original, &changed));
+    assert!(draft.values.is_empty());
+    draft.set("id", vec!["diaper/row".into()]);
+    changed = original.clone();
+    changed.config = Some("different-account.toml".into());
+    assert!(draft.invalidate_context(&original, &changed));
+    assert!(draft.values.is_empty());
+}
+
+#[test]
+fn list_overrides_noop_edit_detection() {
+    let mut draft = CommandDraft::new(CommandPath(vec!["edit".into()]));
+    draft.set("set", vec![]);
+    draft.set("list", vec!["true".into()]);
+    assert!(!draft.is_unchanged_edit());
+}

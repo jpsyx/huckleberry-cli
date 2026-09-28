@@ -23,42 +23,11 @@ pub(super) async fn edit(
     let title = arg
         .get_help()
         .map_or_else(|| binding.argument_id.clone(), ToString::to_string);
-    let mut labels = vec![
-        "Keep current option".into(),
-        "Use default / ask when running".into(),
-    ];
-    let values = super::choices_for(draft, &binding.argument_id);
-    if binding.control == OptionControl::Boolean {
-        labels.extend(["Yes".into(), "No".into()]);
-    } else if values.is_empty() {
-        labels.push("Enter a value".into());
-    } else {
-        labels.extend(
-            values
-                .iter()
-                .map(|value| crate::render::output::words(value)),
-        );
-    }
     if binding.control == OptionControl::Repeated {
         return repeated(context, draft, binding).await;
     }
-    if binding.argument_id == "cid" {
-        labels.push("Choose a child".into());
-    }
-    if binding.argument_id == "tracker" {
-        labels.extend(
-            [
-                "health",
-                "pump",
-                "milestones",
-                "diaper",
-                "feed",
-                "sleep",
-                "solids",
-            ]
-            .map(str::to_owned),
-        );
-    }
+    let values = super::choices_for(draft, &binding.argument_id);
+    let labels = option_labels(binding, &values);
     let index = choose(context, &title, &labels, 0)?;
     match index {
         0 => {}
@@ -159,4 +128,40 @@ pub(super) fn choose(
         })
         .collect::<Vec<_>>();
     select::choose(title, &items, default, context.theme)
+}
+
+fn option_labels(binding: &OptionBinding, values: &[String]) -> Vec<String> {
+    let mut labels = vec![
+        "Keep current option".into(),
+        "Use default / ask when running".into(),
+    ];
+    if binding.control == OptionControl::Boolean {
+        labels.extend(["Yes".into(), "No".into()]);
+    } else if values.is_empty() {
+        labels.push("Enter a value".into());
+    } else {
+        labels.extend(
+            values
+                .iter()
+                .map(|value| crate::render::output::words(value)),
+        );
+    }
+    if binding.argument_id == "cid" {
+        labels.push("Choose a child".into());
+    }
+    if binding.argument_id == "tracker" {
+        labels.extend(
+            [
+                "health",
+                "pump",
+                "milestones",
+                "diaper",
+                "feed",
+                "sleep",
+                "solids",
+            ]
+            .map(str::to_owned),
+        );
+    }
+    labels
 }

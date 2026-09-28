@@ -1,134 +1,88 @@
-//! Saving history details while retaining unmodified wire values.
-use crate::{
-    cli::{Amount, Colour, Consistency, PottyOutcome},
-    edit::Draft,
+//! Sparse history edits: Keep never serializes a projected default over stored data.
+use crate::edit::Draft;
+use anyhow::{Context as _, Result};
+use huckleberry_api::{
+    Huckleberry, RowRef, client::now_seconds, firestore::FieldUpdate, models::solids::CustomFood,
 };
-use anyhow::Result;
-use huckleberry_api::models::{
-    diaper::{DiaperMode, PooColor, PooConsistency},
-    feed::BottleType,
-    solids::SolidsReaction,
-};
-use huckleberry_api::{DiaperDetails, Huckleberry, RowRef};
-/// Writes the draft back to the row it came from.
+use serde_json::{Value, json};
+
+/// Writes only the fields deliberately selected by the parent or script.
 pub(super) async fn run(
     client: &Huckleberry,
     cid: &str,
     at: &RowRef,
     draft: &Draft,
-    original: &super::preserve::Original,
+    changes: &[String],
 ) -> Result<()> {
-    match draft {
-        Draft::Diaper(diaper) => {
-            let details = details(diaper, original);
-            client
-                .update_diaper_entry(
-                    cid,
-                    at,
-                    DiaperMode::from_wire(
-                        &original
-                            .value("mode", diaper.mode.to_api().as_str())
-                            .unwrap_or_else(|| diaper.mode.to_api().as_str().into()),
-                    ),
-                    &details,
-                    diaper.how.map(PottyOutcome::to_api),
-                )
-                .await?;
-        }
-        Draft::Bottle(bottle) => {
-            client
-                .update_bottle_entry(
-                    cid,
-                    at,
-                    bottle.amount,
-                    BottleType::from_wire(
-                        &original
-                            .value("type", bottle.kind.to_api().as_str())
-                            .unwrap_or_else(|| bottle.kind.to_api().as_str().into()),
-                    ),
-                    bottle.units.to_api(),
-                    bottle.notes.as_deref(),
-                )
-                .await?;
-        }
-        Draft::Nursing(nursing) => {
-            client
-                .update_nursing_entry(
-                    cid,
-                    at,
-                    nursing.left_minutes * 60.0,
-                    nursing.right_minutes * 60.0,
-                    nursing.notes.as_deref(),
-                )
-                .await?;
-        }
-        Draft::Solids(meal) => {
-            // The family's own foods, so that correcting a meal does not turn
-            // a food that is on their list into one that is not.
-            let known = client.custom_foods(cid, false).await.unwrap_or_default();
-            let references: Vec<_> = meal
-                .foods
-                .iter()
-                .map(|food| crate::commands::feed::match_food(food, &known, &meal.amount))
-                .collect();
-            client
-                .update_solids_entry(
-                    cid,
-                    at,
-                    &references,
-                    original
-                        .value(
-                            "reaction",
-                            meal.reaction
-                                .map(crate::cli::Reaction::to_api)
-                                .as_ref()
-                                .map_or("", |value| value.as_str()),
-                        )
-                        .as_deref()
-                        .map(SolidsReaction::from_wire),
-                    meal.notes.as_deref(),
-                )
-                .await?;
-        }
-        Draft::Sleep(sleep) => {
-            client
-                .update_sleep_entry(cid, at, sleep.minutes * 60.0, sleep.notes.as_deref())
-                .await?;
-        }
+    let changes_foods = matches!(draft, Draft::Solids(_)) && changed(changes, &["foods", "amount"]);
+    let (foods, known) = if changes_foods {
+        let row = client
+            .located_rows(&at.tracker, cid, "preserving the meal's foods")
+            .await?
+            .into_iter()
+            .find(|(found, _)| found == at)
+            .context("the meal no longer exists")?
+            .1;
+        let known = if changed(changes, &["foods"]) {
+            client.custom_foods(cid, false).await?
+        } else {
+            vec![]
+        };
+        (row.get("foods").cloned(), known)
+    } else {
+        (None, vec![])
+    };
+    let updates = build_updates(draft, changes, foods.as_ref(), &known, now_seconds())?;
+    if !updates.is_empty() {
+        client
+            .update_history_row(cid, at, &updates, "saving changed entry fields")
+            .await?;
     }
     Ok(())
 }
 
-fn details(
-    diaper: &crate::edit::DiaperDraft,
-    original: &super::preserve::Original,
-) -> DiaperDetails {
-    DiaperDetails {
-        pee_amount: diaper.pee.map(Amount::to_api),
-        poo_amount: diaper.poo.map(Amount::to_api),
-        color: original
-            .value(
-                "color",
-                diaper
-                    .color
-                    .map(Colour::to_api)
-                    .as_ref()
-                    .map_or("", |value| value.as_str()),
-            )
-            .as_deref()
-            .map(PooColor::from_wire),
-        consistency: original
-            .value(
-                "consistency",
-                diaper
-                    .consistency
-                    .map(Consistency::to_api)
-                    .as_ref()
-                    .map_or("", |value| value.as_str()),
-            )
-            .as_deref()
-            .map(PooConsistency::from_wire),
-        rash: diaper.rash,
-        notes: diaper.notes.clone(),
+/// Converts validated explicit changes into the existing API's field updates.
+/// Omitted fields, including unknown enum values and unmodeled metadata, are untouched.
+pub fn build_updates(
+    draft: &Draft,
+    changes: &[String],
+    foods: Option<&Value>,
+    known: &[CustomFood],
+    now: f64,
+) -> Result<Vec<FieldUpdate>> {
+    let mut updates = Vec::new();
+    for change in changes {
+        let (key, _) = change
+            .split_once('=')
+            .context("an edit must be key=value")?;
+        let key = key.trim().to_lowercase();
+        if matches!(key.as_str(), "at" | "start") {
+            continue;
+        }
+        let added = if let Draft::Solids(meal) = draft
+            && matches!(key.as_str(), "foods" | "amount")
+        {
+            vec![FieldUpdate::set(
+                "foods",
+                super::save_foods::updated(meal, changes, foods, known)?,
+            )]
+        } else {
+            super::save_values::updates(draft, &key)?
+        };
+        for update in added {
+            updates.retain(|existing: &FieldUpdate| existing.path != update.path);
+            updates.push(update);
+        }
     }
+    if !updates.is_empty() {
+        updates.push(FieldUpdate::set("lastUpdated", json!(now)));
+    }
+    Ok(updates)
+}
+
+pub(super) fn changed(changes: &[String], fields: &[&str]) -> bool {
+    changes
+        .iter()
+        .filter_map(|change| change.split_once('='))
+        .any(|(key, _)| fields.contains(&key.trim().to_lowercase().as_str()))
 }

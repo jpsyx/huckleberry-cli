@@ -55,13 +55,7 @@ pub fn question_menu(question: &Question<'_>) -> QuestionMenu {
         );
     }
     for choice in question.choices {
-        let label = if choice.value == "-" {
-            "Clear value".into()
-        } else if choice.hint.is_empty() {
-            choice.value.into()
-        } else {
-            format!("{} ({})", choice.hint, choice.value)
-        };
+        let label = choice_label(choice);
         menu.push(label, Answer::Value(choice.value.into()));
     }
     if question.choices.is_empty() {
@@ -81,4 +75,14 @@ pub fn question_menu(question: &Question<'_>) -> QuestionMenu {
             .unwrap_or(0);
     }
     menu
+}
+
+fn choice_label(choice: &crate::prompt::Choice<'_>) -> String {
+    if choice.value == "-" {
+        "Clear value".into()
+    } else if choice.hint.is_empty() {
+        choice.value.into()
+    } else {
+        format!("{} ({})", choice.hint, choice.value)
+    }
 }

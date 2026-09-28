@@ -13,20 +13,7 @@ use anyhow::Result;
 pub async fn edit_options(current: &SessionOptions, theme: Theme) -> Result<SessionOptions> {
     let mut pending = current.clone();
     loop {
-        let labels = [
-            "Apply session options".to_owned(),
-            format!("Verbose: {}", pending.verbose),
-            format!(
-                "Configuration: {}",
-                path_label(pending.config.as_deref(), "default")
-            ),
-            format!(
-                "Child: {}",
-                pending.child.as_deref().unwrap_or("configured child")
-            ),
-            format!("Data: {}", path_label(pending.offline.as_deref(), "live")),
-            "Discard changes".into(),
-        ];
+        let labels = session_labels(&pending);
         let index = match choose("Session options", &labels, 0, theme) {
             Ok(index) => index,
             Err(error) if prompt::is_cancelled(&error) => {
@@ -134,4 +121,21 @@ pub(super) fn choose(
         })
         .collect::<Vec<_>>();
     select::choose(title, &items, default, theme)
+}
+
+fn session_labels(pending: &SessionOptions) -> [String; 6] {
+    [
+        "Apply session options".to_owned(),
+        format!("Verbose: {}", pending.verbose),
+        format!(
+            "Configuration: {}",
+            path_label(pending.config.as_deref(), "default")
+        ),
+        format!(
+            "Child: {}",
+            pending.child.as_deref().unwrap_or("configured child")
+        ),
+        format!("Data: {}", path_label(pending.offline.as_deref(), "live")),
+        "Discard changes".into(),
+    ]
 }
