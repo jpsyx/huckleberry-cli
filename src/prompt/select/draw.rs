@@ -53,7 +53,10 @@ pub fn render(
             break;
         }
     }
-    lines.push(theme.muted(&clipped("↑/↓ j/k h/p · Enter selects · Esc back", width)));
+    lines.push(theme.muted(&clipped(
+        "↑/↓ j/k h/p · 1-9 highlight · Enter selects · Esc back",
+        width,
+    )));
     lines
 }
 

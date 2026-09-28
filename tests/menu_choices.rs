@@ -6,6 +6,89 @@ const fn key(code: KeyCode) -> KeyEvent {
 }
 
 #[test]
+fn digits_highlight_the_corresponding_item_until_enter() {
+    let mut state = Selection::new(11, 10);
+    for (digit, cursor) in [
+        ('1', 0),
+        ('2', 1),
+        ('3', 2),
+        ('4', 3),
+        ('5', 4),
+        ('6', 5),
+        ('7', 6),
+        ('8', 7),
+        ('9', 8),
+    ] {
+        assert_eq!(
+            state.apply(key(KeyCode::Char(digit)), 11, 3),
+            SelectionAction::Stay
+        );
+        assert_eq!(state.cursor, cursor);
+        assert_eq!(
+            state.apply(key(KeyCode::Enter), 11, 3),
+            SelectionAction::Submit(cursor)
+        );
+    }
+}
+
+#[test]
+fn digit_jumps_scroll_and_items_after_nine_remain_reachable() {
+    let mut state = Selection::new(11, 0);
+    state.apply(key(KeyCode::Char('9')), 11, 3);
+    assert_eq!((state.cursor, state.top), (8, 6));
+    state.apply(key(KeyCode::Down), 11, 3);
+    assert_eq!(state.cursor, 9);
+    state.apply(key(KeyCode::Down), 11, 3);
+    assert_eq!(
+        state.apply(key(KeyCode::Enter), 11, 3),
+        SelectionAction::Submit(10)
+    );
+    state.apply(key(KeyCode::Char('1')), 11, 3);
+    assert_eq!((state.cursor, state.top), (0, 0));
+}
+
+#[test]
+fn zero_and_unavailable_digits_leave_the_highlight_unchanged() {
+    for (count, default, digit) in [(3, 1, '4'), (3, 1, '9'), (11, 10, '0'), (0, 0, '1')] {
+        let mut state = Selection::new(count, default);
+        assert_eq!(
+            state.apply(key(KeyCode::Char(digit)), count, 20),
+            SelectionAction::Stay
+        );
+        assert_eq!(state.cursor, default);
+    }
+}
+
+#[test]
+fn digits_are_individual_shortcuts_and_never_form_ten() {
+    let mut state = Selection::new(11, 8);
+    for digit in ['1', '0'] {
+        assert_eq!(
+            state.apply(key(KeyCode::Char(digit)), 11, 20),
+            SelectionAction::Stay
+        );
+        assert_eq!(state.cursor, 0);
+    }
+}
+
+#[test]
+fn digit_releases_repeats_and_control_chords_do_not_move() {
+    let mut state = Selection::new(9, 0);
+    for event in [
+        KeyEvent::new_with_kind(
+            KeyCode::Char('4'),
+            KeyModifiers::NONE,
+            KeyEventKind::Release,
+        ),
+        KeyEvent::new_with_kind(KeyCode::Char('4'), KeyModifiers::NONE, KeyEventKind::Repeat),
+        KeyEvent::new(KeyCode::Char('4'), KeyModifiers::CONTROL),
+    ] {
+        assert_eq!(state.apply(event, 9, 3), SelectionAction::Stay);
+        assert_eq!(state.cursor, 0);
+    }
+}
+
+#[test]
 fn menu_keys_select_only_on_enter() {
     for down in ['j', 'J', 'h', 'H'] {
         for up in ['k', 'K', 'p', 'P'] {

@@ -79,6 +79,7 @@ fn menu(label: &str, id: MenuId) -> MenuEntry {
 pub fn entries(id: MenuId) -> Vec<MenuEntry> {
     match id {
         MenuId::Home => vec![
+            command("View latest", "now"),
             command("Log a diaper", "diaper"),
             menu("Log a feed", MenuId::Feed),
             menu("Log sleep", MenuId::Sleep),

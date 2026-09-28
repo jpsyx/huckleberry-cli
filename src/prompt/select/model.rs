@@ -63,6 +63,12 @@ impl Selection {
             KeyCode::Up | KeyCode::Char('k' | 'K' | 'p' | 'P') => {
                 self.cursor = self.cursor.saturating_sub(1);
             }
+            KeyCode::Char(digit @ '1'..='9') => {
+                let index = digit as usize - '1' as usize;
+                if index < count {
+                    self.cursor = index;
+                }
+            }
             _ => {}
         }
         self.top = crate::listing::state::scrolled(self.top, self.cursor, height, count);

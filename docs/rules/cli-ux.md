@@ -77,6 +77,8 @@ piped output is always plain text. Small emoji headings accompany terminal
 receipts; meaning remains explicit in the accompanying words.
 
 Fixed-choice prompts are numbered menus: arrows or J/H move down and K/P move
-up; Enter accepts the highlighted default. Optional choices include Skip.
+up; 1-9 highlight the corresponding item in every menu. Enter accepts the
+highlighted item. Zero and numbers beyond the menu's length are ignored; items
+10 and later remain reachable with navigation keys. Optional choices include Skip.
 Optional text offers Skip or Enter text, and existing values can be kept or
 cleared. Esc and Ctrl-C cancel the current question without accepting it.

@@ -25,6 +25,7 @@ fn home_order_and_all_commands_are_reachable() {
             .map(|entry| entry.label.as_str())
             .collect::<Vec<_>>(),
         [
+            "View latest",
             "Log a diaper",
             "Log a feed",
             "Log sleep",
@@ -46,6 +47,19 @@ fn home_order_and_all_commands_are_reachable() {
             .collect::<BTreeSet<_>>(),
         actual
     );
+}
+
+#[test]
+fn first_home_item_resolves_to_now() {
+    let home = catalog::entries(catalog::MenuId::Home);
+    let catalog::MenuTarget::Command(path) = &home[0].target else {
+        panic!("first home item must run a command");
+    };
+    let command = CommandDraft::new(path.clone())
+        .resolve(&SessionOptions::default())
+        .unwrap()
+        .command;
+    assert!(matches!(command, Some(Command::Now { .. })));
 }
 #[test]
 fn drafts_resolve_repeated_values_and_positionals() {
