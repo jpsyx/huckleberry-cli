@@ -454,3 +454,9 @@ Meals offer known foods, Enter a new food name, Remove, and Done so multiple
 foods can be selected without comma-separated typing. Solids amount offers
 Some or a custom value. Sleep overlap resolution begins on Cancel. Units,
 measurement system, and verbose settings use finite selection lists.
+
+Command options expose finite values as choices, booleans as Yes/No, passwords
+as masked input, and repeated foods as an add/remove list. Edit's field builder
+selects the entry and named fields, keeping existing values unless deliberately
+changed; Clear is separate from Keep. Unfamiliar stored enum values survive
+changes to other details.

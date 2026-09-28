@@ -2,3 +2,5 @@
 pub mod catalog;
 pub mod draft;
 pub mod session;
+
+pub mod options;

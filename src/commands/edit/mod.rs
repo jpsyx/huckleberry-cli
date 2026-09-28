@@ -16,15 +16,19 @@
 pub mod form;
 mod history;
 mod live;
+pub mod pick;
+pub mod preserve;
+mod save;
 
 use anyhow::{Result, bail};
+#[cfg(test)]
+use huckleberry_api::RowRef;
 use huckleberry_api::client::now_seconds;
-use huckleberry_api::{DiaperDetails, Huckleberry, RowRef};
 
-use crate::cli::{Amount, Colour, Consistency, EditOptions, PottyOutcome};
+use crate::cli::EditOptions;
 use crate::domain::log::Entry;
 use crate::domain::{Calendar, log};
-use crate::edit::{self, Draft};
+use crate::edit;
 use crate::listing::Listing;
 use crate::render::format;
 use crate::session::Context;
@@ -183,84 +187,6 @@ fn entry_token(entry: &Entry) -> Option<String> {
 fn editable(entry: &Entry) -> bool {
     entry.id == live::TOKEN || entry.at.is_some()
 }
-/// Writes the draft back to the row it came from.
-pub(super) async fn save(
-    client: &Huckleberry,
-    cid: &str,
-    at: &RowRef,
-    draft: &Draft,
-) -> Result<()> {
-    match draft {
-        Draft::Diaper(diaper) => {
-            let details = DiaperDetails {
-                pee_amount: diaper.pee.map(Amount::to_api),
-                poo_amount: diaper.poo.map(Amount::to_api),
-                color: diaper.color.map(Colour::to_api),
-                consistency: diaper.consistency.map(Consistency::to_api),
-                rash: diaper.rash,
-                notes: diaper.notes.clone(),
-            };
-            client
-                .update_diaper_entry(
-                    cid,
-                    at,
-                    diaper.mode.to_api(),
-                    &details,
-                    diaper.how.map(PottyOutcome::to_api),
-                )
-                .await?;
-        }
-        Draft::Bottle(bottle) => {
-            client
-                .update_bottle_entry(
-                    cid,
-                    at,
-                    bottle.amount,
-                    bottle.kind.to_api(),
-                    bottle.units.to_api(),
-                    bottle.notes.as_deref(),
-                )
-                .await?;
-        }
-        Draft::Nursing(nursing) => {
-            client
-                .update_nursing_entry(
-                    cid,
-                    at,
-                    nursing.left_minutes * 60.0,
-                    nursing.right_minutes * 60.0,
-                    nursing.notes.as_deref(),
-                )
-                .await?;
-        }
-        Draft::Solids(meal) => {
-            // The family's own foods, so that correcting a meal does not turn
-            // a food that is on their list into one that is not.
-            let known = client.custom_foods(cid, false).await.unwrap_or_default();
-            let references: Vec<_> = meal
-                .foods
-                .iter()
-                .map(|food| super::feed::match_food(food, &known, &meal.amount))
-                .collect();
-            client
-                .update_solids_entry(
-                    cid,
-                    at,
-                    &references,
-                    meal.reaction.map(crate::cli::Reaction::to_api),
-                    meal.notes.as_deref(),
-                )
-                .await?;
-        }
-        Draft::Sleep(sleep) => {
-            client
-                .update_sleep_entry(cid, at, sleep.minutes * 60.0, sleep.notes.as_deref())
-                .await?;
-        }
-    }
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

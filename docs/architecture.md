@@ -253,3 +253,7 @@ The interactive catalog groups every canonical clap command into a menu tree.
 Pending argument drafts resolve through clap without spawning a shell; passwords
 are redacted in previews and parser diagnostics. Session options remain separate
 from persistent settings.
+
+Interactive option bindings derive from clap metadata. Specialized editors handle
+repeated foods and entry fields. Edit persistence retains original wire enum
+values when the corresponding field was not changed.

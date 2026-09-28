@@ -94,14 +94,17 @@ pub async fn run(
     let mut draft = edit::draft_for(dataset, &at, Units::from_setting(&context.config.units));
     let before = draft.clone();
     fill(context, client, cid, changes, &mut draft, &mut started).await?;
-    if draft == before && started.to_bits() == current.to_bits() {
+    let explicit_details = changes.iter().any(|change| !change.starts_with("at="));
+    if draft == before && !explicit_details && started.to_bits() == current.to_bits() {
         context.report("The entry is unchanged.");
         return Ok(());
     }
-    if draft != before {
-        if let Some(details) = &draft {
-            super::save(client, cid, &at, details).await?;
-        }
+    if (draft != before || explicit_details)
+        && let Some(details) = &draft
+        && let Some(before) = &before
+    {
+        let original = super::preserve::Original::from_entry(dataset, &at, before, changes);
+        super::save::run(client, cid, &at, details, &original).await?;
     }
     let saved =
         if started.to_bits() == current.to_bits() {

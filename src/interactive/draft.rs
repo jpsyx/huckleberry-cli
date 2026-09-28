@@ -51,6 +51,11 @@ impl CommandDraft {
             }
         }
         positionals.sort_by_key(|(index, _)| *index);
+        for (offset, (index, _)) in positionals.iter().enumerate() {
+            if *index != offset + 1 {
+                return Err(anyhow!("set the preceding positional option first"));
+            }
+        }
         for (_, values) in positionals {
             words.extend(values.iter().map(OsString::from));
         }
