@@ -90,3 +90,45 @@ fn keeping_a_field_discards_its_pending_override() {
     app::interactive::options::fields::update_change(&mut changes, "notes", None);
     assert_eq!(changes, ["rash=true"]);
 }
+
+#[test]
+fn raw_tracker_rows_can_be_selected_without_typing_id() {
+    let at = huckleberry_api::RowRef::loose("health", "original-id");
+    let rows = vec![(
+        at.clone(),
+        serde_json::json!({"start": 1_700_000_000, "weight": 4.2}),
+    )];
+    let calendar = app::domain::Calendar::new("UTC").unwrap();
+    let shown = app::commands::delete::create_tracker_rows(&rows, &calendar);
+    assert_eq!(shown[0].key, app::edit::token_for(&at));
+    assert!(shown[0].selectable);
+    assert!(shown[0].cells[1].contains("4.2"));
+}
+
+#[test]
+fn session_cancel_preserves_all_overrides() {
+    let original = SessionOptions {
+        child: Some("baby".into()),
+        verbose: true,
+        ..Default::default()
+    };
+    let mut pending = original.clone();
+    pending.child = None;
+    pending.verbose = false;
+    assert_eq!(
+        app::interactive::session::finish_edit(&original, pending, false),
+        original
+    );
+}
+
+#[test]
+fn offline_choice_can_return_to_live() {
+    let original = SessionOptions {
+        offline: Some("snapshot.json".into()),
+        ..Default::default()
+    };
+    let mut pending = original.clone();
+    pending.offline = None;
+    let saved = app::interactive::session::finish_edit(&original, pending, true);
+    assert_eq!(saved.to_cli(app::cli::Command::Info).offline, None);
+}

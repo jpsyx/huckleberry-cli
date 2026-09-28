@@ -43,3 +43,29 @@ pub async fn choose_child(context: &crate::session::Context) -> anyhow::Result<S
     let index = crate::prompt::select::choose("Which child?", &items, 0, context.theme)?;
     Ok(user.child_list[index].cid.clone())
 }
+
+impl SessionOptions {
+    /// Builds an invocation without persisting session overrides.
+    #[must_use]
+    pub fn to_cli(&self, command: crate::cli::Command) -> Cli {
+        Cli {
+            command,
+            config: self.config.clone(),
+            child: self.child.clone(),
+            offline: self.offline.clone(),
+            verbose: self.verbose,
+        }
+    }
+}
+
+/// Commits a session draft only on explicit Apply.
+#[must_use]
+pub fn finish_edit(
+    original: &SessionOptions,
+    pending: SessionOptions,
+    apply: bool,
+) -> SessionOptions {
+    if apply { pending } else { original.clone() }
+}
+
+pub use super::session_menu::edit_options;

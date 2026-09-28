@@ -4,3 +4,4 @@ pub mod draft;
 pub mod session;
 
 pub mod options;
+mod session_menu;

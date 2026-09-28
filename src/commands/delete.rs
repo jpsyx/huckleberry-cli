@@ -154,11 +154,29 @@ async fn raw(
         return Ok(());
     }
 
-    let token = options
-        .id
-        .as_deref()
-        .context("no entry to delete: pass --id <ENTRY>, or --list to see them")?;
-    let at = edit::parse_token(token)?;
+    let at = if let Some(token) = &options.id {
+        edit::parse_token(token)?
+    } else {
+        if !prompt::available() {
+            bail!("no entry to delete: pass --id <ENTRY>, or --list to see them");
+        }
+        let rows = client
+            .located_rows(tracker, cid, "reading the tracker")
+            .await?;
+        super::persist_session(context, client).await?;
+        let columns = [
+            crate::listing::Column::new("When", crate::listing::Role::Key),
+            crate::listing::Column::new("Details", crate::listing::Role::Value),
+        ];
+        let selected = Listing::new("Delete which tracker entry?", "entries", &columns)
+            .rows(create_tracker_rows(&rows, calendar))
+            .choose(context.output_theme())?;
+        let Some(token) = selected else {
+            return Ok(());
+        };
+        edit::parse_token(&token)?
+    };
+    let token = edit::token_for(&at);
     let started_at = started_at(client, cid, &at)
         .await?
         .with_context(|| format!("no entry `{token}` on the record"))?;
@@ -258,4 +276,31 @@ fn choose(context: &Context, entries: &[Entry], calendar: &Calendar) -> Result<O
     .choose(context.output_theme())?;
 
     chosen.map(|token| edit::parse_token(&token)).transpose()
+}
+
+/// Turns raw tracker records into selectable rows without changing their identity.
+#[must_use]
+pub fn create_tracker_rows(
+    rows: &[(RowRef, serde_json::Value)],
+    calendar: &Calendar,
+) -> Vec<crate::listing::Row> {
+    rows.iter()
+        .rev()
+        .map(|(at, row)| {
+            let when = row
+                .get("start")
+                .and_then(serde_json::Value::as_f64)
+                .map_or_else(
+                    || "?".to_owned(),
+                    |start| {
+                        format!(
+                            "{} {}",
+                            format::day_short(calendar.day_of(start)),
+                            format::clock(start, calendar)
+                        )
+                    },
+                );
+            crate::listing::Row::new(edit::token_for(at), [when, row.to_string()])
+        })
+        .collect()
 }

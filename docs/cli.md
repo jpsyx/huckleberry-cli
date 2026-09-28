@@ -460,3 +460,8 @@ as masked input, and repeated foods as an add/remove list. Edit's field builder
 selects the entry and named fields, keeping existing values unless deliberately
 changed; Clear is separate from Keep. Unfamiliar stored enum values survive
 changes to other details.
+
+Deletion with a named tracker and no ID opens a searchable entry picker on a
+terminal. The selected row still requires the usual confirmation, defaulting to
+No. Session options edit temporary configuration, child, verbosity and live or
+snapshot source overrides; Apply publishes the draft and Escape discards it.
