@@ -57,6 +57,9 @@
 //! performs is one the app performs too, in the same shape; nothing here
 //! deletes a child, an account, or history.
 
+/// This crate's version, so a caller can report which one it is using.
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 #[macro_use]
 mod macros;
 

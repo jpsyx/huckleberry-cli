@@ -1,33 +1,37 @@
-//! The `info` command: what this build is, as data.
-//!
-//! Stdout is the machine channel, so the output is plain `key=value` lines: no
-//! color, no table drawing, nothing a caller has to strip before parsing. The
-//! configuration path is one of the facts, because "where does this tool keep
-//! its settings" is a question people ask constantly.
-
-use std::path::Path;
+//! `info`: what this build is.
 
 use anyhow::Result;
 
-use crate::APP_NAME;
+use crate::session::Context;
 
-/// The facts, in a stable order. Pure, so the shape of the output is testable.
-#[must_use]
-pub fn facts(config_path: &str) -> Vec<(&'static str, String)> {
-    vec![
-        ("name", APP_NAME.to_owned()),
-        ("package", env!("CARGO_PKG_NAME").to_owned()),
-        ("version", env!("CARGO_PKG_VERSION").to_owned()),
-        ("config", config_path.to_owned()),
-    ]
+/// Prints the facts, one `key=value` line each.
+pub fn run(context: &Context) -> Result<()> {
+    crate::render::print(&facts(
+        &context.config_path.display().to_string(),
+        &context.credentials_path.display().to_string(),
+        &context.config.timezone,
+        context.config.child(),
+    ));
+    Ok(())
 }
 
-/// Prints one `key=value` line per fact.
-pub fn run(config_path: &Path) -> Result<()> {
-    for (key, value) in facts(&config_path.display().to_string()) {
-        println!("{key}={value}");
-    }
-    Ok(())
+/// The facts and their order.
+#[must_use]
+pub fn facts(
+    config_path: &str,
+    credentials_path: &str,
+    timezone: &str,
+    child: Option<&str>,
+) -> Vec<String> {
+    vec![
+        format!("name={}", crate::APP_NAME),
+        format!("version={}", env!("CARGO_PKG_VERSION")),
+        format!("api_version={}", huckleberry_api::VERSION),
+        format!("config={config_path}"),
+        format!("credentials={credentials_path}"),
+        format!("timezone={timezone}"),
+        format!("child={}", child.unwrap_or("")),
+    ]
 }
 
 #[cfg(test)]
@@ -35,33 +39,26 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_facts_lead_with_the_name_and_carry_a_version() {
-        let facts = facts("/tmp/config.toml");
-        assert_eq!(facts.first().map(|(key, _)| *key), Some("name"));
-        assert!(
-            facts
-                .iter()
-                .any(|(key, value)| *key == "version" && !value.is_empty())
-        );
+    fn the_facts_include_the_version_of_both_halves() {
+        let shown = facts("/c/config.toml", "/c/credentials.toml", "UTC", Some("abc"));
+        assert!(shown.iter().any(|line| line.starts_with("version=")));
+        assert!(shown.iter().any(|line| line.starts_with("api_version=")));
     }
 
     #[test]
-    fn the_configuration_file_is_one_of_the_facts() {
-        let facts = facts("/tmp/config.toml");
-        assert!(
-            facts
-                .iter()
-                .any(|(key, value)| *key == "config" && value == "/tmp/config.toml")
-        );
+    fn every_fact_is_one_key_value_line() {
+        for line in facts("/c", "/d", "UTC", None) {
+            assert!(line.contains('='), "{line}");
+            assert!(!line.contains('\n'), "{line}");
+        }
     }
 
     #[test]
-    fn no_fact_is_blank() {
-        for (key, value) in facts("/tmp/config.toml") {
-            assert!(
-                !key.is_empty() && !value.is_empty(),
-                "{key} has nothing to say"
-            );
+    fn no_credential_is_ever_printed_only_where_it_lives() {
+        let shown = facts("/c/config.toml", "/c/credentials.toml", "UTC", Some("abc")).join("\n");
+        assert!(shown.contains("credentials=/c/credentials.toml"));
+        for secret in ["password", "token", "email"] {
+            assert!(!shown.contains(&format!("{secret}=")), "{shown}");
         }
     }
 }

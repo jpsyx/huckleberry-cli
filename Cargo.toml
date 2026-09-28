@@ -90,6 +90,26 @@ doc_markdown = "allow"
 # would be ceremony no reader asked for. `huckleberry-api` opts back in.
 missing_errors_doc = "allow"
 missing_panics_doc = "allow"
+# Unix timestamps travel as `f64` because that is how Huckleberry stores them,
+# and seconds since 1970 are exact in an `f64` for the next eight million
+# years. The conversions to and from the integer types are deliberate.
+cast_precision_loss = "allow"
+cast_possible_truncation = "allow"
+# Every `f64 -> usize` here is a fraction already clamped to 0..=1 or a count
+# already known to be positive, on its way to a column width or a cell index.
+cast_sign_loss = "allow"
+# `LiveState` and `DiaperEvent` have four booleans because the trackers record
+# four independent facts. Bundling them into an enum would lose a combination
+# the app can and does write.
+struct_excessive_bools = "allow"
+# Adding `Eq` to a type that mirrors a Huckleberry document is a promise that
+# no future field of it will be a float, which is a promise about somebody
+# else's schema.
+derive_partial_eq_without_eq = "allow"
+# `3.0 * 3600.0 - x` reads as three hours and `3.0f64.mul_add(-3600.0, x)`
+# does not. The precision this trades away is invisible at the scale of
+# seconds in a day.
+suboptimal_flops = "allow"
 
 [profile.release]
 lto = "thin"

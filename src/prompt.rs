@@ -177,6 +177,109 @@ pub fn ask(question: &Question<'_>, theme: Theme) -> Result<String> {
     }
 }
 
+/// Asks for something that must not appear on the screen.
+///
+/// The terminal is put into raw mode for exactly as long as the answer is
+/// being typed, so the characters are not echoed. Raw mode is restored before
+/// this returns by any path, including the one where the read fails: leaving
+/// a person's terminal in raw mode is worse than failing to read a password.
+///
+/// As with [`ask`], with no terminal there is nobody to ask, and the failure
+/// names the flag and the environment variable that would have answered.
+pub fn ask_secret(question: &Question<'_>, theme: Theme) -> Result<String> {
+    if !std::io::stdin().is_terminal() {
+        bail!(unanswerable_message(question));
+    }
+    let mut output = std::io::stderr();
+    write!(output, "{} ", theme.prompt(question.label)).context("writing the question")?;
+    output.flush().context("writing the question")?;
+
+    let typed = read_without_echo();
+    eprintln!();
+    let typed = typed?;
+    if typed.trim().is_empty() {
+        bail!("no {}: nothing was typed", question.subject);
+    }
+    Ok(typed)
+}
+
+/// Reads one line with the terminal's echo switched off.
+fn read_without_echo() -> Result<String> {
+    use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
+
+    enable_raw_mode().context("switching the terminal echo off")?;
+    let outcome = collect_secret();
+    // Restored before the result is examined, so a failure cannot leave the
+    // terminal unusable.
+    let restored = disable_raw_mode().context("switching the terminal echo back on");
+    let typed = outcome?;
+    restored?;
+    Ok(typed)
+}
+
+/// The key loop behind [`read_without_echo`], with the terminal already raw.
+fn collect_secret() -> Result<String> {
+    use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers, read};
+
+    let mut typed = String::new();
+    loop {
+        let Event::Key(KeyEvent {
+            code, modifiers, ..
+        }) = read().context("reading the answer")?
+        else {
+            continue;
+        };
+        match code {
+            KeyCode::Enter => return Ok(typed),
+            KeyCode::Backspace => {
+                typed.pop();
+            }
+            // Ctrl-C while typing a password should abandon the command, not
+            // submit what has been typed so far.
+            KeyCode::Char('c') if modifiers.contains(KeyModifiers::CONTROL) => {
+                bail!("cancelled");
+            }
+            KeyCode::Char(character) => typed.push(character),
+            _ => {}
+        }
+    }
+}
+
+/// Asks a yes-or-no question. With no terminal, the default stands: a command
+/// that cannot ask must not block, and the caller chose the default knowing
+/// that.
+pub fn confirm(label: &str, default: bool, theme: Theme) -> Result<bool> {
+    if !std::io::stdin().is_terminal() {
+        return Ok(default);
+    }
+    let hint = if default { "Y/n" } else { "y/N" };
+    let mut output = std::io::stderr();
+    write!(output, "{} {} ", theme.prompt(label), theme.muted(hint))
+        .context("writing the question")?;
+    output.flush().context("writing the question")?;
+
+    let mut line = String::new();
+    let read = std::io::stdin()
+        .read_line(&mut line)
+        .context("reading the answer")?;
+    if read == 0 {
+        return Ok(default);
+    }
+    Ok(interpret_confirmation(&line, default))
+}
+
+/// What a typed yes-or-no answer means. Anything that is not a yes or a no
+/// takes the default rather than asking again: a confirmation is not worth a
+/// second round trip.
+#[must_use]
+pub fn interpret_confirmation(input: &str, default: bool) -> bool {
+    match input.trim().to_lowercase().as_str() {
+        "y" | "yes" => true,
+        "n" | "no" => false,
+        _ => default,
+    }
+}
+
 /// Puts the question on stderr, flushed, so the cursor waits on the same line.
 fn write_question(question: &Question<'_>, theme: Theme) -> Result<()> {
     let mut output = std::io::stderr();
@@ -277,6 +380,22 @@ mod tests {
         let question = Question::new("name to greet", "Who should I greet?", "--name <NAME>");
         let text = render(&question, Theme::dark(false));
         assert_eq!(text, "Who should I greet?\n> ");
+    }
+
+    #[test]
+    fn a_confirmation_takes_a_yes_or_a_no_and_defaults_otherwise() {
+        assert!(interpret_confirmation("y\n", false));
+        assert!(interpret_confirmation("YES", false));
+        assert!(!interpret_confirmation("n", true));
+        assert!(!interpret_confirmation("No\n", true));
+        assert!(
+            interpret_confirmation("\n", true),
+            "an empty answer takes the default"
+        );
+        assert!(
+            !interpret_confirmation("maybe", false),
+            "so does anything else"
+        );
     }
 
     #[test]
