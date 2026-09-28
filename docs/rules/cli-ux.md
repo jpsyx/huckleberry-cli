@@ -75,3 +75,8 @@ fails if a tone drifts out of that range. Each stream emits colour only when tha
 unset. The stdout palette is independent of the prompt palette on stderr, so
 piped output is always plain text. Small emoji headings accompany terminal
 receipts; meaning remains explicit in the accompanying words.
+
+Fixed-choice prompts are numbered menus: arrows or J/H move down and K/P move
+up; Enter accepts the highlighted default. Optional choices include Skip.
+Optional text offers Skip or Enter text, and existing values can be kept or
+cleared. Esc and Ctrl-C cancel the current question without accepting it.

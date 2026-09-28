@@ -444,3 +444,8 @@ hb --offline snapshot.json dash
 ```
 
 Write commands refuse `--offline` rather than pretending.
+
+Fixed-choice prompts are numbered menus: arrows or J/H move down and K/P move
+up; Enter accepts the highlighted default. Optional choices include Skip.
+Optional text offers Skip or Enter text, and existing values can be kept or
+cleared. Esc and Ctrl-C cancel the current question without accepting it.

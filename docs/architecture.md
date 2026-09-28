@@ -59,7 +59,7 @@ src/
 ├── session.rs       from a configuration file to a working client
 ├── dataset.rs       pulling one child into one value, and the snapshot format
 ├── edit.rs          what an edit is: which row, which fields, what they hold
-├── prompt.rs        asking for a value that was left out
+├── prompt/mod.rs        asking for a value that was left out
 ├── prompt/time.rs   shared clock-time and relative-event questions
 ├── theme.rs         semantic colours
 ├── domain/          everything the tool works out, and nothing it prints
@@ -106,7 +106,7 @@ Every value a command needs is looked for in the same order:
 1. the flag (`--amount 90`), which is what an agent or a script passes;
 2. the configuration file, which is how a person avoids typing the same flag
    every day;
-3. a question, asked through `src/prompt.rs`, when there is a terminal;
+3. a question, asked through `src/prompt/mod.rs`, when there is a terminal;
 4. a failure naming the flag, when there is not.
 
 Event times keep their noninteractive default of now. `prompt/time.rs` shares
@@ -241,3 +241,7 @@ question from the thing it asks about.
 
 The shared prompt selection model in `prompt/select` interprets arrow and
 J/K/H/P navigation without terminal I/O, with bounded cursor and scroll state.
+
+Prompt input now uses a scoped raw-mode guard for text and selection. Typed
+cancellation travels through anyhow without string matching. Text, questions,
+password key interpretation, and menu selection live in separate prompt files.

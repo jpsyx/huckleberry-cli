@@ -83,3 +83,39 @@ fn narrow_menu_keeps_number_and_cursor() {
             .all(|line| ratatui::text::Line::raw(line).width() <= 16)
     );
 }
+
+#[test]
+fn defaults_skip_and_text_are_distinct_answers() {
+    use app::prompt::select::{Answer, question_menu};
+    use app::prompt::{Choice, Question};
+    let choices = [
+        Choice {
+            value: "yes",
+            hint: "Yes",
+        },
+        Choice {
+            value: "no",
+            hint: "No",
+        },
+    ];
+    let required = Question::new("answer", "Choose", "--answer").with_choices(&choices);
+    let menu = question_menu(&required.with_default("no"));
+    assert_eq!(menu.answers[menu.default], Answer::Value("no".into()));
+    assert!(!menu.answers.contains(&Answer::Skip));
+    let optional = question_menu(&required.optional());
+    assert_eq!(optional.answers[optional.default], Answer::Skip);
+    let unknown = question_menu(&required.with_default("legacy"));
+    assert_eq!(
+        unknown.answers[unknown.default],
+        Answer::Value("legacy".into())
+    );
+    let text = question_menu(&Question::new("note", "Notes?", "--notes").optional());
+    assert_eq!(text.answers, vec![Answer::Skip, Answer::Text]);
+}
+
+#[test]
+fn typed_cancel_survives_error_context() {
+    let error = anyhow::Error::new(app::prompt::Cancelled).context("answering a question");
+    assert!(app::prompt::is_cancelled(&error));
+    assert!(!app::prompt::is_cancelled(&anyhow::anyhow!("cancelled")));
+}
