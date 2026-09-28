@@ -119,3 +119,59 @@ fn typed_cancel_survives_error_context() {
     assert!(app::prompt::is_cancelled(&error));
     assert!(!app::prompt::is_cancelled(&anyhow::anyhow!("cancelled")));
 }
+
+#[test]
+fn lists_use_extra_keys_but_search_keeps_letters() {
+    use app::listing::state::{Flow, State, apply, key_for};
+    let mut state = State::new(String::new());
+    assert_eq!(
+        apply(&mut state, key_for(key(KeyCode::Char('H'))), 5, 2),
+        Flow::Stay
+    );
+    assert_eq!(state.cursor, 1);
+    apply(&mut state, key_for(key(KeyCode::Char('P'))), 5, 2);
+    assert_eq!(state.cursor, 0);
+    state.searching = true;
+    for letter in "happy".chars() {
+        apply(&mut state, key_for(key(KeyCode::Char(letter))), 5, 2);
+    }
+    assert_eq!(state.query, "happy");
+}
+
+#[test]
+fn dashboard_h_scrolls_log_instead_of_changing_tab() {
+    use app::dashboard::state::{Action, Tab, action_for_tab};
+    assert_eq!(
+        action_for_tab(key(KeyCode::Char('H')), Tab::Log),
+        Action::ScrollDown
+    );
+    assert_eq!(
+        action_for_tab(key(KeyCode::Char('p')), Tab::Log),
+        Action::ScrollUp
+    );
+    assert!(matches!(
+        action_for_tab(key(KeyCode::Left), Tab::Log),
+        Action::Show(_)
+    ));
+}
+
+#[test]
+fn list_numbering_preserves_row_keys_and_leaves_headings_unnumbered() {
+    use app::listing::{Line, Piece};
+    let mut lines = vec![
+        Line::text(vec![Piece::new("Today", app::theme::Tone::Heading)]),
+        Line {
+            pieces: vec![Piece::new("meal", app::theme::Tone::Value)],
+            row: Some(0),
+        },
+    ];
+    app::listing::layout::number_rows(&mut lines);
+    assert_eq!(lines[0].pieces[0].text, "Today");
+    assert!(
+        lines[1]
+            .pieces
+            .iter()
+            .any(|piece| piece.text.contains("1."))
+    );
+    assert_eq!(lines[1].row, Some(0));
+}

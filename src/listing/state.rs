@@ -120,8 +120,8 @@ pub fn moved(cursor: usize, rows: usize, page: usize, key: Key) -> usize {
     }
     let last = rows - 1;
     match key {
-        Key::Down | Key::Char('j') => (cursor + 1).min(last),
-        Key::Up | Key::Char('k') => cursor.saturating_sub(1),
+        Key::Down | Key::Char('j' | 'J' | 'h' | 'H') => (cursor + 1).min(last),
+        Key::Up | Key::Char('k' | 'K' | 'p' | 'P') => cursor.saturating_sub(1),
         Key::PageDown | Key::Char('d') => (cursor + page.max(1)).min(last),
         Key::PageUp | Key::Char('u') => cursor.saturating_sub(page.max(1)),
         Key::Char('G') => last,

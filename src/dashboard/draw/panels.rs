@@ -318,13 +318,15 @@ pub(super) fn draw_log(frame: &mut Frame, area: Rect, state: &State) {
     let top = state.scroll.min(entries.len().saturating_sub(1));
     let lines: Vec<Line<'_>> = entries
         .iter()
+        .enumerate()
         .skip(top)
         .take(visible)
-        .map(|entry| {
+        .map(|(index, entry)| {
             Line::from(vec![
                 Span::styled(
                     format!(
-                        " {} ",
+                        "{}. {} ",
+                        index + 1,
                         format::pad_left(&format::clock(entry.start, &state.calendar), 8)
                     ),
                     Style::default().fg(tone(Tone::Muted)),
@@ -342,7 +344,7 @@ pub(super) fn draw_log(frame: &mut Frame, area: Rect, state: &State) {
         .collect();
 
     let title = format!(
-        "Log ({} of {}, j/k to scroll)",
+        "Log ({} of {}, j/k h/p to scroll)",
         top + lines.len(),
         entries.len()
     );

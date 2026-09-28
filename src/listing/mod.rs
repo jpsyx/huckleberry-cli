@@ -72,7 +72,7 @@ impl<'a> Listing<'a> {
             today: Box::new(|_| false),
             empty: format!("no {noun}"),
             query: String::new(),
-            verb: "j/k or ↑/↓ move · / searches · enter opens · q leaves",
+            verb: "j/k h/p or ↑/↓ move · / searches · enter opens · q leaves",
         }
     }
 
@@ -224,7 +224,13 @@ impl<'a> Listing<'a> {
         let mut state = State::new(self.query.clone());
         loop {
             let size = terminal.size().context("asking the terminal its size")?;
-            let (head, body) = self.frame(&state.query, state.searching, Some(size.width as usize));
+            let number_width = self.rows.len().to_string().len() + 2;
+            let (head, mut body) = self.frame(
+                &state.query,
+                state.searching,
+                Some(usize::from(size.width).saturating_sub(number_width)),
+            );
+            layout::number_rows(&mut body);
             let filtered = model::filter(&self.rows, &state.query);
             let height = usize::from(size.height)
                 .saturating_sub(head.len() + 2)

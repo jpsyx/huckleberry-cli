@@ -233,6 +233,18 @@ pub fn body_lines(
     lines
 }
 
+/// Adds row numbers to an interactive frame without changing row identities.
+pub fn number_rows(lines: &mut [Line]) {
+    for line in lines {
+        if let Some(index) = line.row {
+            line.pieces.insert(
+                usize::from(!line.pieces.is_empty()),
+                Piece::new(format!("{}. ", index + 1), Tone::Muted),
+            );
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

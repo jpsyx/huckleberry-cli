@@ -116,6 +116,19 @@ pub fn action_for(key: KeyEvent) -> Action {
     }
 }
 
+/// Resolves navigation letters according to the focused dashboard tab.
+#[must_use]
+pub fn action_for_tab(key: KeyEvent, tab: Tab) -> Action {
+    if tab == Tab::Log && !key.modifiers.contains(KeyModifiers::CONTROL) {
+        match key.code {
+            KeyCode::Char('j' | 'J' | 'h' | 'H') => return Action::ScrollDown,
+            KeyCode::Char('k' | 'K' | 'p' | 'P') => return Action::ScrollUp,
+            _ => {}
+        }
+    }
+    action_for(key)
+}
+
 /// Everything the dashboard is holding.
 pub struct State {
     /// What was read.
@@ -155,7 +168,7 @@ impl State {
     /// Relative movement is resolved here rather than in [`action_for`],
     /// which cannot know which tab is showing.
     pub fn apply(&mut self, key: KeyEvent) -> bool {
-        match action_for(key) {
+        match action_for_tab(key, self.tab) {
             Action::Quit => return false,
             Action::Refresh => self.refreshing = true,
             Action::ScrollDown => self.scroll = self.scroll.saturating_add(1),
