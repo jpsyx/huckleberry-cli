@@ -124,7 +124,7 @@ impl Huckleberry {
             .await
     }
 
-    /// Watches the nappy tracker.
+    /// Watches the diaper tracker.
     ///
     /// # Errors
     ///

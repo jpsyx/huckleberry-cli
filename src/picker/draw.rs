@@ -15,9 +15,10 @@ use crate::dashboard::draw::tone;
 use crate::domain::Calendar;
 use crate::domain::log::Entry;
 use crate::render::format;
+use crate::render::log as log_render;
 use crate::theme::Tone;
 
-use super::state::{Picker, editable};
+use super::state::Picker;
 
 /// How wide the title column is, as in `render::log`.
 const TITLE_WIDTH: usize = 9;
@@ -38,7 +39,7 @@ pub fn draw(frame: &mut Frame, picker: &Picker, calendar: &Calendar) {
     let items: Vec<ListItem> = picker
         .entries
         .iter()
-        .map(|entry| ListItem::new(row(entry, calendar)))
+        .map(|entry| ListItem::new(row(entry, calendar, picker.purpose.allows(entry))))
         .collect();
     let list = List::new(items).highlight_symbol("› ").highlight_style(
         Style::default()
@@ -58,7 +59,7 @@ fn heading(picker: &Picker) -> Paragraph<'static> {
     let count = picker.entries.len();
     Paragraph::new(Line::from(vec![
         Span::styled(
-            "Which entry? ",
+            picker.purpose.question(),
             Style::default()
                 .fg(tone(Tone::Prompt))
                 .add_modifier(Modifier::BOLD),
@@ -71,7 +72,7 @@ fn heading(picker: &Picker) -> Paragraph<'static> {
 }
 
 /// One entry's line.
-fn row(entry: &Entry, calendar: &Calendar) -> Line<'static> {
+fn row(entry: &Entry, calendar: &Calendar, allowed: bool) -> Line<'static> {
     let day = format::day_short(calendar.day_of(entry.start));
     let when = format!("{day}  {:>8}", format::clock(entry.start, calendar));
     let muted = Style::default().fg(tone(Tone::Muted));
@@ -79,19 +80,19 @@ fn row(entry: &Entry, calendar: &Calendar) -> Line<'static> {
         Span::styled(format!("{when}  "), muted),
         Span::styled(
             format::pad(&entry.title, TITLE_WIDTH),
-            Style::default().fg(tone(if editable(entry) {
-                Tone::Accent
+            Style::default().fg(if allowed {
+                tone(log_render::tone_for(entry.kind))
             } else {
-                Tone::Muted
-            })),
+                tone(Tone::Muted)
+            }),
         ),
         Span::styled(
             format!("  {}", entry.description),
-            Style::default().fg(tone(if editable(entry) {
-                Tone::Value
+            Style::default().fg(if allowed {
+                tone(Tone::Value)
             } else {
-                Tone::Muted
-            })),
+                tone(Tone::Muted)
+            }),
         ),
     ];
     if let Some(notes) = &entry.notes {
@@ -105,7 +106,7 @@ fn footer(picker: &Picker) -> Paragraph<'static> {
     picker.trouble.as_ref().map_or_else(
         || {
             Paragraph::new(Span::styled(
-                "j/k or ↑/↓ move · enter edits · q leaves",
+                picker.purpose.keys(),
                 Style::default().fg(tone(Tone::Muted)),
             ))
         },
@@ -124,7 +125,7 @@ mod tests {
     use ratatui::backend::TestBackend;
 
     use super::*;
-    use crate::domain::fixtures::{AFTERNOON, bottle, dataset, nappy};
+    use crate::domain::fixtures::{AFTERNOON, bottle, dataset, diaper};
     use crate::domain::log;
     use crate::domain::types::{MilestoneEvent, PumpEvent};
 
@@ -148,7 +149,7 @@ mod tests {
     fn entries() -> Vec<log::Entry> {
         let mut data = dataset();
         data.feeds = vec![bottle(AFTERNOON - 3_600.0, 90.0)];
-        data.diapers = vec![nappy(AFTERNOON - 1_800.0, true, false)];
+        data.diapers = vec![diaper(AFTERNOON - 1_800.0, true, false)];
         data.pumps = vec![PumpEvent {
             at: None,
             id: "p1".to_owned(),
@@ -175,9 +176,35 @@ mod tests {
     fn every_entry_is_on_the_screen_with_the_day_it_happened() {
         let text = screen(&Picker::new(entries()));
         assert!(text.contains("Bottle"), "{text}");
-        assert!(text.contains("Nappy"), "{text}");
+        assert!(text.contains("Diaper"), "{text}");
         assert!(text.contains("Pumping"), "{text}");
         assert!(text.contains("Mon 22 Sep"), "{text}");
+    }
+
+    #[test]
+    fn every_kind_of_entry_is_drawn_in_its_own_colour() {
+        let calendar = Calendar::new("America/New_York").expect("a real timezone");
+        let entries = entries();
+        let colours: Vec<_> = entries
+            .iter()
+            .map(|entry| {
+                row(entry, &calendar, true).spans[1]
+                    .style
+                    .fg
+                    .expect("a colour")
+            })
+            .collect();
+        let kinds: Vec<_> = entries.iter().map(|entry| entry.kind).collect();
+        for (position, kind) in kinds.iter().enumerate() {
+            for (other_position, other) in kinds.iter().enumerate() {
+                if kind != other {
+                    assert_ne!(
+                        colours[position], colours[other_position],
+                        "{kind:?} and {other:?} share a colour"
+                    );
+                }
+            }
+        }
     }
 
     #[test]

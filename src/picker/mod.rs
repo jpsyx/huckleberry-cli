@@ -12,4 +12,4 @@ pub mod draw;
 pub mod state;
 
 pub use draw::draw;
-pub use state::{Action, Picker, action_for, editable};
+pub use state::{Action, Picker, Purpose, action_for, editable};

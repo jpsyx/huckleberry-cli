@@ -185,7 +185,7 @@ pub enum Size {
     Large,
 }
 
-/// One nappy, or one potty trip.
+/// One diaper, or one potty trip.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DiaperEvent {
     /// Where the row lives in Huckleberry, when it came from there rather
@@ -212,7 +212,7 @@ pub struct DiaperEvent {
     pub consistency: Option<String>,
     /// Whether a rash was noted.
     pub rash: bool,
-    /// Whether this was a potty trip rather than a nappy.
+    /// Whether this was a potty trip rather than a diaper.
     pub potty: bool,
     /// Whatever the parent typed.
     pub notes: Option<String>,
@@ -345,7 +345,7 @@ pub struct Dataset {
     pub sleep: Vec<SleepEvent>,
     /// Feeds, oldest first.
     pub feeds: Vec<FeedEvent>,
-    /// Nappies and potty trips, oldest first.
+    /// Diapers and potty trips, oldest first.
     pub diapers: Vec<DiaperEvent>,
     /// Pumping sessions, oldest first.
     pub pumps: Vec<PumpEvent>,
@@ -369,10 +369,10 @@ impl Dataset {
         newest(&self.feeds, FeedEvent::start)
     }
 
-    /// The most recent nappy, if there is one.
+    /// The most recent diaper, if there is one.
     #[must_use]
     pub fn last_diaper(&self) -> Option<&DiaperEvent> {
-        newest(&self.diapers, |nappy| nappy.start)
+        newest(&self.diapers, |diaper| diaper.start)
     }
 
     /// The most recent sleep, by when it ended: a long sleep that began

@@ -4,7 +4,7 @@
 //! tool's own words: the form in [`crate::commands::edit`] fills it in by
 //! asking, `--set key=value` fills it in without asking, and both hand the
 //! same value to the same write. That is what keeps the two paths honest with
-//! each other, and it is why "what does `--set mode=both` do to a nappy" is a
+//! each other, and it is why "what does `--set mode=both` do to a diaper" is a
 //! test rather than something you find out against somebody's real record.
 //!
 //! An edit changes what was recorded, never when it happened. A row's id in
@@ -15,7 +15,7 @@ use anyhow::{Result, bail};
 use huckleberry_api::RowRef;
 
 use crate::cli::{
-    Amount, BottleKind, Colour, Consistency, NappyKind, PottyOutcome, Reaction, Units,
+    Amount, BottleKind, Colour, Consistency, DiaperKind, PottyOutcome, Reaction, Units,
 };
 use crate::domain::types::{Dataset, DiaperEvent, FeedEvent, SleepEvent};
 
@@ -55,13 +55,13 @@ pub fn parse_token(text: &str) -> Result<RowRef> {
     })
 }
 
-/// A nappy or a potty trip, as it stands.
+/// A diaper or a potty trip, as it stands.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct NappyDraft {
-    /// Whether this is a potty trip rather than a nappy.
+pub struct DiaperDraft {
+    /// Whether this is a potty trip rather than a diaper.
     pub potty: bool,
     /// What was in it.
-    pub mode: NappyKind,
+    pub mode: DiaperKind,
     /// How much wet.
     pub pee: Option<Amount>,
     /// How much dirty.
@@ -70,7 +70,7 @@ pub struct NappyDraft {
     pub color: Option<Colour>,
     /// The consistency.
     pub consistency: Option<Consistency>,
-    /// Whether a rash was noted. Nappies only.
+    /// Whether a rash was noted. Diapers only.
     pub rash: bool,
     /// How the potty trip went. Potty trips only.
     pub how: Option<PottyOutcome>,
@@ -127,8 +127,8 @@ pub struct SleepDraft {
 /// One entry, in the words this tool asks about it with.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Draft {
-    /// A nappy or a potty trip.
-    Nappy(NappyDraft),
+    /// A diaper or a potty trip.
+    Diaper(DiaperDraft),
     /// A bottle.
     Bottle(BottleDraft),
     /// A nursing session.
@@ -144,8 +144,8 @@ impl Draft {
     #[must_use]
     pub const fn what(&self) -> &'static str {
         match self {
-            Self::Nappy(nappy) if nappy.potty => "potty trip",
-            Self::Nappy(_) => "nappy",
+            Self::Diaper(diaper) if diaper.potty => "potty trip",
+            Self::Diaper(_) => "diaper",
             Self::Bottle(_) => "bottle",
             Self::Nursing(_) => "nursing session",
             Self::Solids(_) => "meal",
@@ -157,8 +157,10 @@ impl Draft {
     #[must_use]
     pub const fn fields(&self) -> &'static [&'static str] {
         match self {
-            Self::Nappy(nappy) if nappy.potty => &["mode", "how", "color", "consistency", "notes"],
-            Self::Nappy(_) => &[
+            Self::Diaper(diaper) if diaper.potty => {
+                &["mode", "how", "color", "consistency", "notes"]
+            }
+            Self::Diaper(_) => &[
                 "mode",
                 "pee",
                 "poo",
@@ -195,7 +197,7 @@ impl Draft {
             );
         }
         match self {
-            Self::Nappy(nappy) => set_on_nappy(nappy, &key, value),
+            Self::Diaper(diaper) => set_on_diaper(diaper, &key, value),
             Self::Bottle(bottle) => set_on_bottle(bottle, &key, value),
             Self::Nursing(nursing) => set_on_nursing(nursing, &key, value),
             Self::Solids(meal) => set_on_solids(meal, &key, value),
@@ -226,30 +228,30 @@ impl Draft {
 #[must_use]
 pub fn summary(draft: &Draft) -> String {
     match draft {
-        Draft::Nappy(nappy) => {
-            let mut said = vec![format!("{:?}", nappy.mode).to_lowercase()];
-            if let Some(outcome) = nappy.how {
+        Draft::Diaper(diaper) => {
+            let mut said = vec![format!("{:?}", diaper.mode).to_lowercase()];
+            if let Some(outcome) = diaper.how {
                 said.push(spelling(&format!("{outcome:?}")));
             }
-            for (label, amount) in [("wet", nappy.pee), ("dirty", nappy.poo)] {
+            for (label, amount) in [("wet", diaper.pee), ("dirty", diaper.poo)] {
                 if let Some(amount) = amount {
                     said.push(format!("{} {label}", format!("{amount:?}").to_lowercase()));
                 }
             }
-            if let Some(colour) = nappy.color {
+            if let Some(colour) = diaper.color {
                 said.push(format!("{colour:?}").to_lowercase());
             }
-            if let Some(texture) = nappy.consistency {
+            if let Some(texture) = diaper.consistency {
                 said.push(format!("{texture:?}").to_lowercase());
             }
-            if nappy.rash {
+            if diaper.rash {
                 said.push("rash noted".to_owned());
             }
             said.join(" · ")
         }
         Draft::Bottle(bottle) => format!(
-            "{:.0} {} of {}",
-            bottle.amount,
+            "{} {} of {}",
+            crate::render::format::amount_in(bottle.amount, bottle.units),
             bottle.units.as_str(),
             bottle.kind.to_api()
         ),
@@ -288,12 +290,12 @@ fn spelling(name: &str) -> String {
 /// shown is what is being changed.
 #[must_use]
 pub fn draft_for(dataset: &Dataset, at: &RowRef, units: Units) -> Option<Draft> {
-    if let Some(nappy) = dataset
+    if let Some(diaper) = dataset
         .diapers
         .iter()
         .find(|event| is_at(event.at.as_ref(), at))
     {
-        return Some(Draft::Nappy(nappy_draft(nappy)));
+        return Some(Draft::Diaper(diaper_draft(diaper)));
     }
     if let Some(feed) = dataset.feeds.iter().find(|event| is_at(event.at(), at)) {
         return Some(feed_draft(feed, units));
@@ -310,27 +312,27 @@ fn is_at(candidate: Option<&RowRef>, wanted: &RowRef) -> bool {
     candidate == Some(wanted)
 }
 
-fn nappy_draft(nappy: &DiaperEvent) -> NappyDraft {
-    NappyDraft {
-        potty: nappy.potty,
+fn diaper_draft(diaper: &DiaperEvent) -> DiaperDraft {
+    DiaperDraft {
+        potty: diaper.potty,
         // A mode this tool has no word for is shown as what it counts as
         // rather than refusing the edit outright.
-        mode: NappyKind::from_stored(&nappy.mode).unwrap_or(match (nappy.wet, nappy.dirty) {
-            (true, true) => NappyKind::Both,
-            (false, true) => NappyKind::Poo,
-            (true, false) => NappyKind::Pee,
-            (false, false) => NappyKind::Dry,
+        mode: DiaperKind::from_stored(&diaper.mode).unwrap_or(match (diaper.wet, diaper.dirty) {
+            (true, true) => DiaperKind::Both,
+            (false, true) => DiaperKind::Poo,
+            (true, false) => DiaperKind::Pee,
+            (false, false) => DiaperKind::Dry,
         }),
-        pee: nappy.pee_size.map(Amount::from_size),
-        poo: nappy.poo_size.map(Amount::from_size),
-        color: nappy.color.as_deref().and_then(Colour::from_stored),
-        consistency: nappy
+        pee: diaper.pee_size.map(Amount::from_size),
+        poo: diaper.poo_size.map(Amount::from_size),
+        color: diaper.color.as_deref().and_then(Colour::from_stored),
+        consistency: diaper
             .consistency
             .as_deref()
             .and_then(Consistency::from_stored),
-        rash: nappy.rash,
+        rash: diaper.rash,
         how: None,
-        notes: nappy.notes.clone(),
+        notes: diaper.notes.clone(),
     }
 }
 
@@ -404,27 +406,27 @@ fn note(value: &str) -> Option<String> {
     (!value.is_empty()).then(|| value.to_owned())
 }
 
-fn set_on_nappy(nappy: &mut NappyDraft, key: &str, value: &str) -> Result<()> {
+fn set_on_diaper(diaper: &mut DiaperDraft, key: &str, value: &str) -> Result<()> {
     match key {
         "mode" => {
-            nappy.mode = NappyKind::from_stored(value)
+            diaper.mode = DiaperKind::from_stored(value)
                 .ok_or_else(|| anyhow::anyhow!("`{value}` is not pee, poo, both or dry"))?;
         }
-        "pee" => nappy.pee = optional(value, Amount::from_stored, "amount")?,
-        "poo" => nappy.poo = optional(value, Amount::from_stored, "amount")?,
-        "color" => nappy.color = optional(value, Colour::from_stored, "colour")?,
+        "pee" => diaper.pee = optional(value, Amount::from_stored, "amount")?,
+        "poo" => diaper.poo = optional(value, Amount::from_stored, "amount")?,
+        "color" => diaper.color = optional(value, Colour::from_stored, "colour")?,
         "consistency" => {
-            nappy.consistency = optional(value, Consistency::from_stored, "consistency")?;
+            diaper.consistency = optional(value, Consistency::from_stored, "consistency")?;
         }
-        "rash" => nappy.rash = truth(value)?,
+        "rash" => diaper.rash = truth(value)?,
         "how" => {
-            nappy.how = optional(
+            diaper.how = optional(
                 value,
                 |word| PottyOutcome::from_stored(word).or_else(|| spoken_outcome(word)),
                 "outcome",
             )?;
         }
-        _ => nappy.notes = note(value),
+        _ => diaper.notes = note(value),
     }
     Ok(())
 }
@@ -561,12 +563,12 @@ mod tokens {
 #[cfg(test)]
 mod drafts {
     use super::*;
-    use crate::domain::fixtures::{AFTERNOON, dataset, nappy};
+    use crate::domain::fixtures::{AFTERNOON, dataset, diaper};
     use crate::domain::types::Size;
 
-    fn wet_nappy() -> Dataset {
+    fn wet_diaper() -> Dataset {
         let mut data = dataset();
-        let mut event = nappy(AFTERNOON, true, false);
+        let mut event = diaper(AFTERNOON, true, false);
         event.at = Some(RowRef::loose("diaper", "row-one"));
         event.mode = "pee".to_owned();
         event.pee_size = Some(Size::Large);
@@ -575,14 +577,14 @@ mod drafts {
     }
 
     #[test]
-    fn a_nappy_starts_from_what_is_on_the_record() {
-        let data = wet_nappy();
-        let Some(Draft::Nappy(draft)) =
+    fn a_diaper_starts_from_what_is_on_the_record() {
+        let data = wet_diaper();
+        let Some(Draft::Diaper(draft)) =
             draft_for(&data, &RowRef::loose("diaper", "row-one"), Units::Ml)
         else {
-            panic!("a nappy");
+            panic!("a diaper");
         };
-        assert_eq!(draft.mode, NappyKind::Pee);
+        assert_eq!(draft.mode, DiaperKind::Pee);
         assert_eq!(draft.pee, Some(Amount::Big));
         assert!(!draft.potty);
     }
@@ -591,7 +593,7 @@ mod drafts {
     fn a_row_the_dataset_does_not_hold_has_no_draft() {
         assert!(
             draft_for(
-                &wet_nappy(),
+                &wet_diaper(),
                 &RowRef::loose("diaper", "elsewhere"),
                 Units::Ml
             )
@@ -601,9 +603,9 @@ mod drafts {
 
     #[test]
     fn a_change_names_the_field_and_the_value() {
-        let mut draft = Draft::Nappy(NappyDraft {
+        let mut draft = Draft::Diaper(DiaperDraft {
             potty: false,
-            mode: NappyKind::Pee,
+            mode: DiaperKind::Pee,
             pee: None,
             poo: None,
             color: None,
@@ -620,20 +622,20 @@ mod drafts {
                 "notes=a big one".to_owned(),
             ])
             .expect("the changes");
-        let Draft::Nappy(nappy) = &draft else {
-            panic!("a nappy")
+        let Draft::Diaper(diaper) = &draft else {
+            panic!("a diaper")
         };
-        assert_eq!(nappy.mode, NappyKind::Both);
-        assert_eq!(nappy.poo, Some(Amount::Medium));
-        assert_eq!(nappy.color, Some(Colour::Yellow));
-        assert_eq!(nappy.notes.as_deref(), Some("a big one"));
+        assert_eq!(diaper.mode, DiaperKind::Both);
+        assert_eq!(diaper.poo, Some(Amount::Medium));
+        assert_eq!(diaper.color, Some(Colour::Yellow));
+        assert_eq!(diaper.notes.as_deref(), Some("a big one"));
     }
 
     #[test]
     fn an_empty_value_clears_the_field_rather_than_leaving_it() {
-        let mut draft = Draft::Nappy(NappyDraft {
+        let mut draft = Draft::Diaper(DiaperDraft {
             potty: false,
-            mode: NappyKind::Poo,
+            mode: DiaperKind::Poo,
             pee: None,
             poo: Some(Amount::Big),
             color: Some(Colour::Green),
@@ -649,13 +651,13 @@ mod drafts {
                 "rash=no".to_owned(),
             ])
             .expect("the changes");
-        let Draft::Nappy(nappy) = &draft else {
-            panic!("a nappy")
+        let Draft::Diaper(diaper) = &draft else {
+            panic!("a diaper")
         };
-        assert_eq!(nappy.color, None);
-        assert_eq!(nappy.notes, None);
-        assert!(!nappy.rash);
-        assert_eq!(nappy.poo, Some(Amount::Big), "and nothing else moved");
+        assert_eq!(diaper.color, None);
+        assert_eq!(diaper.notes, None);
+        assert!(!diaper.rash);
+        assert_eq!(diaper.poo, Some(Amount::Big), "and nothing else moved");
     }
 
     #[test]
@@ -696,9 +698,9 @@ mod drafts {
 
     #[test]
     fn the_sentence_that_confirms_a_change_is_in_the_words_that_were_picked() {
-        let said = summary(&Draft::Nappy(NappyDraft {
+        let said = summary(&Draft::Diaper(DiaperDraft {
             potty: false,
-            mode: NappyKind::Both,
+            mode: DiaperKind::Both,
             pee: Some(Amount::Big),
             poo: Some(Amount::Little),
             color: Some(Colour::Yellow),
@@ -716,9 +718,9 @@ mod drafts {
 
     #[test]
     fn a_potty_trips_outcome_is_spelled_as_a_person_says_it() {
-        let said = summary(&Draft::Nappy(NappyDraft {
+        let said = summary(&Draft::Diaper(DiaperDraft {
             potty: true,
-            mode: NappyKind::Pee,
+            mode: DiaperKind::Pee,
             pee: None,
             poo: None,
             color: None,
@@ -742,10 +744,21 @@ mod drafts {
     }
 
     #[test]
+    fn a_bottle_of_a_quarter_ounce_is_not_rounded_into_a_different_bottle() {
+        let said = summary(&Draft::Bottle(BottleDraft {
+            amount: 1.25,
+            units: Units::Oz,
+            kind: BottleKind::Formula,
+            notes: None,
+        }));
+        assert_eq!(said, "1.25 oz of Formula", "1 oz is a different bottle");
+    }
+
+    #[test]
     fn a_potty_trip_is_asked_about_how_it_went_and_never_about_a_rash() {
-        let draft = Draft::Nappy(NappyDraft {
+        let draft = Draft::Diaper(DiaperDraft {
             potty: true,
-            mode: NappyKind::Pee,
+            mode: DiaperKind::Pee,
             pee: None,
             poo: None,
             color: None,
@@ -761,9 +774,9 @@ mod drafts {
 
     #[test]
     fn the_outcome_takes_the_spelling_a_person_types_as_well_as_the_apps() {
-        let mut draft = Draft::Nappy(NappyDraft {
+        let mut draft = Draft::Diaper(DiaperDraft {
             potty: true,
-            mode: NappyKind::Pee,
+            mode: DiaperKind::Pee,
             pee: None,
             poo: None,
             color: None,
@@ -773,7 +786,7 @@ mod drafts {
             notes: None,
         });
         draft.set("how", "went-potty").expect("a person's spelling");
-        let Draft::Nappy(potty) = &draft else {
+        let Draft::Diaper(potty) = &draft else {
             panic!("a potty trip")
         };
         assert_eq!(potty.how, Some(PottyOutcome::WentPotty));

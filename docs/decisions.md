@@ -254,7 +254,7 @@ a delete and a re-log, which needs a delete this crate does not have yet.
 **Why.** The prompt module's decision above left the door open for exactly
 this: "a question this shape cannot express … a full-screen picker". Forty
 entries over a week is not a numbered list anybody can read, and the answer a
-person is looking for is "the nappy at about half ten", which they find by
+person is looking for is "the diaper at about half ten", which they find by
 scrolling to it.
 
 **Consequences.** The picker is split like the dashboard: `state.rs` decides
@@ -277,7 +277,7 @@ field out.
 
 **Why.** The rule this replaces was "the flags are the fast path, so a person
 who passed one is not asked for the rest", and what it produced was fields
-nobody could record at all. Choosing "wet" ended the nappy conversation, so
+nobody could record at all. Choosing "wet" ended the diaper conversation, so
 there was no way to say it was a big one; a bottle never asked which units, so
 a family recording in ounces silently recorded millilitres. A question with its
 answer already in it costs one keystroke, which is the right price for a field
@@ -319,3 +319,54 @@ argument, so midnight, DST and the 3am case are tests.
 
 **Revisit when.** Somebody wants to name a day ("yesterday 9pm", "Tuesday").
 That is a date parser, and it belongs beside this one rather than inside it.
+
+## A delete repairs the tracker it deleted from
+
+**Decision.** `hb delete` removes the row and then rewrites any of the
+tracker's "last entry" summaries that described it, from whatever is now the
+newest row of that kind. A summary that is missing while history has one to
+fill it is written too.
+
+**Why.** Every tracker keeps a copy of its most recent entry on its own
+document so the app can draw a home screen without reading history. Remove the
+row that copy describes and the app goes on showing an entry that is no longer
+there, which is worse than the entry having been there in the first place: it
+is a record that disagrees with itself. The self-healing half came from
+watching this fail — a summary written without the `lastUpdated` its model
+requires read back as nothing at all, and the growth card went blank — so the
+repair now fixes a summary it finds wrong rather than only the one it broke.
+
+**Consequences.** A delete is three or four requests rather than one, and one
+of them lists the tracker's history. Which rows fill which summary, and which
+of their fields it copies, is a table in `ops/removal.rs` rather than six
+hand-written repairs; adding a tracker means adding a row to it. Deleting is
+still the one thing that cannot be undone, so it is the one thing that asks
+twice.
+
+**Revisit when.** A tracker keeps a summary that is not a copy of one row.
+Then the table describes something it cannot, and that tracker wants its own
+repair.
+
+## Each kind of entry has a colour, and the cursor is brighter than all of them
+
+**Decision.** Wherever entries of several kinds are listed together, each
+tracker is drawn in a hue of its own: sleep blue, feeding cyan, diapers
+magenta, pumping green, milestones yellow. The row under the cursor is bold
+white.
+
+**Why.** The stream is the screen somebody opens when they are looking for one
+entry among forty, and a list painted in one colour is read line by line. Hue
+makes it scannable by shape before it is read by word, which is what "which of
+these is the diaper" actually needs.
+
+**Consequences.** Five kinds and eight bright colours means a kind shares its
+hue with a role: pumping is the green of `Success` and milestones the yellow of
+`Warning`. They never appear beside those roles, and in a list of kinds a
+colour is a category rather than a verdict, so the rule the palette holds to is
+the older one: colour is never the only carrier, and every row says its kind in
+words. A test asserts the five stay distinct from each other and dimmer than
+the cursor.
+
+**Revisit when.** A sixth tracker is listed. Eight bright colours minus grey,
+white and red does not stretch much further, and that is the moment to weigh
+256-colour hues against inheriting the terminal's palette.

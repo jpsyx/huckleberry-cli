@@ -48,6 +48,31 @@ pub fn volume_bare(millilitres: Option<f64>, units: Units) -> String {
     }
 }
 
+/// An amount already in the units it is being written in, as that unit is
+/// read: millilitres whole, ounces to two places with nothing trailing.
+///
+/// Rounding ounces the way millilitres are rounded is how a bottle of 1.25 oz
+/// reads back as "1 oz", which is a different bottle. [`volume`] is the one to
+/// reach for when the number is in millilitres and needs converting;
+/// this one is for a number a person typed in the units they typed it in.
+#[must_use]
+pub fn amount_in(amount: f64, units: Units) -> String {
+    match units {
+        Units::Ml => format!("{amount:.0}"),
+        Units::Oz => {
+            let text = format!("{amount:.2}");
+            text.trim_end_matches('0').trim_end_matches('.').to_owned()
+        }
+    }
+}
+
+/// The same amount in other units.
+#[must_use]
+pub fn convert(amount: f64, from: Units, to: Units) -> f64 {
+    to.to_api()
+        .from_millilitres(from.to_api().to_millilitres(amount))
+}
+
 /// A count, or a dash when there is nothing to count.
 #[must_use]
 pub fn count(value: usize) -> String {
@@ -136,7 +161,7 @@ const SPARKS: [char; 8] = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█
 ///
 /// Scaled from zero rather than from the minimum, because a series of daily
 /// totals is a quantity and not a deviation: scaling from the minimum would
-/// make 11, 12 and 13 wet nappies look like a crisis and a recovery.
+/// make 11, 12 and 13 wet diapers look like a crisis and a recovery.
 #[must_use]
 pub fn sparkline(values: &[f64]) -> String {
     let max = values.iter().copied().fold(0.0_f64, f64::max);

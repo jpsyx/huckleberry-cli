@@ -1,4 +1,4 @@
-//! `diaper/{cid}`: nappies and potty trips, in one tracker.
+//! `diaper/{cid}`: diapers and potty trips, in one tracker.
 //!
 //! These are instant events, not timed sessions, so there is no timer on the
 //! document: only the history and a summary of the last one.
@@ -18,13 +18,13 @@ string_enum! {
 }
 
 impl DiaperMode {
-    /// Whether this counts as a wet nappy.
+    /// Whether this counts as a wet diaper.
     #[must_use]
     pub const fn is_wet(&self) -> bool {
         matches!(self, Self::Pee | Self::Both)
     }
 
-    /// Whether this counts as a dirty nappy.
+    /// Whether this counts as a dirty diaper.
     #[must_use]
     pub const fn is_dirty(&self) -> bool {
         matches!(self, Self::Poo | Self::Both)
@@ -102,7 +102,7 @@ impl DiaperAmount {
     }
 }
 
-/// How much of each, on one nappy.
+/// How much of each, on one diaper.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct DiaperQuantity {
     /// How much wet.
@@ -184,7 +184,7 @@ pub struct DiaperEntry {
         deserialize_with = "crate::models::lenient"
     )]
     pub notes: Option<String>,
-    /// Whether this was a potty trip rather than a nappy.
+    /// Whether this was a potty trip rather than a diaper.
     #[serde(
         rename = "isPotty",
         default,
@@ -216,7 +216,7 @@ impl DiaperEntry {
     }
 }
 
-/// The summary of the last nappy.
+/// The summary of the last diaper.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct LastDiaper {
     /// When it was, in seconds.
@@ -271,7 +271,7 @@ pub struct LastPotty {
 /// `diaper/{cid}.prefs`.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct DiaperPrefs {
-    /// The last nappy.
+    /// The last diaper.
     #[serde(
         rename = "lastDiaper",
         default,
@@ -287,7 +287,7 @@ pub struct DiaperPrefs {
         deserialize_with = "crate::models::lenient"
     )]
     pub last_potty: Option<LastPotty>,
-    /// The nappy reminder.
+    /// The diaper reminder.
     #[serde(
         rename = "reminderV2",
         default,
@@ -314,7 +314,7 @@ pub struct DiaperPrefs {
 /// `diaper/{cid}`.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct DiaperDocument {
-    /// The last nappy, the last potty trip, and the tracker's settings.
+    /// The last diaper, the last potty trip, and the tracker's settings.
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
@@ -323,7 +323,7 @@ pub struct DiaperDocument {
     pub prefs: Option<DiaperPrefs>,
 }
 
-/// A batch of nappy rows.
+/// A batch of diaper rows.
 pub type DiaperMultiContainer = super::common::MultiContainer<DiaperEntry>;
 
 #[cfg(test)]

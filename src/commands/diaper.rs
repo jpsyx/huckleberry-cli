@@ -1,4 +1,4 @@
-//! `diaper` and `potty`: the nappy tracker.
+//! `diaper` and `potty`: the diaper tracker.
 //!
 //! Both write to the same collection, so they share this module and most of
 //! their prompting. Every question the mode implies is asked, in order, and
@@ -10,16 +10,16 @@
 use anyhow::Result;
 use huckleberry_api::DiaperDetails;
 
-use crate::cli::actions::{NappyDetail, NappyFlags, unanswered};
-use crate::cli::{Amount, Colour, Consistency, NappyKind, PottyOutcome};
+use crate::cli::actions::{DiaperFlags, DiaperQuestion, unanswered};
+use crate::cli::{Amount, Colour, Consistency, DiaperKind, PottyOutcome};
 use crate::prompt::{self, Choice, Question};
 use crate::session::Context;
 
-/// Records a nappy change.
-pub async fn nappy(
+/// Records a diaper change.
+pub async fn diaper(
     context: &Context,
-    mode: Option<NappyKind>,
-    flags: NappyFlags,
+    mode: Option<DiaperKind>,
+    flags: DiaperFlags,
     notes: Option<&str>,
 ) -> Result<()> {
     let (client, cid) = super::client_and_child(context).await?;
@@ -27,18 +27,21 @@ pub async fn nappy(
         Some(given) => given,
         None => ask_for_mode(context, "What was in it?")?,
     };
-    let details = details(context, Record::Nappy, mode, flags, notes)?;
+    let details = details(context, Record::Diaper, mode, flags, notes)?;
 
     client.log_diaper(&cid, mode.to_api(), &details).await?;
     super::persist_session(context, &client).await?;
-    context.report(&format!("Recorded a {} nappy.", mode.to_api()));
+    context.report(&format!(
+        "Recorded a {} diaper.",
+        crate::domain::log::mode_word(mode.to_api().as_str())
+    ));
     Ok(())
 }
 
 /// Records a potty trip.
 pub async fn potty(
     context: &Context,
-    mode: Option<NappyKind>,
+    mode: Option<DiaperKind>,
     how: Option<PottyOutcome>,
     color: Option<Colour>,
     consistency: Option<Consistency>,
@@ -57,7 +60,7 @@ pub async fn potty(
         context,
         Record::Potty,
         mode,
-        NappyFlags {
+        DiaperFlags {
             pee: None,
             poo: None,
             color,
@@ -83,8 +86,8 @@ pub async fn potty(
 fn details(
     context: &Context,
     record: Record,
-    mode: NappyKind,
-    flags: NappyFlags,
+    mode: DiaperKind,
+    flags: DiaperFlags,
     notes: Option<&str>,
 ) -> Result<DiaperDetails> {
     let mut details = DiaperDetails {
@@ -101,22 +104,24 @@ fn details(
         .filter(|detail| record.asks(*detail))
     {
         match detail {
-            NappyDetail::PeeAmount => {
+            DiaperQuestion::PeeAmount => {
                 details.pee_amount =
                     ask_for_amount(context, "How much wet?", "--pee <AMOUNT>")?.map(Amount::to_api);
             }
-            NappyDetail::PooAmount => {
+            DiaperQuestion::PooAmount => {
                 details.poo_amount = ask_for_amount(context, "How much dirty?", "--poo <AMOUNT>")?
                     .map(Amount::to_api);
             }
-            NappyDetail::Colour => {
+            DiaperQuestion::Colour => {
                 details.color = ask_for_colour(context)?.map(Colour::to_api);
             }
-            NappyDetail::Consistency => {
+            DiaperQuestion::Consistency => {
                 details.consistency = ask_for_consistency(context)?.map(Consistency::to_api);
             }
-            NappyDetail::Rash => details.rash = prompt::confirm("Any rash?", false, context.theme)?,
-            NappyDetail::Notes => details.notes = ask_for_notes(context)?,
+            DiaperQuestion::Rash => {
+                details.rash = prompt::confirm("Any rash?", false, context.theme)?;
+            }
+            DiaperQuestion::Notes => details.notes = ask_for_notes(context)?,
         }
     }
     Ok(details)
@@ -129,20 +134,20 @@ fn details(
 /// something Huckleberry will not show.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Record {
-    /// A nappy change.
-    Nappy,
+    /// A diaper change.
+    Diaper,
     /// A potty trip.
     Potty,
 }
 
 impl Record {
     /// Whether this record has a field for that detail.
-    const fn asks(self, detail: NappyDetail) -> bool {
-        !matches!(self, Self::Potty) || !matches!(detail, NappyDetail::Rash)
+    const fn asks(self, detail: DiaperQuestion) -> bool {
+        !matches!(self, Self::Potty) || !matches!(detail, DiaperQuestion::Rash)
     }
 }
 
-fn ask_for_mode(context: &Context, label: &str) -> Result<NappyKind> {
+fn ask_for_mode(context: &Context, label: &str) -> Result<DiaperKind> {
     const CHOICES: [Choice<'static>; 4] = [
         Choice {
             value: "pee",
@@ -163,10 +168,10 @@ fn ask_for_mode(context: &Context, label: &str) -> Result<NappyKind> {
     ];
     let question = Question::new("what was in it", label, "--mode <MODE>").with_choices(&CHOICES);
     Ok(match prompt::ask(&question, context.theme)?.as_str() {
-        "poo" => NappyKind::Poo,
-        "both" => NappyKind::Both,
-        "dry" => NappyKind::Dry,
-        _ => NappyKind::Pee,
+        "poo" => DiaperKind::Poo,
+        "both" => DiaperKind::Both,
+        "dry" => DiaperKind::Dry,
+        _ => DiaperKind::Pee,
     })
 }
 

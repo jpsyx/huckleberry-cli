@@ -19,8 +19,8 @@ pub enum Tab {
     Sleep,
     /// Milk, by day.
     Feeding,
-    /// Nappies, by day.
-    Nappies,
+    /// Diapers, by day.
+    Diapers,
     /// Everything, newest first.
     Log,
 }
@@ -31,7 +31,7 @@ impl Tab {
         Self::Now,
         Self::Sleep,
         Self::Feeding,
-        Self::Nappies,
+        Self::Diapers,
         Self::Log,
     ];
 
@@ -42,7 +42,7 @@ impl Tab {
             Self::Now => "Now",
             Self::Sleep => "Sleep",
             Self::Feeding => "Feeding",
-            Self::Nappies => "Nappies",
+            Self::Diapers => "Diapers",
             Self::Log => "Log",
         }
     }

@@ -148,11 +148,11 @@ async fn a_row_the_client_cannot_read_does_not_cost_the_caller_the_rest() {
     ])
     .await;
 
-    let nappies = client(&stub)
+    let diapers = client(&stub)
         .diaper_intervals("c1", Window::new(0, 1_000))
         .await
         .expect("the read");
-    assert_eq!(nappies.len(), 2);
+    assert_eq!(diapers.len(), 2);
 }
 
 #[tokio::test]
@@ -227,14 +227,14 @@ async fn a_windowed_read_says_where_every_row_lives() {
     )]);
     let stub = Stub::start(vec![loose, batched]).await;
 
-    let nappies = client(&stub)
+    let diapers = client(&stub)
         .diaper_intervals("c1", Window::new(0, 1_000))
         .await
         .expect("the read");
 
-    assert_eq!(nappies[0].at.document_id, "pack-one");
-    assert_eq!(nappies[0].at.batch_key.as_deref(), Some("inner"));
-    assert_eq!(nappies[0].at.tracker, "diaper");
-    assert_eq!(nappies[1].at.document_id, "row-one");
-    assert_eq!(nappies[1].at.batch_key, None);
+    assert_eq!(diapers[0].at.document_id, "pack-one");
+    assert_eq!(diapers[0].at.batch_key.as_deref(), Some("inner"));
+    assert_eq!(diapers[0].at.tracker, "diaper");
+    assert_eq!(diapers[1].at.document_id, "row-one");
+    assert_eq!(diapers[1].at.batch_key, None);
 }

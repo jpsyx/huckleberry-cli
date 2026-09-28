@@ -44,7 +44,7 @@ pub struct StripeRow {
     pub sleep_blocks: Vec<SleepBlock>,
     /// Where feeds were.
     pub feed_ticks: Vec<FeedTick>,
-    /// Where nappies were.
+    /// Where diapers were.
     pub diaper_ticks: Vec<f64>,
     /// The morning cutoff: everything before this is still night.
     pub night_until: f64,
@@ -97,8 +97,8 @@ fn row(dataset: &Dataset, calendar: &Calendar, now: f64, day: Date, today: Date)
     let diaper_ticks = dataset
         .diapers
         .iter()
-        .filter(|nappy| nappy.start >= start && nappy.start < end)
-        .map(|nappy| position(nappy.start))
+        .filter(|diaper| diaper.start >= start && diaper.start < end)
+        .map(|diaper| position(diaper.start))
         .collect();
 
     StripeRow {
@@ -141,7 +141,7 @@ fn feed_label(feed: &super::types::FeedEvent) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::super::fixtures::{AFTERNOON, bottle, dataset, nappy, sleep};
+    use super::super::fixtures::{AFTERNOON, bottle, dataset, diaper, sleep};
     use super::*;
 
     fn calendar() -> Calendar {
@@ -236,10 +236,10 @@ mod tests {
     }
 
     #[test]
-    fn nappies_get_their_own_ticks() {
+    fn diapers_get_their_own_ticks() {
         let calendar = calendar();
         let mut data = dataset();
-        data.diapers = vec![nappy(calendar.at(date("2025-09-21"), 6, 0), true, false)];
+        data.diapers = vec![diaper(calendar.at(date("2025-09-21"), 6, 0), true, false)];
         let rows = build(&data, &calendar, AFTERNOON, 2);
         assert_eq!(rows[1].diaper_ticks.len(), 1);
         assert!((rows[1].diaper_ticks[0] - 6.0 / 24.0).abs() < 0.001);

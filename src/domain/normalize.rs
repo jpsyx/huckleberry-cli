@@ -129,7 +129,7 @@ pub fn feeds(rows: &[Located<FeedInterval>]) -> Vec<FeedEvent> {
     events
 }
 
-/// Nappies and potty trips, oldest first.
+/// Diapers and potty trips, oldest first.
 #[must_use]
 pub fn diapers(rows: &[Located<DiaperEntry>]) -> Vec<DiaperEvent> {
     let mut events: Vec<DiaperEvent> = rows
@@ -264,7 +264,7 @@ pub fn live(sleep: Option<&SleepDocument>, feed: Option<&FeedDocument>) -> LiveS
     }
 }
 
-/// Huckleberry stores a nappy quantity as one of three numbers.
+/// Huckleberry stores a diaper quantity as one of three numbers.
 fn size_from(value: Number) -> Size {
     let amount = value.as_f64();
     if amount <= 0.0 {
@@ -368,10 +368,10 @@ mod rows {
     }
 
     #[test]
-    fn a_nappy_derives_wet_and_dirty_from_its_mode() {
+    fn a_diaper_derives_wet_and_dirty_from_its_mode() {
         let rows: Vec<DiaperEntry> =
             serde_json::from_value(json!([{ "mode": "both", "start": 1, "offset": 0 }]))
-                .expect("a nappy row");
+                .expect("a diaper row");
         let normalized = diapers(&located(rows));
         assert!(normalized[0].wet && normalized[0].dirty);
     }
@@ -382,7 +382,7 @@ mod rows {
             "mode": "both", "start": 1, "offset": 0,
             "quantity": { "pee": 0.0, "poo": 100.0 },
         }]))
-        .expect("a nappy row");
+        .expect("a diaper row");
         let normalized = diapers(&located(rows));
         assert_eq!(normalized[0].pee_size, Some(Size::Small));
         assert_eq!(normalized[0].poo_size, Some(Size::Large));

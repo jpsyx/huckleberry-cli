@@ -1,5 +1,5 @@
 //! A Rust client for [Huckleberry](https://huckleberrycare.com), the baby
-//! tracking app: read a child's sleep, feeds, nappies, pumping, health and
+//! tracking app: read a child's sleep, feeds, diapers, pumping, health and
 //! milestones, and write new entries back.
 //!
 //! # Credit

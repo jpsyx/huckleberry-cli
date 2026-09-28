@@ -28,7 +28,7 @@ pub fn lines(
         theme.heading(&dataset.child.name),
         String::new(),
         fact(theme, "Last fed", &feed_line(view, calendar, units, now)),
-        fact(theme, "Nappy", &diaper_line(view, calendar, now)),
+        fact(theme, "Diaper", &diaper_line(view, calendar, now)),
         fact(theme, "Sleep", &sleep_line(view, calendar)),
         fact(theme, &stretch_label(view), &stretch_line(view, calendar)),
     ];
@@ -195,7 +195,7 @@ fn stretch_line(view: &NowView, calendar: &Calendar) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::fixtures::{AFTERNOON, THREE_AM, bottle, dataset, nappy, sleep};
+    use crate::domain::fixtures::{AFTERNOON, THREE_AM, bottle, dataset, diaper, sleep};
     use crate::domain::now;
 
     fn calendar() -> Calendar {
@@ -343,9 +343,9 @@ mod tests {
     }
 
     #[test]
-    fn a_nappy_is_described_by_what_was_in_it() {
+    fn a_diaper_is_described_by_what_was_in_it() {
         let mut data = dataset();
-        data.diapers = vec![nappy(AFTERNOON - 900.0, true, true)];
+        data.diapers = vec![diaper(AFTERNOON - 900.0, true, true)];
         assert!(joined(&data, AFTERNOON).contains("wet + dirty"));
     }
 

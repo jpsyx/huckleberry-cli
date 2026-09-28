@@ -15,13 +15,13 @@ pub mod values;
 
 use std::path::PathBuf;
 
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 
 pub use actions::{
     AuthAction, ChildAction, ConfigAction, FeedAction, FoodsAction, NursingAction, SleepAction,
 };
 pub use values::{
-    Amount, BottleKind, Colour, Consistency, LogKind, NappyKind, Overlap, PottyOutcome, Reaction,
+    Amount, BottleKind, Colour, Consistency, DiaperKind, LogKind, Overlap, PottyOutcome, Reaction,
     Side, System, TrendMetric, Units,
 };
 
@@ -51,6 +51,68 @@ pub struct Cli {
     pub command: Command,
 }
 
+/// Everything `edit` takes.
+///
+/// One struct rather than six arguments threaded through the dispatch, which
+/// is what keeps the match that routes commands readable as a list.
+#[derive(Debug, Clone, PartialEq, Args)]
+pub struct EditOptions {
+    /// Which entry, as `edit --list` names one. Left out on a terminal, you
+    /// pick one off a list.
+    #[arg(long, value_name = "ENTRY")]
+    pub id: Option<String>,
+
+    /// Change one field without being asked, for example `--set pee=big`.
+    /// Repeat for several. An empty value clears the field. Left out on a
+    /// terminal, you are asked about every field.
+    #[arg(long = "set", value_name = "KEY=VALUE")]
+    pub set: Vec<String>,
+
+    /// Print one `entry<TAB>kind<TAB>when<TAB>what` line per entry and change
+    /// nothing. How a script finds the entry it means.
+    #[arg(long)]
+    pub list: bool,
+
+    /// How many days to look back.
+    #[arg(short, long, value_name = "DAYS")]
+    pub days: Option<u32>,
+
+    /// At most this many entries.
+    #[arg(short, long, default_value_t = 40, value_name = "COUNT")]
+    pub limit: usize,
+}
+
+/// Everything `delete` takes.
+#[derive(Debug, Clone, PartialEq, Args)]
+pub struct DeleteOptions {
+    /// Which entry, as `delete --list` names one. Left out on a terminal, you
+    /// pick one off a list.
+    #[arg(long, value_name = "ENTRY")]
+    pub id: Option<String>,
+
+    /// Work on one tracker's own rows rather than the merged stream:
+    /// `health`, `pump`, `milestones`. How an entry the stream does not show
+    /// is reached.
+    #[arg(long, value_name = "NAME")]
+    pub tracker: Option<String>,
+
+    /// Print one `entry<TAB>when<TAB>what` line per entry and delete nothing.
+    #[arg(long)]
+    pub list: bool,
+
+    /// Delete without asking. Required when there is no terminal.
+    #[arg(short, long)]
+    pub yes: bool,
+
+    /// How many days to look back.
+    #[arg(short, long, value_name = "DAYS")]
+    pub days: Option<u32>,
+
+    /// At most this many entries.
+    #[arg(short, long, default_value_t = 40, value_name = "COUNT")]
+    pub limit: usize,
+}
+
 /// The things this tool can be asked to do.
 #[derive(Debug, Clone, PartialEq, Subcommand)]
 pub enum Command {
@@ -68,7 +130,7 @@ pub enum Command {
         action: ChildAction,
     },
 
-    /// The four facts that matter at 3am: last feed, last nappy, awake or
+    /// The four facts that matter at 3am: last feed, last diaper, awake or
     /// asleep, and the longest stretch of the night.
     Now {
         /// Print JSON instead of a screen.
@@ -88,7 +150,7 @@ pub enum Command {
         refresh: Option<u32>,
     },
 
-    /// One row per day: feeds, milk, sleep and nappies.
+    /// One row per day: feeds, milk, sleep and diapers.
     Summary {
         /// How many days to summarize.
         #[arg(short, long, value_name = "DAYS")]
@@ -134,29 +196,16 @@ pub enum Command {
 
     /// Change an entry that is already on the record.
     Edit {
-        /// Which entry, as `edit --list` names one. Left out on a terminal,
-        /// you pick one off a list.
-        #[arg(long, value_name = "ENTRY")]
-        id: Option<String>,
+        /// Which entry, and what to change about it.
+        #[command(flatten)]
+        options: EditOptions,
+    },
 
-        /// Change one field without being asked, for example
-        /// `--set pee=big`. Repeat for several. An empty value clears the
-        /// field. Left out on a terminal, you are asked about every field.
-        #[arg(long = "set", value_name = "KEY=VALUE")]
-        set: Vec<String>,
-
-        /// Print one `entry<TAB>kind<TAB>when<TAB>what` line per entry and
-        /// change nothing. How a script finds the entry it means.
-        #[arg(long)]
-        list: bool,
-
-        /// How many days to look back.
-        #[arg(short, long, value_name = "DAYS")]
-        days: Option<u32>,
-
-        /// At most this many entries.
-        #[arg(short, long, default_value_t = 40, value_name = "COUNT")]
-        limit: usize,
+    /// Take an entry off the record. This cannot be undone.
+    Delete {
+        /// Which entry, and whether to ask first.
+        #[command(flatten)]
+        options: DeleteOptions,
     },
 
     /// Start, pause, finish or check a sleep.
@@ -173,11 +222,11 @@ pub enum Command {
         action: FeedAction,
     },
 
-    /// Record a nappy change.
+    /// Record a diaper change.
     Diaper {
         /// What was in it. Left out on a terminal, you are asked.
         #[arg(short, long, value_enum)]
-        mode: Option<NappyKind>,
+        mode: Option<DiaperKind>,
 
         /// How much wet.
         #[arg(long, value_enum, value_name = "AMOUNT")]
@@ -208,7 +257,7 @@ pub enum Command {
     Potty {
         /// What happened. Left out on a terminal, you are asked.
         #[arg(short, long, value_enum)]
-        mode: Option<NappyKind>,
+        mode: Option<DiaperKind>,
 
         /// How it went. Left out on a terminal, you are asked.
         #[arg(long, value_enum)]
@@ -315,7 +364,7 @@ mod tests {
     }
 
     #[test]
-    fn a_nappy_is_fully_describable_without_a_single_prompt() {
+    fn a_diaper_is_fully_describable_without_a_single_prompt() {
         let cli = Cli::try_parse_from([
             "huckleberry-cli",
             "diaper",
@@ -333,7 +382,7 @@ mod tests {
             "--notes",
             "a bit sore",
         ])
-        .expect("a fully specified nappy");
+        .expect("a fully specified diaper");
         let Command::Diaper {
             mode,
             pee,
@@ -344,9 +393,9 @@ mod tests {
             notes,
         } = cli.command
         else {
-            panic!("expected a nappy");
+            panic!("expected a diaper");
         };
-        assert_eq!(mode, Some(NappyKind::Both));
+        assert_eq!(mode, Some(DiaperKind::Both));
         assert_eq!(pee, Some(Amount::Medium));
         assert_eq!(poo, Some(Amount::Big));
         assert_eq!(color, Some(Colour::Yellow));
@@ -373,6 +422,7 @@ mod tests {
             vec!["child", "use"],
             vec!["config", "set"],
             vec!["edit"],
+            vec!["delete"],
             vec!["auth", "login"],
             vec!["foods", "add"],
         ] {
@@ -399,12 +449,32 @@ mod tests {
             "pee=big",
         ])
         .expect("a fully specified edit");
-        let Command::Edit { id, set, list, .. } = cli.command else {
+        let Command::Edit { options } = cli.command else {
             panic!("expected an edit");
         };
-        assert_eq!(id.as_deref(), Some("diaper/1758572400000-3f2a"));
-        assert_eq!(set, vec!["mode=both".to_owned(), "pee=big".to_owned()]);
-        assert!(!list);
+        assert_eq!(options.id.as_deref(), Some("diaper/1758572400000-3f2a"));
+        assert_eq!(
+            options.set,
+            vec!["mode=both".to_owned(), "pee=big".to_owned()]
+        );
+        assert!(!options.list);
+    }
+
+    #[test]
+    fn deleting_without_a_terminal_still_needs_saying_so() {
+        let cli = Cli::try_parse_from([
+            "huckleberry-cli",
+            "delete",
+            "--id",
+            "health/1758572400000-3f2a",
+            "--yes",
+        ])
+        .expect("a fully specified delete");
+        let Command::Delete { options } = cli.command else {
+            panic!("expected a delete");
+        };
+        assert!(options.yes);
+        assert_eq!(options.id.as_deref(), Some("health/1758572400000-3f2a"));
     }
 
     #[test]

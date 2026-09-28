@@ -19,9 +19,9 @@
 pub enum Metric {
     /// Milk feeds in a day.
     FeedsPerDay,
-    /// Wet nappies in a day.
+    /// Wet diapers in a day.
     WetPerDay,
-    /// Dirty nappies in a day.
+    /// Dirty diapers in a day.
     DirtyPerDay,
     /// Total sleep in twenty-four hours, in seconds.
     SleepPerDay,
@@ -66,31 +66,31 @@ const WET_PER_DAY: &[Entry] = &[
         max_age_days: 0,
         low: 1.0,
         high: Some(2.0),
-        label: "typical on day 1: 1 to 2 wet nappies",
+        label: "typical on day 1: 1 to 2 wet diapers",
     },
     Entry {
         max_age_days: 1,
         low: 2.0,
         high: Some(3.0),
-        label: "typical on day 2: 2 to 3 wet nappies",
+        label: "typical on day 2: 2 to 3 wet diapers",
     },
     Entry {
         max_age_days: 2,
         low: 3.0,
         high: Some(4.0),
-        label: "typical on day 3: 3 to 4 wet nappies",
+        label: "typical on day 3: 3 to 4 wet diapers",
     },
     Entry {
         max_age_days: 4,
         low: 4.0,
         high: Some(6.0),
-        label: "typical at this age: 4 to 6 wet nappies a day",
+        label: "typical at this age: 4 to 6 wet diapers a day",
     },
     Entry {
         max_age_days: 120,
         low: 6.0,
         high: None,
-        label: "typical from day 5: 6 or more wet nappies a day",
+        label: "typical from day 5: 6 or more wet diapers a day",
     },
 ];
 
@@ -99,7 +99,7 @@ const DIRTY_PER_DAY: &[Entry] = &[
         max_age_days: 2,
         low: 1.0,
         high: None,
-        label: "typical in the first days: 1 or more dirty nappies",
+        label: "typical in the first days: 1 or more dirty diapers",
     },
     // After about six weeks the pattern becomes genuinely variable, and a band
     // past here would imply a target where none exists.
@@ -107,7 +107,7 @@ const DIRTY_PER_DAY: &[Entry] = &[
         max_age_days: 42,
         low: 3.0,
         high: None,
-        label: "typical at this age: 3 or more dirty nappies a day",
+        label: "typical at this age: 3 or more dirty diapers a day",
     },
 ];
 
@@ -241,7 +241,7 @@ mod tests {
     }
 
     #[test]
-    fn dirty_nappies_stop_having_a_band_once_the_pattern_stops_being_typical() {
+    fn dirty_diapers_stop_having_a_band_once_the_pattern_stops_being_typical() {
         assert!(band_for(Metric::DirtyPerDay, Some(30)).is_some());
         assert_eq!(band_for(Metric::DirtyPerDay, Some(60)), None);
     }

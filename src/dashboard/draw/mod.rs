@@ -20,7 +20,7 @@ use ratatui::widgets::{Block, Borders, Paragraph, Tabs};
 use crate::cli::Units;
 use crate::theme::Tone;
 
-use self::panels::{draw_feeding, draw_log, draw_nappies, draw_now, draw_sleep};
+use self::panels::{draw_diapers, draw_feeding, draw_log, draw_now, draw_sleep};
 use super::state::{State, Tab};
 
 pub mod panels;
@@ -52,7 +52,7 @@ pub fn draw(frame: &mut Frame, state: &State, units: Units, at: f64) {
         Tab::Now => draw_now(frame, areas[1], state, units, at),
         Tab::Sleep => draw_sleep(frame, areas[1], state, at),
         Tab::Feeding => draw_feeding(frame, areas[1], state, units, at),
-        Tab::Nappies => draw_nappies(frame, areas[1], state, at),
+        Tab::Diapers => draw_diapers(frame, areas[1], state, at),
         Tab::Log => draw_log(frame, areas[1], state),
     }
     frame.render_widget(status_bar(state, at), areas[2]);
@@ -139,7 +139,7 @@ mod frames {
     use super::*;
     use crate::dashboard::state::State;
     use crate::domain::Calendar;
-    use crate::domain::fixtures::{AFTERNOON, bottle, dataset, nappy, sleep};
+    use crate::domain::fixtures::{AFTERNOON, bottle, dataset, diaper, sleep};
     use crate::domain::types::Dataset;
 
     fn populated() -> Dataset {
@@ -152,7 +152,7 @@ mod frames {
             sleep(AFTERNOON - 90_000.0, 10_800.0),
             sleep(AFTERNOON - 7_200.0, 3_600.0),
         ];
-        data.diapers = vec![nappy(AFTERNOON - 1_800.0, true, true)];
+        data.diapers = vec![diaper(AFTERNOON - 1_800.0, true, true)];
         data
     }
 
@@ -229,8 +229,8 @@ mod frames {
     }
 
     #[test]
-    fn the_nappies_tab_counts_wet_and_dirty_separately() {
-        let drawn = screen(Tab::Nappies, populated());
+    fn the_diapers_tab_counts_wet_and_dirty_separately() {
+        let drawn = screen(Tab::Diapers, populated());
         assert!(drawn.contains("wet"), "{drawn}");
         assert!(drawn.contains("dirty"), "{drawn}");
     }

@@ -1,7 +1,7 @@
 # huckleberry-api
 
 An async Rust client for [Huckleberry](https://huckleberrycare.com), the baby
-tracking app. Read a child's sleep, feeds, nappies, pumping, health entries and
+tracking app. Read a child's sleep, feeds, diapers, pumping, health entries and
 milestones, and write new entries back.
 
 > ### Credit
@@ -63,7 +63,7 @@ async fn main() -> Result<(), huckleberry_api::Error> {
 | Nursing | `start_nursing`, `pause_nursing`, `resume_nursing`, `switch_nursing_side`, `cancel_nursing`, `complete_nursing` |
 | Bottles | `log_bottle`, `feed_intervals`, `feed_document` |
 | Solids | `curated_foods`, `custom_foods`, `create_custom_food`, `log_solids` |
-| Nappies | `log_diaper`, `log_potty`, `diaper_intervals`, `diaper_document` |
+| Diapers | `log_diaper`, `log_potty`, `diaper_intervals`, `diaper_document` |
 | Health | `log_growth`, `latest_growth`, `health_entries`, `health_document` |
 | Pumping | `pump_intervals` |
 | Milestones | `milestones` |

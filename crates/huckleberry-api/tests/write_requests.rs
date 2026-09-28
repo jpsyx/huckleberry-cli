@@ -283,7 +283,7 @@ async fn a_bottle_is_written_as_a_row_and_as_the_next_default() {
 }
 
 #[tokio::test]
-async fn a_nappy_writes_only_what_was_recorded() {
+async fn a_diaper_writes_only_what_was_recorded() {
     let stub = Stub::start(vec![json!({}), json!({})]).await;
     client(&stub)
         .log_diaper(
@@ -311,7 +311,7 @@ async fn a_nappy_writes_only_what_was_recorded() {
         row.get("diaperRash").is_none(),
         "no rash means no field, not a stored false"
     );
-    assert!(row.get("isPotty").is_none(), "a nappy is not a potty trip");
+    assert!(row.get("isPotty").is_none(), "a diaper is not a potty trip");
 
     // The summary is replaced whole rather than merged field by field, which
     // is what stops a `pee` summary keeping the colour of the `poo` before it.
@@ -393,7 +393,7 @@ async fn growth_with_nothing_measured_is_refused_before_anything_is_sent() {
 }
 
 #[tokio::test]
-async fn editing_a_nappy_changes_the_row_it_names_and_nothing_else() {
+async fn editing_a_diaper_changes_the_row_it_names_and_nothing_else() {
     let stub = Stub::start(vec![json!({})]).await;
     let at = RowRef::loose("diaper", "1758572400000-abcdef");
     client(&stub)
@@ -638,6 +638,165 @@ async fn a_manual_sleep_older_than_the_last_one_leaves_the_last_one_alone() {
             .iter()
             .any(|entry| entry.contains("lastSleep"))),
         "the app's `last sleep` is the last one, not the last one entered"
+    );
+}
+
+#[tokio::test]
+async fn deleting_a_row_of_its_own_deletes_that_document() {
+    let stub = Stub::start(vec![
+        json!({}),
+        document("diaper/c1", &json!({ "prefs": {} })),
+    ])
+    .await;
+    client(&stub)
+        .delete_history_row("c1", &RowRef::loose("diaper", "row-one"), 1_000.0)
+        .await
+        .expect("the delete");
+
+    let request = stub.request(0).await;
+    assert_eq!(request.method, "DELETE");
+    assert_eq!(request.path, "/v1/documents/diaper/c1/intervals/row-one");
+}
+
+#[tokio::test]
+async fn deleting_a_row_inside_a_batch_leaves_its_neighbours_alone() {
+    let stub = Stub::start(vec![
+        json!({}),
+        document("diaper/c1", &json!({ "prefs": {} })),
+    ])
+    .await;
+    client(&stub)
+        .delete_history_row(
+            "c1",
+            &RowRef::batched("diaper", "pack-one", "inner"),
+            1_000.0,
+        )
+        .await
+        .expect("the delete");
+
+    let request = stub.request(0).await;
+    assert_eq!(
+        request.method, "PATCH",
+        "one key of the batch, not the batch"
+    );
+    assert_eq!(request.path, "/v1/documents/diaper/c1/intervals/pack-one");
+    assert_eq!(request.update_mask(), vec!["data.inner".to_owned()]);
+    assert_eq!(
+        request.document(),
+        json!({}),
+        "a path in the mask and nothing in the body is how Firestore spells a deletion"
+    );
+}
+
+#[tokio::test]
+async fn the_trackers_last_entry_moves_to_what_is_left_of_history() {
+    let stub = Stub::start(vec![
+        // the delete
+        json!({}),
+        // the tracker document, whose `lastDiaper` is the row just removed
+        document(
+            "diaper/c1",
+            &json!({ "prefs": { "lastDiaper": { "start": 2_000.0, "mode": "both" } } }),
+        ),
+        // what is left of history
+        json!({ "documents": [
+            document("diaper/c1/intervals/older", &json!({
+                "mode": "pee", "start": 1_000.0, "offset": -240.0,
+            })),
+        ] }),
+        json!({}),
+    ])
+    .await;
+    client(&stub)
+        .delete_history_row("c1", &RowRef::loose("diaper", "row-one"), 2_000.0)
+        .await
+        .expect("the delete");
+
+    let repair = stub
+        .requests()
+        .await
+        .into_iter()
+        .find(|request| {
+            request
+                .update_mask()
+                .iter()
+                .any(|entry| entry.contains("lastDiaper"))
+        })
+        .expect("the summary was put back");
+    let document = repair.document();
+    assert_eq!(
+        document["prefs"]["lastDiaper"]["start"],
+        json!(1_000.0),
+        "the app now points at the diaper before it: {document}"
+    );
+    assert_eq!(document["prefs"]["lastDiaper"]["mode"], json!("pee"));
+}
+
+#[tokio::test]
+async fn with_nothing_left_the_trackers_last_entry_is_taken_away_rather_than_left_wrong() {
+    let stub = Stub::start(vec![
+        json!({}),
+        document(
+            "sleep/c1",
+            &json!({ "prefs": { "lastSleep": { "start": 2_000.0, "duration": 60.0 } } }),
+        ),
+        json!({ "documents": [] }),
+        json!({}),
+    ])
+    .await;
+    client(&stub)
+        .delete_history_row("c1", &RowRef::loose("sleep", "row-one"), 2_000.0)
+        .await
+        .expect("the delete");
+
+    let repair = stub
+        .requests()
+        .await
+        .into_iter()
+        .find(|request| {
+            request
+                .update_mask()
+                .iter()
+                .any(|entry| entry.contains("lastSleep"))
+        })
+        .expect("the summary was addressed");
+    assert_eq!(
+        repair.document(),
+        json!({}),
+        "named in the mask and absent from the body: gone"
+    );
+}
+
+#[tokio::test]
+async fn a_summary_describing_some_other_entry_is_not_touched() {
+    let stub = Stub::start(vec![
+        json!({}),
+        document(
+            "diaper/c1",
+            &json!({ "prefs": {
+                "lastDiaper": { "start": 5_000.0 },
+                "lastPotty": { "start": 4_000.0 },
+            } }),
+        ),
+        json!({ "documents": [
+            document("diaper/c1/intervals/other", &json!({
+                "mode": "pee", "start": 5_000.0, "offset": -240.0,
+            })),
+        ] }),
+    ])
+    .await;
+    client(&stub)
+        .delete_history_row("c1", &RowRef::loose("diaper", "row-one"), 2_000.0)
+        .await
+        .expect("the delete");
+
+    assert!(
+        !stub
+            .requests()
+            .await
+            .iter()
+            .any(|request| request.method == "PATCH"),
+        "the summaries describe other entries, so none of them was rewritten"
     );
 }
 

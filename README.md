@@ -1,7 +1,7 @@
 # huckleberry-cli
 
 A terminal client and dashboard for [Huckleberry](https://huckleberrycare.com),
-the baby tracking app. Read a child's sleep, feeds, nappies, pumping, health
+the baby tracking app. Read a child's sleep, feeds, diapers, pumping, health
 and milestones, log new entries, and see the whole week at a glance without
 opening your phone.
 
@@ -28,7 +28,7 @@ $ hb now
 Wren
 
 Last fed       36m ago · 73 ml of Formula · 8:03 pm
-Nappy          1h 31m ago · wet · 7:09 pm
+Diaper          1h 31m ago · wet · 7:09 pm
 Sleep          asleep 40m
 Tonight        nothing finished yet
 
@@ -44,7 +44,7 @@ Mon 21 Sep │██▼◦████▼◦███▼ ◦ ▼ █◦█▼  �
 Tue 22 Sep │███▼█████▼████▼ ◦▼ ██◦▼  █◦▼█  ██◦▼  ◦██▼██◦·█▼█│ 14.1h
 Wed 23 Sep │██▼█◦███▼◦███ ▼◦  ▼█◦ ▼ █◦██▼   ◦▼█   ◦▼████◦█▼█│ 13.9h
 
-            █ asleep   ▼ feed   ◦ nappy   · night
+            █ asleep   ▼ feed   ◦ diaper   · night
 ```
 
 ```console
@@ -56,7 +56,7 @@ Sat 26 Sep       9      443         299        144   1h 1m   13.1    9.9   2h 38
 average over 6 complete days: 9.0 feeds · 441 ml milk · 13.8h sleep · 8.0 wet · 3.5 dirty
 Wren is 21 days old
   typical at this age: 8 to 12 feeds a day
-  typical from day 5: 6 or more wet nappies a day
+  typical from day 5: 6 or more wet diapers a day
 ```
 
 And `hb dash` for all of it at once, full screen and live.
@@ -82,8 +82,8 @@ name, and `BIN_DIR` chooses somewhere other than `~/.local/bin`.
 | **Read** | `now`, `summary`, `stripes`, `trends`, `log`, `dash`, `export` |
 | **Sleep** | `sleep start / pause / resume / stop / cancel / status`, `sleep manual` |
 | **Feeding** | `feed bottle`, `feed nursing start / switch / pause / stop`, `feed solids` |
-| **Nappies** | `diaper`, `potty` |
-| **Corrections** | `edit` |
+| **Diapers** | `diaper`, `potty` |
+| **Corrections** | `edit`, `delete` |
 | **Health** | `growth` |
 | **Foods** | `foods list`, `foods add` |
 | **Setup** | `auth login / status / logout`, `child list / use / show`, `config` |

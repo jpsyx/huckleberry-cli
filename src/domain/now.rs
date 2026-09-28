@@ -69,7 +69,7 @@ pub struct LastFeed {
     pub feed: FeedEvent,
 }
 
-/// The last nappy, and how long ago it was.
+/// The last diaper, and how long ago it was.
 #[derive(Debug, Clone, PartialEq)]
 pub struct LastDiaper {
     /// When it was.
@@ -139,7 +139,7 @@ pub struct NursingNow {
 pub struct NowView {
     /// The last feed.
     pub last_feed: Option<LastFeed>,
-    /// The last nappy.
+    /// The last diaper.
     pub last_diaper: Option<LastDiaper>,
     /// Asleep or awake.
     pub sleep_state: SleepState,
@@ -158,11 +158,11 @@ pub fn build(dataset: &Dataset, calendar: &Calendar, now: f64) -> NowView {
         feed: feed.clone(),
     });
 
-    let last_diaper = dataset.last_diaper().map(|nappy| LastDiaper {
-        start: nappy.start,
-        ago_seconds: since(nappy.start, now),
-        wet: nappy.wet,
-        dirty: nappy.dirty,
+    let last_diaper = dataset.last_diaper().map(|diaper| LastDiaper {
+        start: diaper.start,
+        ago_seconds: since(diaper.start, now),
+        wet: diaper.wet,
+        dirty: diaper.dirty,
     });
 
     // The live timer wins over history: a sleep in progress has not been
@@ -293,7 +293,7 @@ mod nights {
 
 #[cfg(test)]
 mod facts {
-    use super::super::fixtures::{AFTERNOON, THREE_AM, bottle, dataset, nappy, sleep};
+    use super::super::fixtures::{AFTERNOON, THREE_AM, bottle, dataset, diaper, sleep};
     use super::*;
 
     fn calendar() -> Calendar {
@@ -394,11 +394,11 @@ mod facts {
     }
 
     #[test]
-    fn a_nappy_is_labelled_by_what_was_in_it() {
+    fn a_diaper_is_labelled_by_what_was_in_it() {
         let mut data = dataset();
-        data.diapers = vec![nappy(AFTERNOON - 600.0, true, true)];
+        data.diapers = vec![diaper(AFTERNOON - 600.0, true, true)];
         let view = build(&data, &calendar(), AFTERNOON);
-        assert_eq!(view.last_diaper.expect("a nappy").label(), "wet + dirty");
+        assert_eq!(view.last_diaper.expect("a diaper").label(), "wet + dirty");
     }
 
     #[test]

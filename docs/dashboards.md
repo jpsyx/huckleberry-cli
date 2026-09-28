@@ -38,7 +38,7 @@ enforced by tests rather than by good intentions.
   ago" can send somebody to wake a sleeping baby, so the screen always says
   when it last looked.
 - **Averages skip today and skip empty days.** Today is half finished. A day
-  before the parents started logging is not a day the baby had no wet nappies,
+  before the parents started logging is not a day the baby had no wet diapers,
   and averaging it in shows a number under the typical range for no reason but
   a gap in the record.
 
@@ -50,7 +50,7 @@ The 3am screen: four facts, in the order they get asked.
 Wren
 
 Last fed       36m ago · 73 ml of Formula · 8:03 pm
-Nappy          1h 31m ago · wet · 7:09 pm
+Diaper          1h 31m ago · wet · 7:09 pm
 Sleep          asleep 40m
 Tonight        nothing finished yet
 
@@ -78,8 +78,8 @@ average over 6 complete days: 9.0 feeds · 441 ml milk · 13.8h sleep · 8.0 wet
 Wren is 21 days old
   typical at this age: 8 to 12 feeds a day (this week is in that range)
   typical at this age: 14 to 17 hours in 24 (this week is under that)
-  typical from day 5: 6 or more wet nappies a day (this week is in that range)
-  typical at this age: 3 or more dirty nappies a day (this week is in that range)
+  typical from day 5: 6 or more wet diapers a day (this week is in that range)
+  typical at this age: 3 or more dirty diapers a day (this week is in that range)
 ```
 
 Today's row is bold bright white. In the block underneath, each figure and each
@@ -104,7 +104,7 @@ sleep landing.
 Mon 21 Sep │██▼◦████▼◦███▼ ◦ ▼ █◦█▼  █◦▼    █◦▼   ◦▼███◦·█▼█│ 13.0h
 Tue 22 Sep │███▼█████▼████▼ ◦▼ ██◦▼  █◦▼█  ██◦▼  ◦██▼██◦·█▼█│ 14.1h
 …
-            █ asleep   ▼ feed   ◦ nappy   · night
+            █ asleep   ▼ feed   ◦ diaper   · night
 ```
 
 Positions are fractions of each day's own length, not of a hardcoded 86400, so
@@ -132,7 +132,7 @@ Bars rather than a plotted line, because a terminal row is wide and a terminal
 cell is coarse. Partial cells are drawn at eighth resolution so two days a few
 percent apart look different. The scale always starts at zero: a chart of daily
 totals scaled from its own minimum turns eleven, twelve and thirteen wet
-nappies into a crisis and a recovery.
+diapers into a crisis and a recovery.
 
 Today is marked "still going" so its short bar is not read as a drop.
 
@@ -170,15 +170,17 @@ exactly one file that decides what a role means. They are indexed rather than
 RGB, so the dashboard inherits the palette the person has chosen for their
 terminal.
 
-## `edit`
+## `edit` and `delete`
 
 The seventh screen, and the only one that is a question rather than an answer:
-the same stream as `log`, one line per entry, with a cursor.
+the same stream as `log`, one line per entry, with a cursor. One picker serves
+both commands (`src/picker/`), because a list somebody scrolls to find last
+night's diaper is the same list whichever of the two they came to do.
 
 ```
 Which entry? 33 in this window
-› Sun 27 Sep  10:32 pm  Nappy      pee
-  Sun 27 Sep   7:47 pm  Nappy      both (brown, loose) · rash noted
+› Sun 27 Sep  10:32 pm  Diaper      pee
+  Sun 27 Sep   7:47 pm  Diaper      both (brown, loose) · rash noted
   Sun 27 Sep   7:00 pm  Bottle     34 ml of Breast Milk
   Sun 27 Sep   5:21 pm  Pumping    59 ml (L 30, R 30)
   …
@@ -189,9 +191,25 @@ The keys are the dashboard's, and three of them leave. The cursor stops at each
 end rather than wrapping: a list of times reads as a line, and jumping from
 last night to this morning because a key was held is disorienting.
 
-An entry this tool cannot change is listed and drawn muted rather than left
+An entry the command cannot act on is listed and drawn muted rather than left
 out, because the stream is the stream. Pressing Enter on one says why on the
-line at the foot instead of doing nothing at a keystroke somebody meant.
+line at the foot instead of doing nothing at a keystroke somebody meant. The
+two commands differ in what that means: `edit` changes what this tool can log,
+and `delete` removes anything that came from Huckleberry.
+
+Each tracker has a colour of its own — sleep blue, feeding cyan, diapers
+magenta, pumping green, milestones yellow — so forty entries can be read by
+shape before they are read by word. A kind shares its hue with a role it never
+appears beside, and means nothing of that role: in a list of kinds a colour is
+a category, not a verdict, and every row says its kind in words as well. The
+row under the cursor is bold white, brighter than any of them, as today is
+everywhere else in this tool.
+
+A diaper says what was in it in the words the app's own buttons use, with the
+sizes that were recorded: `mixed · little pee · big poop`. A size nobody
+recorded is left out rather than guessed at, and a diaper with one thing in it
+needs no label on its size (`pee · big`), because there is nothing else it
+could be the size of.
 
 ## Testing a screen
 

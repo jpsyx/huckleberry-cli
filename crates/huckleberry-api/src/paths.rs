@@ -74,7 +74,7 @@ pub fn custom_food(cid: &str, food_id: &str) -> String {
 pub const SLEEP: &str = "sleep";
 /// The feeding tracker, which holds nursing, bottles and solids.
 pub const FEED: &str = "feed";
-/// The nappy tracker, which also holds potty trips.
+/// The diaper tracker, which also holds potty trips.
 pub const DIAPER: &str = "diaper";
 /// The health tracker: growth, medication and temperature.
 pub const HEALTH: &str = "health";
