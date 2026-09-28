@@ -63,6 +63,7 @@ pub struct EditOptions {
     pub id: Option<String>,
 
     /// Change one field without being asked, for example `--set pee=big`.
+    /// Every saved entry accepts `--set "at=8am"`; clock-only edits keep its date.
     /// For the ongoing sleep use `--set "start=32 mins ago"`.
     /// Repeat for several. An empty value clears the field. Left out on a
     /// terminal, you are asked about every field.

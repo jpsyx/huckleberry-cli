@@ -83,7 +83,7 @@ pub async fn run(context: &Context, action: &FeedAction) -> Result<()> {
 
 /// Records a bottle, asking for everything that was not given.
 ///
-/// Every question a bottle has, in the order the app asks them: which units,
+/// Every question a bottle has, starting with when, then which units,
 /// how much, what was in it, and anything to note. A flag answers its own
 /// question and no others, so the fast path stays one line and the slow path
 /// never leaves a field unrecordable.
@@ -100,6 +100,7 @@ async fn bottle(
         notes,
         at,
     } = input;
+    let at = prompt::time::read_at(context, at)?;
     // The `units` setting is the default, not the answer: somebody who mostly
     // records in ounces still gives the odd bottle in millilitres.
     let configured = Units::from_setting(&context.config.units);
@@ -123,7 +124,6 @@ async fn bottle(
         None => ask_for_notes(context)?,
     };
 
-    let at = prompt::time::read_at(context, at)?;
     client
         .log_bottle_at(
             cid,
@@ -296,11 +296,11 @@ async fn nursing(
 ) -> Result<()> {
     match action {
         NursingAction::Start { side, start } => {
+            let at = prompt::time::read_start(context, start.as_deref())?;
             let side = match side {
                 Some(given) => given.to_api(),
                 None => suggested_side(context, client, cid).await?,
             };
-            let at = prompt::time::read_start(context, start.as_deref())?;
             client.start_nursing_at(cid, side.clone(), at).await?;
             context.report(&format!("Nursing started on the {side}."));
             Ok(())
@@ -473,6 +473,7 @@ async fn solids(
         notes,
         at,
     } = input;
+    let at = prompt::time::read_at(context, at)?;
     let named = if foods.is_empty() {
         vec![ask_for_food(context, client, cid).await?]
     } else {
@@ -497,7 +498,6 @@ async fn solids(
         .map(|name| match_food(name, &known, &amount))
         .collect();
 
-    let at = prompt::time::read_at(context, at)?;
     client
         .log_solids_at(
             cid,

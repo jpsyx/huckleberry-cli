@@ -10,20 +10,18 @@
 //! *is* lives in [`crate::edit`], the list and the cursor in
 //! [`crate::listing`], and the questions in [`form`].
 //!
-//! Recorded history cannot move in time. The live sleep is separate: its
-//! start can be corrected without completing it. A history row's id in
-//! Huckleberry leads with its own millisecond timestamp, so changing when
-//! something happened would leave history sorted by a time the row no longer
-//! claims. Delete it in the app and log it again.
+//! History time corrections preserve the row's other data and return its updated
+//! reference. Live sleeps use a separate timer operation.
 
 pub mod form;
+mod history;
 mod live;
 
-use anyhow::{Context as _, Result, bail};
+use anyhow::{Result, bail};
 use huckleberry_api::client::now_seconds;
 use huckleberry_api::{DiaperDetails, Huckleberry, RowRef};
 
-use crate::cli::{Amount, Colour, Consistency, EditOptions, PottyOutcome, Units};
+use crate::cli::{Amount, Colour, Consistency, EditOptions, PottyOutcome};
 use crate::domain::log::Entry;
 use crate::domain::{Calendar, log};
 use crate::edit::{self, Draft};
@@ -50,23 +48,23 @@ pub async fn run(context: &Context, options: &EditOptions) -> Result<()> {
     .await?;
     super::persist_session(context, &client).await?;
     let calendar = Calendar::new(&dataset.timezone)?;
-    let mut entries: Vec<Entry> = log::build(&dataset)
-        .into_iter()
-        .take(options.limit)
-        .collect();
+    let mut entries = log::build(&dataset);
+    history::add_health(context, &client, &cid, window, &mut entries).await?;
+    let mut shown = entries.clone();
+    shown.truncate(options.limit);
 
     if let Some(ongoing) = live::entry(&dataset.live, now_seconds()) {
-        entries.insert(0, ongoing);
+        shown.insert(0, ongoing);
     }
 
     if options.list {
-        list(context, &entries, &calendar);
+        list(context, &shown, &calendar);
         return Ok(());
     }
 
     let picked = match options.id.as_deref() {
         Some(token) => Some(token.to_owned()),
-        None => choose(context, &entries, &calendar)?,
+        None => choose(context, &shown, &calendar)?,
     };
     // Leaving the list without picking is not a failure: nothing was asked
     // for, so nothing happened and nothing is reported as having gone wrong.
@@ -78,46 +76,16 @@ pub async fn run(context: &Context, options: &EditOptions) -> Result<()> {
     if token == live::TOKEN {
         return live::run(context, &client, &cid, &options.set).await;
     }
-    let at = edit::parse_token(&token)?;
-    let units = Units::from_setting(&context.config.units);
-    let mut draft = edit::draft_for(&dataset, &at, units).with_context(|| {
-        format!(
-            "no entry `{}` in the last {window} days: `edit --list` says what there is",
-            edit::token_for(&at)
-        )
-    })?;
-
-    // Kept so the confirmation can say what changed rather than only what the
-    // entry now says, which reads as the old value when nothing moved.
-    let before = draft.clone();
-    if options.set.is_empty() {
-        form::fill(context, &client, &cid, &mut draft).await?;
-    } else {
-        draft.apply(&options.set)?;
-    }
-
-    if draft == before {
-        context.report(&format!(
-            "The {} is unchanged: {}.",
-            draft.what(),
-            edit::summary(&draft)
-        ));
-        return Ok(());
-    }
-
-    save(&client, &cid, &at, &draft).await?;
-    super::persist_session(context, &client).await?;
-    context.receipt(
-        "📝 Entry updated",
-        &[
-            ("Kind", crate::render::output::words(draft.what())),
-            ("Before", edit::summary(&before)),
-            ("After", edit::summary(&draft)),
-            ("Entry ID", edit::token_for(&at)),
-        ],
-        &[format!("entry\t{}", edit::token_for(&at))],
-    );
-    Ok(())
+    history::run(
+        context,
+        &client,
+        &cid,
+        &dataset,
+        &entries,
+        &token,
+        &options.set,
+    )
+    .await
 }
 
 /// Prints the entries, one `key<TAB>value` row each, for a script to read.
@@ -189,7 +157,7 @@ fn choose(context: &Context, entries: &[Entry], calendar: &Calendar) -> Result<O
     .rows(crate::render::log::rows(entries, calendar, &|entry| {
         (!editable(entry)).then(|| {
             format!(
-                "this tool does not log a {}, so it cannot change one",
+                "this {} has no stored location, so it cannot be changed",
                 entry.title.to_lowercase()
             )
         })
@@ -211,26 +179,17 @@ fn entry_token(entry: &Entry) -> Option<String> {
     }
 }
 
-/// Whether this tool can change an entry.
-///
-/// It edits what it can log: a diaper, a potty trip, a bottle, a nursing
-/// session, a meal and a sleep. A pumping session and a milestone are listed
-/// anyway, because the stream is the stream, and saying so is better than
-/// leaving somebody to wonder where their entry went.
+/// Every located history entry supports at least a time correction.
 fn editable(entry: &Entry) -> bool {
-    if entry.id == live::TOKEN {
-        return true;
-    }
-    entry.at.is_some()
-        && matches!(
-            entry.kind,
-            crate::domain::log::Kind::Sleep
-                | crate::domain::log::Kind::Feed
-                | crate::domain::log::Kind::Diaper
-        )
+    entry.id == live::TOKEN || entry.at.is_some()
 }
 /// Writes the draft back to the row it came from.
-async fn save(client: &Huckleberry, cid: &str, at: &RowRef, draft: &Draft) -> Result<()> {
+pub(super) async fn save(
+    client: &Huckleberry,
+    cid: &str,
+    at: &RowRef,
+    draft: &Draft,
+) -> Result<()> {
     match draft {
         Draft::Diaper(diaper) => {
             let details = DiaperDetails {
@@ -306,6 +265,22 @@ async fn save(client: &Huckleberry, cid: &str, at: &RowRef, draft: &Draft) -> Re
 mod tests {
     use super::*;
     use crate::domain::types::LiveState;
+
+    #[test]
+    fn every_located_history_kind_allows_time_edits() {
+        for kind in crate::domain::log::Kind::ALL {
+            let entry = Entry {
+                id: "entry".into(),
+                at: Some(RowRef::loose(kind.as_str(), "entry")),
+                kind,
+                start: 1000.0,
+                title: "Entry".into(),
+                description: String::new(),
+                notes: None,
+            };
+            assert!(editable(&entry), "{kind:?} must allow a time correction");
+        }
+    }
 
     #[test]
     fn ongoing_sleep_is_selectable_without_a_history_row() {

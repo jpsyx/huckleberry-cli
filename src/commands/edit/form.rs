@@ -27,8 +27,13 @@ pub async fn fill(
     context: &Context,
     client: &Huckleberry,
     cid: &str,
-    draft: &mut Draft,
+    draft: &mut Option<Draft>,
+    started: &mut f64,
 ) -> Result<()> {
+    *started = prompt::time::read_edit_at(context, None, *started)?;
+    let Some(draft) = draft else {
+        return Ok(());
+    };
     match draft {
         Draft::Diaper(diaper) => diaper_form(context, diaper),
         Draft::Bottle(bottle) => bottle_form(context, bottle),
@@ -312,6 +317,7 @@ fn bottle_form(context: &Context, bottle: &mut BottleDraft) -> Result<()> {
         &label,
         "--set amount=...",
         &format::amount_in(bottle.amount, bottle.units),
+        bottle.amount,
     )?;
     bottle.kind = required(
         context,
@@ -333,6 +339,7 @@ fn nursing_form(context: &Context, nursing: &mut NursingDraft) -> Result<()> {
         "How many minutes on the left?",
         "--set left=...",
         &format!("{:.0}", nursing.left_minutes),
+        nursing.left_minutes,
     )?;
     nursing.right_minutes = number(
         context,
@@ -340,6 +347,7 @@ fn nursing_form(context: &Context, nursing: &mut NursingDraft) -> Result<()> {
         "How many minutes on the right?",
         "--set right=...",
         &format!("{:.0}", nursing.right_minutes),
+        nursing.right_minutes,
     )?;
     nursing.notes = notes(context, nursing.notes.as_deref())?;
     Ok(())
@@ -399,6 +407,7 @@ fn sleep_form(context: &Context, sleep: &mut SleepDraft) -> Result<()> {
         "How many minutes did it last?",
         "--set duration=...",
         &format!("{:.0}", sleep.minutes),
+        sleep.minutes,
     )?;
     sleep.notes = notes(context, sleep.notes.as_deref())?;
     Ok(())
@@ -456,9 +465,24 @@ fn optional<T>(
 }
 
 /// A number, with what is there now as the default.
-fn number(context: &Context, subject: &str, label: &str, flag: &str, shown: &str) -> Result<f64> {
+fn number(
+    context: &Context,
+    subject: &str,
+    label: &str,
+    flag: &str,
+    shown: &str,
+    original: f64,
+) -> Result<f64> {
     let question = Question::new(subject, label, flag).with_default(shown);
     let answer = prompt::ask(&question, context.theme)?;
+    number_answer(&answer, shown, original)
+}
+
+/// Accepting a display-rounded default must not change the stored measurement.
+fn number_answer(answer: &str, shown: &str, original: f64) -> Result<f64> {
+    if answer.trim() == shown {
+        return Ok(original);
+    }
     answer
         .trim()
         .parse()
@@ -480,4 +504,25 @@ fn notes(context: &Context, current: Option<&str>) -> Result<Option<String>> {
         .filter(|text| text != CLEAR)
         .map(|text| text.trim().to_owned())
         .filter(|text| !text.is_empty()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn keeping_a_rounded_numeric_default_preserves_the_original() {
+        assert_eq!(
+            number_answer("2", "2", 1.5).unwrap().to_bits(),
+            1.5_f64.to_bits()
+        );
+        assert_eq!(
+            number_answer("3.4", "3.4", 3.381).unwrap().to_bits(),
+            3.381_f64.to_bits()
+        );
+        assert_eq!(
+            number_answer("4", "2", 1.5).unwrap().to_bits(),
+            4.0_f64.to_bits()
+        );
+    }
 }

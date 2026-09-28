@@ -84,6 +84,20 @@ impl Firestore {
     /// [`Error::Network`] when it cannot be reached, and [`Error::Decode`]
     /// when the reply is not JSON.
     pub async fn get(&self, token: &str, path: &str, operation: &str) -> Result<Option<Document>> {
+        // Keep the delegated HTTP future out of callers' combined polling futures.
+        Ok(Box::pin(self.get_raw(token, path, operation))
+            .await?
+            .as_ref()
+            .map(decode_document))
+    }
+
+    /// Reads without decoding tags, so relocating a row preserves every wire type.
+    pub(crate) async fn get_raw(
+        &self,
+        token: &str,
+        path: &str,
+        operation: &str,
+    ) -> Result<Option<Json>> {
         let response = self
             .http
             .get(self.url(path))
@@ -95,7 +109,20 @@ impl Firestore {
             return Ok(None);
         }
         let payload = read_json(response, operation).await?;
-        Ok(Some(decode_document(&payload)))
+        Ok(Some(payload))
+    }
+
+    /// Applies conditional writes atomically, including moves between documents.
+    pub(crate) async fn commit(&self, token: &str, writes: &[Json], operation: &str) -> Result<()> {
+        let response = self
+            .http
+            .post(format!("{}:commit", self.documents_url))
+            .bearer_auth(token)
+            .json(&serde_json::json!({"writes": writes}))
+            .send()
+            .await
+            .map_err(|source| Error::network(operation, source))?;
+        read_json(response, operation).await.map(|_| ())
     }
 
     /// The documents a structured query matches.

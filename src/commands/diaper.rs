@@ -25,13 +25,13 @@ pub async fn diaper(
     at: Option<&str>,
 ) -> Result<()> {
     let (client, cid) = super::client_and_child(context).await?;
+    let at = prompt::time::read_at(context, at)?;
     let mode = match mode {
         Some(given) => given,
         None => ask_for_mode(context, "What was in it?")?,
     };
     let details = details(context, Record::Diaper, mode, flags, notes)?;
 
-    let at = prompt::time::read_at(context, at)?;
     client
         .log_diaper_at(&cid, mode.to_api(), &details, at)
         .await?;
@@ -56,6 +56,7 @@ pub async fn potty(
     at: Option<&str>,
 ) -> Result<()> {
     let (client, cid) = super::client_and_child(context).await?;
+    let at = prompt::time::read_at(context, at)?;
     let mode = match mode {
         Some(given) => given,
         None => ask_for_mode(context, "What happened?")?,
@@ -78,7 +79,6 @@ pub async fn potty(
         notes,
     )?;
 
-    let at = prompt::time::read_at(context, at)?;
     client
         .log_potty_at(&cid, mode.to_api(), how.to_api(), &details, at)
         .await?;

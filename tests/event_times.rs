@@ -95,3 +95,107 @@ fn keeping_a_live_sleep_with_no_start_does_not_invent_one() {
         None
     );
 }
+
+#[test]
+fn history_time_edits_keep_the_exact_existing_instant_and_its_day() {
+    let context = context();
+    // Jan 1, 2025 at 07:00 in New York, including subsecond precision.
+    let original = 1_735_732_800.125;
+    let shown = "2025-01-01 07:00:00";
+    let kept = app::prompt::time::read_edit_at(&context, Some(shown), original).unwrap();
+    assert_eq!(kept.to_bits(), original.to_bits());
+    let changed = app::prompt::time::read_edit_at(&context, Some("8am"), original).unwrap();
+    assert_eq!(changed.to_bits(), 1_735_736_400.0_f64.to_bits());
+    let another_day =
+        app::prompt::time::read_edit_at(&context, Some("2025-01-02 08:00:00"), original).unwrap();
+    assert_eq!(another_day.to_bits(), 1_735_822_800.0_f64.to_bits());
+    assert!(app::prompt::time::read_edit_at(&context, Some("nonsense"), original).is_err());
+}
+
+#[test]
+fn history_time_edits_only_use_now_when_explicitly_requested() {
+    let context = context();
+    let original = 1_735_732_800.125;
+    let before = huckleberry_api::client::now_seconds();
+    let changed = app::prompt::time::read_edit_at(&context, Some("now"), original).unwrap();
+    let after = huckleberry_api::client::now_seconds();
+    assert!((before..=after).contains(&changed));
+    if !std::io::IsTerminal::is_terminal(&std::io::stdin()) {
+        assert!(app::prompt::time::read_edit_at(&context, None, original).is_err());
+    }
+}
+
+#[tokio::test]
+async fn every_edit_form_asks_for_time_before_its_details() {
+    use app::cli::{BottleKind, DiaperKind, Units};
+    use app::edit::{BottleDraft, DiaperDraft, Draft, NursingDraft, SleepDraft, SolidsDraft};
+    if std::io::IsTerminal::is_terminal(&std::io::stdin()) {
+        return;
+    }
+    let context = context();
+    let client = huckleberry_api::Huckleberry::new(
+        huckleberry_api::Credentials::new("unused", "unused"),
+        "UTC",
+    )
+    .unwrap();
+    let diaper = DiaperDraft {
+        potty: false,
+        mode: DiaperKind::Pee,
+        pee: None,
+        poo: None,
+        color: None,
+        consistency: None,
+        rash: false,
+        how: None,
+        notes: None,
+    };
+    for mut draft in [
+        Some(Draft::Bottle(BottleDraft {
+            amount: 90.0,
+            units: Units::Ml,
+            kind: BottleKind::Formula,
+            notes: None,
+        })),
+        Some(Draft::Diaper(diaper.clone())),
+        Some(Draft::Diaper(DiaperDraft {
+            potty: true,
+            ..diaper
+        })),
+        Some(Draft::Nursing(NursingDraft {
+            left_minutes: 5.0,
+            right_minutes: 4.0,
+            notes: None,
+        })),
+        Some(Draft::Solids(SolidsDraft {
+            foods: vec!["Avocado".into()],
+            amount: "some".into(),
+            reaction: None,
+            notes: None,
+        })),
+        Some(Draft::Sleep(SleepDraft {
+            minutes: 30.0,
+            notes: None,
+        })),
+        None,
+    ] {
+        let mut started = 1000.0;
+        let error =
+            app::commands::edit::form::fill(&context, &client, "child", &mut draft, &mut started)
+                .await
+                .unwrap_err();
+        assert!(error.to_string().contains("--set at="), "{error}");
+        assert_eq!(started.to_bits(), 1000.0_f64.to_bits());
+    }
+}
+
+#[test]
+fn invalid_history_times_are_rejected_before_saving_other_fields() {
+    let context = context();
+    for input in ["2099-01-01 08:00", "1960-01-01 08:00"] {
+        let error = app::prompt::time::read_edit_at(&context, Some(input), 1_735_732_800.0);
+        assert!(
+            error.is_err(),
+            "{input} must be refused before detail editing"
+        );
+    }
+}

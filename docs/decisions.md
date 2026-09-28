@@ -239,12 +239,16 @@ type="Breast Milk"`), with this tool's spellings taken as well where they
 differ. An empty value clears a field, which is the only way to say "there is
 no colour after all". A field a kind does not have fails naming the ones it
 does, and that list is [`crate::edit::Draft::fields`], so the failure cannot
-drift from what `set` accepts. `edit` never writes `start`: a row's id leads
-with its own millisecond timestamp, and moving the moment would leave history
-sorted by a time the row no longer claims. Deleting is still the app's job.
+drift from what `set` accepts. Time is handled separately from detail drafts,
+so every located entry can change `at`, including kinds without a detail form.
 
-**Revisit when.** Somebody needs to correct *when* something happened. That is
-a delete and a re-log, which needs a delete this crate does not have yet.
+**Time corrections (September 2026).** The original restriction against changing
+history timestamps has been removed. A correction preserves the raw row and
+moves timestamp-based IDs using an atomic, revision-checked write that also
+repairs affected latest-entry summaries. This avoids leaving IDs ordered by the
+old time or losing unknown fields through a delete-and-log reconstruction.
+Interactive logging asks for time first. Editing offers the stored time, with
+Enter preserving its exact instant; a clock-only edit keeps the original date.
 
 ## The full-screen picker is the one exception to `src/prompt.rs`
 

@@ -9,7 +9,7 @@ use crate::session::Context;
 
 /// Records a measurement, asking for everything that was not given.
 ///
-/// Every measurement the app takes, in its own order: which system, then the
+/// Ask when first, then every measurement the app takes: which system, then the
 /// weight, the length and the head. Only the weight has to be answered, and
 /// only when nothing at all was passed: a parent who came to record a weight
 /// should not have to produce a tape measure.
@@ -22,6 +22,7 @@ pub async fn run(
     at: Option<&str>,
 ) -> Result<()> {
     let (client, cid) = super::client_and_child(context).await?;
+    let at = prompt::time::read_at(context, at)?;
     let nothing_given = weight.is_none() && height.is_none() && head.is_none();
     let configured = System::from_setting(&context.config.measurements);
     // The `measurements` setting is the default, not the answer.
@@ -47,7 +48,6 @@ pub async fn run(
     }
     validate(&measurements)?;
 
-    let at = prompt::time::read_at(context, at)?;
     client
         .log_growth_at(&cid, &measurements, system.to_api(), at)
         .await?;

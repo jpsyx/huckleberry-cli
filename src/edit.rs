@@ -7,9 +7,8 @@
 //! each other, and it is why "what does `--set mode=both` do to a diaper" is a
 //! test rather than something you find out against somebody's real record.
 //!
-//! An edit changes what was recorded, never when it happened. A row's id in
-//! Huckleberry leads with its own millisecond timestamp, so moving the moment
-//! would leave history ordered by a time the row no longer claims.
+//! Detail drafts are separate from time corrections, which apply to every row
+//! and preserve its raw fields through the API's history-time operation.
 
 use anyhow::{Result, bail};
 use huckleberry_api::RowRef;

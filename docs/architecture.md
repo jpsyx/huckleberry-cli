@@ -112,7 +112,8 @@ Every value a command needs is looked for in the same order:
 Event times keep their noninteractive default of now. `prompt/time.rs` shares
 the clock reader and AM/PM question between manual sleeps, instant recordings
 and timer transitions; `domain/clock.rs` parses relative minutes using an
-explicit `now`. Times resolve against the clock after the answer is read.
+explicit `now`. Time is the first activity question. Times resolve against the clock after that
+answer is read, before the remaining details.
 Commands pass them to explicit-time API operations, which keep event times
 separate from synchronization timestamps. `ops/timing.rs` validates transition
 ordering and checks that backfilled instant events preserve newer summaries.
@@ -144,6 +145,15 @@ The write is a field update rather than a rewrite. A row has fields this
 repository does not model, and a batched row has neighbours in the same
 document; naming the fields that change is what leaves both alone. See
 [`api.md`](api.md).
+
+`commands/edit/history.rs` combines the detail draft with a separate event time.
+The form asks for that time first, defaulting to the exact stored instant; a
+clock-only replacement uses the entry's original local date. Every located row
+supports time corrections, including pumping and milestones. The edit picker
+also reads health history so growth, medication and temperature times can be
+corrected. These additional kinds retain their raw details rather than creating
+new detail forms. The API's history-time operation updates row identity and
+last-entry summaries together; the receipt returns the resulting selector.
 
 The edit command also prepends the active sleep from the live state, under the
 reserved selector `sleep/current`. `commands/edit/live.rs` routes that selection

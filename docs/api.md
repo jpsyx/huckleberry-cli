@@ -54,8 +54,8 @@ gRPC stack in to make six kinds of request would be the largest thing in the
 dependency tree by a wide margin. So this crate speaks the Firestore REST API,
 which wants nothing but an HTTP client and a bearer token.
 
-Everything is one of five requests: `GET` a document, `POST … :runQuery`, `GET`
-a collection page, `PATCH` a document, and `PATCH` with an `updateMask`.
+Requests read a document or collection page, query history, patch or delete a
+document, or atomically commit related history and summary changes.
 
 ## The four deliberate differences
 
@@ -141,11 +141,34 @@ a bare `data` and the row's neighbours survive the write. The typed edits
 `update_solids_entry`, `update_sleep_entry`) are that method with the fields of
 one tracker filled in.
 
-Two things every edit holds to. It never writes `start`: a row's id leads with
-its own millisecond timestamp, so moving the moment would leave the collection
-ordered by a time the row no longer claims. And an optional field left out is
+The typed field edits leave `start` alone. An optional field left out is
 *removed* rather than left behind, because a colour nobody gave this time is
-not last time's colour.
+not last time's colour. Time corrections use a separate atomic operation.
+
+`update_history_time(cid, at, started)` rereads the row and changes its Unix
+start time in seconds. Keeping the same time performs no write. Durations,
+notes, measurements and unknown fields survive, including Firestore value
+types the models do not understand. Start and end timezone offsets follow the
+new event time; synchronization fields describe the current write. Nursing's
+end offset uses the sum of its two side durations.
+
+Feed, diaper and health rows move to an ID beginning with the corrected
+millisecond timestamp, and their embedded `_id` moves with them when present.
+Timestamp-shaped pump and milestone IDs also move; opaque identifiers and
+sleep IDs stay stable. A moved batched row becomes a loose row, while a masked
+deletion removes only its old batch key. The returned `RowRef` identifies the
+new location for subsequent edits and receipts.
+
+Creation of the destination, removal of the source, and repair of the affected
+last-entry summaries share one
+[Firestore commit](https://firebase.google.com/docs/firestore/reference/rest/v1/projects.databases.documents/commit).
+Source and tracker writes require their freshly read server revisions, and a
+new destination must not exist. Conflicts abort the whole commit without
+automatic retries. Summary repair handles movement both earlier and later,
+including nursing's last-side hint, and never changes active timer fields.
+Missing rows, revisions or tracker documents and invalid or future starts are
+refused before writing. This is a Rust-specific extension using Woyken's
+existing schema; no new upstream operation was ported.
 
 ### 6. A delete tidies up after itself
 
@@ -255,7 +278,7 @@ The models drop the `Firebase` prefix, because the crate name is the namespace.
 | `create_solids_custom_food` | `create_custom_food` |
 | `setup_*_listener` | `watch_*` (polling; see above) |
 | — | `pump_intervals`, `milestones`, `collection_rows` (new) |
-| — | `located_rows`, `update_history_row`, `update_*_entry` (new: editing) |
+| — | `located_rows`, `update_history_row`, `update_history_time`, `update_*_entry` (new: editing) |
 | — | `delete_history_row`, `repair_summaries`, `tracker_document` (new) |
 
 ## Four things that catch people out

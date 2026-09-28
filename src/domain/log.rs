@@ -22,6 +22,8 @@ pub enum Kind {
     Pump,
     /// A milestone.
     Milestone,
+    /// Growth, medication or temperature history in the edit picker.
+    Health,
 }
 
 impl Kind {
@@ -34,16 +36,18 @@ impl Kind {
             Self::Diaper => "diaper",
             Self::Pump => "pump",
             Self::Milestone => "milestone",
+            Self::Health => "health",
         }
     }
 
     /// Every kind, in the order a chooser should offer them.
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 6] = [
         Self::Sleep,
         Self::Feed,
         Self::Diaper,
         Self::Pump,
         Self::Milestone,
+        Self::Health,
     ];
 
     /// Reads one of the words above.

@@ -112,6 +112,10 @@ An ambiguous clock time prompts for AM or PM. Clock times mean their most recent
 occurrence in the configured timezone; relative minutes count elapsed time across
 midnight and daylight-saving changes. Invalid answers are asked again.
 
+Time is the first activity question, before amounts, units, sides or notes.
+Accepting `now` records the instant that question is answered, even if the
+remaining questions take longer.
+
 Use `--at <TIME>` to answer directly, or `--start <TIME>` for sleep and nursing
 starts (`--at` is also an alias for nursing starts). Flag values must resolve
 without an AM/PM follow-up. Without a terminal, omitted event times default to
@@ -188,7 +192,7 @@ in yellow, with no default: all three answers throw something away.
 
 ```sh
 hb feed bottle --amount 90 --type formula
-hb feed bottle                       # asks units, amount, milk, notes, and when
+hb feed bottle                       # asks when, units, amount, milk, and notes
 
 hb feed nursing start --side left
 hb feed nursing switch
@@ -202,10 +206,10 @@ hb feed solids --food Avocado --reaction loved
 `--type` takes `formula`, `breast-milk`, `cow-milk`, `goat-milk`, `soy-milk`,
 `tube-feeding` or `other`. `--units` takes `ml` or `oz`.
 
-Asked interactively, a bottle is five questions: which units, how much, what
-was in it, anything to note, and when. Every one of them arrives with an answer
+Asked interactively, a bottle is five questions: when, which units, how much,
+what was in it, and anything to note. Every one of them arrives with an answer
 already in it, so the fast path is five presses of Enter. The `units` setting
-is what the first question offers, not what the command assumes: somebody who
+is what the units question offers, not what the command assumes: somebody who
 mostly records in ounces still gives the odd bottle in millilitres, and
 `hb config set units oz` changes what Enter takes. The amount offered is the
 last bottle's, **converted into the units being recorded in**: the app stores
@@ -213,7 +217,7 @@ it in whatever units it was entered in, so offering it as it stands turned a
 last bottle of 1.15 oz into an offer of "1.15" under a question reading "How
 much, in ml?".
 
-A meal asks for the food, how much, how it went, anything to note, and when.
+A meal asks when, then the food, how much, how it went, and anything to note.
 
 `feed nursing start` with no `--side` offers the side opposite the last feed,
 which is what the app suggests.
@@ -222,19 +226,19 @@ which is what the app suggests.
 
 ```sh
 hb diaper --mode both --poo medium --color yellow --consistency loose
-hb diaper                        # asks what was in it
+hb diaper                        # asks when, then what was in it
 hb potty --mode pee --how went-potty
 hb growth --weight 3.6
-hb growth                        # asks the system, the weight, then the rest
+hb growth                        # asks when, the system, the weight, then the rest
 ```
 
-`growth` asks which system the numbers are in, offering the `measurements`
-setting, then the weight, the length, the head circumference and when; only the
+`growth` asks when, then which system the numbers are in, offering the
+`measurements` setting, then the weight, the length and the head circumference; only the
 weight has to be answered, and only when no measurement was passed at all.
 
-The diaper prompt asks what was in it and then asks every question that answer
+The diaper prompt asks when, then what was in it, and every question that answer
 implies: how much wet, how much dirty, the colour, the consistency, whether
-there was a rash, anything to note, and when. Optional details take Enter for
+there was a rash, and anything to note. Optional details take Enter for
 "leave it out", and the time takes Enter for now, so the fast path is still a few keystrokes, and a flag answers its own
 question only: `--pee big` is not a statement about the colour. A potty trip is
 asked the same questions minus the rash, which the app has no field for.
@@ -262,7 +266,11 @@ hb edit --id diaper/1758572400000-3f2a --set pee=big
 
 `edit` is the submission process again, with one difference: every question
 arrives with what is already recorded as its answer, so Enter keeps it and only
-what is typed changes. A field that can be empty takes `-` for "leave it out".
+what is typed changes. **When?** is the first question after selecting an entry,
+with its stored date and time as the default. Enter preserves the exact instant,
+including seconds and fractional seconds. A clock-only answer such as `8am`
+uses the entry's original local date; `2026-09-27 08:00` can change the date too.
+`now` and relative minutes are resolved when answered. A field that can be empty takes `-` for "leave it out".
 
 An active sleep appears first as **Ongoing sleep**, separately from saved
 history. Selecting it asks for a new start using the same flexible clock and
@@ -299,12 +307,23 @@ minutes) and `notes` on a sleep. An empty value clears the field, as in
 `--set color=`. Naming a field the entry does not have fails with the ones it
 does.
 
-Two things `edit` will not do. It does not move a saved history entry in time: a row's id in
-Huckleberry leads with its own millisecond timestamp, so changing when
-something happened would leave history sorted by a time the row no longer
-claims. And it changes only what this tool can log, so a pumping session and a
-milestone are listed but read-only; `--list` says which is which in its own
-column.
+Every saved entry accepts `--set at=<TIME>` (`start` is an alias), including
+pumping, milestones, and growth, medication and temperature history. These
+additional entries currently offer the time question only; their other fields
+are preserved. An explicit `--id` can correct a time outside the picker window.
+
+```sh
+hb edit --id feed/1758572400000-3f2a --set "at=8am"
+hb edit --id feed/1758572400000-3f2a --set "at=2026-09-27 08:00"
+```
+
+Changing a history time preserves duration and unmodeled fields. The API updates
+timestamp-based IDs and affected last-entry summaries together, leaving batch
+neighbors and active timers intact. The receipt prints the resulting entry ID,
+which can change when the timestamp changes. Concurrent storage changes cause
+the time correction to fail rather than overwrite newer data. Detail edits are
+saved before the time correction; if that correction fails, the error says that
+preceding detail changes have already been saved.
 
 ### Removing an entry
 

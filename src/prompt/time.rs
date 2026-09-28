@@ -52,6 +52,59 @@ fn read_instant(context: &Context, given: Option<&str>, label: &str, flag: &str)
     })
 }
 
+/// Reads a history time, preserving the original instant when its default is kept.
+/// Clock-only answers stay on the entry's local date; dated answers can move days.
+pub fn read_edit_at(context: &Context, given: Option<&str>, current: f64) -> Result<f64> {
+    let started = read_existing(context, given, current, "--set at=<TIME>", true)?;
+    if started.to_bits() != current.to_bits()
+        && (!started.is_finite() || started < 0.0 || started > now_seconds())
+    {
+        bail!("choose a time between the Unix epoch and now");
+    }
+    Ok(started)
+}
+
+/// Shares existing-time defaults between history and live timer corrections.
+fn read_existing(
+    context: &Context,
+    given: Option<&str>,
+    current: f64,
+    flag: &str,
+    keep_date: bool,
+) -> Result<f64> {
+    let calendar = context.calendar()?;
+    let shown = calendar
+        .zoned(current)
+        .strftime("%Y-%m-%d %H:%M:%S")
+        .to_string();
+    let question = Question::new(
+        "time",
+        "When? (clock time, YYYY-MM-DD HH:MM, or 32 mins ago)",
+        flag,
+    )
+    .with_default(&shown);
+    read(context, given, &question, |text, interactive| {
+        if text.trim() == shown || text.trim().eq_ignore_ascii_case("keep") {
+            return Ok(Some(current));
+        }
+        if let Ok(dated) = text.trim().parse::<jiff::civil::DateTime>() {
+            let zoned = dated.in_tz(calendar.name())?;
+            return Ok(Some(
+                zoned.timestamp().as_second() as f64
+                    + f64::from(zoned.timestamp().subsec_nanosecond()) / 1e9,
+            ));
+        }
+        if keep_date {
+            if let Some(relative) = clock::parse_relative(text, now_seconds()) {
+                return Ok(Some(relative));
+            }
+            return Ok(parse_clock(context, text, interactive)?
+                .map(|time| calendar.at(calendar.day_of(current), time.hour, time.minute)));
+        }
+        parse_instant(context, text, interactive)
+    })
+}
+
 /// Asks for a replacement start; `None` means keep the timer untouched on Enter.
 /// Scripts must supply a value instead of silently resetting the timer to now.
 pub fn read_edit_start(
@@ -59,6 +112,10 @@ pub fn read_edit_start(
     given: Option<&str>,
     current: Option<f64>,
 ) -> Result<Option<f64>> {
+    if let Some(original) = current {
+        let changed = read_existing(context, given, original, "--set start=<TIME>", false)?;
+        return Ok((changed.to_bits() != original.to_bits()).then_some(changed));
+    }
     let calendar = context.calendar()?;
     let current = current.map_or_else(
         || "not recorded".into(),

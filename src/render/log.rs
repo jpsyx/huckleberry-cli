@@ -26,6 +26,7 @@ pub const fn tone_for(kind: Kind) -> Tone {
         Kind::Diaper => Tone::Diaper,
         Kind::Pump => Tone::Pumping,
         Kind::Milestone => Tone::Milestone,
+        Kind::Health => Tone::Info,
     }
 }
 
