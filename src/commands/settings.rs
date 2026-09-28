@@ -102,11 +102,27 @@ fn ask_for_key(context: &Context) -> Result<String> {
 fn ask_for_value(context: &Context, key: &str) -> Result<String> {
     let current = context.config.get(key).unwrap_or_default();
     let label = format!("{}?", Config::describe(key).unwrap_or("the new value"));
-    let mut question = Question::new("value", &label, "<VALUE>");
+    let choices = value_choices(key);
+    let mut question = Question::new("value", &label, "<VALUE>").with_choices(&choices);
     if !current.is_empty() {
         question = question.with_default(&current);
     }
     prompt::ask(&question, context.theme)
+}
+
+/// Finite setting values use the same lists as recording prompts.
+#[must_use]
+pub fn value_choices(key: &str) -> Vec<Choice<'static>> {
+    let values: &[&str] = match key {
+        "units" => &["ml", "oz"],
+        "measurements" => &["metric", "imperial"],
+        "verbose" => &["true", "false"],
+        _ => &[],
+    };
+    values
+        .iter()
+        .map(|value| Choice { value, hint: "" })
+        .collect()
 }
 
 #[cfg(test)]

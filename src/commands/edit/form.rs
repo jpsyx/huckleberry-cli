@@ -359,32 +359,8 @@ async fn solids_form(
     cid: &str,
     meal: &mut SolidsDraft,
 ) -> Result<()> {
-    let known = client.custom_foods(cid, false).await.unwrap_or_default();
-    let choices: Vec<Choice<'_>> = known
-        .iter()
-        .map(|food| Choice {
-            value: &food.name,
-            hint: "one of your foods",
-        })
-        .collect();
-    let current = meal.foods.join(", ");
-    let question = Question::new(
-        "food",
-        "What did they eat? Separate several with commas.",
-        "--set foods=...",
-    )
-    .with_default(&current);
-    // The choices are offered but anything typed is taken: a food nobody has
-    // added is still a food, and a comma-separated list is not on any list.
-    let answer = prompt::ask(&question.with_choices(&choices), context.theme)?;
-    let named: Vec<String> = answer
-        .split(',')
-        .map(|food| food.trim().to_owned())
-        .filter(|food| !food.is_empty())
-        .collect();
-    if !named.is_empty() {
-        meal.foods = named;
-    }
+    meal.foods =
+        super::super::feed::solids::ask_for_foods(context, client, cid, &meal.foods).await?;
     meal.reaction = optional(
         context,
         "reaction",

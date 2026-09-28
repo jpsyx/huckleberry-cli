@@ -449,3 +449,8 @@ Fixed-choice prompts are numbered menus: arrows or J/H move down and K/P move
 up; Enter accepts the highlighted default. Optional choices include Skip.
 Optional text offers Skip or Enter text, and existing values can be kept or
 cleared. Esc and Ctrl-C cancel the current question without accepting it.
+
+Meals offer known foods, Enter a new food name, Remove, and Done so multiple
+foods can be selected without comma-separated typing. Solids amount offers
+Some or a custom value. Sleep overlap resolution begins on Cancel. Units,
+measurement system, and verbose settings use finite selection lists.

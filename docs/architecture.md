@@ -245,3 +245,6 @@ J/K/H/P navigation without terminal I/O, with bounded cursor and scroll state.
 Prompt input now uses a scoped raw-mode guard for text and selection. Typed
 cancellation travels through anyhow without string matching. Text, questions,
 password key interpretation, and menu selection live in separate prompt files.
+
+Feed handlers are split into bottle, nursing, and solids modules under
+commands/feed; the module retains the command entry point and public helpers.

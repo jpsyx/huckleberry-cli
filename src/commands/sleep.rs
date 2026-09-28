@@ -228,20 +228,6 @@ fn ask_about_overlap(
     now: f64,
     calendar: &crate::domain::Calendar,
 ) -> Result<Overlap> {
-    const CHOICES: [Choice<'static>; 3] = [
-        Choice {
-            value: "discard-sleep",
-            hint: "Throw away the sleep in progress, and keep this entry",
-        },
-        Choice {
-            value: "discard-manual",
-            hint: "Keep the sleep in progress, and throw away this entry",
-        },
-        Choice {
-            value: "record-sleep",
-            hint: "Finish and record the sleep in progress, and throw away this entry",
-        },
-    ];
     context.attention(&format!(
         "That overlaps the sleep in progress, which started at {} and has run {}.",
         format::clock(running_start, calendar),
@@ -252,8 +238,9 @@ fn ask_about_overlap(
         "Which one do you want to keep?",
         "--overlap <CHOICE>",
     )
-    .with_choices(&CHOICES);
+    .with_choices(overlap_choices());
     Ok(match prompt::ask(&question, context.theme)?.as_str() {
+        "cancel" => return Err(prompt::Cancelled.into()),
         "discard-manual" => Overlap::DiscardManual,
         "record-sleep" => Overlap::RecordSleep,
         _ => Overlap::DiscardSleep,
@@ -337,4 +324,28 @@ fn report(context: &Context, change: TimerChange, done: &str, already: &str) {
         TimerChange::NotRunning => context.warn("No sleep is running."),
         TimerChange::Unchanged => context.warn(&format!("The sleep is already {already}.")),
     }
+}
+
+/// Choices for overlap resolution, beginning with a non-mutating escape.
+#[must_use]
+pub const fn overlap_choices() -> &'static [Choice<'static>] {
+    const CHOICES: [Choice<'static>; 4] = [
+        Choice {
+            value: "cancel",
+            hint: "Cancel without changing either sleep",
+        },
+        Choice {
+            value: "discard-sleep",
+            hint: "Throw away the sleep in progress, and keep this entry",
+        },
+        Choice {
+            value: "discard-manual",
+            hint: "Keep the sleep in progress, and throw away this entry",
+        },
+        Choice {
+            value: "record-sleep",
+            hint: "Finish and record the sleep in progress, and throw away this entry",
+        },
+    ];
+    &CHOICES
 }
