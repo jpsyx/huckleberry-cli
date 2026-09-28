@@ -7,6 +7,7 @@ pub mod dashboard;
 pub mod dataset;
 pub mod domain;
 pub mod edit;
+pub mod interactive;
 pub mod listing;
 pub mod prompt;
 pub mod render;

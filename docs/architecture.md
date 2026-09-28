@@ -248,3 +248,8 @@ password key interpretation, and menu selection live in separate prompt files.
 
 Feed handlers are split into bottle, nursing, and solids modules under
 commands/feed; the module retains the command entry point and public helpers.
+
+The interactive catalog groups every canonical clap command into a menu tree.
+Pending argument drafts resolve through clap without spawning a shell; passwords
+are redacted in previews and parser diagnostics. Session options remain separate
+from persistent settings.
