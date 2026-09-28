@@ -213,3 +213,40 @@ fn profile_weight_uses_the_configured_units_and_measurement_date() {
     let metric = output::weight_fields(3.6, 0.0, false, &Calendar::utc());
     assert_eq!(metric[0], ("Weight", "3.600 kg".into()));
 }
+
+#[test]
+fn sleep_start_context_uses_local_time_and_wall_clock_age_even_when_paused() {
+    let calendar = Calendar::new("America/New_York").unwrap();
+    let start = calendar.at("2026-09-27".parse().unwrap(), 23, 0);
+    for paused in [false, true] {
+        let timer = serde_json::from_value(serde_json::json!({
+            "active": true, "paused": paused, "uuid": "test-sleep",
+            "timerStartTime": start * 1000.0, "timerEndTime": (start + 600.0) * 1000.0
+        }))
+        .unwrap();
+        for (elapsed, expected) in [(2400.0, "40m ago"), (9000.0, "2h 30m ago")] {
+            let message =
+                output::sleep_start_context(Some(&timer), start + elapsed, &calendar).unwrap();
+            assert!(message.contains("Sep 27, 2026, 11:00 pm EDT"), "{message}");
+            assert!(message.contains(expected), "{message}");
+        }
+    }
+}
+
+#[test]
+fn sleep_start_context_omits_inactive_or_missing_starts() {
+    assert_eq!(
+        output::sleep_start_context(None, 10000.0, &Calendar::utc()),
+        None
+    );
+    for value in [
+        serde_json::json!({"active": false, "paused": false, "uuid": "old", "timerStartTime": 1_000_000}),
+        serde_json::json!({"active": true, "paused": false, "uuid": "missing"}),
+    ] {
+        let timer = serde_json::from_value(value).unwrap();
+        assert_eq!(
+            output::sleep_start_context(Some(&timer), 10000.0, &Calendar::utc()),
+            None
+        );
+    }
+}

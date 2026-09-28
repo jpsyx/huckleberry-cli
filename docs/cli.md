@@ -160,10 +160,18 @@ hb sleep manual --start 11:30pm --end 1:15am
 ```
 
 `sleep end` (also `sleep stop`) asks **When did it end?** using the same
-time reader, dimmed examples and `now` default as `sleep start`. Pass
-`--at "32 min ago"` or `--at "1:23 pm"` to supply the end without a prompt.
+time reader, dimmed examples and `now` default as `sleep start`. Before the
+question, it shows the active sleep's start date and local time (with timezone),
+plus how long ago it started, for example `2h 30m ago`. This context goes to
+stderr, including when `--at` is supplied, and counts time spent paused.
+Pass `--at "32 min ago"` or `--at "1:23 pm"` to supply the end without a prompt.
 Without a terminal, an omitted time defaults to now. A paused sleep still
 ends at its recorded pause time.
+
+Clock and relative time inputs accept trailing sentence punctuation
+(`.`, `,`, `!`, `?`, `;`, or `…`), so `40 minutes ago.`, `now!`, and
+`1:23 pm,` work in prompts and flags. Signs and punctuation inside relative
+durations are not removed: negative or fractional minutes remain invalid.
 
 `sleep start` refuses to start a second sleep over a running one, because that
 would leave the first unrecorded. On a terminal it asks when the sleep started,

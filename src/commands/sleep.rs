@@ -266,9 +266,19 @@ async fn stop(
     cid: &str,
     at: Option<&str>,
 ) -> Result<()> {
+    let calendar = context.calendar()?;
+    let document = client.sleep_document(cid).await?;
+    if let Some(message) = output::sleep_start_context(
+        document
+            .as_ref()
+            .and_then(|document| document.timer.as_ref()),
+        now_seconds(),
+        &calendar,
+    ) {
+        context.narrate(&message);
+    }
     let at = prompt::time::read_end(context, at)?;
     if let Some(completed) = client.complete_sleep_at(cid, at).await? {
-        let calendar = context.calendar()?;
         context.receipt(
             "😴 Sleep recorded",
             &output::sleep_fields(completed.start as f64, completed.duration as f64, &calendar),

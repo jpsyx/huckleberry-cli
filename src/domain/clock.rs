@@ -71,7 +71,7 @@ pub enum Typed {
 /// caller turns into a question rather than a guess.
 #[must_use]
 pub fn parse(text: &str) -> Option<Typed> {
-    let cleaned: String = text
+    let cleaned: String = trim_sentence_ending(text)
         .chars()
         .filter(|character| !character.is_whitespace() && *character != '.')
         .collect::<String>()
@@ -108,7 +108,7 @@ pub fn parse(text: &str) -> Option<Typed> {
 /// Reads a relative time against the supplied clock.
 #[must_use]
 pub fn parse_relative(text: &str, now: f64) -> Option<f64> {
-    let cleaned = text.trim().to_ascii_lowercase();
+    let cleaned = trim_sentence_ending(text).to_ascii_lowercase();
     if matches!(cleaned.as_str(), "now" | "right now") {
         return Some(now);
     }
@@ -122,6 +122,14 @@ pub fn parse_relative(text: &str, now: f64) -> Option<f64> {
     }
     let minutes: u32 = digits.parse().ok()?;
     Some(now - f64::from(minutes) * 60.0)
+}
+
+/// Removes sentence endings without erasing signs, decimal points or time separators.
+fn trim_sentence_ending(text: &str) -> &str {
+    text.trim_end_matches(|character: char| {
+        character.is_whitespace() || matches!(character, '.' | ',' | '!' | '?' | ';' | '…')
+    })
+    .trim_start()
 }
 
 /// Which half of the day was named.

@@ -34,6 +34,21 @@ pub fn sleep_fields(start: f64, seconds: f64, calendar: &Calendar) -> Fields {
     ]
 }
 
+/// Start context before stopping a sleep; age includes time spent paused.
+#[must_use]
+pub fn sleep_start_context(
+    timer: Option<&huckleberry_api::models::SleepTimer>,
+    now: f64,
+    calendar: &Calendar,
+) -> Option<String> {
+    let started = timer.filter(|timer| timer.active)?.started_at()?;
+    Some(format!(
+        "Sleep started at {} ({} ago).",
+        format::date_time(started, calendar),
+        duration((now - started).max(0.0))
+    ))
+}
+
 /// Sleep status without stale start times from inactive timers.
 #[must_use]
 pub fn sleep_status_fields(

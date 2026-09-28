@@ -256,3 +256,53 @@ fn sleep_end_reuses_start_time_parsing_and_defaults() {
         assert!(app::prompt::time::read_end(&context, Some(input)).is_err());
     }
 }
+
+#[test]
+fn event_times_accept_trailing_sentence_punctuation() {
+    let context = context();
+    for input in [
+        "40 minutes ago.",
+        "40 minutes ago!",
+        " 40 minutes ago, ",
+        "40 minutes ago?;",
+        "40 minutes ago…",
+    ] {
+        let before = huckleberry_api::client::now_seconds();
+        let parsed = app::prompt::time::read_end(&context, Some(input)).unwrap();
+        let after = huckleberry_api::client::now_seconds();
+        assert!(
+            (before - 2400.0..=after - 2400.0).contains(&parsed),
+            "{input}"
+        );
+    }
+    for input in ["now.", "right now!"] {
+        let before = huckleberry_api::client::now_seconds();
+        let parsed = app::prompt::time::read_start(&context, Some(input)).unwrap();
+        assert!((before..=huckleberry_api::client::now_seconds()).contains(&parsed));
+    }
+    for input in ["1:23 pm!", "1:23 pm,"] {
+        let parsed = app::prompt::time::read_end(&context, Some(input)).unwrap();
+        assert_eq!(
+            parsed.to_bits(),
+            app::prompt::time::read_end(&context, Some("1:23 pm"))
+                .unwrap()
+                .to_bits()
+        );
+    }
+}
+
+#[test]
+fn punctuation_does_not_hide_invalid_relative_durations() {
+    for input in [
+        "-40 minutes ago.",
+        "1.5 minutes ago.",
+        "4,0 minutes ago.",
+        "40 minutes ago extra.",
+        "40 minutes ago:",
+    ] {
+        assert!(
+            app::prompt::time::read_end(&context(), Some(input)).is_err(),
+            "{input}"
+        );
+    }
+}
