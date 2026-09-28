@@ -73,21 +73,13 @@ fn read_existing(
     keep_date: bool,
 ) -> Result<f64> {
     let calendar = context.calendar()?;
-    let shown = calendar
-        .zoned(current)
-        .strftime("%Y-%m-%d %H:%M:%S")
-        .to_string();
-    let question = Question::new(
-        "time",
-        "When? (clock time, YYYY-MM-DD HH:MM, or 32 mins ago)",
-        flag,
-    )
-    .with_default(&shown);
+    let shown = calendar.zoned(current).strftime(DATED_FORMAT).to_string();
+    let question = Question::new("time", "When?", flag).with_default(&shown);
     read(context, given, &question, |text, interactive| {
         if text.trim() == shown || text.trim().eq_ignore_ascii_case("keep") {
             return Ok(Some(current));
         }
-        if let Ok(dated) = text.trim().parse::<jiff::civil::DateTime>() {
+        if let Some(dated) = parse_dated(text.trim()) {
             let zoned = dated.in_tz(calendar.name())?;
             return Ok(Some(
                 zoned.timestamp().as_second() as f64
@@ -103,6 +95,16 @@ fn read_existing(
         }
         parse_instant(context, text, interactive)
     })
+}
+
+/// How a date and time are shown and read back: `2025-01-01 7:00 AM`.
+const DATED_FORMAT: &str = "%Y-%m-%d %-I:%M %p";
+
+/// Reads a dated answer, both as the default is shown and in plain ISO order.
+fn parse_dated(text: &str) -> Option<jiff::civil::DateTime> {
+    jiff::civil::DateTime::strptime(DATED_FORMAT, text)
+        .ok()
+        .or_else(|| text.parse().ok())
 }
 
 /// Asks for a replacement start; `None` means keep the timer untouched on Enter.

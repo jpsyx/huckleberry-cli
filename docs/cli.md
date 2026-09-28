@@ -267,9 +267,11 @@ hb edit --id diaper/1758572400000-3f2a --set pee=big
 `edit` is the submission process again, with one difference: every question
 arrives with what is already recorded as its answer, so Enter keeps it and only
 what is typed changes. **When?** is the first question after selecting an entry,
-with its stored date and time as the default. Enter preserves the exact instant,
-including seconds and fractional seconds. A clock-only answer such as `8am`
-uses the entry's original local date; `2026-09-27 08:00` can change the date too.
+with its stored date and time as the default, written the way a person reads
+one: `2026-09-27 8:00 AM`. Enter preserves the exact instant, including seconds
+and fractional seconds. A clock-only answer such as `8am` uses the entry's
+original local date; a dated answer in that same shape, or in plain
+`2026-09-27 08:00` order, can change the date too.
 `now` and relative minutes are resolved when answered. A field that can be empty takes `-` for "leave it out".
 
 An active sleep appears first as **Ongoing sleep**, separately from saved

@@ -101,7 +101,7 @@ fn history_time_edits_keep_the_exact_existing_instant_and_its_day() {
     let context = context();
     // Jan 1, 2025 at 07:00 in New York, including subsecond precision.
     let original = 1_735_732_800.125;
-    let shown = "2025-01-01 07:00:00";
+    let shown = "2025-01-01 7:00 AM";
     let kept = app::prompt::time::read_edit_at(&context, Some(shown), original).unwrap();
     assert_eq!(kept.to_bits(), original.to_bits());
     let changed = app::prompt::time::read_edit_at(&context, Some("8am"), original).unwrap();
@@ -198,4 +198,17 @@ fn invalid_history_times_are_rejected_before_saving_other_fields() {
             "{input} must be refused before detail editing"
         );
     }
+}
+
+#[test]
+fn history_time_defaults_are_shown_and_read_as_a_clock_with_am_or_pm() {
+    let context = context();
+    // Jan 1, 2025 at 07:00 in New York, including subsecond precision.
+    let original = 1_735_732_800.125;
+    let evening =
+        app::prompt::time::read_edit_at(&context, Some("2025-01-02 8:00 PM"), original).unwrap();
+    assert_eq!(evening.to_bits(), 1_735_866_000.0_f64.to_bits());
+    let padded =
+        app::prompt::time::read_edit_at(&context, Some("2025-01-02 08:00 am"), original).unwrap();
+    assert_eq!(padded.to_bits(), 1_735_822_800.0_f64.to_bits());
 }
