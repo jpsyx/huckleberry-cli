@@ -250,6 +250,15 @@ old time or losing unknown fields through a delete-and-log reconstruction.
 Interactive logging asks for time first. Editing offers the stored time, with
 Enter preserving its exact instant; a clock-only edit keeps the original date.
 
+**Fields read as values (September 2026).** The field picker shows what each
+field holds rather than promising to "keep current", and a sleep is asked as a
+start and a stop rather than an instant and a length: nobody remembers a nap as
+ninety minutes, they remember when the baby went down and when they woke up.
+The record still stores a duration, so the stop is converted on the way in and
+`--set duration=<MINUTES>` is unchanged. A stop already chosen survives a later
+correction to the start, because the person who typed it meant that clock time,
+not that length.
+
 ## The full-screen picker is the one exception to `src/prompt.rs`
 
 **Decision.** Choosing which entry to edit is a `ratatui` screen in

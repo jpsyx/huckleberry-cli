@@ -297,14 +297,27 @@ hb edit --list                            # what there is, and what each is call
 hb edit --id diaper/1758572400000-3f2a --set pee=big
 ```
 
-`edit` selects an entry, then offers its editable fields. Done keeps all fields
-that were not changed. Each selected field offers Keep and, when optional, Clear.
-Selecting the time field opens **When?** with the stored date and time as its
-default, for example `2026-09-27 8:00 AM`. Keep and Enter preserve the exact
-instant, including fractional seconds. A clock-only answer such as `8am` keeps
-the entry's local date; a dated answer such as `2026-09-27 08:00` can move days.
-Relative minutes resolve when answered. Fixed alternatives use lists; only times,
-notes, custom amounts and numeric measurements require typing.
+`edit` selects an entry, then offers its editable fields. Each line shows the
+value that field would be saved with, and a field changed during this form is
+marked `(changed)`; Done keeps everything as listed. A field with fixed
+alternatives offers Keep and, when optional, Clear. Times are asked outright,
+because their own default already means keep.
+
+A sleep is edited as the two times it spans: **Edit start** and **Edit stop**,
+not a stored instant and a length. Both read like every other time question,
+with the dimmed examples and the same flexible parser, and the stop is saved as
+the duration between them. Moving the start keeps a stop already chosen where it
+is; a start moved past that stop drops it and says so.
+
+Selecting a time field opens **When?** (**When did it end?** for a stop) with
+the stored date and time as its default, for example `2026-09-27 8:00 AM`. Keep
+and Enter preserve the exact instant, including fractional seconds. A clock-only
+answer such as `8am` keeps the entry's local date; a dated answer such as
+`2026-09-27 08:00` can move days. A clock-only stop lands on the first such time
+after the start, so an overnight sleep needs no date, and a stop that is not
+after its start is refused. Relative minutes resolve when answered. Fixed
+alternatives use lists; only notes, custom amounts and numeric measurements
+require typing.
 
 An active sleep appears first as **Ongoing sleep**, separately from saved
 history. Selecting it asks for a new start using the same flexible clock and
@@ -337,7 +350,8 @@ current sleep again to retry. Scripts must supply `--set start=<TIME>`.
 `consistency` and `notes` on a potty trip; `amount`, `type`, `units` and
 `notes` on a bottle; `left`, `right` and `notes` on a nursing session (in
 minutes); `foods`, `amount`, `reaction` and `notes` on a meal; `duration` (in
-minutes) and `notes` on a sleep. An empty value clears the field, as in
+minutes) and `notes` on a sleep, where the form asks for that duration as a stop
+time. An empty value clears the field, as in
 `--set color=`. Naming a field the entry does not have fails with the ones it
 does.
 
@@ -509,7 +523,8 @@ Long menu labels wrap within the visible terminal area. Completing Edit's field
 picker without changing any fields reports that the entry is unchanged. Menu
 output remains on stderr even when command results are redirected to a file.
 
-History edits ask which fields to change; Done keeps every other field. Keep
+History edits ask which fields to change, each shown with the value it would be
+saved with; Done keeps every field as listed. Keep
 preserves stored quantities, unknown values, potty outcomes and food metadata;
 Clear removes just the chosen optional field. During network waits, Ctrl-C
 returns to navigation. A submitted write may already have completed, so the

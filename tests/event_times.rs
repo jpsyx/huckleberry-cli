@@ -65,6 +65,7 @@ fn all_time_readers_accept_the_same_relative_inputs_without_losing_the_date() {
             app::prompt::time::read_manual_start(&context, Some(input)),
             app::prompt::time::read_manual_end(&context, Some(input), original),
             app::prompt::time::read_edit_at(&context, Some(input), original),
+            app::prompt::time::read_edit_stop(&context, Some(input), original, original + 3600.0),
             app::prompt::time::read_edit_start(&context, Some(input), Some(original))
                 .map(Option::unwrap),
             app::prompt::time::read_edit_start(&context, Some(input), None).map(Option::unwrap),
@@ -159,6 +160,7 @@ fn all_time_readers_reject_relative_times_before_the_unix_epoch() {
         app::prompt::time::read_manual_start(&context, input),
         app::prompt::time::read_manual_end(&context, input, original),
         app::prompt::time::read_edit_at(&context, input, original),
+        app::prompt::time::read_edit_stop(&context, input, original, original + 3600.0),
         app::prompt::time::read_edit_start(&context, input, Some(original)).map(Option::unwrap),
         app::prompt::time::read_edit_start(&context, input, None).map(Option::unwrap),
     ] {
@@ -425,4 +427,49 @@ fn punctuation_does_not_hide_invalid_relative_durations() {
             "{input}"
         );
     }
+}
+
+#[test]
+fn a_sleeps_stop_is_read_as_a_time_and_keeps_its_exact_instant() {
+    let context = context();
+    // Jan 1, 2025 at 07:00 in New York, including subsecond precision.
+    let started = 1_735_732_800.125;
+    let stopped = started + 5400.0;
+    let shown = "2025-01-01 8:30 AM";
+    for kept in [shown, "keep"] {
+        assert_eq!(
+            app::prompt::time::read_edit_stop(&context, Some(kept), started, stopped)
+                .unwrap()
+                .to_bits(),
+            stopped.to_bits(),
+            "{kept}"
+        );
+    }
+    let clock =
+        app::prompt::time::read_edit_stop(&context, Some("9:15am"), started, stopped).unwrap();
+    assert_eq!(clock.to_bits(), 1_735_740_900.0_f64.to_bits());
+    let dated =
+        app::prompt::time::read_edit_stop(&context, Some("2025-01-02 08:00:00"), started, stopped)
+            .unwrap();
+    assert_eq!(dated.to_bits(), 1_735_822_800.0_f64.to_bits());
+    assert!(
+        app::prompt::time::read_edit_stop(&context, Some("nonsense"), started, stopped).is_err()
+    );
+}
+
+#[test]
+fn a_sleeps_stop_must_come_after_its_start() {
+    let context = context();
+    let started = 1_735_732_800.125;
+    for refused in ["2025-01-01 6:00 AM", "2025-01-01 7:00 AM"] {
+        let failure =
+            app::prompt::time::read_edit_stop(&context, Some(refused), started, started + 5400.0)
+                .expect_err("a sleep ends after it starts");
+        assert!(failure.to_string().contains("after"), "{failure}");
+    }
+    // A clock-only answer earlier in the day means the next day, not a refusal.
+    let overnight =
+        app::prompt::time::read_edit_stop(&context, Some("6:00am"), started, started + 5400.0)
+            .unwrap();
+    assert!(overnight > started);
 }

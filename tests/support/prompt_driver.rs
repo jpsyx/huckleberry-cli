@@ -24,6 +24,14 @@ fn main() -> anyhow::Result<()> {
         let cleared = runtime.block_on(app::commands::edit::form::collect(&context, Some(&draft), 1000.0, false, vec![]))?;
         assert_eq!(cleared, ["how="]);
         println!("OUTCOME_CLEARED");
+    } else if mode == "sleep_fields" {
+        let context = app::session::Context { config: app::config::Config::default(), config_path: "synthetic.toml".into(), credentials_path: "synthetic-credentials.json".into(), theme, verbose: false, child_override: None, offline: None };
+        let draft = app::edit::Draft::Sleep(app::edit::SleepDraft { minutes: 90.0, notes: None });
+        let runtime = tokio::runtime::Builder::new_multi_thread().enable_all().build()?;
+        // 00:15 UTC on the first day, so the stored stop is 01:45 the same day.
+        let stopped = runtime.block_on(app::commands::edit::form::collect(&context, Some(&draft), 900.0, false, vec![]))?;
+        assert_eq!(stopped, ["duration=105"]);
+        println!("SLEEP_STOP_SET");
     } else if mode == "waiting" {
         let runtime = tokio::runtime::Builder::new_multi_thread().enable_all().build()?;
         println!("WAITING_FOR_INTERRUPT");

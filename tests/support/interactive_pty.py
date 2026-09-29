@@ -96,7 +96,7 @@ def prompts():
         finally:
             terminal.close()
 
-        for mode in ("manual_time", "keep_clear", "failure", "list", "cancel_text", "secret", "waiting", "fields"):
+        for mode in ("manual_time", "keep_clear", "failure", "list", "cancel_text", "secret", "waiting", "fields", "sleep_fields"):
             terminal = Terminal([driver, mode])
             try:
                 if mode == "manual_time":
@@ -127,6 +127,17 @@ def prompts():
                     terminal.expect("Fields to change")
                     terminal.send("\r")
                     terminal.expect("OUTCOME_CLEARED")
+                elif mode == "sleep_fields":
+                    terminal.expect("Fields to change")
+                    terminal.expect("Edit start: Jan 01, 1970, 12:15 am UTC")
+                    terminal.expect("Edit stop: Jan 01, 1970, 1:45 am UTC")
+                    terminal.send("jj\r")
+                    terminal.expect("When did it end?")
+                    terminal.expect("E.g. '1:23 pm' or '123pm' or '32 min ago' are all valid")
+                    terminal.send("2:00am\r")
+                    terminal.expect("Edit stop: Jan 01, 1970, 2:00 am UTC (changed)")
+                    terminal.send("\r")
+                    terminal.expect("SLEEP_STOP_SET")
                 elif mode == "waiting":
                     terminal.expect("WAITING_FOR_INTERRUPT")
                     # PTYs created by this harness are not controlling terminals.

@@ -64,7 +64,14 @@ fn read_instant(context: &Context, given: Option<&str>, label: &str, flag: &str)
 /// Reads a history time, preserving the original instant when its default is kept.
 /// Clock-only answers stay on the entry's local date; dated answers can move days.
 pub fn read_edit_at(context: &Context, given: Option<&str>, current: f64) -> Result<f64> {
-    let started = read_existing(context, given, current, "--set at=<TIME>", true)?;
+    let started = read_existing(
+        context,
+        given,
+        current,
+        "When?",
+        "--set at=<TIME>",
+        move |time, _, calendar| calendar.at(calendar.day_of(current), time.hour, time.minute),
+    )?;
     if started.to_bits() != current.to_bits()
         && (!started.is_finite() || started < 0.0 || started > now_seconds())
     {
@@ -73,17 +80,52 @@ pub fn read_edit_at(context: &Context, given: Option<&str>, current: f64) -> Res
     Ok(started)
 }
 
+/// Reads a history sleep's stop, defaulting to where the entry ends now.
+///
+/// A clock-only answer lands on the first such time after the start, the way a
+/// manual sleep's end does, so an overnight stop needs no date. Dated and
+/// relative answers are taken as they are given.
+///
+/// # Errors
+///
+/// When the answer is not a time, or is not after the start: a sleep that ends
+/// before it begins is not a duration anybody can store.
+pub fn read_edit_stop(
+    context: &Context,
+    given: Option<&str>,
+    started: f64,
+    current: f64,
+) -> Result<f64> {
+    let stopped = read_existing(
+        context,
+        given,
+        current,
+        "When did it end?",
+        "--set duration=<MINUTES>",
+        move |time, _, calendar| clock::first_after(time, started, calendar),
+    )?;
+    if stopped <= started {
+        bail!("a sleep ends after it starts: choose a time after it began");
+    }
+    Ok(stopped)
+}
+
 /// Shares existing-time defaults between history and live timer corrections.
+///
+/// `resolve_clock` decides what a clock-only answer means: the entry's own day
+/// for a history time, the most recent occurrence for a timer, the first one
+/// after the start for a stop.
 fn read_existing(
     context: &Context,
     given: Option<&str>,
     current: f64,
+    label: &str,
     flag: &str,
-    keep_date: bool,
+    resolve_clock: impl Fn(TimeOfDay, f64, &Calendar) -> f64 + Copy,
 ) -> Result<f64> {
     let calendar = context.calendar()?;
     let shown = calendar.zoned(current).strftime(DATED_FORMAT).to_string();
-    let question = create_time_question("When?", flag).with_default(&shown);
+    let question = create_time_question(label, flag).with_default(&shown);
     read(context, given, &question, |text, interactive| {
         if text.trim() == shown || text.trim().eq_ignore_ascii_case("keep") {
             return Ok(Some(current));
@@ -95,13 +137,7 @@ fn read_existing(
                     + f64::from(zoned.timestamp().subsec_nanosecond()) / 1e9,
             ));
         }
-        parse_instant(context, text, interactive, |time, now, calendar| {
-            if keep_date {
-                calendar.at(calendar.day_of(current), time.hour, time.minute)
-            } else {
-                clock::most_recent(time, now, calendar)
-            }
-        })
+        parse_instant(context, text, interactive, resolve_clock)
     })
 }
 
@@ -123,7 +159,14 @@ pub fn read_edit_start(
     current: Option<f64>,
 ) -> Result<Option<f64>> {
     if let Some(original) = current {
-        let changed = read_existing(context, given, original, "--set start=<TIME>", false)?;
+        let changed = read_existing(
+            context,
+            given,
+            original,
+            "When?",
+            "--set start=<TIME>",
+            clock::most_recent,
+        )?;
         return Ok((changed.to_bits() != original.to_bits()).then_some(changed));
     }
     let calendar = context.calendar()?;

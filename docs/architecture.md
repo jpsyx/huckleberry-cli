@@ -154,7 +154,11 @@ document; naming the fields that change is what leaves both alone. See
 
 `commands/edit/history.rs` combines the detail draft with a separate event time.
 The form asks for that time first, defaulting to the exact stored instant; a
-clock-only replacement uses the entry's original local date. Every located row
+clock-only replacement uses the entry's original local date. `commands/edit/form.rs`
+lists each field with the value it would be saved with, taken from the draft with
+the pending changes applied, so nothing has to be opened to be seen. A sleep is
+listed and asked as a start and a stop: the stop question is a time reader like
+any other, and what is stored is still the duration between the two. Every located row
 supports time corrections, including pumping and milestones. The edit picker
 also reads health history so growth, medication and temperature times can be
 corrected. These additional kinds retain their raw details rather than creating
