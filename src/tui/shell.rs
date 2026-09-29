@@ -20,8 +20,17 @@ use ratatui::backend::CrosstermBackend;
 use std::io::{Stderr, stderr};
 use std::sync::Once;
 
+use core::time::Duration;
+
 use super::keys::{Motion, motion_for};
 use super::state::App;
+
+/// How long the loop waits for a keystroke before drawing again.
+///
+/// The widgets count up: "36m ago" becomes "37m ago" and a running sleep ticks
+/// whether or not anybody touches the keyboard, so the screen redraws on its
+/// own. Once a second is enough for a clock and cheap enough to be invisible.
+const TICK: Duration = Duration::from_secs(1);
 
 /// The terminal this shell draws on.
 type Screen = Terminal<CrosstermBackend<Stderr>>;
@@ -43,18 +52,21 @@ impl Shell {
         })
     }
 
-    /// Draws one frame, and returns how many rows the menu can show.
-    pub fn draw(&mut self, app: &App) -> Result<usize> {
+    /// Draws one frame as of `at`, and returns how many rows the menu shows.
+    pub fn draw(&mut self, app: &App, at: f64) -> Result<usize> {
         let frame = self
             .screen
-            .draw(|frame| super::draw(frame, app))
+            .draw(|frame| super::draw(frame, app, at))
             .context("drawing the menu")?;
-        Ok(super::draw::viewport(frame.area.height))
+        Ok(super::draw::viewport(frame.area, app))
     }
 
-    /// Waits for a keystroke. A resize (or anything else) returns nothing,
-    /// which the loop reads as "draw again".
+    /// Waits a tick for a keystroke. Nothing (a timeout, a resize, anything
+    /// else) means "draw again", which is what keeps the clocks moving.
     pub fn next_motion(&mut self) -> Result<Option<Motion>> {
+        if !crossterm::event::poll(TICK).context("waiting for a keystroke")? {
+            return Ok(None);
+        }
         match crossterm::event::read().context("reading a keystroke")? {
             crossterm::event::Event::Key(key) => Ok(Some(motion_for(key))),
             _ => Ok(None),

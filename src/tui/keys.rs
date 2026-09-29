@@ -27,6 +27,8 @@ pub enum Motion {
     Open,
     /// Go back to where this was opened from.
     Back,
+    /// Re-read everything on the screen.
+    Refresh,
     /// Leave the session.
     Quit,
 }
@@ -60,6 +62,7 @@ pub fn motion_for(key: KeyEvent) -> Motion {
             Motion::Back
         }
         KeyCode::Char('q' | 'Q') => Motion::Quit,
+        KeyCode::Char('r' | 'R') => Motion::Refresh,
         KeyCode::Home | KeyCode::Char('g') => Motion::First,
         KeyCode::End | KeyCode::Char('G') => Motion::Last,
         // Counting from one on the screen, from zero in the code.

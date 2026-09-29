@@ -50,8 +50,8 @@
   read all of the source. The current set is
   [`architecture.md`](docs/architecture.md), [`api.md`](docs/api.md),
   [`cli.md`](docs/cli.md), [`dashboards.md`](docs/dashboards.md),
-  [`decisions.md`](docs/decisions.md), [`skills.md`](docs/skills.md) and
-  [`tui.md`](docs/tui.md).
+  [`decisions.md`](docs/decisions.md), [`nomenclature.md`](docs/nomenclature.md),
+  [`skills.md`](docs/skills.md) and [`tui.md`](docs/tui.md).
 - **Keep the docs current as you build. This is a rule, not a suggestion.**
   Whenever you add, change, or remove a feature, module, route, data model, or
   architectural boundary, create or update the relevant file(s) in `docs/` as
@@ -86,6 +86,9 @@ Before writing code:
 - Read [`docs/tui.md`](docs/tui.md). It applies to every user-facing change,
   because the shell is how this tool is used; treat its rules as requirements
   rather than as aspirations.
+- Use the words in [`docs/nomenclature.md`](docs/nomenclature.md) for the
+  parts you are changing, and add to that file when a new part gets a name. A
+  part with two names grows two implementations.
 - Determine which other files in `docs/` are relevant to read.
 - Determine which available skills are relevant. Run
   `npx skills list` to see what this project has installed.

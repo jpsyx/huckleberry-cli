@@ -498,3 +498,55 @@ every new value needs a default worth defending. That is the trade.
 **Revisit when.** Never for the principle. The specific mappings are worth
 revisiting when the two key maps in the tool are reconciled, which is a
 decision about muscle memory rather than about code.
+
+## The shell is a dashboard around the menu, not a menu with a header
+
+**Decision.** The shell's main area holds widgets: the Menu view as the main
+panel, and a sidebar of small boxes beside it, each answering one question. The
+Now widget is the first, and `h now` is no longer a Home row because the widget
+shows it permanently. `r` refreshes every widget at once.
+
+**Why.** The shell is meant to be left running all day, and a screen somebody
+leaves running should be worth glancing at. The question that gets asked at 3am
+is "when did she last eat", and having to navigate to it is a worse answer than
+having it already on the screen. Keeping the row as well as the widget would
+have meant two ways to the same fact and one more row to read past.
+
+**Consequences.** The shell now reads from Huckleberry, which the navigation
+half never did. That brought three rules with it, all of them from
+[`dashboards.md`](dashboards.md) rather than new: the screen says how stale it
+is, a failed read keeps the numbers and reports the failure beside them, and
+nothing about a baby is painted red.
+
+It also brought a constraint the menu never had. A read that cannot reach
+Huckleberry takes a minute to give up, so reads happen on a background task and
+the loop polls for keys on a one-second tick. The rows move while a read is in
+flight, which also makes the live timers count up on their own.
+
+The widget is only as tall as its facts, leaving the foot of the sidebar empty
+for the next widget. That empty space is deliberate: it is where widgets go,
+and a box two thirds full of nothing reads as broken rather than as finished.
+
+**Revisit when.** The sidebar has enough widgets that choosing which are on
+screen is a decision a parent should make rather than one this file makes for
+them. That is a layout the shell does not have and should not grow before it is
+needed.
+
+## The parts have fixed names, written down
+
+**Decision.** [`nomenclature.md`](nomenclature.md) fixes what this project
+calls its own parts, and AGENTS.md makes reading it part of starting work.
+
+**Why.** "Panel", "widget", "view", "screen" and "dashboard" were all being
+used for several things at once, and two of them meant something specific
+already: the dashboard is `h dash`, and the shell is what `h` opens. A part
+with two names grows two implementations, and a request that says "the panel"
+cannot be answered without guessing which one.
+
+**Consequences.** Some pairs stay deliberately interchangeable because both
+are natural and neither is ambiguous: widget and panel, the Now widget and the
+View Latest widget. The file says which pairs those are rather than pretending
+there is one word. New parts get an entry in the same change that names them.
+
+**Revisit when.** Never as a whole; continuously in the small. The file is a
+record, so it is only useful if it keeps up.
