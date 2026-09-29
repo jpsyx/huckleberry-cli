@@ -17,11 +17,7 @@ use crate::{
 use anyhow::Result;
 
 /// Returns true after a successful action that should return to home.
-pub(super) async fn run(
-    path: &CommandPath,
-    globals: &SessionOptions,
-    theme: Theme,
-) -> Result<bool> {
+pub async fn run(path: &CommandPath, globals: &SessionOptions, theme: Theme) -> Result<bool> {
     let draft = CommandDraft::new(path.clone());
     if draft
         .resolve(globals)?

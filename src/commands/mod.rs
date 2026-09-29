@@ -38,7 +38,7 @@ pub async fn run(cli: &Cli, theme: Theme) -> Result<()> {
         return dispatch(&Context::open(cli, theme)?, command).await;
     }
     if prompt::available() {
-        return Box::pin(crate::interactive::run(cli, theme)).await;
+        return Box::pin(crate::tui::run(cli, theme)).await;
     }
     Cli::command().print_help()?;
     println!();

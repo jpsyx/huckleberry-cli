@@ -23,6 +23,14 @@
   library in `src/`, so every decision is reachable from a test without
   spawning a process. Read [`docs/architecture.md`](docs/architecture.md)
   before adding a module.
+- **`h` with no command opens a full-screen ratatui app (`src/tui/`), and it is
+  the primary way people use this tool.** Its design brief is
+  [`docs/tui.md`](docs/tui.md), and it is written for a parent at 3am, in the
+  dark, with one hand free. **Read it before designing any feature, not only
+  ones inside `src/tui/`**: menus over typing, a sensible default already
+  highlighted so Enter alone answers, an arrow and a letter for every
+  direction, and nothing ever reachable only from the command line. A feature
+  that ships with a flag and no route through the shell is unfinished.
 - **`src/domain` never reads the clock, touches the network, or writes to a
   terminal**, and `src/render` returns lines rather than printing them. Every
   function takes `now` as an argument. That is what makes the date arithmetic
@@ -42,7 +50,8 @@
   read all of the source. The current set is
   [`architecture.md`](docs/architecture.md), [`api.md`](docs/api.md),
   [`cli.md`](docs/cli.md), [`dashboards.md`](docs/dashboards.md),
-  [`decisions.md`](docs/decisions.md) and [`skills.md`](docs/skills.md).
+  [`decisions.md`](docs/decisions.md), [`skills.md`](docs/skills.md) and
+  [`tui.md`](docs/tui.md).
 - **Keep the docs current as you build. This is a rule, not a suggestion.**
   Whenever you add, change, or remove a feature, module, route, data model, or
   architectural boundary, create or update the relevant file(s) in `docs/` as
@@ -74,7 +83,10 @@
 
 Before writing code:
 
-- Determine which files in `docs/` are relevant to read.
+- Read [`docs/tui.md`](docs/tui.md). It applies to every user-facing change,
+  because the shell is how this tool is used; treat its rules as requirements
+  rather than as aspirations.
+- Determine which other files in `docs/` are relevant to read.
 - Determine which available skills are relevant. Run
   `npx skills list` to see what this project has installed.
 - Determine which tests, if any, need to be written to test the requested
@@ -173,6 +185,10 @@ The rules for this project's language and frameworks live in `docs/rules/`:
 - [`docs/rules/cli-ux.md`](docs/rules/cli-ux.md): how the tool talks. Stdout is
   data and stderr is the conversation, every action is scriptable, every value
   a person omits is asked for, every color is semantic.
+- [`docs/tui.md`](docs/tui.md): who the tool is for. One hand, in the dark,
+  holding a baby. Menus before typing, Enter as a complete answer, an arrow and
+  a letter for every direction, and no functionality that the full-screen shell
+  cannot reach.
 
 ## Agent skills
 

@@ -434,3 +434,67 @@ somebody might be looking through reaches for `Listing`.
 **Revisit when.** A receipt grows long enough to want scrolling, or a listing
 short enough that a person misses the border. The first is the more likely, and
 it is a `Listing` with a heading rather than a new renderer.
+
+## The bare command is a full-screen shell, and it keeps every command by suspending
+
+**Decision.** `h` with no command opens a ratatui app on stderr
+(`src/tui/`) and keeps it open. Choosing a command leaves the alternate screen,
+runs the existing handler inline exactly as the command line does, and redraws
+the shell afterwards.
+
+**Why.** The menu was already the way this tool is used, but as a stack of
+inline prompts it could never show anything: no header saying which child, no
+facts above the rows, no fixed place for the keys. A full screen can. The
+alternative to suspending was a panel per command before the shell could ship
+at all, which would have meant rewriting twenty-odd flows, their questions and
+their receipts, in one change, and losing the tests that cover them. Suspending
+cost one function and kept all of it.
+
+**Consequences.** Every command works on day one, and panels replace them one
+at a time when there is a reason to. Command output appears on the ordinary
+screen rather than inside the app, so the "Continue" pause is what holds a
+receipt or a failure on screen until it has been read, and a person can scroll
+back to it. Two key maps coexist until the prompts become panels: the shell
+reads `h` as back, and a suspended prompt still reads `H` as down.
+
+Drawing on stderr rather than stdout is what keeps `h > entries.txt` filling the
+file with what the commands printed, and keeps `prompt::available` the right
+gate for opening the shell at all. It also means the shell and `dash` can both
+be on screen in one session without fighting over a buffer, since `dash` owns
+stdout.
+
+Resuming rebuilds the `Terminal` instead of calling `Terminal::clear`, because
+clearing asks the terminal where its cursor is and blocks on stdin for the
+answer, which is the stdin the menu reads keys from.
+
+**Revisit when.** The facts panel and the per-command panels have replaced
+enough of the suspended flows that stepping out of the screen is the unusual
+case rather than the normal one. At that point the remaining suspensions are
+worth listing and finishing rather than leaving as a seam.
+
+## The tool is designed for one hand in the dark
+
+**Decision.** Every user-facing decision is read back to one person: a parent at
+3am, with a baby on one arm and one hand free. The rules that follow from that
+are in [`tui.md`](tui.md), and they bind every feature, not only the shell.
+
+**Why.** "Easy to use" is not a constraint anybody can fail, so it never
+decides an argument. A named person with a named limitation does: they cannot
+see the keyboard, cannot use two hands, and will not remember a shortcut. That
+rules things out. A free-text field is out. A default that is merely defensible
+rather than usually right is out. A direction key with no letter alias is out,
+because the free hand is not always the one near the arrows.
+
+**Consequences.** Menus and presets are the first answer to "how does somebody
+supply this value", and typing is the last. Every question opens with the most
+likely answer highlighted, so `Enter` alone is a complete interaction. Digits
+highlight rather than submit, everywhere, so a misread row cannot log a feed.
+There are always three ways out. The keys stay on the screen rather than behind
+a `?`.
+
+This costs breadth: a menu of six presets is more code than a text field, and
+every new value needs a default worth defending. That is the trade.
+
+**Revisit when.** Never for the principle. The specific mappings are worth
+revisiting when the two key maps in the tool are reconciled, which is a
+decision about muscle memory rather than about code.

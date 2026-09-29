@@ -13,8 +13,12 @@ pub mod prompt;
 pub mod render;
 pub mod session;
 pub mod theme;
+pub mod tui;
 
 pub const APP_NAME: &str = "huckleberry-cli";
+
+/// What the full-screen shell calls itself in its own header.
+pub const APP_TITLE: &str = "Huckleberry";
 
 /// What the command is called when nothing says otherwise: `h`, short for
 /// huckleberry.

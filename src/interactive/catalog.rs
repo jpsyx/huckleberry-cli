@@ -33,6 +33,41 @@ pub enum MenuId {
     Settings,
 }
 
+impl MenuId {
+    /// Every menu, so a test can walk the whole tree without knowing it.
+    pub const ALL: [Self; 11] = [
+        Self::Home,
+        Self::Feed,
+        Self::Sleep,
+        Self::Nursing,
+        Self::Visualizations,
+        Self::OtherLogging,
+        Self::More,
+        Self::Foods,
+        Self::Children,
+        Self::Account,
+        Self::Settings,
+    ];
+}
+
+/// The heading this menu is asking its question under.
+#[must_use]
+pub const fn title(id: MenuId) -> &'static str {
+    match id {
+        MenuId::Home => "What would you like to do?",
+        MenuId::Feed => "Log a feed",
+        MenuId::Sleep => "Log sleep",
+        MenuId::Nursing => "Nursing",
+        MenuId::Visualizations => "Visualizations",
+        MenuId::OtherLogging => "Other logging",
+        MenuId::More => "More",
+        MenuId::Foods => "Foods",
+        MenuId::Children => "Children",
+        MenuId::Account => "Account",
+        MenuId::Settings => "Settings",
+    }
+}
+
 /// Destination of one highlighted entry.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MenuTarget {
@@ -40,6 +75,8 @@ pub enum MenuTarget {
     Menu(MenuId),
     /// Run a typed command.
     Command(CommandPath),
+    /// Return to the menu this one was opened from.
+    Back,
     /// Read command-specific help.
     Help,
     /// Display the build version.
@@ -73,8 +110,23 @@ fn menu(label: &str, id: MenuId) -> MenuEntry {
 }
 
 /// Entries in the approved home order and its submenus.
+///
+/// Every submenu ends in Back and Home ends in Exit, so the way out is always
+/// a row on the screen as well as a key: one hand should never have to
+/// remember an escape.
 #[must_use]
 pub fn entries(id: MenuId) -> Vec<MenuEntry> {
+    let mut entries = rows(id);
+    if id != MenuId::Home {
+        entries.push(MenuEntry {
+            label: "Back".into(),
+            target: MenuTarget::Back,
+        });
+    }
+    entries
+}
+
+fn rows(id: MenuId) -> Vec<MenuEntry> {
     match id {
         MenuId::Home => vec![
             command("View latest", "now"),

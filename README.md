@@ -138,7 +138,8 @@ aligned rows when piped.
 
 [`docs/cli.md`](docs/cli.md) has the full surface;
 [`docs/dashboards.md`](docs/dashboards.md) describes each screen and the rules
-they follow.
+they follow; [`docs/tui.md`](docs/tui.md) is the design brief for the shell `h`
+opens, and for the one hand it is built for.
 
 ## Your credentials
 
@@ -219,9 +220,15 @@ Huckleberry is a product of Huckleberry Labs, Inc. This project is an
 unofficial client, is not affiliated with or endorsed by them, and uses their
 name only to say what it talks to.
 
-Run `h` with no command to open the interactive menu. Every command is
-reachable there and starts its flow immediately when selected. Use command-line
-flags for optional overrides. Use arrows or J/H to move down, K/P to move up,
-and Enter to choose the highlighted default. Escape returns to the parent menu;
-Escape or Ctrl-C at home exits. Settings changes stored configuration.
-Without terminal input and stderr, a bare invocation prints help.
+Run `h` with no command to open the full-screen shell. It is meant to be left
+running in a terminal: every command is reachable there and starts its flow
+immediately when selected, and command-line flags still supply optional
+overrides.
+
+Every direction has an arrow and a letter that mean the same thing: `↓`/`j` and
+`↑`/`k` move, `→`/`l` and `Enter` open, and `←`/`h` goes back. `1`-`9` highlight
+a row without opening it, and `q` or `Ctrl-C` leaves, as does the Exit row on
+the first screen. Why it works that way, and the rules every feature in this
+tool is held to, are in [`docs/tui.md`](docs/tui.md): one hand, in the dark,
+holding a baby. Without terminal input and stderr, a bare invocation prints
+help.
