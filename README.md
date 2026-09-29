@@ -139,7 +139,9 @@ aligned rows when piped.
 [`docs/cli.md`](docs/cli.md) has the full surface;
 [`docs/dashboards.md`](docs/dashboards.md) describes each screen and the rules
 they follow; [`docs/tui.md`](docs/tui.md) is the design brief for the shell `h`
-opens, and for the one hand it is built for.
+opens, and for the one hand it is built for;
+[`docs/nomenclature.md`](docs/nomenclature.md) is what this project calls its
+own parts.
 
 ## Your credentials
 
@@ -221,14 +223,32 @@ unofficial client, is not affiliated with or endorsed by them, and uses their
 name only to say what it talks to.
 
 Run `h` with no command to open the full-screen shell. It is meant to be left
-running in a terminal: every command is reachable there and starts its flow
-immediately when selected, and command-line flags still supply optional
-overrides.
+running in a terminal: a Now widget beside the menu keeps the answer to "when
+did she last eat" on the screen, every command is reachable from the menu and
+starts its flow immediately when selected, and command-line flags still supply
+optional overrides.
+
+```text
+ Huckleberry · Wren                                                  Home
+┌ Now ───────────────────────────────┐┌ What would you like to do? ─────┐
+│ Last fed    36m ago                ││▌  1. Log a diaper               │
+│             73 ml of Formula       ││   2. Log a feed               › │
+│ Diaper      1h 31m ago             ││   3. Log sleep                › │
+│             wet                    ││   4. Edit                       │
+│ Asleep      40m                    ││   5. Visualizations           › │
+│ Longest     3h 0m                  ││   6. View logs                  │
+│             night of Mon 28 Sep    ││   7. Other logging            › │
+│                                    ││   8. Delete                     │
+│ as of 2m ago                       ││   9. More                     › │
+└────────────────────────────────────┘│  10. Exit                       │
+                                      └─────────────────────────────────┘
+ ↑/↓ j/k move · ← h back · → l open · Enter select · r refresh · q quit
+```
 
 Every direction has an arrow and a letter that mean the same thing: `↓`/`j` and
 `↑`/`k` move, `→`/`l` and `Enter` open, and `←`/`h` goes back. `1`-`9` highlight
-a row without opening it, and `q` or `Ctrl-C` leaves, as does the Exit row on
-the first screen. Why it works that way, and the rules every feature in this
+a row without opening it, `r` refreshes every widget, and `q` or `Ctrl-C`
+leaves, as does the Exit row on the first screen. Why it works that way, and the rules every feature in this
 tool is held to, are in [`docs/tui.md`](docs/tui.md): one hand, in the dark,
 holding a baby. Without terminal input and stderr, a bare invocation prints
 help.

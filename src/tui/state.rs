@@ -5,6 +5,7 @@
 //! makes "does `h` at Home end the session" a test rather than something a
 //! parent finds out at 3am.
 
+use super::facts::Facts;
 use super::keys::Motion;
 use crate::interactive::catalog::{self, CommandPath, MenuEntry, MenuId, MenuTarget};
 
@@ -48,6 +49,8 @@ pub enum Intent {
     Run(CommandPath),
     /// Leave the full screen and show command help.
     Help,
+    /// Re-read everything the widgets show.
+    Refresh,
     /// Report the build version.
     Version,
     /// End the session.
@@ -58,6 +61,8 @@ pub enum Intent {
 pub struct App {
     levels: Vec<Level>,
     status: Option<String>,
+    /// What the widgets draw, and how stale it is.
+    pub facts: Facts,
 }
 
 impl Default for App {
@@ -73,6 +78,7 @@ impl App {
         Self {
             levels: vec![Level::new(MenuId::Home, "Home".into())],
             status: None,
+            facts: Facts::new(),
         }
     }
 
@@ -157,6 +163,9 @@ impl App {
             }
             Motion::Back => self.pop(),
             Motion::Quit => return Intent::Quit,
+            // Deliberately not a movement: refreshing under somebody's cursor
+            // and then moving it would be its own small betrayal.
+            Motion::Refresh => return Intent::Refresh,
             Motion::Open => {
                 let Some(entry) = entries.get(self.cursor()) else {
                     return Intent::Stay;

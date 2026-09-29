@@ -68,9 +68,9 @@ fn digits_highlight_a_row_and_only_enter_opens_it() {
     let mut app = App::new();
     assert_eq!(motion_for(key(KeyCode::Char('3'))), Motion::Highlight(2));
     assert_eq!(motion_for(key(KeyCode::Char('0'))), Motion::Ignore);
-    assert_eq!(app.apply(Motion::Highlight(2), HEIGHT), Intent::Stay);
-    assert_eq!(app.cursor(), 2);
-    assert_eq!(app.rows()[2].label, "Log a feed");
+    assert_eq!(app.apply(Motion::Highlight(1), HEIGHT), Intent::Stay);
+    assert_eq!(app.cursor(), 1);
+    assert_eq!(app.rows()[1].label, "Log a feed");
     assert!(matches!(app.apply(Motion::Open, HEIGHT), Intent::Stay));
     assert_eq!(app.title(), "Log a feed");
 }
@@ -127,9 +127,9 @@ fn a_submenu_row_says_it_opens_a_menu_and_a_command_row_does_not() {
     let app = App::new();
     let rows = app.rows();
     let feed = rows.iter().find(|row| row.label == "Log a feed").unwrap();
-    let latest = rows.iter().find(|row| row.label == "View latest").unwrap();
+    let diaper = rows.iter().find(|row| row.label == "Log a diaper").unwrap();
     assert!(feed.opens_menu);
-    assert!(!latest.opens_menu);
+    assert!(!diaper.opens_menu);
 }
 
 #[test]
@@ -215,10 +215,15 @@ fn every_menu_has_a_title_and_every_submenu_offers_back() {
     }
 }
 
+/// 2025-09-22T18:00:00Z, which is 2pm in New York.
+const AFTERNOON: f64 = 1_758_564_000.0;
+
 fn screen(app: &App, width: u16, height: u16) -> String {
     let mut terminal = ratatui::Terminal::new(ratatui::backend::TestBackend::new(width, height))
         .expect("a test terminal");
-    terminal.draw(|frame| draw(frame, app)).expect("a frame");
+    terminal
+        .draw(|frame| draw(frame, app, AFTERNOON))
+        .expect("a frame");
     let buffer = terminal.backend().buffer().clone();
     (0..buffer.area.height)
         .map(|row| {
@@ -235,9 +240,9 @@ fn the_shell_draws_the_breadcrumb_the_rows_and_the_keys_it_answers_to() {
     let drawn = screen(&App::new(), 80, 24);
     assert!(drawn.contains("Huckleberry"), "{drawn}");
     assert!(drawn.contains("Home"), "{drawn}");
-    assert!(drawn.contains("View latest"), "{drawn}");
+    assert!(drawn.contains("Log a diaper"), "{drawn}");
     assert!(drawn.contains("Exit"), "{drawn}");
-    for hint in ["j/k", "h", "l", "Enter", "q"] {
+    for hint in ["j/k", "h", "l", "Enter", "r refresh", "q"] {
         assert!(
             drawn.contains(hint),
             "`{hint}` missing from the key hints: {drawn}"
@@ -254,7 +259,7 @@ fn the_cursor_is_visible_and_moves_with_the_keys() {
     assert_ne!(first, second, "the cursor has to be visible on the screen");
     let marked = second
         .lines()
-        .find(|line| line.contains("Log a diaper"))
+        .find(|line| line.contains("Log a feed"))
         .unwrap_or_default()
         .to_owned();
     assert!(
@@ -272,7 +277,50 @@ fn a_status_message_reaches_the_foot_of_the_screen() {
 
 #[test]
 fn a_narrow_terminal_still_draws_every_part_of_the_shell() {
-    let drawn = screen(&App::new(), 28, 12);
-    assert!(drawn.contains("View latest"), "{drawn}");
-    assert!(drawn.lines().count() == 12);
+    let drawn = screen(&App::new(), 28, 16);
+    assert!(drawn.contains("Log a diaper"), "{drawn}");
+    assert_eq!(drawn.lines().count(), 16);
+}
+
+#[test]
+fn the_menu_view_no_longer_offers_view_latest() {
+    let app = App::new();
+    let labels = app
+        .rows()
+        .into_iter()
+        .map(|row| row.label)
+        .collect::<Vec<_>>();
+    assert!(
+        !labels.contains(&"View latest".to_owned()),
+        "the Now widget shows it permanently, so the row is redundant: {labels:?}"
+    );
+    assert_eq!(labels.first().map(String::as_str), Some("Log a diaper"));
+    // It is still a command, and still reachable, just not from Home.
+    assert!(
+        catalog::command_paths()
+            .iter()
+            .any(|path| path.0 == ["now"]),
+        "`now` has to stay reachable from somewhere"
+    );
+}
+
+#[test]
+fn r_on_its_own_refreshes_every_widget() {
+    assert_eq!(motion_for(key(KeyCode::Char('r'))), Motion::Refresh);
+    assert_eq!(motion_for(shifted('R')), Motion::Refresh);
+    assert_eq!(
+        App::new().apply(Motion::Refresh, HEIGHT),
+        Intent::Refresh,
+        "the shell does the reading; the state only asks for it"
+    );
+}
+
+#[test]
+fn a_refresh_does_not_move_the_cursor_or_the_menu() {
+    let mut app = App::new();
+    highlight(&mut app, "Edit");
+    let before = app.cursor();
+    app.apply(Motion::Refresh, HEIGHT);
+    assert_eq!(app.cursor(), before);
+    assert_eq!(app.breadcrumb(), "Home");
 }

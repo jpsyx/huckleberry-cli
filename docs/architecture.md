@@ -104,8 +104,28 @@ owns the terminal:
 | --- | --- |
 | `tui/keys.rs` | what a keystroke means, as a `Motion`. Pure. |
 | `tui/state.rs` | the menu stack, the cursor, and what a `Motion` does to them. Pure. |
-| `tui/draw.rs` | the header, the rows and the key hints, as widgets. |
+| `tui/facts.rs` | the last reading, whether one is in flight, and what went wrong. Pure. |
+| `tui/data.rs` | making a reading: no narration, no questions, off the event loop. |
+| `tui/draw/mod.rs` | the frame, and where the widgets go in it. |
+| `tui/draw/menu.rs` | the Menu view: the main panel. |
+| `tui/draw/now.rs` | the Now widget: what `h now` says, permanently. |
 | `tui/shell.rs` | the alternate screen, the event loop's keyboard, and suspend. |
+
+The words for these parts are fixed in
+[`nomenclature.md`](nomenclature.md); use them rather than inventing a second
+name for something that has one.
+
+Reads happen on a background task rather than in the loop. A Huckleberry that
+cannot be reached takes a minute to say so, and a shell that accepts no keys
+for that minute is broken exactly when the network is. The loop polls for a
+keystroke on a one-second tick, collects a finished read when there is one, and
+draws either way, which is also what makes the live timers count up.
+
+`tui/data.rs` neither narrates nor asks, and both follow from the shell owning
+stderr: a progress line would scribble across the frame, and a prompt would
+draw over the screen it is asking in front of. When the child is ambiguous it
+fails naming the command that settles it, which is a row in the menu beside the
+message.
 
 Navigation is the only thing that moved out of `src/interactive/`. What stays
 there is everything that happens once a row has been chosen: the menu tree
@@ -282,7 +302,8 @@ Several directories exist because a file crossed it:
 | `domain/` | one module per question the tool answers |
 | `render/` | one module per screen |
 | `dashboard/draw/` | the frame, and one function per tab |
-| `tui/` | what a key means, what it does, how it draws, who owns the screen |
+| `tui/` | what a key means, what it does, what it knows, how it draws, who owns the screen |
+| `tui/draw/` | the frame, and one file per widget |
 | `listing/` | what is in a list, how it is laid out, what a key does |
 | `commands/edit/` | the command, and the questions it asks |
 | `models/sleep/` | what was recorded, the timer, the history |

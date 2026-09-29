@@ -9,16 +9,20 @@
 //! [`docs/tui.md`](../../docs/tui.md). The short version: one hand, in the
 //! dark, holding a baby.
 
+pub mod data;
 pub mod draw;
+pub mod facts;
 pub mod keys;
 pub mod shell;
 pub mod state;
 
 pub use draw::draw;
+pub use facts::{Facts, Reading};
 pub use keys::{Motion, motion_for};
 pub use state::{App, Intent, Row};
 
 use anyhow::Result;
+use huckleberry_api::client::now_seconds;
 use shell::Shell;
 
 use crate::cli::Cli;
@@ -37,21 +41,31 @@ pub async fn run(cli: &Cli, theme: Theme) -> Result<()> {
     outcome.and(restored)
 }
 
-/// Draw, read one key, act. Nothing else.
+/// Draw, collect whatever a background read finished, read one key, act.
 async fn navigate(
     shell: &mut Shell,
     app: &mut App,
     globals: &SessionOptions,
     theme: Theme,
 ) -> Result<()> {
+    // The widgets open empty and fill themselves in, so the menu is on screen
+    // and usable before the network has answered.
+    let mut reading = Some(begin(app, globals, theme));
     loop {
-        let height = shell.draw(app)?;
+        collect(app, &mut reading).await;
+        let height = shell.draw(app, now_seconds())?;
         let Some(motion) = shell.next_motion()? else {
+            // A tick with no key. The clocks move on, so draw again.
             continue;
         };
         match app.apply(motion, height) {
             Intent::Stay => {}
             Intent::Quit => return Ok(()),
+            Intent::Refresh => {
+                if reading.is_none() {
+                    reading = Some(begin(app, globals, theme));
+                }
+            }
             Intent::Version => {
                 app.set_status(format!("{} {}", crate::APP_NAME, env!("CARGO_PKG_VERSION")));
             }
@@ -67,8 +81,45 @@ async fn navigate(
                 let landing = settle(result, theme);
                 shell.resume()?;
                 land(app, landing);
+                // A command may have logged the very thing the widgets show,
+                // so whatever is in flight describes a moment already gone.
+                if let Some(stale) = reading.take() {
+                    stale.abort();
+                }
+                reading = Some(begin(app, globals, theme));
             }
         }
+    }
+}
+
+/// Starts a read, and says on the screen that one is running.
+fn begin(app: &mut App, globals: &SessionOptions, theme: Theme) -> data::Reading {
+    app.facts.start_reading();
+    data::start(globals, theme)
+}
+
+/// Takes on a finished read, if one has finished.
+///
+/// A failure never takes the numbers away: it is recorded beside them and the
+/// widgets keep drawing what they had, because a screen that blanks itself
+/// when the wifi drops is worse than one that admits it is showing something
+/// from a minute ago.
+async fn collect(app: &mut App, reading: &mut Option<data::Reading>) {
+    if !reading
+        .as_ref()
+        .is_some_and(tokio::task::JoinHandle::is_finished)
+    {
+        return;
+    }
+    let Some(handle) = reading.take() else {
+        return;
+    };
+    match handle.await {
+        Ok(Ok((dataset, calendar, units))) => app.facts.replace(dataset, calendar, units),
+        Ok(Err(trouble)) => app.facts.record_trouble(&format!("{trouble:#}")),
+        Err(trouble) => app
+            .facts
+            .record_trouble(&format!("the read stopped: {trouble}")),
     }
 }
 

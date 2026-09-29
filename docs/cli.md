@@ -519,7 +519,8 @@ captures what the commands print. Its design rules are in [`tui.md`](tui.md).
 Every direction has an arrow and a letter that mean the same thing: `↓`/`j` and
 `↑`/`k` move, `→`/`l` and `Enter` open the highlighted row, and `←`/`h` goes
 back. `1`-`9` put the cursor on a row without opening it, `g` and `G` reach the
-first and last rows, and `q` or `Ctrl-C` leaves. Back at Home does nothing, so
+first and last rows, `r` refreshes every widget without moving the cursor, and
+`q` or `Ctrl-C` leaves. Back at Home does nothing, so
 a reflex keystroke cannot end the session; Home carries an Exit row instead. A
 chevron marks a row that opens another menu, and every submenu ends in Back.
 
@@ -530,9 +531,20 @@ finished recording returns to Home; a view or a utility returns to the menu it
 was opened from; a cancelled or failed command says so on the line at the foot
 of the screen and never retries by itself.
 
-Home starts with View latest (the same command as
-`h now`), followed by diaper, feed, sleep, Edit,
-Visualizations, logs, other logging, Delete, More, and Exit. Read-only views run
+Beside the menu the shell keeps a Now widget, which shows permanently what
+`h now` prints: the last feed, the last diaper, whether anybody is asleep, the
+longest finished stretch of the night it names, and how stale all of it is. It
+sits in a column on the left when the terminal is at least 72 columns wide and
+above the menu when it is not. `r` re-reads everything it shows, and so does
+finishing any command, since a command may have logged the very thing it is
+showing. Reads happen in the background: the rows still move while one is in
+flight, and a failure is reported on the foot of the screen without taking the
+numbers away.
+
+Home starts with diaper, feed, sleep, Edit,
+Visualizations, logs, other logging, Delete, More, and Exit. `now` is not a
+Home row, because the widget already shows it; it stays reachable under
+Visualizations as Current status. Read-only views run
 immediately when selected: latest/current status, Dashboard, Trends, Summary,
 Sleep stripes, logs, sleep/nursing status, food lists, child lists/profiles,
 authentication status, configuration display/paths, and build information.

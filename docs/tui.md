@@ -114,15 +114,25 @@ This is the same split as `src/dashboard/`, for the same reason.
 
 ## What is on the screen today
 
+The words for the parts are in [`nomenclature.md`](nomenclature.md). The short
+version: the **Menu view** is the main panel, the **Now widget** is the one
+widget beside it, and **widget** and **panel** mean the same thing.
+
 ```
- Huckleberry                                            Home › Log a feed
-┌ Log a feed ────────────────────────────────────────────────────────────┐
-│▌ 1. Bottle                                                             │
-│  2. Nursing                                                          › │
-│  3. Solids                                                             │
-│  4. Back                                                               │
-└────────────────────────────────────────────────────────────────────────┘
- ↑/↓ j/k move · ← h back · → l open · Enter select · q quit
+ Huckleberry · Wren                                                  Home
+┌ Now ───────────────────────────────┐┌ What would you like to do? ─────┐
+│ Last fed    36m ago                ││▌  1. Log a diaper               │
+│             73 ml of Formula       ││   2. Log a feed               › │
+│ Diaper      1h 31m ago             ││   3. Log sleep                › │
+│             wet                    ││   4. Edit                       │
+│ Asleep      40m                    ││   5. Visualizations           › │
+│ Longest     3h 0m                  ││   6. View logs                  │
+│             night of Mon 28 Sep    ││   7. Other logging            › │
+│                                    ││   8. Delete                     │
+│ as of 2m ago                       ││   9. More                     › │
+└────────────────────────────────────┘│  10. Exit                       │
+                                      └─────────────────────────────────┘
+ ↑/↓ j/k move · ← h back · → l open · Enter select · r refresh · q quit
 ```
 
 | Key | Does |
@@ -133,6 +143,7 @@ This is the same split as `src/dashboard/`, for the same reason.
 | `←`, `h`, `Esc`, `Backspace` | back, and nothing at the top level |
 | `1`–`9` | put the cursor on that row |
 | `g`, `Home` / `G`, `End` | first row, last row |
+| `r` | refresh every widget |
 | `q`, `Ctrl-C` | leave |
 
 A chevron (`›`) marks a row that opens another menu, so nothing is a surprise.
@@ -158,18 +169,64 @@ Two consequences worth knowing:
   the file with what the commands printed. The menu is the conversation; the
   commands are the data.
 
+## The widgets
+
+### 11. A widget shows one thing, and the Menu view stays the main panel
+
+The shell is a dashboard in the Bloomberg sense: small dense boxes, each
+answering one question, around the thing you actually operate. That is a reason
+to add widgets carefully rather than a licence to fill the screen. A widget
+earns its place by answering a question somebody would otherwise navigate to
+ask. The Menu view is always the largest panel and always present.
+
+### 12. A widget is only as tall as it has something to say
+
+Beside the menu, the Now widget ends where its facts end and the rest of the
+column stays empty, waiting for the next widget. A box two thirds full of
+nothing reads as broken rather than as finished.
+
+### 13. Every widget refreshes together, on `r`
+
+One key re-reads everything on the screen, because a screen where two boxes
+disagree about what time it is is worse than one that is uniformly a minute
+old. A refresh also happens by itself after any command, since a command may
+have logged the very thing a widget is showing.
+
+Refreshing never moves the cursor or changes the menu: `r` is not navigation.
+
+### 14. A read never blocks the keyboard
+
+Reads run in the background. A Huckleberry that cannot be reached takes a full
+minute to say so, and a menu that accepts no keys for a minute is broken
+exactly when the wifi is. The widget says `reading…`, the rows still move, and
+the answer arrives when it arrives.
+
+### 15. A failed read keeps the numbers and says so
+
+This is [`dashboards.md`](dashboards.md)'s rule, and it holds here: the numbers
+that were there stay there, the failure goes on the footer, and the `as of`
+line tells the truth about how old they are.
+
+## Where the Now widget sits, and why
+
+Side by side, the facts are on the **left** and the Menu view fills the rest:
+
+- The eye lands top-left first, and the facts are what somebody opened the
+  terminal to read. The menu is the part they already know by heart.
+- The sidebar is where the next widgets stack, so the second widget needs no
+  second redesign.
+- The menu is the main panel and still gets the wider column, which its rows
+  need and the facts do not.
+
+Below 72 columns the sidebar would leave the menu unreadable, so the two stack
+with the facts on top: the same reading order, and each fact collapses onto one
+line to buy the menu back its rows.
+
 ## Where this is going
 
-The shell is the always-on app, so the panel above the menu is where the facts
-belong: how long since the last feed, whether anybody is asleep right now, what
-the night looks like so far. The seam is already there: `draw.rs` lays out a
-header, a body and a footer, and the body is a menu today because that is all
-there is to put in it.
-
-The order things are likely to arrive in:
-
-1. Facts on the same screen as the menu, refreshed on a timer.
-2. Panels for the commands that are asked most, so the common ones stop
+1. More widgets in the sidebar, added one at a time and each answering a
+   question somebody would otherwise navigate to ask.
+2. Widgets for the commands that are asked most, so the common ones stop
    suspending the screen at all.
 3. Search and history in the shell rather than through the suspended listing.
 
