@@ -26,7 +26,10 @@ pub async fn add_health(
         .health_entries(cid, Window::new(now - i64::from(days) * 86_400, now))
         .await
     {
-        Ok(rows) => entries.extend(rows.into_iter().map(health_entry)),
+        Ok(rows) => entries.extend(
+            rows.into_iter()
+                .map(|row| health_entry(row, Units::from_setting(&context.config.units))),
+        ),
         Err(error) => context.warn(&format!(
             "Health history: {}",
             crate::dataset::describe(&error)
@@ -37,13 +40,13 @@ pub async fn add_health(
 }
 
 /// A health row in the same picker as other entries; its time is editable.
-fn health_entry(located: Located<HealthEntry>) -> Entry {
+fn health_entry(located: Located<HealthEntry>, units: Units) -> Entry {
     let title = match &located.row {
         HealthEntry::Growth(_) => "Growth",
         HealthEntry::Medication(_) => "Medication",
         HealthEntry::Temperature(_) => "Temperature",
     };
-    let description = health_description(&located.row);
+    let description = health_description(&located.row, units);
     Entry {
         id: edit::token_for(&located.at),
         at: Some(located.at),
@@ -56,7 +59,7 @@ fn health_entry(located: Located<HealthEntry>) -> Entry {
 }
 
 /// Shows the measurements that distinguish entries taken near each other.
-fn health_description(row: &HealthEntry) -> String {
+fn health_description(row: &HealthEntry, display_units: Units) -> String {
     let json = serde_json::to_value(row).unwrap_or_default();
     [
         ("weight", "weightUnits"),
@@ -67,12 +70,22 @@ fn health_description(row: &HealthEntry) -> String {
     .into_iter()
     .filter_map(|(field, units)| {
         let value = json.get(field)?;
-        Some(format!(
-            "{field}: {value} {}",
-            json.get(units)
-                .and_then(serde_json::Value::as_str)
-                .unwrap_or("")
-        ))
+        let recorded_units = json
+            .get(units)
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("");
+        Some(
+            match (field, value.as_f64(), Units::from_stored(recorded_units)) {
+                // Doses retain their numeric precision instead of using milk's
+                // whole-millilitre or tenth-ounce summary rounding.
+                ("amount", Some(amount), Some(from)) => format!(
+                    "amount: {} {}",
+                    format::convert(amount, from, display_units),
+                    display_units.as_str()
+                ),
+                _ => format!("{field}: {value} {recorded_units}"),
+            },
+        )
     })
     .collect::<Vec<_>>()
     .join(" · ")
@@ -246,10 +259,29 @@ mod tests {
             "offset": 0, "weight": 3.6, "weightUnits": "kg",
         }))
         .unwrap();
-        let entry = health_entry(Located::new(RowRef::loose("health", "1000000-abc"), row));
+        let entry = health_entry(
+            Located::new(RowRef::loose("health", "1000000-abc"), row),
+            Units::Ml,
+        );
         assert_eq!(entry.title, "Growth");
         assert_eq!(entry.start.to_bits(), 1000.0_f64.to_bits());
         assert_eq!(entry.at.unwrap().tracker, "health");
         assert!(entry.description.contains("3.6 kg"));
+    }
+
+    #[test]
+    fn medication_volumes_use_the_display_unit_without_rounding_away_small_doses() {
+        for (stored, amount, units, expected) in [
+            ("ml", 1.0, Units::Oz, "amount: 0.033814022701843 oz"),
+            ("oz", 1.0, Units::Ml, "amount: 29.5735295625 ml"),
+            ("drops", 2.0, Units::Oz, "amount: 2.0 drops"),
+        ] {
+            let row: HealthEntry = serde_json::from_value(serde_json::json!({
+                "mode": "medication", "start": 1000.0, "lastUpdated": 1000.0,
+                "offset": 0, "amount": amount, "units": stored,
+            }))
+            .unwrap();
+            assert_eq!(health_description(&row, units), expected);
+        }
     }
 }

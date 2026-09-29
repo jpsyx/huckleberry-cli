@@ -79,9 +79,12 @@ pub struct Entry {
     pub notes: Option<String>,
 }
 
-/// Everything, newest first.
+/// Everything, newest first, with volumes described by the caller.
+///
+/// The formatter receives millilitres, including missing amounts, and returns
+/// the displayed quantity with its unit. This keeps preferences out of the domain.
 #[must_use]
-pub fn build(dataset: &Dataset) -> Vec<Entry> {
+pub fn build(dataset: &Dataset, volume: impl Fn(Option<f64>) -> String) -> Vec<Entry> {
     let mut entries = Vec::new();
 
     for sleep in &dataset.sleep {
@@ -97,7 +100,7 @@ pub fn build(dataset: &Dataset) -> Vec<Entry> {
     }
 
     for feed in &dataset.feeds {
-        let (title, description) = describe_feed(feed);
+        let (title, description) = describe_feed(feed, &volume);
         entries.push(Entry {
             id: format!("feed:{}", feed.id()),
             at: feed.at().cloned(),
@@ -122,14 +125,11 @@ pub fn build(dataset: &Dataset) -> Vec<Entry> {
     }
 
     for session in &dataset.pumps {
-        let amount = |value: Option<f64>| {
-            value.map_or_else(|| "?".to_owned(), |millilitres| format!("{millilitres:.0}"))
-        };
         let mut description = format!(
-            "{} ml (L {}, R {})",
-            amount(session.total_ml),
-            amount(session.left_ml),
-            amount(session.right_ml)
+            "{} (L {}, R {})",
+            volume(session.total_ml),
+            volume(session.left_ml),
+            volume(session.right_ml)
         );
         if let Some(seconds) = session.duration_seconds {
             description.push_str(" over ");
@@ -224,20 +224,17 @@ const fn size_word(size: Size) -> &'static str {
     }
 }
 
-fn describe_feed(feed: &FeedEvent) -> (String, String) {
+fn describe_feed(feed: &FeedEvent, volume: &impl Fn(Option<f64>) -> String) -> (String, String) {
     match feed {
         FeedEvent::Bottle {
             amount_ml,
             bottle_type,
             ..
         } => {
-            let amount = amount_ml.map_or_else(|| "?".to_owned(), |value| format!("{value:.0}"));
+            let amount = volume(*amount_ml);
             (
                 "Bottle".to_owned(),
-                format!(
-                    "{amount} ml of {}",
-                    bottle_type.as_deref().unwrap_or("milk")
-                ),
+                format!("{amount} of {}", bottle_type.as_deref().unwrap_or("milk")),
             )
         }
         FeedEvent::Nursing {
@@ -280,6 +277,12 @@ mod tests {
     use super::*;
     use crate::domain::types::{MilestoneEvent, PumpEvent};
 
+    fn entries(data: &Dataset) -> Vec<Entry> {
+        build(data, |amount| {
+            crate::render::format::volume(amount, crate::cli::Units::Ml)
+        })
+    }
+
     #[test]
     fn everything_appears_exactly_once() {
         let mut data = dataset();
@@ -305,7 +308,7 @@ mod tests {
             notes: None,
             has_photo: false,
         }];
-        assert_eq!(build(&data).len(), 5);
+        assert_eq!(entries(&data).len(), 5);
     }
 
     #[test]
@@ -315,7 +318,7 @@ mod tests {
             bottle(AFTERNOON - 7200.0, 60.0),
             bottle(AFTERNOON - 900.0, 90.0),
         ];
-        let entries = build(&data);
+        let entries = entries(&data);
         assert!(entries[0].start > entries[1].start);
     }
 
@@ -330,7 +333,10 @@ mod tests {
             bottle_type: Some("Formula".to_owned()),
             notes: None,
         }];
-        assert_eq!(build(&data)[0].description, "? ml of Formula");
+        assert_eq!(
+            entries(&data)[0].description,
+            format!("{} of Formula", crate::render::format::MISSING)
+        );
     }
 
     #[test]
@@ -339,7 +345,7 @@ mod tests {
         let mut trip = diaper(AFTERNOON, true, false);
         trip.potty = true;
         data.diapers = vec![trip];
-        assert_eq!(build(&data)[0].title, "Potty");
+        assert_eq!(entries(&data)[0].title, "Potty");
     }
 
     #[test]
@@ -348,13 +354,13 @@ mod tests {
         let mut mixed = diaper(AFTERNOON, true, true);
         mixed.mode = "both".to_owned();
         data.diapers = vec![mixed];
-        assert_eq!(build(&data)[0].description, "mixed");
+        assert_eq!(entries(&data)[0].description, "mixed");
 
         let mut data = dataset();
         let mut dirty = diaper(AFTERNOON, false, true);
         dirty.mode = "poo".to_owned();
         data.diapers = vec![dirty];
-        assert_eq!(build(&data)[0].description, "poop");
+        assert_eq!(entries(&data)[0].description, "poop");
     }
 
     #[test]
@@ -365,7 +371,10 @@ mod tests {
         mixed.pee_size = Some(Size::Small);
         mixed.poo_size = Some(Size::Large);
         data.diapers = vec![mixed];
-        assert_eq!(build(&data)[0].description, "mixed · little pee · big poop");
+        assert_eq!(
+            entries(&data)[0].description,
+            "mixed · little pee · big poop"
+        );
     }
 
     #[test]
@@ -375,7 +384,7 @@ mod tests {
         mixed.mode = "both".to_owned();
         mixed.poo_size = Some(Size::Medium);
         data.diapers = vec![mixed];
-        assert_eq!(build(&data)[0].description, "mixed · medium poop");
+        assert_eq!(entries(&data)[0].description, "mixed · medium poop");
     }
 
     #[test]
@@ -385,7 +394,7 @@ mod tests {
         wet.mode = "pee".to_owned();
         wet.pee_size = Some(Size::Large);
         data.diapers = vec![wet];
-        assert_eq!(build(&data)[0].description, "pee · big");
+        assert_eq!(entries(&data)[0].description, "pee · big");
     }
 
     #[test]
@@ -395,7 +404,7 @@ mod tests {
         sore.rash = true;
         sore.color = Some("yellow".to_owned());
         data.diapers = vec![sore];
-        let description = &build(&data)[0].description;
+        let description = &entries(&data)[0].description;
         assert!(description.contains("yellow"), "{description}");
         assert!(description.contains("rash noted"), "{description}");
     }
@@ -406,14 +415,17 @@ mod tests {
         let mut event = diaper(AFTERNOON, true, false);
         event.at = Some(RowRef::loose("diaper", "row-one"));
         data.diapers = vec![event];
-        assert_eq!(build(&data)[0].at, Some(RowRef::loose("diaper", "row-one")));
+        assert_eq!(
+            entries(&data)[0].at,
+            Some(RowRef::loose("diaper", "row-one"))
+        );
     }
 
     #[test]
     fn an_entry_read_off_a_snapshot_has_no_row_to_edit() {
         let mut data = dataset();
         data.diapers = vec![diaper(AFTERNOON, true, false)];
-        assert_eq!(build(&data)[0].at, None);
+        assert_eq!(entries(&data)[0].at, None);
     }
 
     #[test]

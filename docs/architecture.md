@@ -100,6 +100,11 @@ explicit human fields alongside their existing machine payloads; `Context`
 selects the terminal presentation using stdout's terminal status. It also gates
 stdout colour independently of stderr. JSON and snapshot exports bypass receipts.
 
+History construction accepts a volume formatter supplied by its caller. Commands
+and the dashboard supply `render::format::volume` with the configured unit, so
+the log, entry details, and edit/delete descriptions agree. The domain retains
+millilitre quantities and has no dependency on rendering or CLI preferences.
+
 This keeps numeric timestamps and seconds available to scripts while parents
 see dates, durations and units. No API storage or operation semantics change.
 

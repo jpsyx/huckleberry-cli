@@ -53,7 +53,7 @@ pub fn draw(frame: &mut Frame, state: &State, units: Units, at: f64) {
         Tab::Sleep => draw_sleep(frame, areas[1], state, at),
         Tab::Feeding => draw_feeding(frame, areas[1], state, units, at),
         Tab::Diapers => draw_diapers(frame, areas[1], state, at),
-        Tab::Log => draw_log(frame, areas[1], state),
+        Tab::Log => draw_log(frame, areas[1], state, units),
     }
     frame.render_widget(status_bar(state, at), areas[2]);
 }

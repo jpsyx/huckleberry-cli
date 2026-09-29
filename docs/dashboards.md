@@ -142,6 +142,12 @@ Everything, newest first, grouped by day. The screen for when the totals look
 wrong and a feed is suspected of having gone unlogged, so it loses nothing:
 every row of every collection appears exactly once.
 
+Every displayed bottle and pumping volume uses the configured `units`, including
+left and right pumping amounts. This also applies to entry details, edit/delete
+lists and confirmations, and the dashboard's Log tab. Source records may mix
+millilitres and ounces; normalization keeps the quantities in millilitres and
+presentation converts them once for the reader.
+
 ## `dash`
 
 The full-screen version, five tabs, redrawing every second so the live timers
@@ -191,7 +197,7 @@ Sun 27 Sep
   10:41 pm (31m ago)    Bottle   37 ml of Formula
   10:32 pm (40m ago)    Diaper   pee · big
   7:47 pm (3h 25m ago)  Diaper   mixed · little pee · medium poop (brown, loose) · rash noted
-  5:21 pm               Pumping  59 ml (L 30, R 30)
+  5:21 pm               Pumping  59 ml (L 30 ml, R 30 ml)
 j/k or ↑/↓ move · / searches · enter opens one · q leaves
 ```
 

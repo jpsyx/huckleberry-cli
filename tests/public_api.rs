@@ -170,7 +170,10 @@ fn the_stripe_chart_covers_every_day_at_a_fixed_width() {
 fn the_log_loses_nothing() {
     let dataset = dataset();
     let expected = dataset.sleep.len() + dataset.feeds.len() + dataset.diapers.len();
-    assert_eq!(log::build(&dataset).len(), expected);
+    assert_eq!(
+        log::build(&dataset, |amount| render::format::volume(amount, Units::Ml)).len(),
+        expected
+    );
 }
 
 #[test]

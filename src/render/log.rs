@@ -198,13 +198,17 @@ mod tests {
     use crate::domain::fixtures::{AFTERNOON, bottle, dataset, diaper, sleep};
     use crate::domain::log;
 
+    fn entries(data: &crate::domain::types::Dataset) -> Vec<Entry> {
+        log::build(data, |amount| format::volume(amount, crate::cli::Units::Ml))
+    }
+
     fn calendar() -> Calendar {
         Calendar::new("America/New_York").expect("a real timezone")
     }
 
     fn rendered(data: &crate::domain::types::Dataset, limit: usize) -> String {
         lines(
-            &log::build(data),
+            &entries(data),
             &calendar(),
             Theme::dark(false),
             limit,
@@ -263,7 +267,7 @@ mod tests {
         let mut data = dataset();
         data.feeds = vec![bottle(AFTERNOON, 90.0)];
         data.sleep = vec![sleep(AFTERNOON - 7_200.0, 3_600.0)];
-        let sleeps = only(log::build(&data), Some(Kind::Sleep));
+        let sleeps = only(entries(&data), Some(Kind::Sleep));
         assert_eq!(sleeps.len(), 1);
         assert_eq!(sleeps[0].kind, Kind::Sleep);
     }
@@ -273,7 +277,7 @@ mod tests {
         let mut data = dataset();
         data.feeds = vec![bottle(AFTERNOON, 90.0)];
         data.sleep = vec![sleep(AFTERNOON - 7_200.0, 3_600.0)];
-        assert_eq!(only(log::build(&data), None).len(), 2);
+        assert_eq!(only(entries(&data), None).len(), 2);
     }
 
     #[test]
@@ -283,7 +287,7 @@ mod tests {
         noted.at = Some(huckleberry_api::RowRef::loose("diaper", "row-one"));
         noted.notes = Some("a bit sore".to_owned());
         data.diapers = vec![noted];
-        let entries = log::build(&data);
+        let entries = entries(&data);
         let rows = rows(&entries, &calendar(), AFTERNOON, &|_| None);
 
         assert_eq!(rows[0].key, "diaper/row-one", "the name `edit` knows it by");
@@ -305,7 +309,7 @@ mod tests {
     fn a_recent_row_says_how_long_ago_it_was_beside_the_time() {
         let mut data = dataset();
         data.feeds = vec![bottle(AFTERNOON - 9_120.0, 90.0)];
-        let rows = rows(&log::build(&data), &calendar(), AFTERNOON, &|_| None);
+        let rows = rows(&entries(&data), &calendar(), AFTERNOON, &|_| None);
         assert_eq!(rows[0].cells[0], "11:28 am (2h 32m ago)");
     }
 
@@ -316,7 +320,7 @@ mod tests {
             bottle(AFTERNOON - 6.0 * 3_600.0, 90.0),
             bottle(AFTERNOON - 6.0 * 3_600.0 - 1.0, 90.0),
         ];
-        let rows = rows(&log::build(&data), &calendar(), AFTERNOON, &|_| None);
+        let rows = rows(&entries(&data), &calendar(), AFTERNOON, &|_| None);
         assert_eq!(
             rows[0].cells[0], "8:00 am (6h 0m ago)",
             "six hours is recent"
@@ -330,7 +334,7 @@ mod tests {
         let mut data = dataset();
         data.feeds = vec![bottle(AFTERNOON - 9_120.0, 90.0)];
         data.diapers = vec![diaper(AFTERNOON - 7.0 * 3_600.0, true, false)];
-        let rows = rows(&log::build(&data), &calendar(), AFTERNOON, &|_| None);
+        let rows = rows(&entries(&data), &calendar(), AFTERNOON, &|_| None);
         let filtered = model::filter(&rows, "");
         let widths = layout::widths(&COLUMNS, &filtered, None);
         let drawn = layout::body_lines(
@@ -356,7 +360,7 @@ mod tests {
     fn a_row_the_command_cannot_act_on_is_listed_and_says_why() {
         let mut data = dataset();
         data.feeds = vec![bottle(AFTERNOON, 90.0)];
-        let entries = log::build(&data);
+        let entries = entries(&data);
         let rows = rows(&entries, &calendar(), AFTERNOON, &|_| {
             Some("not here".to_owned())
         });
@@ -370,7 +374,7 @@ mod tests {
         data.feeds = vec![bottle(AFTERNOON, 90.0)];
         data.diapers = vec![diaper(AFTERNOON - 60.0, true, false)];
         data.sleep = vec![sleep(AFTERNOON - 7_200.0, 3_600.0)];
-        let entries = log::build(&data);
+        let entries = entries(&data);
         let painted: Vec<String> = entries
             .iter()
             .map(|entry| row(entry, &calendar(), Theme::dark(true)))
