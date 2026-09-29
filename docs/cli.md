@@ -502,8 +502,25 @@ terminal. The selected row still requires the usual confirmation, defaulting to
 No. Temporary configuration, child, verbosity and live or snapshot source
 overrides can be supplied as global flags when starting `h`.
 
-With no command, `h` starts a persistent interactive session when stdin and
-stderr are terminals. Home starts with View latest (the same command as
+With no command, `h` opens a full-screen shell when stdin and stderr are
+terminals, and keeps it open. It draws on stderr, so redirecting stdout still
+captures what the commands print. Its design rules are in [`tui.md`](tui.md).
+
+Every direction has an arrow and a letter that mean the same thing: `↓`/`j` and
+`↑`/`k` move, `→`/`l` and `Enter` open the highlighted row, and `←`/`h` goes
+back. `1`-`9` put the cursor on a row without opening it, `g` and `G` reach the
+first and last rows, and `q` or `Ctrl-C` leaves. Back at Home does nothing, so
+a reflex keystroke cannot end the session; Home carries an Exit row instead. A
+chevron marks a row that opens another menu, and every submenu ends in Back.
+
+Choosing a command hands the terminal back for as long as that command runs, so
+its questions, its receipt and any failure appear where they can be scrolled to,
+exactly as they do from the command line. The shell redraws afterwards. A
+finished recording returns to Home; a view or a utility returns to the menu it
+was opened from; a cancelled or failed command says so on the line at the foot
+of the screen and never retries by itself.
+
+Home starts with View latest (the same command as
 `h now`), followed by diaper, feed, sleep, Edit,
 Visualizations, logs, other logging, Delete, More, and Exit. Read-only views run
 immediately when selected: latest/current status, Dashboard, Trends, Summary,
@@ -519,14 +536,20 @@ still asks for its required metric before displaying a chart. Failed views offer
 Back and an explicit Retry; they never retry automatically.
 Successful logging returns home; views return to their parent menu. Other static
 results remain visible until Continue. Escape cancels unfinished input and returns
-to navigation; Escape or Ctrl-C at home exits cleanly. Failed writes return to
+to navigation. Failed writes return to
 navigation after Continue and are never automatically retried. Bare nonterminal
 invocations print help and exit successfully. Explicit commands keep their
-scriptable behavior.
+scriptable behavior. Version is reported on the shell's status line rather than
+by leaving the screen.
 
-Long menu labels wrap within the visible terminal area. Completing Edit's field
+Long menu labels wrap within the visible terminal area, and the shell's own rows
+are clipped to its width. Completing Edit's field
 picker without changing any fields reports that the entry is unchanged. Menu
 output remains on stderr even when command results are redirected to a file.
+
+Inside a suspended prompt the older mapping still applies: `J`/`H` move down and
+`K`/`P` move up. The shell's `h` means back. See the rough edge noted at the end
+of [`tui.md`](tui.md).
 
 History edits ask which fields to change, each shown with the value it would be
 saved with; Done keeps every field as listed. Keep

@@ -65,6 +65,7 @@ src/
 ├── domain/          everything the tool works out, and nothing it prints
 │   └── clock.rs     a time somebody typed, and the instant it means
 ├── render/          domain values to lines of text
+├── tui/             the always-on shell `h` opens with no command
 ├── dashboard/       the full-screen version of the same values
 ├── listing/         every list: columns, groups, search, browsing
 └── commands/        one thin module per command
@@ -78,7 +79,7 @@ tests/
 | --- | --- | --- |
 | `huckleberry-api` | Firestore, Huckleberry's shapes | this tool |
 | `domain` | events, days, arithmetic | the clock, the network, a terminal |
-| `render` / `dashboard` / `listing` | text, colour, widgets | the network, the clock |
+| `render` / `dashboard` / `listing` / `tui` | text, colour, widgets | the network, the clock |
 | `commands` | all of the above, and the outside world | arithmetic worth asserting |
 
 `render::log::rows` takes `now` for the same reason: a row from the last five
@@ -89,6 +90,43 @@ than a reading of the clock, so the list is asserted in a test.
 sleep across midnight, a night window that spans midnight and a 23-hour day are
 testable rather than seasonal. Nothing in `domain` or `render` reads a clock, so
 every screen in this repository is asserted line by line in a test.
+
+## The shell, and how it keeps every command
+
+`h` with no command opens a full-screen app on **stderr** and keeps it open:
+`src/tui/`. Its design brief, and the one-handed rules every feature in this
+repository is held to, are in [`tui.md`](tui.md).
+
+It is split the way the dashboard is, so nothing that decides anything also
+owns the terminal:
+
+| Module | Holds |
+| --- | --- |
+| `tui/keys.rs` | what a keystroke means, as a `Motion`. Pure. |
+| `tui/state.rs` | the menu stack, the cursor, and what a `Motion` does to them. Pure. |
+| `tui/draw.rs` | the header, the rows and the key hints, as widgets. |
+| `tui/shell.rs` | the alternate screen, the event loop's keyboard, and suspend. |
+
+Navigation is the only thing that moved out of `src/interactive/`. What stays
+there is everything that happens once a row has been chosen: the menu tree
+(`catalog`), the argument draft a command is built from (`draft`), dispatch and
+its error recovery (`operation`), and the session-scoped overrides.
+
+Choosing a command **suspends** the shell: it leaves the alternate screen, the
+existing handler asks its questions and prints its receipt exactly as it does
+from the command line, and the shell is rebuilt afterwards. That is why the
+shell shipped with every command already working and every prompt already
+tested, and why panels can replace them one at a time instead of all at once.
+
+Resuming builds a new `Terminal` rather than calling `Terminal::clear`. Clearing
+asks the terminal where its cursor is and waits on stdin for the reply, which is
+the same stdin the menu reads its keys from; a new terminal starts with an empty
+buffer and repaints every cell of the screen it just entered.
+
+Drawing on stderr rather than stdout is what keeps `h > entries.txt` filling the
+file with what the commands printed. The menu is the conversation; the commands
+are the data. It is also why `prompt::available` (stdin and stderr) is still the
+right gate for opening it at all.
 
 ## Command presentation
 
@@ -221,7 +259,7 @@ possible without credentials.
 | `serde`, `toml` | The settings and the credentials, as files a person can read. |
 | `serde_json` | The snapshot format. |
 | `jiff` | Day boundaries in the family's timezone, DST included. |
-| `ratatui` | The full-screen dashboard. |
+| `ratatui` | The full-screen dashboard, and the shell `h` opens with no command. |
 | `crossterm` | Reading a password without an echo, and the dashboard's backend. |
 | `tokio` | The async runtime the client needs. |
 | `huckleberry-api` | The client. The CLI holds no knowledge of Firestore. |
@@ -239,6 +277,7 @@ Several directories exist because a file crossed it:
 | `domain/` | one module per question the tool answers |
 | `render/` | one module per screen |
 | `dashboard/draw/` | the frame, and one function per tab |
+| `tui/` | what a key means, what it does, how it draws, who owns the screen |
 | `listing/` | what is in a list, how it is laid out, what a key does |
 | `commands/edit/` | the command, and the questions it asks |
 | `models/sleep/` | what was recorded, the timer, the history |

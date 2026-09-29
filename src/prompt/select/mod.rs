@@ -24,4 +24,4 @@ pub fn answer(
         }
     }
 }
-pub(super) use draw::clipped as clip;
+pub(crate) use draw::clipped as clip;

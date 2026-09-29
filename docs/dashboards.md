@@ -3,6 +3,10 @@
 Six views over the same data, and one set of rules about how a number is
 allowed to be shown.
 
+The shell `h` opens with no command is a screen too, and the rules below apply
+to it. What goes on it, and the one hand it is built for, are in
+[`tui.md`](tui.md).
+
 ## The rules
 
 These came from the parent the original dashboard was built for, and they are
