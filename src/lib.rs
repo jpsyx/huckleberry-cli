@@ -16,9 +16,9 @@ pub mod theme;
 
 pub const APP_NAME: &str = "huckleberry-cli";
 
-/// What the command is called when nothing says otherwise: `hb`, short for
+/// What the command is called when nothing says otherwise: `h`, short for
 /// huckleberry.
-pub const DEFAULT_COMMAND: &str = "hb";
+pub const DEFAULT_COMMAND: &str = "h";
 
 /// How this program was invoked, for the hints in its own failure messages.
 ///

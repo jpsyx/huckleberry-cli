@@ -269,6 +269,6 @@ fn nothing_a_baby_does_is_ever_an_error_or_a_warning() {
 
 #[test]
 fn sleep_start_accepts_an_explicit_time() {
-    let parsed = Cli::try_parse_from(["hb", "sleep", "start", "--start", "28m ago"]);
+    let parsed = Cli::try_parse_from(["h", "sleep", "start", "--start", "28m ago"]);
     assert!(parsed.is_ok(), "{parsed:?}");
 }

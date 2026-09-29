@@ -42,14 +42,14 @@ redirected stdout stays free of ANSI escapes even when stderr is a terminal.
 
 ## Getting started
 
-The installed command is `hb`. `./install.sh --name <other>` changes it, and
+The installed command is `h`. `./install.sh --name <other>` changes it, and
 everything below works the same under whatever you pick.
 
 ```sh
-hb auth login          # asks for email, password and timezone
-hb child list          # who is on the account
-hb child use           # pick one, and remember it
-hb now                 # the screen this tool exists for
+h auth login          # asks for email, password and timezone
+h child list          # who is on the account
+h child use           # pick one, and remember it
+h now                 # the screen this tool exists for
 ```
 
 `auth login` saves one child automatically when the account has only one. The
@@ -131,14 +131,14 @@ paused nursing records only the already banked durations. Sleep resume retains
 the existing continuous-sleep semantics, so its pause is included in the duration.
 
 ```sh
-hb feed bottle --at "32 mins ago"
-hb feed solids --at "358 am"
-hb diaper --at now
-hb potty --at 21:30
-hb growth --at "10 minutes ago"
-hb feed nursing start --start "20 mins ago"
-hb feed nursing switch --at "5 mins ago"
-hb sleep stop --at "3 mins ago"
+h feed bottle --at "32 mins ago"
+h feed solids --at "358 am"
+h diaper --at now
+h potty --at 21:30
+h growth --at "10 minutes ago"
+h feed nursing start --start "20 mins ago"
+h feed nursing switch --at "5 mins ago"
+h sleep stop --at "3 mins ago"
 ```
 
 Receipts for instant events include the chosen local date and time. Backdated
@@ -147,19 +147,19 @@ entries go into history without replacing a newer last-entry summary.
 ### Sleep
 
 ```sh
-hb sleep start                               # asks when it started; Enter means now
-hb sleep start --start "28m ago"
-hb sleep start --start "358 am"
-hb sleep pause
-hb sleep resume
-hb sleep end         # asks when it ended, then records it (alias for sleep stop)
-hb sleep cancel      # throws it away
-hb sleep status
+h sleep start                               # asks when it started; Enter means now
+h sleep start --start "28m ago"
+h sleep start --start "358 am"
+h sleep pause
+h sleep resume
+h sleep end         # asks when it ended, then records it (alias for sleep stop)
+h sleep cancel      # throws it away
+h sleep status
 
-hb sleep manual                              # asks when it began and ended
-hb sleep manual --start 11:30pm --end 1:15am
-hb sleep manual --start "120 mins ago" --end "30 mins ago"
-hb sleep manual --start "32 min ago" --end now
+h sleep manual                              # asks when it began and ended
+h sleep manual --start 11:30pm --end 1:15am
+h sleep manual --start "120 mins ago" --end "30 mins ago"
+h sleep manual --start "32 min ago" --end now
 ```
 
 `sleep end` (also `sleep stop`) asks **When did it end?** using the same
@@ -224,16 +224,16 @@ in yellow, with no default: all three answers throw something away.
 ### Feeding
 
 ```sh
-hb feed bottle --amount 90 --type formula
-hb feed bottle                       # asks when, units, amount, milk, and notes
+h feed bottle --amount 90 --type formula
+h feed bottle                       # asks when, units, amount, milk, and notes
 
-hb feed nursing start --side left
-hb feed nursing switch
-hb feed nursing pause
-hb feed nursing stop
-hb feed nursing status
+h feed nursing start --side left
+h feed nursing switch
+h feed nursing pause
+h feed nursing stop
+h feed nursing status
 
-hb feed solids --food Avocado --reaction loved
+h feed solids --food Avocado --reaction loved
 ```
 
 `--type` takes `formula`, `breast-milk`, `cow-milk`, `goat-milk`, `soy-milk`,
@@ -244,7 +244,7 @@ what was in it, and anything to note. Every one of them arrives with an answer
 already in it, so the fast path is five presses of Enter. The `units` setting
 is what the units question offers, not what the command assumes: somebody who
 mostly records in ounces still gives the odd bottle in millilitres, and
-`hb config set units oz` changes what Enter takes. The amount offered is the
+`h config set units oz` changes what Enter takes. The amount offered is the
 last bottle's, **converted into the units being recorded in**: the app stores
 it in whatever units it was entered in, so offering it as it stands turned a
 last bottle of 1.15 oz into an offer of "1.15" under a question reading "How
@@ -258,11 +258,11 @@ which is what the app suggests.
 ### Diapers, potty and growth
 
 ```sh
-hb diaper --mode both --poo medium --color yellow --consistency loose
-hb diaper                        # asks when, then what was in it
-hb potty --mode pee --how went-potty
-hb growth --weight 3.6
-hb growth                        # asks when, the system, the weight, then the rest
+h diaper --mode both --poo medium --color yellow --consistency loose
+h diaper                        # asks when, then what was in it
+h potty --mode pee --how went-potty
+h growth --weight 3.6
+h growth                        # asks when, the system, the weight, then the rest
 ```
 
 `growth` asks when, then which system the numbers are in, offering the
@@ -279,9 +279,9 @@ asked the same questions minus the rash, which the app has no field for.
 ### Foods
 
 ```sh
-hb foods list --search avocado
-hb foods list --custom
-hb foods add "Sweet potato"
+h foods list --search avocado
+h foods list --custom
+h foods add "Sweet potato"
 ```
 
 `foods list` shows the family's own foods and Huckleberry's curated database,
@@ -292,9 +292,9 @@ is the listing this tool most needs a search in, so it opens browsable: press
 ### Correcting an entry
 
 ```sh
-hb edit                                   # pick one off a list, then answer
-hb edit --list                            # what there is, and what each is called
-hb edit --id diaper/1758572400000-3f2a --set pee=big
+h edit                                   # pick one off a list, then answer
+h edit --list                            # what there is, and what each is called
+h edit --id diaper/1758572400000-3f2a --set pee=big
 ```
 
 `edit` selects an entry, then offers its editable fields. Each line shows the
@@ -325,8 +325,8 @@ relative-minute parser as `sleep start`. Enter keeps the exact existing start;
 `now`, `358 am`, and `32 mins ago` replace it. The same operation is scriptable:
 
 ```sh
-hb edit --id sleep/current --set "start=32 mins ago"
-hb edit --id sleep/current                  # asks for a new start
+h edit --id sleep/current --set "start=32 mins ago"
+h edit --id sleep/current                  # asks for a new start
 ```
 
 `edit --list` includes `sleep/current` while a sleep is active, even when paused.
@@ -366,8 +366,8 @@ additional entries currently offer the time question only; their other fields
 are preserved. An explicit `--id` can correct a time outside the picker window.
 
 ```sh
-hb edit --id feed/1758572400000-3f2a --set "at=8am"
-hb edit --id feed/1758572400000-3f2a --set "at=2026-09-27 08:00"
+h edit --id feed/1758572400000-3f2a --set "at=8am"
+h edit --id feed/1758572400000-3f2a --set "at=2026-09-27 08:00"
 ```
 
 Changing a history time preserves duration and unmodeled fields. The API updates
@@ -381,10 +381,10 @@ preceding detail changes have already been saved.
 ### Removing an entry
 
 ```sh
-hb delete                                  # pick one off the list, then confirm
-hb delete --list                           # what there is, and what each is called
-hb delete --id feed/1758572400000-3f2a --yes
-hb delete --tracker health --list          # the rows the stream does not show
+h delete                                  # pick one off the list, then confirm
+h delete --list                           # what there is, and what each is called
+h delete --id feed/1758572400000-3f2a --yes
+h delete --tracker health --list          # the rows the stream does not show
 ```
 
 The same recorded history `edit` shows, with the same keys; live timers are
@@ -410,10 +410,10 @@ recent of that kind, or taken away when there is none.
 ## Settings
 
 ```sh
-hb config show
-hb config set days 14
-hb config set          # asks which, and what
-hb config path
+h config show
+h config set days 14
+h config set          # asks which, and what
+h config path
 ```
 
 | Setting | Default | What it does |
@@ -441,7 +441,7 @@ this from CI or from a password manager:
 
 ```sh
 export HUCKLEBERRY_PASSWORD="$(pass huckleberry)"
-hb now --json
+h now --json
 ```
 
 `auth logout` deletes the file.
@@ -458,10 +458,10 @@ hb now --json
 - **A non-zero exit means it did not happen.**
 
 ```sh
-hb now --json | jq -r '.last_feed.ago_seconds'
-hb summary --days 30 --json > month.json
-hb export --days 90 --out snapshot.json
-hb --offline snapshot.json stripes
+h now --json | jq -r '.last_feed.ago_seconds'
+h summary --days 30 --json > month.json
+h export --days 90 --out snapshot.json
+h --offline snapshot.json stripes
 ```
 
 ## Without an account
@@ -470,9 +470,9 @@ hb --offline snapshot.json stripes
 `--offline` opens a socket, so every read-only screen works from a file:
 
 ```sh
-hb export --out snapshot.json
-hb --offline snapshot.json now
-hb --offline snapshot.json dash
+h export --out snapshot.json
+h --offline snapshot.json now
+h --offline snapshot.json dash
 ```
 
 Write commands refuse `--offline` rather than pretending.
@@ -500,11 +500,11 @@ changes to other details.
 Deletion with a named tracker and no ID opens a searchable entry picker on a
 terminal. The selected row still requires the usual confirmation, defaulting to
 No. Temporary configuration, child, verbosity and live or snapshot source
-overrides can be supplied as global flags when starting `hb`.
+overrides can be supplied as global flags when starting `h`.
 
-With no command, `hb` starts a persistent interactive session when stdin and
+With no command, `h` starts a persistent interactive session when stdin and
 stderr are terminals. Home starts with View latest (the same command as
-`hb now`), followed by diaper, feed, sleep, Edit,
+`h now`), followed by diaper, feed, sleep, Edit,
 Visualizations, logs, other logging, Delete, More, and Exit. Read-only views run
 immediately when selected: latest/current status, Dashboard, Trends, Summary,
 Sleep stripes, logs, sleep/nursing status, food lists, child lists/profiles,

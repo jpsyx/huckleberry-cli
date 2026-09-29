@@ -355,7 +355,7 @@ mod tests {
 
     #[test]
     fn a_bare_invocation_has_no_command() {
-        assert!(Cli::try_parse_from(["hb"]).unwrap().command.is_none());
+        assert!(Cli::try_parse_from(["h"]).unwrap().command.is_none());
     }
 
     #[test]

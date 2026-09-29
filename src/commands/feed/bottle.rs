@@ -76,7 +76,7 @@ pub(super) async fn bottle(
 ///
 /// Asked every time, because the answer is about this bottle and not about the
 /// family: the `units` setting is what Enter takes, and
-/// `hb config set units oz` is how somebody changes what Enter takes.
+/// `h config set units oz` is how somebody changes what Enter takes.
 fn ask_for_units(context: &Context, configured: Units) -> Result<Units> {
     const CHOICES: [Choice<'static>; 2] = [
         Choice {

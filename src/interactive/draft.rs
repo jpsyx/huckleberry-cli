@@ -62,7 +62,7 @@ impl CommandDraft {
     /// Validates the pending command with the actual CLI parser.
     pub fn resolve(&self, globals: &SessionOptions) -> Result<Cli> {
         let meta = metadata(&self.path).ok_or_else(|| anyhow!("unknown command"))?;
-        let mut words = vec![OsString::from("hb")];
+        let mut words = vec![OsString::from("h")];
         words.extend(self.path.0.iter().map(OsString::from));
         let mut positionals = Vec::new();
         for (id, values) in &self.values {

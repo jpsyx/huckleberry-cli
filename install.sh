@@ -8,13 +8,13 @@ set -euo pipefail
 usage() {
   printf '%s\n' 'Install or update huckleberry-cli as an executable command.
 
-The command is called hb, short for huckleberry: this is a tool you reach for
+The command is called h, short for huckleberry: this is a tool you reach for
 at 3am one-handed, and the name should cost you as little as the rest of it.
 
 Usage: ./install.sh [--name <command>] [-h|--help]
 
 Options:
-  --name <command>  Command filename (default: hb).
+  --name <command>  Command filename (default: h).
   -h, --help        Show this help without installing anything.
 
 Environment:
@@ -22,7 +22,7 @@ Environment:
 
 Examples:
   ./install.sh
-  BIN_DIR="$HOME/bin" ./install.sh --name hb-dev'
+  BIN_DIR="$HOME/bin" ./install.sh --name h-dev'
 }
 
 # Help wins wherever it appears, and before anything is checked or written.
@@ -38,7 +38,7 @@ done
 # What cargo builds, and what it is called once installed. They differ on
 # purpose: the crate keeps its full name, the command is short to type.
 binary_name="huckleberry-cli"
-command_name="hb"
+command_name="h"
 while (($#)); do
   case "$1" in
     --name)

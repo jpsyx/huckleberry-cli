@@ -148,7 +148,7 @@ structural: a decoded row carries nothing that says which document it came out
 of, and Huckleberry packs older history into batch documents with the rows
 nested under `data`. So every windowed read hands back `Located<T>`: the row,
 and a `RowRef` naming its document and, inside a batch, its key. `normalize`
-puts that reference on the event, the snapshot carries it, and `hb edit` takes
+puts that reference on the event, the snapshot carries it, and `h edit` takes
 it back to `update_history_row`.
 
 The write is a field update rather than a rewrite. A row has fields this
@@ -187,7 +187,7 @@ sleep it displays that elapsed time and the recorded duration.
 Removing one is the same reference and one more step. Every tracker keeps a
 copy of its most recent entry on its own document so the app can draw a home
 screen without reading history, so `ops/removal.rs` rewrites any of those
-copies that described the row that has gone. `hb edit` and `hb delete` share
+copies that described the row that has gone. `h edit` and `h delete` share
 one list (`src/picker/`), one set of tokens and one confirmation style; they
 differ only in what they do with the entry they are handed.
 

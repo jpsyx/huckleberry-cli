@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make every existing command and option reachable from bare `hb`, with numbered menus and one-handed selection throughout the app.
+**Goal:** Make every existing command and option reachable from bare `h`, with numbered menus and one-handed selection throughout the app.
 
 **Architecture:** Shared prompt controls own selection, text entry, and terminal cleanup. An interactive command tree collects arguments and resolves them through clap into the same typed commands used by explicit invocations. Both paths share command dispatch; a session loop reloads context between operations.
 
@@ -167,7 +167,7 @@ Walk clap's real command tree and compare canonical leaf paths to reachable cata
 - [ ] Extract shared dispatch without changing command behavior. Implement the menu stack, leaf Run/Options/Back, help/version display, static-result Enter pause, and Exit. Reopen Context before every command so changed persistent settings, login/logout, and remembered child apply immediately. Keep config-open errors recoverable through session options.
 - [ ] Handle typed cancellation as a return to the parent/home flow; show other failures once and never automatically retry writes. Release menu terminal ownership before invoking the handler. Preserve stdout machine data when redirected, and keep prompts on stderr.
 - [ ] Finish SessionOptions::to_cli with optional command, adjusting Task 5 draft resolution and Task 7 callers consistently. Verify full clap command/argument coverage again.
-- [ ] Run focused and full checks, update README bare invocation plus architecture/CLI docs, bump version/lock, and commit `feat: launch the interactive session from bare hb`.
+- [ ] Run focused and full checks, update README bare invocation plus architecture/CLI docs, bump version/lock, and commit `feat: launch the interactive session from bare h`.
 
 ## Task 9: Terminal journeys, review, and delivery
 

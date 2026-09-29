@@ -20,14 +20,14 @@ fn every_recording_and_timer_action_accepts_a_time_flag() {
         "sleep end",
     ] {
         for time in ["now", "358 am", "32 mins ago"] {
-            let mut arguments = vec!["hb"];
+            let mut arguments = vec!["h"];
             arguments.extend(command.split_whitespace());
             arguments.extend(["--at", time]);
             assert!(Cli::try_parse_from(&arguments).is_ok(), "{arguments:?}");
         }
     }
     assert!(
-        Cli::try_parse_from(["hb", "feed", "nursing", "start", "--start", "32 mins ago"]).is_ok()
+        Cli::try_parse_from(["h", "feed", "nursing", "start", "--start", "32 mins ago"]).is_ok()
     );
 }
 
@@ -339,8 +339,8 @@ fn history_time_defaults_are_shown_and_read_as_a_clock_with_am_or_pm() {
 #[test]
 fn sleep_end_is_an_alias_for_stop_with_or_without_an_explicit_time() {
     for extra in [vec![], vec!["--at", "32 min ago"]] {
-        let mut end = vec!["hb", "sleep", "end"];
-        let mut stop = vec!["hb", "sleep", "stop"];
+        let mut end = vec!["h", "sleep", "end"];
+        let mut stop = vec!["h", "sleep", "stop"];
         end.extend(&extra);
         stop.extend(&extra);
         assert_eq!(

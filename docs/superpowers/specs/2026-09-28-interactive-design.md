@@ -6,7 +6,7 @@ this document incorporates Edit above Visualizations and a visible Delete entry.
 ## Purpose and scope
 
 A parent holding or feeding a baby should be able to reach every existing CLI
-capability by running `hb`, moving through numbered lists, and pressing Enter.
+capability by running `h`, moving through numbered lists, and pressing Enter.
 Fixed choices must never require typing their names or numbers. Times, notes,
 measurements, credentials, new names, search terms, and paths can require text.
 The same selection controls apply to prompts reached through explicit commands.
@@ -19,7 +19,7 @@ scriptable commands, aliases, and machine output remain available.
 ## Entry and navigation
 
 With terminal stdin and stderr, a missing subcommand opens the home menu. This
-also supports global flags, such as `hb --offline snapshot.json`. Without a usable
+also supports global flags, such as `h --offline snapshot.json`. Without a usable
 interactive terminal, a missing subcommand prints help and exits without waiting.
 Explicit `--help` and `--version` retain their normal immediate behavior.
 
@@ -188,7 +188,7 @@ parent inspect current state before deciding what to do next.
 
 ## Acceptance and verification
 
-- Bare interactive `hb` opens the ordered home menu, with Edit before
+- Bare interactive `h` opens the ordered home menu, with Edit before
   Visualizations and Delete reachable directly from home.
 - Every command and user-facing argument in clap's command tree has a route,
   field control, or equivalent interaction listed above. A coverage test compares

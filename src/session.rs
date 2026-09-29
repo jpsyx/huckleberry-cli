@@ -324,7 +324,7 @@ mod tests {
     #[test]
     fn the_refusal_names_the_command_as_it_was_invoked() {
         // Installed under another name, the hint has to follow.
-        assert!(sign_in_hint("hb").contains("`hb auth login`"));
+        assert!(sign_in_hint("h").contains("`h auth login`"));
         assert!(sign_in_hint("baby").contains("`baby auth login`"));
     }
 

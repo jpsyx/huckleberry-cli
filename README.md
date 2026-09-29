@@ -9,7 +9,7 @@ pumping, health, milestones, and see your baby's most recent data instantly.
 
 The CLI UX has been optimized for single-hand usage in the middle of the night when you are
 sitting down, baby on your lab, bottle-feeding in one hand, and you only have one
-hand to do any typing. Just run `hb` and then navigate the interactive menu
+hand to do any typing. Just run `h` and then navigate the interactive menu
 with up/down arrows and press Enter to make your selections.
 
 **Huge** props goes to [Woyken](https://github.com/Woyken) for having built the [py-huckleberry-api](https://github.com/Woyken/py-huckleberry-api)
@@ -38,18 +38,18 @@ A Rust toolchain is the only prerequisite ([rustup.rs](https://rustup.rs)).
 
 ```sh
 ./install.sh            # builds a release binary into ~/.local/bin
-hb auth login           # asks for email, password and timezone
-hb now
+h auth login           # asks for email, password and timezone
+h now
 ```
 
-The command is `hb`, short for huckleberry: this is a tool you reach for at 3am
+The command is `h`, short for huckleberry: this is a tool you reach for at 3am
 one-handed. `./install.sh --name <something-else>` installs it under another
 name, and `BIN_DIR` chooses somewhere other than `~/.local/bin`.
 
 ## View your most recent data
 
 ```console
-$ hb now
+$ h now
 Ada
 
 Last fed       36m ago · 73 ml of Formula · 8:03 pm
@@ -61,9 +61,9 @@ Night of Sun 27 Sep   longest 3h 16m · from 2:00 am
 ## Log new activity
 
 ```console
-$ hb diaper
-$ hb feed
-$ hb pump
+$ h diaper
+$ h feed
+$ h pump
 ```
 
 Each of these commands will enter an interactive mode from which you submit the activity. No need to remember a bunch of annoying options and flags.
@@ -73,20 +73,20 @@ Each of these commands will enter an interactive mode from which you submit the 
 Start and stop a sleep session:
 
 ```console
-$ hb sleep start
-$ hb sleep stop
+$ h sleep start
+$ h sleep stop
 ```
 
 Or view the status of your baby's current sleep session:
 
 ```
-$ hb sleep status
+$ h sleep status
 ```
 
 Or manually enter a sleep session in the past that you may have missed
 
 ```
-$ hb sleep manual
+$ h sleep manual
 ```
 
 ## View your data in new and mostly useless ways
@@ -94,7 +94,7 @@ $ hb sleep manual
 ````
 
 ```console
-$ hb stripes
+$ h stripes
 Where sleep lands
 
             00          06          12          18
@@ -106,7 +106,7 @@ Wed 23 Sep │██▼█◦███▼◦███ ▼◦  ▼█◦ ▼ █�
 ````
 
 ```console
-$ hb summary
+$ h summary
 day          feeds  milk ml  formula ml  breast ml  nursed  sleep  night  longest  wet  dirty
 Sun 27 Sep       8      373         223        150     56m   11.3    7.9   2h 36m    7      4
 Sat 26 Sep       9      443         299        144   1h 1m   13.1    9.9   2h 38m    8      3
@@ -117,7 +117,7 @@ Wren is 21 days old
   typical from day 5: 6 or more wet diapers a day
 ```
 
-And `hb dash` for all of it at once, full screen and live.
+And `h dash` for all of it at once, full screen and live.
 
 ## Everything it can do
 
@@ -151,10 +151,10 @@ password supplied that way is never written to disk:
 
 ```sh
 export HUCKLEBERRY_PASSWORD="$(pass huckleberry)"
-hb now
+h now
 ```
 
-`hb auth logout` deletes the file.
+`h auth logout` deletes the file.
 
 ## Trying it without an account
 
@@ -162,8 +162,8 @@ hb now
 `--offline` opens a socket, so every read-only screen works from a file:
 
 ```sh
-hb export --out snapshot.json
-hb --offline snapshot.json dash
+h export --out snapshot.json
+h --offline snapshot.json dash
 ```
 
 ## Development
@@ -219,7 +219,7 @@ Huckleberry is a product of Huckleberry Labs, Inc. This project is an
 unofficial client, is not affiliated with or endorsed by them, and uses their
 name only to say what it talks to.
 
-Run `hb` with no command to open the interactive menu. Every command is
+Run `h` with no command to open the interactive menu. Every command is
 reachable there and starts its flow immediately when selected. Use command-line
 flags for optional overrides. Use arrows or J/H to move down, K/P to move up,
 and Enter to choose the highlighted default. Escape returns to the parent menu;

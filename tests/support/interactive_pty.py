@@ -59,7 +59,7 @@ class Terminal:
 
 def prompts():
     subprocess.run(["cargo", "build", "-p", "huckleberry-cli"], cwd=ROOT, check=True, capture_output=True)
-    with tempfile.TemporaryDirectory(prefix="hb-prompts-") as directory:
+    with tempfile.TemporaryDirectory(prefix="h-prompts-") as directory:
         driver = str(pathlib.Path(directory) / "prompt-driver")
         tokio = max(glob.glob(str(ROOT / "target/debug/deps/libtokio-*.rlib")), key=os.path.getmtime)
         anyhow = max(glob.glob(str(ROOT / "target/debug/deps/libanyhow-*.rlib")), key=os.path.getmtime)
@@ -181,7 +181,7 @@ def prompts():
 
 def session():
     subprocess.run(["cargo", "build", "-p", "huckleberry-cli"], cwd=ROOT, check=True, capture_output=True)
-    with tempfile.TemporaryDirectory(prefix="hb-session-") as directory:
+    with tempfile.TemporaryDirectory(prefix="h-session-") as directory:
         config = pathlib.Path(directory) / "config.toml"
         config.write_text("units = 'ml'\n")
         snapshot = pathlib.Path(directory) / "snapshot.json"

@@ -220,7 +220,7 @@ printing, so every screen is asserted line by line.
 
 ## An entry is corrected by asking again, not by a flag per field
 
-**Decision.** `hb edit` finds a row, fills a draft with what is on it, and
+**Decision.** `h edit` finds a row, fills a draft with what is on it, and
 runs the tracker's own questions with those values as the defaults. The
 non-interactive path is `--id <ENTRY> --set key=value`, one generic setter for
 every kind of entry, rather than a flag per field per tracker.
@@ -296,12 +296,12 @@ a family recording in ounces silently recorded millilitres. A question with its
 answer already in it costs one keystroke, which is the right price for a field
 that is otherwise unreachable.
 
-**Consequences.** `hb diaper` is up to six questions and `hb feed bottle` is
+**Consequences.** `h diaper` is up to six questions and `h feed bottle` is
 four, each a press of Enter. The defaults do the work, so they have to be
 right: the bottle amount offered is the last bottle's **converted into the
 units being asked about**, because the app stores it in whatever units it was
 entered in. The settings (`units`, `measurements`) are what the questions
-offer, never what the commands assume, so `hb config set units oz` changes what
+offer, never what the commands assume, so `h config set units oz` changes what
 Enter takes and nothing else. With no terminal nothing is asked and nothing
 changes: a missing optional value is absent, not a failure.
 
@@ -338,7 +338,7 @@ That is a date parser, and it belongs beside this one rather than inside it.
 
 ## A delete repairs the tracker it deleted from
 
-**Decision.** `hb delete` removes the row and then rewrites any of the
+**Decision.** `h delete` removes the row and then rewrites any of the
 tracker's "last entry" summaries that described it, from whatever is now the
 newest row of that kind. A summary that is missing while history has one to
 fill it is written too.
@@ -405,7 +405,7 @@ tested without a terminal.
 **Consequences.** A new list is a `Vec<Row>` and a set of columns. Adding a
 column to the stream is one line, and it is searchable for free. The interactive
 half is opt-out rather than opt-in: a listing opens browsable when both ends are
-a terminal, and is plain text otherwise, which is what keeps `hb log | grep`
+a terminal, and is plain text otherwise, which is what keeps `h log | grep`
 working. The one thing it does not do is edit in place; Enter hands the row's
 key back to the command, which is why `edit` and `delete` can share it and mean
 different things by it.

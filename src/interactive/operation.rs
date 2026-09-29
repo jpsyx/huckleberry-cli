@@ -140,7 +140,7 @@ mod tests {
             "feed nursing status",
         ] {
             let cli =
-                Cli::try_parse_from(std::iter::once("hb").chain(path.split_whitespace())).unwrap();
+                Cli::try_parse_from(std::iter::once("h").chain(path.split_whitespace())).unwrap();
             assert!(is_read_view(cli.command.as_ref().unwrap()), "{path}");
         }
     }
@@ -175,7 +175,7 @@ mod tests {
             "foods add",
         ] {
             let cli =
-                Cli::try_parse_from(std::iter::once("hb").chain(path.split_whitespace())).unwrap();
+                Cli::try_parse_from(std::iter::once("h").chain(path.split_whitespace())).unwrap();
             assert!(!is_read_view(cli.command.as_ref().unwrap()), "{path}");
         }
     }

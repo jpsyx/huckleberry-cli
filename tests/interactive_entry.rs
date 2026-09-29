@@ -10,12 +10,12 @@ use clap::Parser;
 
 #[test]
 fn bare_cli_parses_without_command() {
-    assert!(Cli::try_parse_from(["hb"]).unwrap().command.is_none());
+    assert!(Cli::try_parse_from(["h"]).unwrap().command.is_none());
 }
 
 #[test]
 fn global_only_cli_enters_menu_when_terminal() {
-    let cli = Cli::try_parse_from(["hb", "--verbose"]).unwrap();
+    let cli = Cli::try_parse_from(["h", "--verbose"]).unwrap();
     assert!(cli.verbose);
     assert_eq!(
         interactive::entry_mode(cli.command.is_some(), true, true),
@@ -43,7 +43,7 @@ fn nonterminal_bare_cli_prints_help_and_exits() {
 
 #[test]
 fn context_reload_uses_new_config_and_child() {
-    let directory = std::env::temp_dir().join(format!("hb-session-{}", std::process::id()));
+    let directory = std::env::temp_dir().join(format!("h-session-{}", std::process::id()));
     std::fs::create_dir_all(&directory).unwrap();
     let path = directory.join("config.toml");
     std::fs::write(&path, "child = 'first'\nunits = 'ml'\n").unwrap();
