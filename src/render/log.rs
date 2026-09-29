@@ -38,11 +38,11 @@ pub const COLUMNS: [Column; 3] = [
 ];
 
 /// How recent an entry has to be to carry how long ago it was.
-const RECENT: f64 = 5.0 * 3_600.0;
+const RECENT: f64 = 6.0 * 3_600.0;
 
 /// The time a row leads with: the clock, and for a recent entry how long ago.
 ///
-/// Five hours is the window in which "how long has it been?" is the question
+/// Six hours is the window in which "how long has it been?" is the question
 /// somebody is actually asking of a list. Past that the clock time is the
 /// answer, and the parenthesis is noise in every row.
 fn when(at: f64, now: f64, calendar: &Calendar) -> String {
@@ -310,18 +310,18 @@ mod tests {
     }
 
     #[test]
-    fn a_row_older_than_five_hours_is_left_with_the_time_alone() {
+    fn a_row_older_than_six_hours_is_left_with_the_time_alone() {
         let mut data = dataset();
         data.feeds = vec![
-            bottle(AFTERNOON - 5.0 * 3_600.0, 90.0),
-            bottle(AFTERNOON - 5.0 * 3_600.0 - 60.0, 90.0),
+            bottle(AFTERNOON - 6.0 * 3_600.0, 90.0),
+            bottle(AFTERNOON - 6.0 * 3_600.0 - 1.0, 90.0),
         ];
         let rows = rows(&log::build(&data), &calendar(), AFTERNOON, &|_| None);
         assert_eq!(
-            rows[0].cells[0], "9:00 am (5h 0m ago)",
-            "five hours is recent"
+            rows[0].cells[0], "8:00 am (6h 0m ago)",
+            "six hours is recent"
         );
-        assert_eq!(rows[1].cells[0], "8:59 am");
+        assert_eq!(rows[1].cells[0], "7:59 am");
     }
 
     #[test]
@@ -329,7 +329,7 @@ mod tests {
         use crate::listing::{layout, model};
         let mut data = dataset();
         data.feeds = vec![bottle(AFTERNOON - 9_120.0, 90.0)];
-        data.diapers = vec![diaper(AFTERNOON - 6.0 * 3_600.0, true, false)];
+        data.diapers = vec![diaper(AFTERNOON - 7.0 * 3_600.0, true, false)];
         let rows = rows(&log::build(&data), &calendar(), AFTERNOON, &|_| None);
         let filtered = model::filter(&rows, "");
         let widths = layout::widths(&COLUMNS, &filtered, None);

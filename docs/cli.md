@@ -346,7 +346,7 @@ current sleep again to retry. Scripts must supply `--set start=<TIME>`.
 | `q`, `Esc`, `Ctrl-C` | leave, changing nothing |
 
 Every list built from the stream (`log`, `edit`, `delete`) shows the clock time
-of each entry, and for anything from the last five hours how long ago it was,
+of each entry, and for anything from the last six hours how long ago it was,
 as in `11:28 am (2h 32m ago)`. Older rows show the time alone. The column is
 padded to its widest cell, so the kinds stay aligned down the screen.
 
