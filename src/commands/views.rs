@@ -104,10 +104,13 @@ pub async fn log(
     search: Option<&str>,
 ) -> Result<()> {
     let (dataset, calendar) = super::load(context, days).await?;
-    let entries: Vec<_> = render::log::only(log::build(&dataset), kind.map(LogKind::to_domain))
-        .into_iter()
-        .take(limit)
-        .collect();
+    let entries: Vec<_> = render::log::only(
+        log::build(&dataset, |amount| format::volume(amount, units(context))),
+        kind.map(LogKind::to_domain),
+    )
+    .into_iter()
+    .take(limit)
+    .collect();
     let now = now_seconds();
     let today = format::day_short(calendar.day_of(now));
     Listing::new(&dataset.child.name, "entries", &render::log::COLUMNS)

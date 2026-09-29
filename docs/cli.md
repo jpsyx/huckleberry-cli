@@ -430,6 +430,16 @@ h config path
 stored offset is computed in it. It is validated when it is set, so a typo
 fails then rather than quietly moving every day in the tool.
 
+The `units` setting applies when reading volumes, regardless of the unit used
+to record them. With `h config set units oz`, a bottle recorded as 60 ml reads
+as 2.0 oz in `log`, its detail view, and the dashboard. Pumping totals and each
+side, plus the entry lists used by `edit` and `delete`, follow the same setting.
+Medication amounts recorded in ml or oz also follow it in the edit picker, with
+their numeric precision retained; other dosage units keep their recorded labels.
+Set `units ml` to display those amounts in millilitres instead. Recording-unit
+prompts still describe the amount being entered; stored records, JSON fields
+that explicitly name millilitres, and raw tracker exports keep their units.
+
 ## Credentials
 
 The email, the password and the session live in `credentials.toml` beside

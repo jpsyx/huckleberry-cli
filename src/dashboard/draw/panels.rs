@@ -302,8 +302,8 @@ pub(super) fn draw_diapers(frame: &mut Frame, area: Rect, state: &State, at: f64
 }
 
 /// The Log tab: everything, newest first, scrollable.
-pub(super) fn draw_log(frame: &mut Frame, area: Rect, state: &State) {
-    let entries = log::build(&state.dataset);
+pub(super) fn draw_log(frame: &mut Frame, area: Rect, state: &State, units: Units) {
+    let entries = log::build(&state.dataset, |amount| format::volume(amount, units));
     if entries.is_empty() {
         frame.render_widget(
             Paragraph::new("nothing logged in this window")

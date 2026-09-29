@@ -26,7 +26,7 @@ use anyhow::{Result, bail};
 use huckleberry_api::RowRef;
 use huckleberry_api::client::now_seconds;
 
-use crate::cli::EditOptions;
+use crate::cli::{EditOptions, Units};
 use crate::domain::log::Entry;
 use crate::domain::{Calendar, log};
 use crate::edit;
@@ -53,7 +53,9 @@ pub async fn run(context: &Context, options: &EditOptions) -> Result<()> {
     .await?;
     super::persist_session(context, &client).await?;
     let calendar = Calendar::new(&dataset.timezone)?;
-    let mut entries = log::build(&dataset);
+    let mut entries = log::build(&dataset, |amount| {
+        format::volume(amount, Units::from_setting(&context.config.units))
+    });
     history::add_health(context, &client, &cid, window, &mut entries).await?;
     let mut shown = entries.clone();
     shown.truncate(options.limit);

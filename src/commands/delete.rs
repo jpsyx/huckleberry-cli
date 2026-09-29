@@ -13,7 +13,7 @@ use anyhow::{Context as _, Result, bail};
 use huckleberry_api::client::now_seconds;
 use huckleberry_api::{Huckleberry, RowRef};
 
-use crate::cli::DeleteOptions;
+use crate::cli::{DeleteOptions, Units};
 use crate::domain::log::Entry;
 use crate::domain::{Calendar, log};
 use crate::edit;
@@ -45,10 +45,12 @@ pub async fn run(context: &Context, options: &DeleteOptions) -> Result<()> {
     )
     .await?;
     super::persist_session(context, &client).await?;
-    let entries: Vec<Entry> = log::build(&dataset)
-        .into_iter()
-        .take(options.limit)
-        .collect();
+    let entries: Vec<Entry> = log::build(&dataset, |amount| {
+        format::volume(amount, Units::from_setting(&context.config.units))
+    })
+    .into_iter()
+    .take(options.limit)
+    .collect();
 
     if options.list {
         for entry in &entries {
