@@ -138,7 +138,7 @@ fn shown_draft(draft: Option<&Draft>, changes: &[String]) -> Option<Draft> {
 /// What one field would be saved as, with a sleep shown by the times it spans.
 fn shown_value(draft: Option<&Draft>, field: &str, started: f64, calendar: &Calendar) -> String {
     if matches!(field, "at" | "start") {
-        return format::date_time(started, calendar);
+        return format::day_time(started, calendar);
     }
     let Some(draft) = draft else {
         return String::new();
@@ -146,7 +146,7 @@ fn shown_value(draft: Option<&Draft>, field: &str, started: f64, calendar: &Cale
     if field == SLEEP_LENGTH
         && let Draft::Sleep(sleep) = draft
     {
-        return format::date_time(started + sleep.minutes * 60.0, calendar);
+        return format::day_time(started + sleep.minutes * 60.0, calendar);
     }
     fields::current(draft, field)
 }
@@ -345,8 +345,8 @@ mod picker {
     #[test]
     fn a_sleep_is_edited_as_a_start_and_a_stop_showing_both_times() {
         let shown = lines(&sleep(), &["at", "duration", "notes"], &[], STARTED);
-        assert_eq!(shown[1], "Edit start: Jan 01, 2025, 7:00 am UTC");
-        assert_eq!(shown[2], "Edit stop: Jan 01, 2025, 8:30 am UTC");
+        assert_eq!(shown[1], "Edit start: Jan 01, 7:00 am UTC");
+        assert_eq!(shown[2], "Edit stop: Jan 01, 8:30 am UTC");
         assert_eq!(shown[3], "Edit notes: not set");
         assert!(!shown.iter().any(|line| line.contains("keep current")));
     }
@@ -355,7 +355,7 @@ mod picker {
     fn a_pending_change_shows_the_value_it_would_be_saved_with() {
         let changes = vec!["duration=150".to_owned(), "notes=slept well".to_owned()];
         let shown = lines(&sleep(), &["at", "duration", "notes"], &changes, STARTED);
-        assert_eq!(shown[2], "Edit stop: Jan 01, 2025, 9:30 am UTC (changed)");
+        assert_eq!(shown[2], "Edit stop: Jan 01, 9:30 am UTC (changed)");
         assert_eq!(shown[3], "Edit notes: slept well (changed)");
     }
 
@@ -368,7 +368,7 @@ mod picker {
             notes: None,
         });
         let shown = lines(&meal, &["at", "foods", "reaction"], &[], STARTED);
-        assert_eq!(shown[1], "Edit time: Jan 01, 2025, 7:00 am UTC");
+        assert_eq!(shown[1], "Edit time: Jan 01, 7:00 am UTC");
         assert_eq!(shown[2], "Edit foods: pear, oats");
         assert_eq!(shown[3], "Edit reaction: not set");
     }

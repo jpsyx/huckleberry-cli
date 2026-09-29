@@ -128,6 +128,19 @@ pub fn date_time(at: f64, calendar: &Calendar) -> String {
     )
 }
 
+/// The same without the year, for lists a person is reading about this week:
+/// `Sep 27, 8:17 pm EDT`. The year is not what anybody is checking there.
+#[must_use]
+pub fn day_time(at: f64, calendar: &Calendar) -> String {
+    let zoned = calendar.zoned(at);
+    format!(
+        "{}, {} {}",
+        zoned.strftime("%b %d"),
+        clock(at, calendar),
+        zoned.strftime("%Z")
+    )
+}
+
 /// A day, short: `Mon 22 Sep`.
 #[must_use]
 pub fn day_short(day: Date) -> String {
