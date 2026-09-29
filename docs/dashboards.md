@@ -177,16 +177,21 @@ find last night's diaper is the same list whichever command they came to run.
 Ported from the listing view in this author's `jpsyx` CLI, which arrived at
 this shape over a dozen commands.
 
+An entry from the last five hours carries how long ago it was beside the clock
+time, because that is the question being asked of the top of the list; older
+rows show the time alone. The column is padded to its widest cell either way,
+so the kinds stay in one line down the screen.
+
 ```
 Auggie 40 entries
 
-  when      what     detail
+  when                  what     detail
 Sun 27 Sep
-› 11:00 pm  Sleep    slept 2h 30m
-  10:41 pm  Bottle   37 ml of Formula
-  10:32 pm  Diaper   pee · big
-  7:47 pm   Diaper   mixed · little pee · medium poop (brown, loose) · rash noted
-  5:21 pm   Pumping  59 ml (L 30, R 30)
+› 11:00 pm (12m ago)    Sleep    slept 2h 30m
+  10:41 pm (31m ago)    Bottle   37 ml of Formula
+  10:32 pm (40m ago)    Diaper   pee · big
+  7:47 pm (3h 25m ago)  Diaper   mixed · little pee · medium poop (brown, loose) · rash noted
+  5:21 pm               Pumping  59 ml (L 30, R 30)
 j/k or ↑/↓ move · / searches · enter opens one · q leaves
 ```
 

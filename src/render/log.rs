@@ -37,14 +37,35 @@ pub const COLUMNS: [Column; 3] = [
     Column::new("detail", Role::Value),
 ];
 
+/// How recent an entry has to be to carry how long ago it was.
+const RECENT: f64 = 5.0 * 3_600.0;
+
+/// The time a row leads with: the clock, and for a recent entry how long ago.
+///
+/// Five hours is the window in which "how long has it been?" is the question
+/// somebody is actually asking of a list. Past that the clock time is the
+/// answer, and the parenthesis is noise in every row.
+fn when(at: f64, now: f64, calendar: &Calendar) -> String {
+    let clock = format::clock(at, calendar);
+    let elapsed = now - at;
+    // A clock a little out of step with Huckleberry's can date an entry
+    // seconds ahead; `format_ago` reads that as "just now" rather than hiding it.
+    if !(-60.0..=RECENT).contains(&elapsed) {
+        return clock;
+    }
+    format!("{clock} ({})", crate::domain::time::format_ago(at, now))
+}
+
 /// The stream as rows of a listing, grouped by the day they happened on.
 ///
 /// `refusal` says which entries the command cannot act on, and why; a row it
-/// refuses is still listed, because the stream is the stream.
+/// refuses is still listed, because the stream is the stream. `now` decides
+/// which rows are recent enough to say how long ago they were.
 #[must_use]
 pub fn rows(
     entries: &[Entry],
     calendar: &Calendar,
+    now: f64,
     refusal: &dyn Fn(&Entry) -> Option<String>,
 ) -> Vec<Row> {
     entries
@@ -56,7 +77,7 @@ pub fn rows(
                     .as_ref()
                     .map_or_else(|| entry.id.clone(), edit::token_for),
                 [
-                    format::clock(entry.start, calendar),
+                    when(entry.start, now, calendar),
                     entry.title.clone(),
                     entry.description.clone(),
                 ],
@@ -263,7 +284,7 @@ mod tests {
         noted.notes = Some("a bit sore".to_owned());
         data.diapers = vec![noted];
         let entries = log::build(&data);
-        let rows = rows(&entries, &calendar(), &|_| None);
+        let rows = rows(&entries, &calendar(), AFTERNOON, &|_| None);
 
         assert_eq!(rows[0].key, "diaper/row-one", "the name `edit` knows it by");
         assert_eq!(rows[0].tone, Some(Tone::Diaper));
@@ -281,11 +302,64 @@ mod tests {
     }
 
     #[test]
+    fn a_recent_row_says_how_long_ago_it_was_beside_the_time() {
+        let mut data = dataset();
+        data.feeds = vec![bottle(AFTERNOON - 9_120.0, 90.0)];
+        let rows = rows(&log::build(&data), &calendar(), AFTERNOON, &|_| None);
+        assert_eq!(rows[0].cells[0], "11:28 am (2h 32m ago)");
+    }
+
+    #[test]
+    fn a_row_older_than_five_hours_is_left_with_the_time_alone() {
+        let mut data = dataset();
+        data.feeds = vec![
+            bottle(AFTERNOON - 5.0 * 3_600.0, 90.0),
+            bottle(AFTERNOON - 5.0 * 3_600.0 - 60.0, 90.0),
+        ];
+        let rows = rows(&log::build(&data), &calendar(), AFTERNOON, &|_| None);
+        assert_eq!(
+            rows[0].cells[0], "9:00 am (5h 0m ago)",
+            "five hours is recent"
+        );
+        assert_eq!(rows[1].cells[0], "8:59 am");
+    }
+
+    #[test]
+    fn a_kind_starts_in_the_same_column_whether_or_not_a_row_says_how_long_ago() {
+        use crate::listing::{layout, model};
+        let mut data = dataset();
+        data.feeds = vec![bottle(AFTERNOON - 9_120.0, 90.0)];
+        data.diapers = vec![diaper(AFTERNOON - 6.0 * 3_600.0, true, false)];
+        let rows = rows(&log::build(&data), &calendar(), AFTERNOON, &|_| None);
+        let filtered = model::filter(&rows, "");
+        let widths = layout::widths(&COLUMNS, &filtered, None);
+        let drawn = layout::body_lines(
+            &COLUMNS,
+            &model::grouped(&filtered),
+            &widths,
+            &str::to_owned,
+            &|_| false,
+        );
+        let plain: Vec<String> = drawn.iter().map(layout::Line::plain).collect();
+        let bottle_at = plain
+            .iter()
+            .find_map(|line| line.find("Bottle"))
+            .expect("the bottle row");
+        let diaper_at = plain
+            .iter()
+            .find_map(|line| line.find("Diaper"))
+            .expect("the diaper row");
+        assert_eq!(bottle_at, diaper_at, "{plain:?}");
+    }
+
+    #[test]
     fn a_row_the_command_cannot_act_on_is_listed_and_says_why() {
         let mut data = dataset();
         data.feeds = vec![bottle(AFTERNOON, 90.0)];
         let entries = log::build(&data);
-        let rows = rows(&entries, &calendar(), &|_| Some("not here".to_owned()));
+        let rows = rows(&entries, &calendar(), AFTERNOON, &|_| {
+            Some("not here".to_owned())
+        });
         assert!(!rows[0].selectable);
         assert_eq!(rows[0].refusal.as_deref(), Some("not here"));
     }

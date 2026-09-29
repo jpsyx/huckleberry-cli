@@ -256,7 +256,8 @@ fn choose(context: &Context, entries: &[Entry], calendar: &Calendar) -> Result<O
     if entries.is_empty() {
         bail!("nothing logged in this window: try a longer --days");
     }
-    let today = format::day_short(calendar.day_of(now_seconds()));
+    let now = now_seconds();
+    let today = format::day_short(calendar.day_of(now));
     // Anything that came from Huckleberry can be removed, because taking a row
     // away needs no knowledge of what is in it.
     let chosen = Listing::new(
@@ -264,7 +265,7 @@ fn choose(context: &Context, entries: &[Entry], calendar: &Calendar) -> Result<O
         "entries",
         &crate::render::log::COLUMNS,
     )
-    .rows(crate::render::log::rows(entries, calendar, &|entry| {
+    .rows(crate::render::log::rows(entries, calendar, now, &|entry| {
         entry
             .at
             .is_none()

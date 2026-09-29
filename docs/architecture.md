@@ -81,6 +81,10 @@ tests/
 | `render` / `dashboard` / `listing` | text, colour, widgets | the network, the clock |
 | `commands` | all of the above, and the outside world | arithmetic worth asserting |
 
+`render::log::rows` takes `now` for the same reason: a row from the last five
+hours says how long ago it was, and which rows those are is an argument rather
+than a reading of the clock, so the list is asserted in a test.
+
 `domain` takes `now` as an argument everywhere. That is the whole reason a
 sleep across midnight, a night window that spans midnight and a 23-hour day are
 testable rather than seasonal. Nothing in `domain` or `render` reads a clock, so

@@ -345,6 +345,11 @@ current sleep again to retry. Scripts must supply `--set start=<TIME>`.
 | `Enter` | edit this one |
 | `q`, `Esc`, `Ctrl-C` | leave, changing nothing |
 
+Every list built from the stream (`log`, `edit`, `delete`) shows the clock time
+of each entry, and for anything from the last five hours how long ago it was,
+as in `11:28 am (2h 32m ago)`. Older rows show the time alone. The column is
+padded to its widest cell, so the kinds stay aligned down the screen.
+
 `--set` takes the fields of whichever entry it is: `mode`, `pee`, `poo`,
 `color`, `consistency`, `rash` and `notes` on a diaper; `mode`, `how`, `color`,
 `consistency` and `notes` on a potty trip; `amount`, `type`, `units` and

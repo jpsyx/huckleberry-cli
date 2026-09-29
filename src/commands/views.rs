@@ -108,9 +108,10 @@ pub async fn log(
         .into_iter()
         .take(limit)
         .collect();
-    let today = format::day_short(calendar.day_of(now_seconds()));
+    let now = now_seconds();
+    let today = format::day_short(calendar.day_of(now));
     Listing::new(&dataset.child.name, "entries", &render::log::COLUMNS)
-        .rows(render::log::rows(&entries, &calendar, &|_| None))
+        .rows(render::log::rows(&entries, &calendar, now, &|_| None))
         .today(|heading| heading == today)
         .empty("nothing logged in this window")
         .query(search)

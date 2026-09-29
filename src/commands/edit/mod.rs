@@ -153,13 +153,14 @@ fn choose(context: &Context, entries: &[Entry], calendar: &Calendar) -> Result<O
     if entries.is_empty() {
         bail!("nothing logged in this window: try a longer --days");
     }
-    let today = format::day_short(calendar.day_of(now_seconds()));
+    let now = now_seconds();
+    let today = format::day_short(calendar.day_of(now));
     let chosen = Listing::new(
         "Change which entry?",
         "entries",
         &crate::render::log::COLUMNS,
     )
-    .rows(crate::render::log::rows(entries, calendar, &|entry| {
+    .rows(crate::render::log::rows(entries, calendar, now, &|entry| {
         (!editable(entry)).then(|| {
             format!(
                 "this {} has no stored location, so it cannot be changed",
@@ -224,7 +225,7 @@ mod tests {
             "a timer must not be addressed as history"
         );
         let calendar = Calendar::new("UTC").unwrap();
-        let rows = crate::render::log::rows(&[entry], &calendar, &|_| None);
+        let rows = crate::render::log::rows(&[entry], &calendar, 1600.0, &|_| None);
         assert_eq!(rows[0].key, "sleep/current");
         assert!(rows[0].selectable);
     }
