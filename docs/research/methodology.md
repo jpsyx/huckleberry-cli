@@ -170,6 +170,34 @@ own rules, and the rules lean one direction: toward saying less.
    figure outside a typical range is worth a second look and is not an
    emergency, and this tool is in no position to tell which it is.
 
+## Writing the reasons down, and three ways they go wrong
+
+A band carries a source. A *rule* carries an argument, and the argument is
+load-bearing in a way that is easy to miss: a future maintainer who checks a
+rule's stated reason, finds it false, and concludes the rule was founded on an
+error may well delete the rule. The rule's durability depends on its reasons
+being true. All three of the following were committed in this repository, in
+prose defending a decision that was itself correct.
+
+1. **Never write a universal negative you have not exhaustively checked.** "No
+   professional body publishes this" is expensive to establish and cheap to
+   refute: one counterexample ends it, and a reviewer will find one. Say what
+   you did check, and name it. If the decision does not depend on the negative,
+   do not make the claim at all.
+2. **Check that the reason reaches the conclusion.** An argument against one
+   shape of a claim does not support a prohibition on every shape of it.
+   Arguing that a *recommended* range is unsound says nothing about an
+   *observed* one, so a rule banning both is not established by it. Match the
+   scope of the argument to the scope of the rule, or narrow the rule.
+3. **Read the document against itself.** The contradiction that survived
+   longest here sat eight lines below the sentence that refuted it, in the same
+   file. Before publishing a review, grep your own numbers back through your
+   own prose.
+
+Prefer a reason that is independent of what anyone published: what would this
+number do to a reader whose child is fine? That argument cannot be refuted by a
+guideline turning up later, and it is usually the real reason anyway.
+
 ## The pediatrician outranks this file
 
 Everything here is general guidance about populations. A pediatrician has the

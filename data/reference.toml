@@ -8,17 +8,30 @@
 # Four rules govern every line of it:
 #
 #   1. There is NO band for milk volume, at any age, and there must never be
-#      one. The figure people reach for, 150 to 200 ml per kilogram per day, is
-#      not published as a range by any professional body for a term baby: the
-#      AAP gives a single point (75 ml per pound, which is 163), and the 200
-#      ceiling belongs to preterm protocols. Worse, measured intake in
-#      exclusively breastfed babies never reaches even the 150 floor at any age
-#      (WHO meta-analysis: 135 ml/kg/day at one month, 126 at three, 107 at
-#      six). A chart drawing that line would tell the parent of a thriving
-#      breastfed baby they were underfeeding, every day, for the whole first
-#      year. It is absent by construction rather than by a special case
-#      somebody could delete, and a test asserts no metric here mentions
-#      volume.
+#      one. The figure people reach for is 150 to 200 ml per kilogram per day.
+#      It does get published: Royal Children's Hospital Melbourne gives exactly
+#      that range for well children 0 to 3 months, ESPGHAN gives 135 to 200 for
+#      preterm infants, and the AAP's own term figure of 2 1/2 oz per pound
+#      sits inside it at 163 ml/kg/day. So the reason this band stays out is
+#      not that nobody publishes it. The reason is what it would do.
+#
+#      Measured intake in healthy exclusively breastfed term infants runs 135
+#      ml/kg/day at one month, 126 at three months and 107 at six
+#      (Rios-Leyvraz & Yao, Breastfeeding Medicine 2023;18(3):188, a
+#      meta-analysis of 167 studies). A chart drawing a floor of 150 would tell
+#      the parent of a thriving breastfed baby that they were underfeeding,
+#      every day, for most of the first year.
+#
+#      The sources also disagree at the one age where intake per kilogram peaks
+#      and the band would matter most: around one month it is variously 135,
+#      150 and 154 ml/kg/day depending on the study. By rule 4 below that
+#      disagreement is itself a reason not to draw the line.
+#
+#      And the number depends on something this tool cannot know. How much a
+#      baby needs differs between breast milk and formula, and a logged bottle
+#      may hold either. So the band is absent by construction rather than by a
+#      special case somebody could delete, and a test asserts that no metric
+#      here mentions volume.
 #
 #   2. Labels say what kind of claim they are making. "typical" describes what
 #      was observed in a population; "recommended" reports what a body advises.

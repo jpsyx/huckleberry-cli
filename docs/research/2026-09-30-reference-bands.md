@@ -239,24 +239,65 @@ at that age, which is a day with none at all.
 
 ## The milk volume omission
 
-The file's refusal to publish a milk-volume band was upheld, but the reasoning
-written down for it was wrong and has been rewritten.
+The file's refusal to publish a milk-volume band was upheld. Its stated
+reasoning was rewritten twice: once because the original was wrong, and then
+again because the replacement was wrong in a different way. Both rounds are
+recorded here, because a rule whose justification keeps collapsing is worth
+watching.
 
-The old text said 150 to 200 ml per kilogram per day "describes established
-feeding from roughly two weeks on, not the first week". Both halves fail.
-Intake reaches that band around day 4 to 5, not two weeks: measured intake rises
-from a mean of 13 g/kg on day 1 to 155 g/kg on day 5. The seven-day-old the
-comment invokes is comfortably *inside* the band, so that baby was the wrong
-example. "Roughly two weeks" is the birth-weight-regain milestone, borrowed from
-a different axis.
+**The original text** said 150 to 200 ml per kilogram per day "describes
+established feeding from roughly two weeks on, not the first week". Both halves
+fail. Intake reaches that band around day 4 to 5, not two weeks: measured intake
+rises from a mean of 13 g/kg on day 1 to 155 g/kg on day 5 (Casey et al., *Am J
+Dis Child* 1986, 11 full-term breastfed infants). The seven-day-old the comment
+invoked is comfortably *inside* the band, so that baby was the wrong example.
+"Roughly two weeks" is the birth-weight-regain milestone, borrowed from a
+different axis.
 
-The real argument is much stronger and is now the one in the file: **no
-professional body publishes 150 to 200 as a range for a term baby at all.** The
-AAP gives a single point, 75 ml per pound, which is 163. The 200 ceiling belongs
-to preterm protocols. And measured intake in exclusively breastfed babies never
-reaches even the 150 floor at any age, running 135 ml/kg/day at one month, 126
-at three and 107 at six. A chart drawing that line would tell the parent of a
-thriving breastfed baby they were underfeeding, every day, for a year.
+**The first replacement** argued that no professional body publishes 150 to 200
+as a range for a term baby, and that measured intake never reaches even 150 at
+any age. A verification pass broke both.
+
+- Royal Children's Hospital Melbourne's clinical practice guideline publishes
+  exactly that range, for "well children", 0 to 3 months. This file's own tier
+  table accepts a major academic children's hospital as able to support a claim
+  on its own, so the argument was refuted by the methodology it was written
+  under. ESPGHAN separately gives 135 to 200 for preterm infants, and the AAP's
+  own term figure sits *inside* 150 to 200 at 163 ml/kg/day, which makes it a
+  poor witness against the range.
+- "Never reaches 150 at any age" is false at the newborn end. The EPA's
+  Exposure Factors Handbook gives a mean of 150 ml/kg-day for birth to one
+  month with an upper percentile of 220. The Rios-Leyvraz meta-analysis, which
+  the claim rested on, has no data point before one month at all.
+- Worse, the claim contradicted this very document eight lines above it, which
+  already recorded the day-5 figure of 155 g/kg.
+- Two smaller errors: "75 ml per pound, which is 163" mixes two conversions
+  (75 ml/lb is 165; 163 is the conversion of the 2 1/2 oz in the same AAP
+  sentence), and the meta-analysis was attributed to the WHO. It is
+  Rios-Leyvraz & Yao, *Breastfeeding Medicine* 2023;18(3):188-197. The lead
+  author works at the WHO, which is presumably where that came from, but the
+  paper is not a WHO publication.
+
+**The structural lesson**, which is the part worth carrying forward: all of
+those reasons attacked a *requirement*-shaped band, while the rule they were
+attached to is absolute. An observed band was never addressed by any of them,
+and observed data exists. The argument proved less than it asserted.
+
+**The rule now rests on the two legs that survive**, both independent of
+whether anybody publishes the figure:
+
+1. It would do harm. Measured intake in healthy exclusively breastfed term
+   infants is 135 ml/kg/day at one month, 126 at three and 107 at six. A floor
+   of 150 would tell the parent of a thriving breastfed baby they were
+   underfeeding, every day, for most of the first year.
+2. The sources materially disagree at the age where intake per kilogram peaks:
+   135, 150 and 154 ml/kg/day at around one month depending on the study. Rule
+   4 of the file makes disagreement a reason to widen or remove, and there is
+   nothing to widen toward.
+
+To which the review adds a third the earlier drafts missed: the figure depends
+on whether a bottle holds expressed milk or formula, and this tool cannot know
+which.
 
 ## What was deliberately not done
 

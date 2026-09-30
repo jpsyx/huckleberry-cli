@@ -14,13 +14,16 @@
 //! for each.
 //!
 //! 1. **There is no band for milk volume, at any age.** The figure people
-//!    reach for, 150 to 200 ml per kilogram per day, is not published as a
-//!    range by any professional body for a term baby, and measured intake in
-//!    exclusively breastfed babies never reaches even its floor at any age. A
-//!    chart drawing that line would tell the parent of a thriving breastfed
-//!    baby they were underfeeding, every day, for a year. It is absent by
-//!    construction rather than by a special case somebody could delete, and a
-//!    test asserts no metric in the file mentions volume.
+//!    reach for, 150 to 200 ml per kilogram per day, does get published, so
+//!    the reason it stays out is not that nobody says it. The reason is what
+//!    it would do: measured intake in healthy exclusively breastfed term
+//!    infants runs 135 ml/kg/day at one month, 126 at three and 107 at six, so
+//!    a floor of 150 would tell the parent of a thriving breastfed baby they
+//!    were underfeeding, every day, for most of the first year. The sources
+//!    also disagree at the age where the figure peaks, and the number depends
+//!    on whether a bottle holds milk or formula, which this tool cannot know.
+//!    It is absent by construction rather than by a special case somebody
+//!    could delete, and a test asserts no metric in the file mentions volume.
 //!
 //! 2. **Labels say what kind of claim they make.** "typical" describes what
 //!    was observed; "recommended" reports what a body advises. The sleep bands
