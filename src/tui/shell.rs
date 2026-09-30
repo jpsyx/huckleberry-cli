@@ -30,7 +30,14 @@ use super::state::App;
 /// The widgets count up: "36m ago" becomes "37m ago" and a running sleep ticks
 /// whether or not anybody touches the keyboard, so the screen redraws on its
 /// own. Once a second is enough for a clock and cheap enough to be invisible.
-const TICK: Duration = Duration::from_secs(1);
+pub const TICK: Duration = Duration::from_secs(1);
+
+/// How long it waits while a command is running.
+///
+/// A command's question arrives between keystrokes rather than because of one,
+/// and a second between asking and appearing reads as the program having
+/// stopped. This is short enough to be invisible and long enough not to spin.
+pub const WORKING: Duration = Duration::from_millis(30);
 
 /// The terminal this shell draws on.
 type Screen = Terminal<CrosstermBackend<Stderr>>;
@@ -54,9 +61,19 @@ impl Shell {
 
     /// Draws one frame as of `at`, and returns how many rows the menu shows.
     pub fn draw(&mut self, app: &App, at: f64) -> Result<usize> {
+        self.draw_with(app, None, at)
+    }
+
+    /// Draws one frame, with a command running where the menu was.
+    pub fn draw_with(
+        &mut self,
+        app: &App,
+        job: Option<&super::job::Job>,
+        at: f64,
+    ) -> Result<usize> {
         let frame = self
             .screen
-            .draw(|frame| super::draw(frame, app, at))
+            .draw(|frame| super::draw::draw_with(frame, app, job, at))
             .context("drawing the menu")?;
         Ok(super::draw::viewport(frame.area, app))
     }
@@ -64,11 +81,16 @@ impl Shell {
     /// Waits a tick for a keystroke. Nothing (a timeout, a resize, anything
     /// else) means "draw again", which is what keeps the clocks moving.
     pub fn next_motion(&mut self) -> Result<Option<Motion>> {
-        if !crossterm::event::poll(TICK).context("waiting for a keystroke")? {
+        Ok(self.next_key(TICK)?.map(motion_for))
+    }
+
+    /// The same wait, with the key itself, for passing to a running command.
+    pub fn next_key(&mut self, wait: Duration) -> Result<Option<crossterm::event::KeyEvent>> {
+        if !crossterm::event::poll(wait).context("waiting for a keystroke")? {
             return Ok(None);
         }
         match crossterm::event::read().context("reading a keystroke")? {
-            crossterm::event::Event::Key(key) => Ok(Some(motion_for(key))),
+            crossterm::event::Event::Key(key) => Ok(Some(key)),
             _ => Ok(None),
         }
     }

@@ -14,6 +14,7 @@
 //! so this screen and every other one in the tool agree on what a heading
 //! looks like.
 
+pub mod flow;
 pub mod menu;
 pub mod now;
 
@@ -68,6 +69,11 @@ pub fn viewport(area: Rect, app: &App) -> usize {
 
 /// Draws the whole frame, as of `at`.
 pub fn draw(frame: &mut Frame, app: &App, at: f64) {
+    draw_with(frame, app, None, at);
+}
+
+/// Draws the whole frame, with a command running where the menu was.
+pub fn draw_with(frame: &mut Frame, app: &App, job: Option<&crate::tui::job::Job>, at: f64) {
     let areas = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -79,9 +85,12 @@ pub fn draw(frame: &mut Frame, app: &App, at: f64) {
 
     frame.render_widget(header(app, areas[0].width), areas[0]);
     let (rows, facts) = split(areas[1], app);
-    menu::draw(frame, rows, app);
+    match job {
+        Some(job) => flow::draw(frame, rows, job),
+        None => menu::draw(frame, rows, app),
+    }
     frame.render_widget(now::widget(&app.facts, at).block(block("Now")), facts);
-    frame.render_widget(footer(app), areas[2]);
+    frame.render_widget(footer(app, job.is_some()), areas[2]);
 }
 
 /// What the menu gets, and where the drawer sits under it.
@@ -122,6 +131,43 @@ fn header(app: &App, width: u16) -> Paragraph<'static> {
     ]))
 }
 
+/// A themed line of text as widgets.
+///
+/// The prompts and the listings paint with escape codes, because that is what
+/// stdout takes. Inside the shell those same lines are drawn as spans, so a
+/// hosted question keeps its colour without a second renderer existing to
+/// drift from the first.
+#[must_use]
+pub fn painted(line: &str) -> Line<'static> {
+    let mut spans: Vec<Span<'static>> = Vec::new();
+    let mut rest = line;
+    let mut role: Option<Tone> = None;
+    while let Some(escape) = rest.find('\u{1b}') {
+        if escape > 0 {
+            push(&mut spans, &rest[..escape], role);
+        }
+        let Some(end) = rest[escape..].find('m') else {
+            rest = "";
+            break;
+        };
+        // `\x1b[` is two characters, and the body runs to the `m`.
+        role = Tone::from_sgr(&rest[escape + 2..escape + end]);
+        rest = &rest[escape + end + 1..];
+    }
+    push(&mut spans, rest, role);
+    Line::from(spans)
+}
+
+fn push(spans: &mut Vec<Span<'static>>, text: &str, role: Option<Tone>) {
+    if text.is_empty() {
+        return;
+    }
+    spans.push(role.map_or_else(
+        || Span::raw(text.to_owned()),
+        |role| Span::styled(text.to_owned(), style(role)),
+    ));
+}
+
 /// A bordered block with a title, which every widget uses.
 fn block(title: &str) -> Block<'static> {
     Block::default()
@@ -138,7 +184,10 @@ fn block(title: &str) -> Block<'static> {
 /// A read in flight wins over a failure and a failure wins over a note,
 /// because they are in the order somebody needs them: what is happening now,
 /// what is wrong, and what just happened.
-fn footer(app: &App) -> Paragraph<'static> {
+/// The keys a command's own flow answers to, which are its own.
+const FLOW_HINTS: &str = "the command has the keys · ctrl-q quit";
+
+fn footer(app: &App, running: bool) -> Paragraph<'static> {
     let note = if app.facts.refreshing {
         Some(("reading…".to_owned(), Tone::Info))
     } else if let Some(trouble) = &app.facts.trouble {
@@ -154,7 +203,8 @@ fn footer(app: &App) -> Paragraph<'static> {
         )),
         None => spans.push(Span::raw(" ")),
     }
-    spans.push(Span::styled(HINTS, Style::default().fg(tone(Tone::Muted))));
+    let hints = if running { FLOW_HINTS } else { HINTS };
+    spans.push(Span::styled(hints, Style::default().fg(tone(Tone::Muted))));
     Paragraph::new(Line::from(spans))
 }
 
@@ -419,6 +469,83 @@ mod frames {
                 .flat_map(|row| (0..buffer.area.width).map(move |column| (column, row)))
                 .all(|cell| buffer[cell].fg != red),
             "a screen about a baby never delivers a verdict"
+        );
+    }
+
+    #[test]
+    fn a_themed_line_keeps_its_colour_when_it_is_drawn_as_widgets() {
+        let themed = crate::theme::Theme::dark(true);
+        let line = format!("{}  {}", themed.accent("Last fed"), themed.value("36m ago"));
+        let drawn = painted(&line);
+        let texts: Vec<&str> = drawn
+            .spans
+            .iter()
+            .map(|span| span.content.as_ref())
+            .collect();
+        assert_eq!(texts, ["Last fed", "  ", "36m ago"]);
+        assert_eq!(drawn.spans[0].style.fg, Some(tone(Tone::Accent)));
+        assert_eq!(drawn.spans[2].style.fg, Some(tone(Tone::Value)));
+    }
+
+    #[test]
+    fn a_line_with_no_colour_in_it_draws_as_one_plain_span() {
+        let drawn = painted("nothing logged");
+        assert_eq!(drawn.spans.len(), 1);
+        assert_eq!(drawn.spans[0].content.as_ref(), "nothing logged");
+        assert_eq!(drawn.spans[0].style.fg, None);
+    }
+
+    #[test]
+    fn a_bold_role_is_still_bold_once_it_is_a_widget() {
+        let themed = crate::theme::Theme::dark(true);
+        let drawn = painted(&themed.heading("Wren"));
+        assert!(
+            drawn.spans[0]
+                .style
+                .add_modifier
+                .contains(ratatui::style::Modifier::BOLD),
+            "the palette says this role is bold, so the widget is too"
+        );
+    }
+
+    #[test]
+    fn a_command_draws_where_the_menu_was_and_leaves_everything_else_alone() {
+        let app = loaded();
+        let job = crate::tui::job::Job::idle("Diaper", &["wet or dirty?".to_owned()]);
+        let mut terminal = Terminal::new(TestBackend::new(100, 30)).expect("a test terminal");
+        terminal
+            .draw(|frame| draw_with(frame, &app, Some(&job), AFTERNOON))
+            .expect("a frame");
+        let buffer = terminal.backend().buffer().clone();
+        let drawn = (0..buffer.area.height)
+            .map(|row| {
+                (0..buffer.area.width)
+                    .map(|column| buffer[(column, row)].symbol().to_owned())
+                    .collect::<String>()
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        assert!(
+            drawn.contains("Diaper"),
+            "the panel names the command: {drawn}"
+        );
+        assert!(drawn.contains("wet or dirty?"), "{drawn}");
+        assert!(
+            !drawn.contains("What would you like to do?"),
+            "the command is where the menu was: {drawn}"
+        );
+        assert!(
+            drawn.contains("Last fed") && drawn.contains(" Now "),
+            "and everything else on the screen stays: {drawn}"
+        );
+        assert!(
+            drawn.contains("Huckleberry · Bear"),
+            "including the header: {drawn}"
+        );
+        assert!(
+            drawn.contains("ctrl-q quit"),
+            "and the one key that always works: {drawn}"
         );
     }
 

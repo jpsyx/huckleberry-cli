@@ -31,6 +31,13 @@
   wording, same order.** `render::now::screen` is the one function that decides
   what either says. A request to change what the Now drawer shows is a request
   to change `h now`, and the other way round; never change one alone.
+- **A command never takes the screen away from the shell.** It runs in the
+  panel where the menu was, drawing its questions through
+  `src/prompt/host.rs` so there is one implementation of every prompt rather
+  than one for the terminal and one for the shell. Output goes through
+  `render::print` and `render::note`, which are the only two places this tool
+  writes, so a host can take them. `dash` is the single exception and is on its
+  way out.
 - **The family's day (`day_start`, `day_end`, `day_mode`) governs arithmetic,
   never timestamps.** Anything that aggregates uses it: `summary`, `trends`,
   `stripes`, the running totals. Anything that reports an individual entry uses

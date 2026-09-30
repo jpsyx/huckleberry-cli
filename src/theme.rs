@@ -67,6 +67,35 @@ pub enum Tone {
 }
 
 impl Tone {
+    /// Every role, so something reading a painted line back can find which
+    /// one painted it.
+    pub const ALL: [Self; 18] = [
+        Self::Heading,
+        Self::Accent,
+        Self::Value,
+        Self::Selected,
+        Self::Muted,
+        Self::Success,
+        Self::Warning,
+        Self::Error,
+        Self::Info,
+        Self::Prompt,
+        Self::Today,
+        Self::Good,
+        Self::Attention,
+        Self::Sleep,
+        Self::Feeding,
+        Self::Diaper,
+        Self::Pumping,
+        Self::Milestone,
+    ];
+
+    /// The role an SGR body came from, if one did.
+    #[must_use]
+    pub fn from_sgr(sgr: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|tone| tone.sgr() == sgr)
+    }
+
     /// The ANSI SGR body for this tone (for example `"96"`, bright cyan).
     #[must_use]
     pub const fn sgr(self) -> &'static str {

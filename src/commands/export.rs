@@ -16,7 +16,7 @@ pub async fn run(context: &Context, days: Option<u32>, out: Option<&Path>) -> Re
     let text = crate::dataset::render_snapshot(&dataset)?;
 
     match out.filter(|path| path.as_os_str() != "-") {
-        None => println!("{text}"),
+        None => crate::render::print(std::slice::from_ref(&text)),
         Some(path) => {
             crate::dataset::write_snapshot(path, &dataset)?;
             context.receipt(

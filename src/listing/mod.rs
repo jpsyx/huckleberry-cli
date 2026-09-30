@@ -150,13 +150,18 @@ impl<'a> Listing<'a> {
             .map(|(label, _)| label.chars().count())
             .max()
             .unwrap_or(0);
-        for (label, value) in &row.detail {
-            println!(
-                "{}  {}",
-                theme.accent(&format!("{label:<width$}")),
-                theme.value(value)
-            );
-        }
+        crate::render::print(
+            &row.detail
+                .iter()
+                .map(|(label, value)| {
+                    format!(
+                        "{}  {}",
+                        theme.accent(&format!("{label:<width$}")),
+                        theme.value(value)
+                    )
+                })
+                .collect::<Vec<_>>(),
+        );
         Ok(())
     }
 
@@ -170,19 +175,64 @@ impl<'a> Listing<'a> {
     /// The listing, one way or the other.
     fn open(&self, theme: Theme, choosing: bool) -> Result<Option<String>> {
         if self.rows.is_empty() {
-            eprintln!("{}", theme.muted(&self.empty));
+            crate::render::note(&theme.muted(&self.empty));
             return Ok(None);
         }
+        if crate::prompt::host::hosted() {
+            return self.hosted(theme, choosing);
+        }
         if !browsable() {
-            for line in self.lines(theme, None) {
-                println!("{line}");
-            }
+            crate::render::print(&self.lines(theme, None));
             return Ok(None);
         }
         let mut terminal = ratatui::init();
         let chosen = self.browse(&mut terminal, choosing);
         ratatui::restore();
         chosen
+    }
+
+    /// The same listing, drawn by whatever is hosting the screen.
+    ///
+    /// The same filter, the same state and the same layout: only the drawing
+    /// and the keyboard come from somewhere else.
+    fn hosted(&self, theme: Theme, choosing: bool) -> Result<Option<String>> {
+        let mut state = State::new(self.query.clone());
+        loop {
+            let (width, panel) = crate::prompt::host::size();
+            let number_width = self.rows.len().to_string().len() + 2;
+            let (head, mut body) = self.frame(
+                &state.query,
+                state.searching,
+                Some(usize::from(width).saturating_sub(number_width)),
+            );
+            layout::number_rows(&mut body);
+            let filtered = model::filter(&self.rows, &state.query);
+            let height = usize::from(panel).saturating_sub(head.len() + 1).max(1);
+            state.cursor = state.cursor.min(filtered.len().saturating_sub(1));
+            let line = body.iter().position(|line| line.row == Some(state.cursor));
+            state.top = state::scrolled(state.top, line.unwrap_or(0), height, body.len());
+
+            let key = crate::prompt::host::frame(rendered(
+                &head, &body, &state, self.verb, height, theme,
+            ))?;
+            if key.kind != KeyEventKind::Press {
+                continue;
+            }
+            match state::apply(&mut state, state::key_for(key), filtered.len(), height / 2) {
+                Flow::Stay => {}
+                Flow::Quit => return Ok(None),
+                Flow::Choose => {
+                    let Some(row) = filtered.get(state.cursor) else {
+                        continue;
+                    };
+                    if choosing && !row.selectable {
+                        state.trouble.clone_from(&row.refusal);
+                        continue;
+                    }
+                    return Ok(Some(row.key.clone()));
+                }
+            }
+        }
     }
 
     /// The head lines and the body lines for one pass.
@@ -324,6 +374,43 @@ fn draw(frame: &mut Frame, head: &[Line], body: &[Line], state: &State, verb: &'
         |trouble| Span::styled(trouble.clone(), Style::default().fg(tone(Tone::Attention))),
     );
     frame.render_widget(Paragraph::new(TextLine::from(foot)), areas[2]);
+}
+
+/// One pass of a hosted listing, as lines of text.
+///
+/// The same window, the same cursor and the same foot as the browsable
+/// version draws, painted rather than turned into widgets.
+fn rendered(
+    head: &[Line],
+    body: &[Line],
+    state: &State,
+    verb: &'static str,
+    height: usize,
+    theme: Theme,
+) -> Vec<String> {
+    let mut lines: Vec<String> = head.iter().map(|line| line.painted(theme)).collect();
+    let top = state.top.min(body.len());
+    let end = (top + height).min(body.len());
+    for line in &body[top..end] {
+        lines.push(if line.row == Some(state.cursor) {
+            // The row under the cursor is the brightest thing on the screen,
+            // as today is everywhere else in this tool.
+            theme.paint(
+                Tone::Today,
+                &line
+                    .plain()
+                    .strip_prefix(GUTTER)
+                    .map_or_else(|| line.plain(), |rest| format!("{MARKER}{rest}")),
+            )
+        } else {
+            line.painted(theme)
+        });
+    }
+    lines.push(state.trouble.as_ref().map_or_else(
+        || theme.muted(state::hint(state.searching, verb)),
+        |trouble| theme.paint(Tone::Attention, trouble),
+    ));
+    lines
 }
 
 /// A line as ratatui spans.

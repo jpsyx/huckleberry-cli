@@ -180,24 +180,59 @@ A chevron (`›`) marks a row that opens another menu, so nothing is a surprise.
 The numbers are right-aligned as a column, so every label starts in the same
 place whether its row is 9 or 10.
 
-## How it runs a command, and why that is temporary
+## How it runs a command
 
-Choosing a command **suspends** the full screen: the shell leaves the alternate
-screen, the existing handler asks its questions and prints its receipt exactly
-as it does from the command line, and the shell comes back afterwards.
+### 17. The shell is the container. A command happens inside it
 
-That is deliberate scaffolding. It means the shell shipped with every command
-already working and every prompt already tested, instead of waiting for a panel
-to be written for each one. Panels replace those one at a time, and nothing has
-to wait for them.
+**Choosing a row never takes the screen away.** The Menu view becomes the
+command's questions, its receipt and its failures; the header, the Now drawer
+and the keys stay exactly where they were. The shell is not something you leave
+to do a thing and come back to. It is where the thing happens.
 
-Two consequences worth knowing:
+That matters because of what the other panels are for. The reason to keep the
+facts on the screen is to be able to look at them *while* answering a question:
+how long since the last feed is part of deciding what to log next, and a screen
+that hides it the moment you start logging has hidden it exactly when it was
+wanted.
 
-- Commands print where a person can scroll back to them, and the "Continue"
-  pause is what holds a receipt or a failure on screen until it has been read.
-- The shell draws on **stderr**, not stdout, so `h > entries.txt` still fills
-  the file with what the commands printed. The menu is the conversation; the
-  commands are the data.
+A command runs on its own task and the loop keeps drawing the whole time, so
+the clocks tick and the widgets refresh while a question is on the screen.
+
+### 18. There is one implementation of every question
+
+The questions in the panel are the same questions the command line asks. Not
+a second set written for the shell: literally the same code, drawing through
+whatever owns the screen.
+
+Every interactive loop in this tool is the same shape: draw some lines, wait
+for a key, decide, repeat. `src/prompt/host.rs` lets something else do the
+drawing and the waiting. When the shell installs itself as the host, the menus,
+the text fields and the browsable listings hand their lines over and get keys
+back; when nothing is hosting, they own the terminal as before.
+
+So a prompt improved for the command line is improved in the shell, and a
+question can never word itself one way in one place and another way in the
+other. It is the same rule as the Now drawer, applied to input instead of
+output.
+
+### The one exception
+
+`dash` still takes the screen. It is a second full-screen program rather than a
+command with questions, and a terminal has one alternate screen to give. The
+shell steps aside for it and takes the screen back when it ends.
+
+That is on its way out rather than settled: the shell already shows what the
+dashboard's first tab does, and the rest of its tabs are commands that run in
+the panel like any other.
+
+### Where the output goes
+
+The shell draws on **stderr**, not stdout, so `h > entries.txt` still fills the
+file with what the commands printed when they are run from the command line.
+Inside the shell there is no stdout to write to that would not scribble across
+the panels, so `render::print` and `render::note` hand their lines to the host
+instead. Those two functions are the only places this tool writes output, which
+is what makes that one change rather than fifty.
 
 ## The widgets
 
@@ -266,11 +301,12 @@ both follow. If the two ever have to differ, that is a decision for
 
 ## Where this is going
 
-1. More widgets in the sidebar, added one at a time and each answering a
-   question somebody would otherwise navigate to ask.
-2. Widgets for the commands that are asked most, so the common ones stop
-   suspending the screen at all.
-3. Search and history in the shell rather than through the suspended listing.
+1. More widgets, added one at a time and each answering a question somebody
+   would otherwise navigate to ask.
+2. Absorbing `dash`, which is the last thing that takes the screen and is
+   mostly things the shell already shows.
+3. Panels that are better than a hosted prompt for the flows asked most: a
+   diaper is four questions in a row where it could be one screen.
 
 ## Known rough edge
 

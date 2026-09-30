@@ -65,7 +65,7 @@ pub fn help(theme: Theme) -> Result<()> {
         .collect::<Vec<_>>();
     let index = choose("Help for which command?", &labels, 0, theme)?;
     if let Some(mut metadata) = catalog::metadata(&paths[index]) {
-        eprintln!("{}", metadata.render_long_help());
+        crate::render::note(&metadata.render_long_help().to_string());
     }
     pause(theme)
 }

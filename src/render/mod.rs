@@ -24,8 +24,27 @@ pub mod summary;
 pub mod trends;
 
 /// Writes lines to stdout, which is where data goes.
+///
+/// Or to whatever is hosting the screen, when something is: inside the shell
+/// there is no stdout to write to that would not scribble across the panels.
 pub fn print(lines: &[String]) {
+    if crate::prompt::host::hosted() {
+        crate::prompt::host::show(lines.to_vec());
+        return;
+    }
     for line in lines {
         println!("{line}");
     }
+}
+
+/// Writes one line of conversation to stderr, or to the host.
+///
+/// Everything this tool says about what it is doing goes through here, so
+/// there is one place for a host to take it from.
+pub fn note(line: &str) {
+    if crate::prompt::host::hosted() {
+        crate::prompt::host::show_line(line);
+        return;
+    }
+    eprintln!("{line}");
 }

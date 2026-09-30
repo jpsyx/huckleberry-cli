@@ -760,3 +760,46 @@ rule. If it lists what happened, it uses the calendar.
 **Revisit when.** Never for the principle. A screen that does both at once
 would need its two halves labelled, which is a presentation problem rather than
 a reason to change which day is which.
+
+## A command runs inside the shell, not instead of it
+
+**Decision.** Choosing a row never takes the screen away. The Menu view becomes
+the command's questions, its output and its failures, and the header, the Now
+drawer and the keys stay where they are. `dash` is the one exception.
+
+**Why.** The reason to keep the facts on the screen is to be able to look at
+them *while* answering a question. How long since the last feed is part of
+deciding what to log next, and a screen that hid it the moment somebody started
+logging hid it exactly when it was wanted. Suspending also looked like leaving
+the program, which is the opposite of what an always-on app should feel like.
+
+**How, without two of everything.** Every interactive loop here is the same
+shape: draw some lines, wait for a key, decide, repeat. `prompt::host` lets
+something else do the drawing and the waiting, so the menus, the text fields and
+the browsable listings are the same code in both places. The alternative was a
+panel written per flow, which would have meant two vocabularies for every
+question and two places to fix every bug. This is the same rule as the Now
+drawer, applied to input instead of output.
+
+Output needed the same treatment, and was already nearly there: `render::print`
+and `render::note` are the only two places this tool writes, so taking them was
+one change rather than fifty. Everything that printed directly was moved onto
+them.
+
+**Consequences.** The command runs on a task and blocks on a channel while a
+question is up, so the loop must always answer: output is acknowledged at once
+and a frame is answered by the next keystroke. The loop polls every 30ms while
+a command is running rather than every second, because a question that arrives
+between keystrokes should not wait a second to appear.
+
+`Ctrl-Q` is read before anything reaches a command, so no question can trap
+somebody. Every other key belongs to the flow while one is running, and the
+footer says so.
+
+The prompts lay themselves out to the panel rather than the terminal, through
+`host::size`, so a table drawn in a panel fits the panel.
+
+**Revisit when.** A flow is common enough to deserve better than a stack of
+hosted questions. A diaper is four questions in a row where it could be one
+screen, and that is a panel worth writing; it would be an addition to this
+design rather than a change of it.

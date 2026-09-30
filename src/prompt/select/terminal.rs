@@ -10,16 +10,36 @@ use std::io::{Write, stderr};
 
 /// Chooses a numbered entry; no value is returned on cancellation.
 pub fn choose(label: &str, items: &[MenuItem], default: usize, theme: Theme) -> Result<usize> {
-    if !crate::prompt::available() {
-        bail!("interactive selection needs terminal input and stderr");
-    }
     if items.is_empty() {
         bail!("there are no choices available");
+    }
+    if crate::prompt::host::hosted() {
+        return hosted(label, items, default, theme);
+    }
+    if !crate::prompt::available() {
+        bail!("interactive selection needs terminal input and stderr");
     }
     let mut guard = TerminalGuard::enter()?;
     let result = collect(label, items, default, theme);
     guard.restore()?;
     result
+}
+
+/// The same menu, drawn by whatever is hosting the screen.
+///
+/// The same state and the same renderer: only who owns the terminal differs.
+fn hosted(label: &str, items: &[MenuItem], default: usize, theme: Theme) -> Result<usize> {
+    let mut state = Selection::new(items.len(), default);
+    let (width, height) = crate::prompt::host::size();
+    loop {
+        let lines = render(label, items, &state, width, height, theme);
+        let key = crate::prompt::host::frame(lines)?;
+        match state.apply(key, items.len(), usize::from(height).saturating_sub(2)) {
+            SelectionAction::Stay => {}
+            SelectionAction::Submit(index) => return Ok(index),
+            SelectionAction::Cancel => return Err(Cancelled.into()),
+        }
+    }
 }
 
 fn collect(label: &str, items: &[MenuItem], default: usize, theme: Theme) -> Result<usize> {

@@ -11,12 +11,87 @@ use std::io::{Write, stderr};
 
 /// Reads one line, preserving the question's default as an Enter action.
 pub(super) fn read(question: &Question<'_>, theme: Theme, secret: bool) -> Result<String> {
+    if crate::prompt::host::hosted() {
+        return hosted(question, theme, secret);
+    }
     let mut guard = TerminalGuard::enter()?;
     let result = collect(question, theme, secret);
     let restored = guard.restore();
     eprintln!();
     restored?;
     result
+}
+
+/// The same reader, drawn by whatever is hosting the screen.
+fn hosted(question: &Question<'_>, theme: Theme, secret: bool) -> Result<String> {
+    let mut typed = String::new();
+    loop {
+        let mut lines = vec![theme.prompt(question.label)];
+        if let Some(help) = question.help {
+            lines.push(theme.muted(help));
+        }
+        lines.push(theme.value(&typed_line(question, &typed, secret)));
+        let key = crate::prompt::host::frame(lines)?;
+        match typing(key, &mut typed) {
+            Typing::Stay => {}
+            Typing::Done => return Ok(typed),
+            Typing::Cancel => return Err(Cancelled.into()),
+        }
+    }
+}
+
+/// What the prompt line reads while somebody types into it.
+fn typed_line(question: &Question<'_>, typed: &str, secret: bool) -> String {
+    let prefix = question
+        .default
+        .filter(|_| !secret)
+        .map_or_else(|| "> ".into(), |default| format!("[{default}] > "));
+    let visible = if secret {
+        "*".repeat(typed.chars().count())
+    } else {
+        typed.to_owned()
+    };
+    format!("{prefix}{visible}")
+}
+
+/// What one key does to what has been typed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Typing {
+    /// Redraw and wait.
+    Stay,
+    /// Take what is there.
+    Done,
+    /// Abandon the answer.
+    Cancel,
+}
+
+fn typing(key: crossterm::event::KeyEvent, typed: &mut String) -> Typing {
+    if key.kind != KeyEventKind::Press {
+        return Typing::Stay;
+    }
+    if key.modifiers.contains(KeyModifiers::CONTROL) {
+        return match key.code {
+            KeyCode::Char('c' | 'd') => Typing::Cancel,
+            KeyCode::Char('u') => {
+                typed.clear();
+                Typing::Stay
+            }
+            _ => Typing::Stay,
+        };
+    }
+    match key.code {
+        KeyCode::Enter => Typing::Done,
+        KeyCode::Esc => Typing::Cancel,
+        KeyCode::Backspace => {
+            typed.pop();
+            Typing::Stay
+        }
+        KeyCode::Char(character) => {
+            typed.push(character);
+            Typing::Stay
+        }
+        _ => Typing::Stay,
+    }
 }
 
 fn collect(question: &Question<'_>, theme: Theme, secret: bool) -> Result<String> {

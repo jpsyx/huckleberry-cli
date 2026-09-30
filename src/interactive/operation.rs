@@ -37,7 +37,7 @@ async fn run_view(draft: &CommandDraft, globals: &SessionOptions, theme: Theme) 
             Ok(_) => {}
             Err(error) if prompt::is_cancelled(&error) => return Ok(false),
             Err(error) => {
-                eprintln!("{}", theme.error_line("error:", &format!("{error:#}")));
+                crate::render::note(&theme.error_line("error:", &format!("{error:#}")));
                 labels.push("Retry".into());
             }
         }
@@ -84,7 +84,7 @@ const fn is_read_view(command: &Command) -> bool {
 
 async fn execute(draft: &CommandDraft, globals: &SessionOptions, theme: Theme) -> Result<bool> {
     if draft.is_unchanged_edit() {
-        eprintln!("The entry is unchanged.");
+        crate::render::note("The entry is unchanged.");
         pause(theme)?;
         return Ok(true);
     }
