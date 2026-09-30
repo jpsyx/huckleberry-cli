@@ -13,7 +13,8 @@ hand to type. Just run `h` and then navigate the interactive menu
 with up/down arrows and press Enter to make your selections.
 
 **Huge** props goes to [Woyken](https://github.com/Woyken) for having built the [py-huckleberry-api](https://github.com/Woyken/py-huckleberry-api)
-in the first place (see [Credit](#credit)). This repo is a direct port of his repo into Rust. All ported API code is in `crates/huckleberry-api`. This CLI is a wrapper around the Rust API.
+in the first place (see [Credit](#credit)). This repo is a direct port of his repo into Rust. All ported API code is in `crates/huckleberry-api`.
+The CLI is a wrapper around the ported Rust API.
 
 _**Ugh, did you vibe code this entire CLI?**_
 
