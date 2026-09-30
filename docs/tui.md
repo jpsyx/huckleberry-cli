@@ -147,6 +147,7 @@ widget beside it, and **widget** and **panel** mean the same thing.
 │ Last fed       36m ago · 73 ml of Formula · 8:03 pm                    │
 │ Diaper         1h 31m ago · wet · 7:09 pm                              │
 │ Sleep          currently sleeping for 40m                              │
+│                (previous sleep finished 2h 10m ago for 1h 20m)         │
 │ Tonight        nothing finished yet                                    │
 │ Last 3h        73 ml · 1 feed                                          │
 │ Fed today      430 ml · 6 feeds · since 6:00 am                        │
@@ -241,6 +242,13 @@ question can never word itself one way in one place and another way in the
 other. It is the same rule as the Now drawer, applied to input instead of
 output.
 
+### The dashboard drops its Now tab in here
+
+The shell's Now drawer is already on the screen above it, so the dashboard's
+own Now tab would be the same facts twice with one of them wasted. Inside the
+panel it opens on Sleep, and its tabs are `1 Sleep`, `2 Feeding`, `3 Diapers`,
+`4 Log`. Run on its own, `h dash` still has all five.
+
 ### There are no exceptions
 
 The dashboard used to be one: a second full-screen program that the shell
@@ -334,8 +342,8 @@ both follow. If the two ever have to differ, that is a decision for
    would otherwise navigate to ask.
 2. Panels that are better than a hosted prompt for the flows asked most: a
    diaper is four questions in a row where it could be one screen.
-3. The dashboard's Now tab and the Now drawer say the same things twice while
-   the dashboard is open. One of them should give way to the other.
+3. Widgets beside the drawer rather than only under it, once there are enough
+   of them to need the room.
 
 ## One key map, everywhere
 
