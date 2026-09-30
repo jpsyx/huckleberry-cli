@@ -112,7 +112,14 @@ pub fn draw_with(frame: &mut Frame, app: &App, job: Option<&crate::tui::job::Job
 /// way round: the menu is the part being operated, and a drawer short of its
 /// last line is still readable where a menu with no rows is not.
 fn split(body: Rect, app: &App) -> (Rect, Rect) {
-    let room = body.height.saturating_sub(MENU_FLOOR);
+    let room = body
+        .height
+        .saturating_sub(MENU_FLOOR)
+        // The Menu view is always the largest panel, so the drawer never takes
+        // half. Left uncapped it creeps: every fact added to `now` is a row
+        // taken off the menu, until one day the thing being operated is the
+        // smaller of the two.
+        .min(body.height.saturating_sub(1) / 2);
     let areas = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -315,7 +322,7 @@ mod frames {
         .into_iter()
         .map(|row| row.into_iter().map(|piece| piece.text).collect::<String>())
         .collect();
-        let drawn = screen(&app, 100, 30);
+        let drawn = screen(&app, 100, 36);
         for line in printed.iter().filter(|line| !line.trim().is_empty()) {
             assert!(
                 drawn.contains(line.trim_end()),
@@ -390,13 +397,13 @@ mod frames {
         data.fetched_at = AFTERNOON - 600.0;
         let mut app = App::new();
         app.facts.replace(data, calendar(), Units::Ml, rule());
-        assert!(screen(&app, 100, 30).contains("as of 10m ago"));
+        assert!(screen(&app, 100, 36).contains("as of 10m ago"));
     }
 
     #[test]
     fn the_night_a_stretch_belongs_to_is_named_rather_than_left_ambiguous() {
         let drawn = screen(&loaded(), 100, 30);
-        assert!(drawn.contains("Night of"), "{drawn}");
+        assert!(drawn.contains("Last night's sleep"), "{drawn}");
         assert!(
             !drawn.contains("Tonight"),
             "an ambiguous label is the bug: {drawn}"

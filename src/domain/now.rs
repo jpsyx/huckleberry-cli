@@ -7,7 +7,7 @@
 
 use super::time::Calendar;
 use super::today::{self, DayRule, Totals, Window};
-use super::types::{Dataset, FeedEvent};
+use super::types::{Dataset, FeedEvent, SleepEvent};
 
 /// How far back "recently" reaches on the 3am screen.
 ///
@@ -157,6 +157,17 @@ pub struct NowView {
     pub nursing_now: Option<NursingNow>,
     /// What has gone in over the last [`RECENT_HOURS`].
     pub recent: Totals,
+    /// When each milk feed in that window began, most recent first.
+    ///
+    /// The totals say how much and how many; these say when, which is the
+    /// question a parent asks next and the one a single number cannot answer.
+    pub recent_feed_starts: Vec<f64>,
+    /// When each sleep in that window ended, most recent first.
+    ///
+    /// Ends rather than starts, because "slept an hour ago" is about when the
+    /// baby woke. A sleep still running has not ended and is not here: the
+    /// sleep line above already says it is happening.
+    pub recent_sleep_ends: Vec<f64>,
     /// What today amounts to, today meaning whatever this family counts.
     pub today: Totals,
     /// Which window that was, so a label never has to guess what it means.
@@ -228,6 +239,8 @@ pub fn build(dataset: &Dataset, calendar: &Calendar, rule: DayRule, now: f64) ->
     let today_window = rule.window(calendar, now);
     NowView {
         recent: today::totals(dataset, now - RECENT_HOURS * 3600.0, now),
+        recent_feed_starts: feeds_begun_between(dataset, now - RECENT_HOURS * 3600.0, now),
+        recent_sleep_ends: sleeps_ended_between(dataset, now - RECENT_HOURS * 3600.0, now),
         today: today::totals(dataset, today_window.start, today_window.end),
         today_window,
         last_feed,
@@ -263,6 +276,47 @@ fn nursing_now(dataset: &Dataset, now: f64) -> Option<NursingNow> {
 /// produce a feed that happened in the future.
 fn since(then: f64, now: f64) -> f64 {
     (now - then).max(0.0)
+}
+
+/// When each milk feed between two instants began, most recent first.
+///
+/// Solids are left out, so this list and the feed count beside it always
+/// describe the same events.
+fn feeds_begun_between(dataset: &Dataset, from: f64, to: f64) -> Vec<f64> {
+    newest_first(
+        dataset
+            .feeds
+            .iter()
+            .filter(|feed| !matches!(feed, FeedEvent::Solids { .. }))
+            .map(FeedEvent::start)
+            .filter(|start| *start >= from && *start <= to)
+            .collect(),
+    )
+}
+
+/// When each finished sleep between two instants ended, most recent first.
+///
+/// A sleep still running has no end to measure from, and the sleep line says
+/// it is happening, so it is not here.
+fn sleeps_ended_between(dataset: &Dataset, from: f64, to: f64) -> Vec<f64> {
+    newest_first(
+        dataset
+            .sleep
+            .iter()
+            .map(SleepEvent::end)
+            .filter(|end| *end > from && *end <= to)
+            .collect(),
+    )
+}
+
+/// Newest first, which is the order somebody reads these out in.
+fn newest_first(mut instants: Vec<f64>) -> Vec<f64> {
+    instants.sort_by(|left, right| {
+        right
+            .partial_cmp(left)
+            .unwrap_or(core::cmp::Ordering::Equal)
+    });
+    instants
 }
 
 #[cfg(test)]
@@ -393,6 +447,52 @@ mod facts {
         assert!(!view.longest_stretch.tonight);
         assert_eq!(view.longest_stretch.night_of.to_string(), "2025-09-21");
         assert_eq!(view.longest_stretch.seconds, Some(10_800.0));
+    }
+
+    /// Most recent first, because that is the order they are read out.
+    #[test]
+    fn the_recent_window_lists_when_each_feed_began() {
+        let mut data = dataset();
+        data.feeds = vec![
+            bottle(AFTERNOON - 8_220.0, 30.0),
+            bottle(AFTERNOON - 2_520.0, 30.0),
+            // Older than the window, so it is counted by neither.
+            bottle(AFTERNOON - 20_000.0, 30.0),
+        ];
+        let view = build(&data, &calendar(), DayRule::assumed(), AFTERNOON);
+        assert_eq!(
+            view.recent_feed_starts,
+            vec![AFTERNOON - 2_520.0, AFTERNOON - 8_220.0]
+        );
+        assert_eq!(view.recent.milk_feeds, 2, "the list and the count agree");
+    }
+
+    #[test]
+    fn the_recent_window_lists_when_each_sleep_ended() {
+        let mut data = dataset();
+        data.sleep = vec![
+            sleep(AFTERNOON - 10_020.0, 1_800.0),
+            sleep(AFTERNOON - 4_320.0, 1_800.0),
+            // Ended before the window opened.
+            sleep(AFTERNOON - 30_000.0, 1_800.0),
+        ];
+        let view = build(&data, &calendar(), DayRule::assumed(), AFTERNOON);
+        assert_eq!(
+            view.recent_sleep_ends,
+            vec![AFTERNOON - 2_520.0, AFTERNOON - 8_220.0]
+        );
+    }
+
+    /// A sleep in progress has no end to measure from, and the line above
+    /// already says the baby is asleep.
+    #[test]
+    fn a_running_sleep_is_not_in_the_recent_list() {
+        let mut data = dataset();
+        data.sleep = vec![sleep(AFTERNOON - 4_320.0, 1_800.0)];
+        data.live.sleep_active = true;
+        data.live.sleep_start = Some(AFTERNOON - 600.0);
+        let view = build(&data, &calendar(), DayRule::assumed(), AFTERNOON);
+        assert_eq!(view.recent_sleep_ends, vec![AFTERNOON - 2_520.0]);
     }
 
     #[test]

@@ -144,14 +144,16 @@ widget beside it, and **widget** and **panel** mean the same thing.
 ┌ Now ───────────────────────────────────────────────────────────────────┐
 │ Wren                                                                   │
 │                                                                        │
-│ Last fed           36m ago · 73 ml of Formula · 8:03 pm                │
-│ Diaper             1h 31m ago · wet · 7:09 pm                          │
-│ Sleep              currently sleeping for 40m                          │
-│                    (previous sleep finished 2h ago · slept for 1h 20m) │
-│ Tonight            nothing finished yet                                │
-│ Fed in last 4h     73 ml · 1 feed                                      │
-│ Total fed today    430 ml · 6 feeds · since 6:00 am                    │
-│ Total slept today  11h 18m                                             │
+│ Last fed            36m ago · 73 ml of Formula · 8:03 pm               │
+│ Diaper              1h 31m ago · wet · 7:09 pm                         │
+│ Sleep               currently sleeping for 40m                         │
+│                     (previous sleep finished 2h ago · slept for 1h 20m)│
+│ Tonight             nothing finished yet                               │
+│ Fed in last 4h      146 ml · 2 feeds                                   │
+│                     fed 36m ago and 3h 4m ago                          │
+│ Total fed today     430 ml · 6 feeds · since 6:00 am                   │
+│ Slept in last 4h    1h 20m · 1 sleep 2h 10m ago                        │
+│ Total slept today   11h 18m                                            │
 │                                                                        │
 │ as of 2m ago                                                           │
 └────────────────────────────────────────────────────────────────────────┘
@@ -278,6 +280,14 @@ answering one question, around the thing you actually operate. That is a reason
 to add widgets carefully rather than a licence to fill the screen. A widget
 earns its place by answering a question somebody would otherwise navigate to
 ask. The Menu view is always the largest panel and always present.
+
+**"Largest" is enforced, not hoped for.** `split` caps the drawer at half the
+body, so the menu is always the taller of the two. Left uncapped it creeps:
+every fact added to `h now` is a row taken off the menu, and because the drawer
+mirrors that command by rule 16, the menu can be squeezed by a change made
+somewhere else entirely. On a terminal too short for both, the drawer loses its
+last lines rather than the menu losing rows, because a drawer short of its last
+line is still readable where a menu with no rows is not.
 
 ### 12. A widget is only as tall as it has something to say
 

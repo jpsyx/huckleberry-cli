@@ -61,16 +61,7 @@ pub fn screen(
         ));
     }
 
-    // The running totals come after the four facts, because they answer the
-    // second question rather than the first: not "when did she last eat" but
-    // "has she had enough".
-    rows.push(fact(
-        &format!("Fed in last {}h", RECENT_HOURS as i64),
-        &intake(&view.recent, units),
-    ));
-    let (fed, slept_label) = total_labels(view);
-    rows.push(fact(fed, &today_intake_line(view, units)));
-    rows.push(fact(slept_label, &slept(&view.today)));
+    rows.extend(totals_rows(view, units, now));
 
     rows.push(Row::new());
     rows.push(vec![Piece::new(as_of(dataset, now), Tone::Muted)]);
@@ -327,9 +318,80 @@ const fn tone_for(standing: Standing) -> Tone {
     }
 }
 
+/// The running totals, and the times behind the recent ones.
+///
+/// These come after the four facts because they answer the second question
+/// rather than the first: not "when did she last eat" but "has she had
+/// enough". Each recent total is followed by when those feeds or sleeps
+/// actually were, because "3 feeds" does not say whether they were spread out
+/// or all at once.
+fn totals_rows(view: &NowView, units: Units, now: f64) -> Vec<Row> {
+    let hours = RECENT_HOURS as i64;
+    let (fed_today, slept_today) = total_labels(view);
+    let mut rows = vec![fact(
+        &format!("Fed in last {hours}h"),
+        &with_lone_time(intake(&view.recent, units), &view.recent_feed_starts, now),
+    )];
+    rows.extend(times_under("fed", &view.recent_feed_starts, now));
+    rows.push(fact(fed_today, &today_intake_line(view, units)));
+    rows.push(fact(
+        &format!("Slept in last {hours}h"),
+        &recent_sleep(view, now),
+    ));
+    rows.extend(times_under("slept", &view.recent_sleep_ends, now));
+    rows.push(fact(slept_today, &slept(&view.today)));
+    rows
+}
+
+/// How much sleep the recent window holds, and how many sleeps that was.
+///
+/// The count is here and not in [`slept`] because it is what makes the list
+/// underneath legible: without it, "1h 20m" followed by three times reads as
+/// though each one lasted that long.
+fn recent_sleep(view: &NowView, now: f64) -> String {
+    let ends = &view.recent_sleep_ends;
+    if ends.is_empty() {
+        return slept(&view.recent);
+    }
+    let total = format!(
+        "{} · {}",
+        slept(&view.recent),
+        plural(ends.len(), "sleep", "sleeps")
+    );
+    with_lone_time(total, ends, now)
+}
+
+/// A single time goes on the end of the total it belongs to.
+///
+/// One time is not a list, and giving it a line of its own would leave the
+/// screen taller and no clearer.
+fn with_lone_time(total: String, instants: &[f64], now: f64) -> String {
+    match instants {
+        [only] => format!("{total} {}", format_ago(*only, now)),
+        _ => total,
+    }
+}
+
+/// When the feeds or sleeps behind a recent total actually were.
+///
+/// Two are joined with "and", because a bullet between exactly two things
+/// reads like a list that got cut off. Three or more take the bullet the rest
+/// of this screen uses. One is not here at all: see [`with_lone_time`].
+fn times_under(verb: &str, instants: &[f64], now: f64) -> Vec<Row> {
+    if instants.len() < 2 {
+        return Vec::new();
+    }
+    let times: Vec<String> = instants.iter().map(|at| format_ago(*at, now)).collect();
+    let list = match times.as_slice() {
+        [first, second] => format!("{first} and {second}"),
+        _ => times.join(" · "),
+    };
+    vec![note(&format!("{verb} {list}"))]
+}
+
 /// How wide the label column is, so a note under a value lines up with it
 /// rather than with the label it belongs to.
-const LABEL: usize = 17;
+const LABEL: usize = 18;
 
 /// The gap between a label and its value.
 const GAP: usize = 2;
@@ -550,16 +612,13 @@ fn plural(count: usize, one: &str, many: &str) -> String {
 ///
 /// It relabels itself rather than saying something that reads correctly at
 /// noon and wrongly at 3am. Inside the night it is "tonight so far"; outside
-/// it names the night it is talking about.
+/// it is last night, which is what anybody actually calls it.
 #[must_use]
 pub fn stretch_label(view: &NowView) -> String {
     if view.longest_stretch.tonight {
         "Tonight".to_owned()
     } else {
-        format!(
-            "Night of {}",
-            format::day_short(view.longest_stretch.night_of)
-        )
+        "Last night's sleep".to_owned()
     }
 }
 
@@ -619,6 +678,139 @@ mod tests {
 
     fn joined(dataset: &Dataset, at: f64) -> String {
         screen(dataset, at).join("\n")
+    }
+
+    /// The night line named the day it was talking about, which is precise and
+    /// is not what anybody calls it at 3am.
+    #[test]
+    fn the_night_line_says_last_night_rather_than_naming_the_day() {
+        let text = joined(&dataset(), AFTERNOON);
+        assert!(text.contains("Last night's sleep"), "{text}");
+        assert!(!text.contains("Night of"), "{text}");
+    }
+
+    #[test]
+    fn the_recent_sleep_total_sits_directly_above_the_day_total() {
+        let text = joined(&dataset(), AFTERNOON);
+        let lines: Vec<&str> = text.lines().collect();
+        let recent = lines
+            .iter()
+            .position(|line| line.starts_with("Slept in last 4h"))
+            .expect("a recent sleep row");
+        let day = lines
+            .iter()
+            .position(|line| line.starts_with("Total slept today"))
+            .expect("a day sleep row");
+        assert_eq!(recent + 1, day, "{text}");
+    }
+
+    /// Three feeds spread over four hours, at the times the design asked for.
+    fn three_recent_feeds() -> Dataset {
+        let mut data = dataset();
+        data.feeds = vec![
+            bottle(AFTERNOON - 2_520.0, 30.0),
+            bottle(AFTERNOON - 8_220.0, 30.0),
+            bottle(AFTERNOON - 11_700.0, 30.0),
+        ];
+        data
+    }
+
+    #[test]
+    fn three_recent_feeds_are_listed_on_a_line_of_their_own() {
+        let text = joined(&three_recent_feeds(), AFTERNOON);
+        assert!(text.contains("3 feeds"), "{text}");
+        assert!(
+            text.contains("fed 42m ago · 2h 17m ago · 3h 15m ago"),
+            "{text}"
+        );
+    }
+
+    /// The list lines up under the value, not under the label it belongs to.
+    #[test]
+    fn the_list_is_indented_to_the_value_above_it() {
+        let text = joined(&three_recent_feeds(), AFTERNOON);
+        let lines: Vec<&str> = text.lines().collect();
+        let total = lines
+            .iter()
+            .position(|line| line.starts_with("Fed in last 4h"))
+            .expect("a recent feed row");
+        let value = lines[total].find("90 ml").expect("a value");
+        assert_eq!(lines[total + 1].find("fed 42m ago"), Some(value), "{text}");
+    }
+
+    /// Two bulleted things read like a list that got cut off.
+    #[test]
+    fn two_recent_feeds_are_joined_with_and_rather_than_a_bullet() {
+        let mut data = dataset();
+        data.feeds = vec![
+            bottle(AFTERNOON - 2_520.0, 30.0),
+            bottle(AFTERNOON - 8_220.0, 30.0),
+        ];
+        let text = joined(&data, AFTERNOON);
+        assert!(text.contains("2 feeds"), "{text}");
+        assert!(text.contains("fed 42m ago and 2h 17m ago"), "{text}");
+        assert!(!text.contains("fed 42m ago ·"), "{text}");
+    }
+
+    /// One time needs no line of its own: it fits where it is.
+    #[test]
+    fn a_single_recent_feed_goes_on_the_end_of_the_total() {
+        let mut data = dataset();
+        data.feeds = vec![bottle(AFTERNOON - 2_520.0, 30.0)];
+        let text = joined(&data, AFTERNOON);
+        assert!(text.contains("1 feed 42m ago"), "{text}");
+        for line in text.lines() {
+            assert!(
+                !line.trim_start().starts_with("fed "),
+                "no line of its own: {line}"
+            );
+        }
+    }
+
+    /// Sleeps are listed the same way, measured from when each one ended.
+    fn three_recent_sleeps() -> Dataset {
+        let mut data = dataset();
+        data.sleep = vec![
+            sleep(AFTERNOON - 4_320.0, 1_800.0),
+            sleep(AFTERNOON - 10_020.0, 1_800.0),
+            sleep(AFTERNOON - 13_500.0, 1_800.0),
+        ];
+        data
+    }
+
+    #[test]
+    fn three_recent_sleeps_are_listed_and_say_slept() {
+        let text = joined(&three_recent_sleeps(), AFTERNOON);
+        assert!(text.contains("3 sleeps"), "{text}");
+        assert!(
+            text.contains("slept 42m ago · 2h 17m ago · 3h 15m ago"),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn two_recent_sleeps_are_joined_with_and() {
+        let mut data = dataset();
+        data.sleep = vec![
+            sleep(AFTERNOON - 4_320.0, 1_800.0),
+            sleep(AFTERNOON - 10_020.0, 1_800.0),
+        ];
+        let text = joined(&data, AFTERNOON);
+        assert!(text.contains("slept 42m ago and 2h 17m ago"), "{text}");
+    }
+
+    #[test]
+    fn a_single_recent_sleep_goes_on_the_end_of_the_total() {
+        let mut data = dataset();
+        data.sleep = vec![sleep(AFTERNOON - 4_320.0, 1_800.0)];
+        let text = joined(&data, AFTERNOON);
+        assert!(text.contains("1 sleep 42m ago"), "{text}");
+        for line in text.lines() {
+            assert!(
+                !line.trim_start().starts_with("slept "),
+                "no line of its own: {line}"
+            );
+        }
     }
 
     #[test]
@@ -748,11 +940,11 @@ mod tests {
     }
 
     #[test]
-    fn in_the_afternoon_the_stretch_line_names_the_night_it_means() {
+    fn in_the_afternoon_the_stretch_line_is_last_nights() {
         let mut data = dataset();
         data.sleep = vec![sleep(AFTERNOON - 50_400.0, 10_800.0)];
         let text = joined(&data, AFTERNOON);
-        assert!(text.contains("Night of Sun 21 Sep"), "{text}");
+        assert!(text.contains("Last night's sleep"), "{text}");
         assert!(
             !text.contains("Tonight"),
             "an ambiguous label is the bug: {text}"
@@ -1052,7 +1244,7 @@ mod tests {
             Theme::dark(false),
             Units::Ml,
             at,
-            Some(142),
+            Some(170),
         )
         .join("\n")
     }
@@ -1137,7 +1329,7 @@ mod tests {
             Theme::dark(false),
             Units::Ml,
             AFTERNOON,
-            Some(140),
+            Some(170),
         )
         .join("\n");
         assert!(text.contains("(today is over that)"), "{text}");

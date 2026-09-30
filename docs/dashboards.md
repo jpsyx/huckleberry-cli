@@ -71,14 +71,16 @@ The 3am screen: four facts, in the order they get asked.
 ```
 Wren
 
-Last fed           36m ago · 73 ml of Formula · 8:03 pm
-Diaper             1h 31m ago · wet · 7:09 pm
-Sleep              currently sleeping for 30m
-                   (previous sleep finished 2h 10m ago · slept for 1h 20m)
-Tonight            nothing finished yet
-Fed in last 4h     73 ml · 1 feed
-Total fed today    430 ml · 6 feeds · since 6:00 am
-Total slept today  11h 18m
+Last fed            36m ago · 73 ml of Formula · 8:03 pm
+Diaper              1h 31m ago · wet · 7:09 pm
+Sleep               currently sleeping for 30m
+                    (previous sleep finished 2h 10m ago · slept for 1h 20m)
+Tonight             nothing finished yet
+Fed in last 4h      146 ml · 2 feeds
+                    fed 36m ago and 3h 4m ago
+Total fed today     430 ml · 6 feeds · since 6:00 am
+Slept in last 4h    1h 20m · 1 sleep 2h 10m ago
+Total slept today   11h 18m
 
 as of 2m ago
 ```
@@ -91,8 +93,19 @@ sleep's end, and it carries how long the sleep ran, which is the question asked
 straight after.
 
 The next line relabels itself. Inside the family's night window it reads
-`Tonight`; outside it reads `Night of Sun 21 Sep` and names the night it means.
-An ambiguous label there is the one that gets misread at 3am.
+`Tonight`; outside it reads `Last night's sleep`. It used to name the date, which
+was precise and is not what anybody calls it at 3am. An ambiguous label there is
+the one that gets misread, so "tonight" and "last night" stay distinct.
+
+**Each recent total carries the times behind it.** `3 feeds` does not say
+whether they were spread through the window or all at once, which is the next
+thing asked, so the times go on a muted line underneath, indented to the value.
+Two are joined with `and`, because a bullet between exactly two things reads
+like a list that got cut off. A single time needs no line of its own and goes
+on the end of the total, where it reads as a sentence: `73 ml · 1 feed 36m ago`.
+Sleeps are listed the same way and say `slept`, measured from when each one
+ended, because that is when the baby woke. A sleep still running is not in the
+list: the sleep line above already says it is happening.
 
 On a screen wide enough, the typical ranges for this baby's age go in a second
 column beside the facts, each judged against **today** rather than against the
@@ -334,7 +347,7 @@ drawn into `ratatui`'s test backend. So the tests read like descriptions of
 what the screen says:
 
 ```rust
-assert!(text.contains("Night of Sun 21 Sep"), "{text}");
+assert!(text.contains("Last night's sleep"), "{text}");
 assert!(!text.contains("Tonight"), "an ambiguous label is the bug: {text}");
 ```
 
