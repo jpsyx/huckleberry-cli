@@ -147,7 +147,7 @@ widget beside it, and **widget** and **panel** mean the same thing.
 │ Last fed           36m ago · 73 ml of Formula · 8:03 pm                │
 │ Diaper             1h 31m ago · wet · 7:09 pm                          │
 │ Sleep              currently sleeping for 40m                          │
-│                    (previous sleep finished 2h ago · slept for 1h 20m)    │
+│                    (previous sleep finished 2h ago · slept for 1h 20m) │
 │ Tonight            nothing finished yet                                │
 │ Fed in last 4h     73 ml · 1 feed                                      │
 │ Total fed today    430 ml · 6 feeds · since 6:00 am                    │
