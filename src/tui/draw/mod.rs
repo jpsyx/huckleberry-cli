@@ -340,7 +340,14 @@ mod frames {
     fn the_drawer_shows_every_fact_the_now_command_does() {
         let drawn = screen(&loaded(), 100, 30);
         // The wording is `h now`'s, because the drawer has none of its own.
-        for fact in ["Last fed", "Diaper", "Sleep", "Last 3h", "Fed", "Slept"] {
+        for fact in [
+            "Last fed",
+            "Diaper",
+            "Sleep",
+            "Fed in last 4h",
+            "Total fed today",
+            "Slept",
+        ] {
             assert!(drawn.contains(fact), "`{fact}` missing: {drawn}");
         }
         assert!(drawn.contains("wet"), "{drawn}");
@@ -357,7 +364,7 @@ mod frames {
     #[test]
     fn the_widget_carries_the_running_totals_the_now_command_shows() {
         let drawn = screen(&loaded(), 100, 30);
-        for fact in ["Last 3h", "Fed today", "Slept today"] {
+        for fact in ["Fed in last 4h", "Total fed today", "Slept today"] {
             assert!(drawn.contains(fact), "`{fact}` missing: {drawn}");
         }
         assert!(drawn.contains("90 ml · 1 feed"), "{drawn}");
@@ -373,7 +380,7 @@ mod frames {
             crate::domain::today::DayRule::continuous(6.0, 19.5),
         );
         let drawn = screen(&app, 100, 30);
-        assert!(drawn.contains("Fed in 24h"), "{drawn}");
+        assert!(drawn.contains("Fed in last 24h"), "{drawn}");
         assert!(!drawn.contains("Fed today"), "{drawn}");
     }
 

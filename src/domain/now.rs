@@ -11,9 +11,10 @@ use super::types::{Dataset, FeedEvent};
 
 /// How far back "recently" reaches on the 3am screen.
 ///
-/// Three hours, because that is the interval a newborn feeds on and the
-/// question being asked is whether one is due, not what the day looks like.
-pub const RECENT_HOURS: f64 = 3.0;
+/// Four hours, because that spans a newborn's usual feeding interval with room
+/// to spare, and the question being asked is whether one is due, not what the
+/// day looks like.
+pub const RECENT_HOURS: f64 = 4.0;
 
 /// Where an instant falls relative to the family's night.
 #[derive(Debug, Clone, PartialEq, Eq)]

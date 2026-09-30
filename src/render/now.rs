@@ -65,13 +65,10 @@ pub fn screen(
     // second question rather than the first: not "when did she last eat" but
     // "has she had enough".
     rows.push(fact(
-        &format!("Last {}h", RECENT_HOURS as i64),
+        &format!("Fed in last {}h", RECENT_HOURS as i64),
         &intake(&view.recent, units),
     ));
-    rows.push(fact(
-        &format!("Fed {}", window_label(view)),
-        &today_intake_line(view, units),
-    ));
+    rows.push(fact(fed_label(view), &today_intake_line(view, units)));
     rows.push(fact(
         &format!("Slept {}", window_label(view)),
         &slept(&view.today),
@@ -334,7 +331,7 @@ const fn tone_for(standing: Standing) -> Tone {
 
 /// How wide the label column is, so a note under a value lines up with it
 /// rather than with the label it belongs to.
-const LABEL: usize = 13;
+const LABEL: usize = 15;
 
 /// The gap between a label and its value.
 const GAP: usize = 2;
@@ -483,6 +480,18 @@ pub const fn window_label(view: &NowView) -> &'static str {
     match view.today_window.mode {
         DayMode::Continuous => "in 24h",
         DayMode::Discrete => "today",
+    }
+}
+
+/// What the running feed total is called.
+///
+/// A rolling window reads as the span it covers; a discrete day reads as the
+/// day's total, because that is the question it answers.
+#[must_use]
+pub const fn fed_label(view: &NowView) -> &'static str {
+    match view.today_window.mode {
+        DayMode::Continuous => "Fed in last 24h",
+        DayMode::Discrete => "Total fed today",
     }
 }
 
@@ -872,25 +881,27 @@ mod tests {
     }
 
     #[test]
-    fn the_screen_says_how_much_went_in_over_the_last_three_hours() {
+    fn the_screen_says_how_much_went_in_over_the_last_four_hours() {
         let mut data = dataset();
         data.feeds = vec![
             bottle(AFTERNOON - 1_800.0, 60.0),
-            // Four hours ago, which is outside the window.
-            bottle(AFTERNOON - 14_400.0, 200.0),
+            // Three and a half hours ago, which is inside the window.
+            bottle(AFTERNOON - 12_600.0, 40.0),
+            // Five hours ago, which is outside the window.
+            bottle(AFTERNOON - 18_000.0, 200.0),
         ];
         let text = joined(&data, AFTERNOON);
         let recent = text
             .lines()
-            .find(|line| line.starts_with("Last 3h"))
-            .unwrap_or_else(|| panic!("no `Last 3h` line in {text}"));
-        assert!(recent.contains("60 ml · 1 feed"), "{recent}");
+            .find(|line| line.starts_with("Fed in last 4h"))
+            .unwrap_or_else(|| panic!("no `Fed in last 4h` line in {text}"));
+        assert!(recent.contains("100 ml · 2 feeds"), "{recent}");
         assert!(
-            !recent.contains("260 ml"),
-            "the four-hour-old feed is outside the window: {recent}"
+            !recent.contains("300 ml"),
+            "the five-hour-old feed is outside the window: {recent}"
         );
         assert!(
-            text.contains("260 ml"),
+            text.contains("300 ml"),
             "and inside today's, which is the point of having both: {text}"
         );
     }
@@ -900,7 +911,7 @@ mod tests {
         let mut data = across_a_day_start();
         data.sleep = vec![sleep(AFTERNOON - 10_800.0, 7_200.0)];
         let text = joined(&data, AFTERNOON);
-        assert!(text.contains("Fed today"), "{text}");
+        assert!(text.contains("Total fed today"), "{text}");
         assert!(text.contains("Slept today"), "{text}");
         assert!(text.contains("2h 0m"), "{text}");
     }
@@ -929,7 +940,7 @@ mod tests {
             crate::domain::today::DayRule::continuous(6.0, 19.5),
             AFTERNOON,
         );
-        assert!(text.contains("Fed in 24h"), "{text}");
+        assert!(text.contains("Fed in last 24h"), "{text}");
         assert!(text.contains("Slept in 24h"), "{text}");
         assert!(text.contains("350 ml · 4 feeds"), "{text}");
         assert!(
@@ -949,7 +960,7 @@ mod tests {
             THREE_AM,
         );
         assert!(
-            text.contains("Fed today") && text.contains("80 ml"),
+            text.contains("Total fed today") && text.contains("80 ml"),
             "a 2am feed is still part of the day that began at 6am yesterday: {text}"
         );
     }
@@ -975,9 +986,32 @@ mod tests {
     }
 
     #[test]
+    fn every_running_total_lines_its_value_up_with_the_facts_above_it() {
+        let column = |text: &str, label: &str| {
+            let line = text
+                .lines()
+                .find(|line| line.starts_with(label))
+                .unwrap_or_else(|| panic!("no `{label}` line in {text}"));
+            line.len() - line[label.len()..].trim_start().len()
+        };
+        for rule in [
+            crate::domain::today::DayRule::discrete(6.0, 19.5),
+            crate::domain::today::DayRule::continuous(6.0, 19.5),
+        ] {
+            let text = with_rule(&dataset(), rule, AFTERNOON);
+            let expected = column(&text, "Last fed");
+            for label in ["Fed in last 4h", "Total fed today", "Fed in last 24h"] {
+                if text.contains(label) {
+                    assert_eq!(column(&text, label), expected, "{text}");
+                }
+            }
+        }
+    }
+
+    #[test]
     fn a_window_with_nothing_in_it_says_so_rather_than_printing_a_zero() {
         let text = joined(&dataset(), AFTERNOON);
-        for label in ["Last 3h", "Fed today", "Slept today"] {
+        for label in ["Fed in last 4h", "Total fed today", "Slept today"] {
             let line = text
                 .lines()
                 .find(|line| line.starts_with(label))

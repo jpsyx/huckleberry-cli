@@ -44,7 +44,7 @@ totals on the 3am screen cover.
 So `h --offline snapshot.json log` draws its list on a machine nobody has
 configured, and `h diaper --pee` records a diaper without stopping a script to
 ask about a setting it will never read. `h --offline snapshot.json now` still
-asks, because it would otherwise print `Fed today` against midnight, quietly,
+asks, because it would otherwise print `Total fed today` against midnight, quietly,
 and midnight is the one boundary that is wrong for everybody.
 
 `shows_a_day` in `src/setup/mod.rs` is the list. **A command joins it the
@@ -119,7 +119,7 @@ chose.
 
 | Where | What it does |
 | --- | --- |
-| `now`, and the shell's Now widget | `day_mode` decides what `Fed today` and `Slept today` cover, and whether they read `today` or `in 24h` |
+| `now`, and the shell's Now widget | `day_mode` decides what the feed total and `Slept today` cover, and whether they read `Total fed today` / `Slept today` or `Fed in last 24h` / `Slept in 24h` |
 | `summary` and `trends` | each row is one of this family's days, `day_start` to `day_start`, so a 4am feed is counted on the row before |
 | `stripes` | each row runs from the previous `day_end` to this one, so a night lands whole on one row |
 | every screen with a night on it | `day_end` and `day_start` replace the profile's night, applied to the dataset once as it is read |

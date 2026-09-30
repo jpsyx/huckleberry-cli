@@ -72,7 +72,7 @@ either, say which.
 | **a stripe row** | One row of `stripes`: the previous `day_end` to this one, so a night lands whole on it. |
 | **the window** (of a screen) | The stretch `today` resolved to on this screen, as of now. `Window` in `src/domain/today.rs`. Not to be confused with **the read window**, which is how many days back a read covers. |
 | **totals** | What a window adds up to: millilitres, nursing seconds, milk feeds, meals, sleep. |
-| **the last 3h** | The fixed recent window on the `now` screen, which is a feeding interval rather than a day. |
+| **the last 4h** | The fixed recent window on the `now` screen, which is a feeding interval rather than a day. |
 | **setup** | The first-use gate: an account, then the settings with no default. `src/setup/`. See [`setup.md`](setup.md). |
 
 ## The rules these words serve

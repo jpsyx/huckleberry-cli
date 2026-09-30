@@ -144,14 +144,14 @@ widget beside it, and **widget** and **panel** mean the same thing.
 ┌ Now ───────────────────────────────────────────────────────────────────┐
 │ Wren                                                                   │
 │                                                                        │
-│ Last fed       36m ago · 73 ml of Formula · 8:03 pm                    │
-│ Diaper         1h 31m ago · wet · 7:09 pm                              │
-│ Sleep          currently sleeping for 40m                              │
-│                (previous sleep finished 2h 10m ago · slept for 1h 20m) │
-│ Tonight        nothing finished yet                                    │
-│ Last 3h        73 ml · 1 feed                                          │
-│ Fed today      430 ml · 6 feeds · since 6:00 am                        │
-│ Slept today    11h 18m                                                 │
+│ Last fed         36m ago · 73 ml of Formula · 8:03 pm                  │
+│ Diaper           1h 31m ago · wet · 7:09 pm                            │
+│ Sleep            currently sleeping for 40m                            │
+│                  (previous sleep finished 2h 10m ago · slept for 1h 20m)│
+│ Tonight          nothing finished yet                                  │
+│ Fed in last 4h   73 ml · 1 feed                                        │
+│ Total fed today  430 ml · 6 feeds · since 6:00 am                      │
+│ Slept today      11h 18m                                               │
 │                                                                        │
 │ as of 2m ago                                                           │
 └────────────────────────────────────────────────────────────────────────┘
