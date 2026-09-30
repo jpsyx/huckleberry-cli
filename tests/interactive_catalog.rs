@@ -33,8 +33,7 @@ fn home_order_and_all_commands_are_reachable() {
             "View logs",
             "Other logging",
             "Delete",
-            "More",
-            "Exit"
+            "More"
         ]
     );
     let mut actual = BTreeSet::new();

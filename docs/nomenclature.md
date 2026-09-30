@@ -25,8 +25,8 @@ either, say which.
 | **widget**, **panel** | The same thing, interchangeably: one bordered box showing one thing. Prefer **widget** in new prose; **panel** appears in older text and in the dashboard's code. |
 | **view** | A named arrangement that fills the shell's main area. The Menu view is the only one so far. |
 | **the Menu view** | The main panel: the `What would you like to do?` rows. `src/tui/draw/menu.rs`. |
-| **the Now widget**, **the View Latest widget** | The same widget, interchangeably: the one that permanently shows what `h now` prints. `src/tui/draw/now.rs`. |
-| **the sidebar** | The column beside the Menu view where widgets stack. Holds the Now widget today. |
+| **the Now widget**, **the View Latest widget**, **the Now drawer** | The same thing, interchangeably: the full-width strip along the bottom that permanently shows what `h now` prints. `src/tui/draw/now.rs`. It shows exactly what the command prints and nothing else, so changing one means changing both; see [`tui.md`](tui.md). |
+| **the drawer** | Where a widget sits: a full-width strip along the bottom of the shell, under the main panel. |
 | **the header** | The top line: the tool, the child, and the breadcrumb. |
 | **the footer** | The bottom line: what is happening, what is wrong, and the keys. |
 | **the breadcrumb** | `Home › Log a feed`, on the right of the header. |
