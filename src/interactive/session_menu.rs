@@ -42,7 +42,7 @@ pub async fn edit_options(current: &SessionOptions, theme: Theme) -> Result<Sess
         };
         if let Err(error) = result {
             if !prompt::is_cancelled(&error) {
-                eprintln!("{error:#}");
+                crate::render::note(&format!("{error:#}"));
             }
         }
     }

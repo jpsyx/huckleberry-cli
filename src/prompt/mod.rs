@@ -1,4 +1,5 @@
 //! Shared prompts: finite choices are menus, free values use a text editor.
+pub mod host;
 mod question;
 mod secret;
 pub mod select;
@@ -47,7 +48,7 @@ pub fn ask(question: &Question<'_>, theme: Theme) -> Result<String> {
         let answer = text::read(question, theme, false)?;
         match interpret(&answer, &[], question.default) {
             Reply::Accepted(value) => return Ok(value),
-            _ => eprintln!("{}", theme.warning("An answer is required.")),
+            _ => crate::render::note(&theme.warning("An answer is required.")),
         }
     }
 }

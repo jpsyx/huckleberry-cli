@@ -25,6 +25,10 @@ either, say which.
 | **widget**, **panel** | The same thing, interchangeably: one bordered box showing one thing. Prefer **widget** in new prose; **panel** appears in older text and in the dashboard's code. |
 | **view** | A named arrangement that fills the shell's main area. The Menu view is the only one so far. |
 | **the Menu view** | The main panel: the `What would you like to do?` rows. `src/tui/draw/menu.rs`. |
+| **the flow panel** | The same area while a command is running: its questions, its output and its failures. `src/tui/draw/flow.rs`. |
+| **a job** | One command running inside the shell, and everything it has said so far. `src/tui/job.rs`. |
+| **the host** | Whatever is drawing a prompt and feeding it keys. The shell installs itself as one while a job runs; with none installed, prompts own the terminal. `src/prompt/host.rs`. |
+| **a frame** (of a prompt) | One pass of a hosted loop: the lines to draw, and the key that answers them. Not to be confused with a ratatui frame. |
 | **the Now widget**, **the View Latest widget**, **the Now drawer** | The same thing, interchangeably: the full-width strip along the bottom that permanently shows what `h now` prints. `src/tui/draw/now.rs`. It shows exactly what the command prints and nothing else, so changing one means changing both; see [`tui.md`](tui.md). |
 | **the drawer** | Where a widget sits: a full-width strip along the bottom of the shell, under the main panel. |
 | **the header** | The top line: the tool, the child, and the breadcrumb. |

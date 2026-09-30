@@ -111,7 +111,9 @@ owns the terminal:
 | `tui/draw/mod.rs` | the frame, and where the widgets go in it. |
 | `tui/draw/menu.rs` | the Menu view: the main panel. |
 | `tui/draw/now.rs` | the Now widget: what `h now` says, permanently. |
-| `tui/shell.rs` | the alternate screen, the event loop's keyboard, and suspend. |
+| `tui/job.rs` | one command running inside the shell, and everything it has said. Its window is pure. |
+| `tui/draw/flow.rs` | the flow panel: a command, drawn where the menu was. |
+| `tui/shell.rs` | the alternate screen, and the event loop's keyboard. |
 
 The words for these parts are fixed in
 [`nomenclature.md`](nomenclature.md); use them rather than inventing a second
@@ -134,16 +136,31 @@ there is everything that happens once a row has been chosen: the menu tree
 (`catalog`), the argument draft a command is built from (`draft`), dispatch and
 its error recovery (`operation`), and the session-scoped overrides.
 
-Choosing a command **suspends** the shell: it leaves the alternate screen, the
-existing handler asks its questions and prints its receipt exactly as it does
-from the command line, and the shell is rebuilt afterwards. That is why the
-shell shipped with every command already working and every prompt already
-tested, and why panels can replace them one at a time instead of all at once.
+Choosing a command does not take the screen away. The command runs on its own
+task and draws in the panel where the menu was, and the loop keeps drawing the
+rest of the screen the whole time.
 
-Resuming builds a new `Terminal` rather than calling `Terminal::clear`. Clearing
-asks the terminal where its cursor is and waits on stdin for the reply, which is
-the same stdin the menu reads its keys from; a new terminal starts with an empty
-buffer and repaints every cell of the screen it just entered.
+That works because every interactive loop in this tool is the same shape: draw
+some lines, wait for a key, decide, repeat. `src/prompt/host.rs` is a single
+global slot holding channels; while one is installed, the menus
+(`prompt/select`), the text fields (`prompt/text`) and the browsable listings
+(`listing`) hand their lines over and get keys back instead of owning the
+terminal. With nothing installed they behave exactly as they did. So there is
+one implementation of every prompt rather than one for the terminal and one for
+the shell, and a themed line keeps its colour through `tui::draw::painted`,
+which reads the escape codes back into roles.
+
+Output goes the same way. `render::print` and `render::note` are the only two
+places this tool writes, and both hand their lines to a host when one is
+installed. Everything that used to `println!` or `eprintln!` now goes through
+them.
+
+`dash` is the exception: it is a second full-screen program, and a terminal has
+one alternate screen to give, so the shell suspends for that one command.
+`Shell::suspend` and `Shell::resume` exist for it alone. Resuming builds a new
+`Terminal` rather than calling `Terminal::clear`, because clearing asks the
+terminal where its cursor is and waits on stdin for the reply, which is the
+same stdin the menu reads its keys from.
 
 Drawing on stderr rather than stdout is what keeps `h > entries.txt` filling the
 file with what the commands printed. The menu is the conversation; the commands

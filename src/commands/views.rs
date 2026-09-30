@@ -21,10 +21,7 @@ pub async fn now(context: &Context, json: bool) -> Result<()> {
     let view = now::build(&dataset, &calendar, context.config.day_rule(), at);
 
     if json {
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&as_json(&view, &dataset, at))?
-        );
+        crate::render::print(&[serde_json::to_string_pretty(&as_json(&view, &dataset, at))?]);
         return Ok(());
     }
     render::print(&render::now::lines(
@@ -46,7 +43,7 @@ pub async fn summary(context: &Context, days: Option<u32>, json: bool) -> Result
     let rows = summaries::build(&dataset, &calendar, context.config.day_rule(), at, window);
 
     if json {
-        println!("{}", serde_json::to_string_pretty(&rows_as_json(&rows))?);
+        crate::render::print(&[serde_json::to_string_pretty(&rows_as_json(&rows))?]);
         return Ok(());
     }
     render::print(&render::summary::lines(

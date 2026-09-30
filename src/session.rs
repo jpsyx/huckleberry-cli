@@ -178,13 +178,13 @@ impl Context {
 
     /// Says what the tool is about to do, on stderr, always.
     pub fn narrate(&self, message: &str) {
-        eprintln!("{}", self.theme.info(message));
+        crate::render::note(&self.theme.info(message));
     }
 
     /// Says the same thing in more detail, only under `--verbose`.
     pub fn detail(&self, message: &str) {
         if self.verbose {
-            eprintln!("{}", self.theme.muted(message));
+            crate::render::note(&self.theme.muted(message));
         }
     }
 
@@ -202,7 +202,13 @@ impl Context {
 
     /// Shows a table on a terminal and preserves the given machine payload on a pipe.
     pub fn table(&self, title: &str, headers: &[&str], rows: &[Vec<String>], machine: &[String]) {
-        let available = crossterm::terminal::size().map_or(80, |(columns, _)| usize::from(columns));
+        // Inside the shell a table is drawn in a panel, so it is the panel's
+        // width it has to fit rather than the whole terminal's.
+        let available = if crate::prompt::host::hosted() {
+            usize::from(crate::prompt::host::size().0)
+        } else {
+            crossterm::terminal::size().map_or(80, |(columns, _)| usize::from(columns))
+        };
         let human = crate::render::output::table_with_width(
             title,
             headers,
@@ -241,12 +247,12 @@ impl Context {
         } else {
             ""
         };
-        eprintln!("{}", self.theme.success(&format!("{prefix}{message}")));
+        crate::render::note(&self.theme.success(&format!("{prefix}{message}")));
     }
 
     /// Reports something that worked but deserves a second look.
     pub fn warn(&self, message: &str) {
-        eprintln!("{}", self.theme.warning(message));
+        crate::render::note(&self.theme.warning(message));
     }
 
     /// Points at something about the record that is worth a second look.
@@ -254,7 +260,7 @@ impl Context {
     /// Yellow, and never red: nothing has gone wrong with the tool, which is
     /// what `warn` is for. See `docs/rules/cli-ux.md`.
     pub fn attention(&self, message: &str) {
-        eprintln!("{}", self.theme.attention(message));
+        crate::render::note(&self.theme.attention(message));
     }
 }
 

@@ -55,14 +55,14 @@ pub async fn run(context: &Context, options: &DeleteOptions) -> Result<()> {
     if options.list {
         for entry in &entries {
             let Some(at) = &entry.at else { continue };
-            println!(
+            crate::render::print(&[format!(
                 "{}\t{}\t{} {}\t{}",
                 edit::token_for(at),
                 entry.kind.as_str(),
                 format::day_short(calendar.day_of(entry.start)),
                 format::clock(entry.start, &calendar),
                 entry.description
-            );
+            )]);
         }
         return Ok(());
     }
@@ -151,7 +151,7 @@ async fn raw(
                         )
                     },
                 );
-            println!("{}\t{when}\t{row}", edit::token_for(at));
+            crate::render::print(&[format!("{}\t{when}\t{row}", edit::token_for(at))]);
         }
         return Ok(());
     }
@@ -243,7 +243,7 @@ async fn remove(
     client.delete_history_row(cid, at, started_at).await?;
     super::persist_session(context, client).await?;
     context.report(&format!("Deleted {described}."));
-    println!("deleted\t{}", edit::token_for(at));
+    crate::render::print(&[format!("deleted\t{}", edit::token_for(at))]);
     Ok(())
 }
 

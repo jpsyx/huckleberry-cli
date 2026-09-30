@@ -179,18 +179,20 @@ async fn apply_binding(
             let previous = globals.clone();
             *globals = super::session::edit_options(globals, theme).await?;
             if draft.invalidate_context(&previous, globals) {
-                eprintln!("Context changed. Pending options cleared; select the entry again.");
+                crate::render::note(
+                    "Context changed. Pending options cleared; select the entry again.",
+                );
                 super::pause(theme)?;
             }
         }
         OptionControl::Help => {
             if let Some(mut command) = metadata(&draft.path) {
-                eprintln!("{}", command.render_long_help());
+                crate::render::note(&command.render_long_help().to_string());
                 super::pause(theme)?;
             }
         }
         OptionControl::Version => {
-            eprintln!("{}", env!("CARGO_PKG_VERSION"));
+            crate::render::note(env!("CARGO_PKG_VERSION"));
             super::pause(theme)?;
         }
         _ => {

@@ -12,6 +12,7 @@
 pub mod data;
 pub mod draw;
 pub mod facts;
+pub mod job;
 pub mod keys;
 pub mod shell;
 pub mod state;
@@ -26,8 +27,9 @@ use huckleberry_api::client::now_seconds;
 use shell::Shell;
 
 use crate::cli::Cli;
-use crate::interactive::{interrupt, operation, session::SessionOptions};
+use crate::interactive::{operation, session::SessionOptions};
 use crate::theme::Theme;
+use job::{Job, Landing};
 
 /// Opens the shell and keeps it open until the parent leaves.
 pub async fn run(cli: &Cli, theme: Theme) -> Result<()> {
@@ -41,7 +43,11 @@ pub async fn run(cli: &Cli, theme: Theme) -> Result<()> {
     outcome.and(restored)
 }
 
-/// Draw, collect whatever a background read finished, read one key, act.
+/// Draw, collect what the background has finished, read one key, act.
+///
+/// One loop, whether a command is running or not. The shell never steps aside:
+/// a command draws where the menu was and takes the keys while it is asking,
+/// and everything else on the screen keeps going.
 async fn navigate(
     shell: &mut Shell,
     app: &mut App,
@@ -51,14 +57,51 @@ async fn navigate(
     // The widgets open empty and fill themselves in, so the menu is on screen
     // and usable before the network has answered.
     let mut reading = Some(begin(app, globals, theme));
+    let mut job: Option<Job> = None;
     loop {
         collect(app, &mut reading).await;
-        let height = shell.draw(app, now_seconds())?;
-        let Some(motion) = shell.next_motion()? else {
+        if let Some(running) = job.as_mut() {
+            running.collect();
+        }
+        let height = shell.draw_with(app, job.as_ref(), now_seconds())?;
+
+        if job.as_ref().is_some_and(Job::finished) {
+            let landing = job
+                .take()
+                .expect("just checked there is a job")
+                .finish()
+                .await;
+            land(app, landing);
+            // A command may have logged the very thing the widgets show, so
+            // whatever is in flight describes a moment already gone.
+            if let Some(stale) = reading.take() {
+                stale.abort();
+            }
+            reading = Some(begin(app, globals, theme));
+            continue;
+        }
+
+        let wait = if job.is_some() {
+            shell::WORKING
+        } else {
+            shell::TICK
+        };
+        let Some(key) = shell.next_key(wait)? else {
             // A tick with no key. The clocks move on, so draw again.
             continue;
         };
-        match app.apply(motion, height) {
+        // One key never reaches a command, however deep it is in a question.
+        if forces_quit(key) {
+            return Ok(());
+        }
+        if let Some(running) = job.as_mut() {
+            if running.asking() {
+                running.answer(key);
+            }
+            continue;
+        }
+
+        match app.apply(motion_for(key), height) {
             Intent::Stay => {}
             Intent::Quit => return Ok(()),
             Intent::Refresh => {
@@ -69,27 +112,25 @@ async fn navigate(
             Intent::Version => {
                 app.set_status(format!("{} {}", crate::APP_NAME, env!("CARGO_PKG_VERSION")));
             }
-            Intent::Help => {
+            Intent::Help => job = Some(Job::help(theme)),
+            Intent::Run(path) if job::takes_the_screen(&path) => {
+                // The one command that is a full screen of its own. A terminal
+                // has one alternate screen to give, so the shell takes it back
+                // when the dashboard is done with it.
                 shell.suspend()?;
-                let landing = settle(crate::interactive::help(theme).map(|()| false), theme);
+                let landing =
+                    job::settle(Box::pin(operation::run(&path, globals, theme)).await, theme);
                 shell.resume()?;
                 land(app, landing);
             }
-            Intent::Run(path) => {
-                shell.suspend()?;
-                let result = interrupt::run(Box::pin(operation::run(&path, globals, theme))).await;
-                let landing = settle(result, theme);
-                shell.resume()?;
-                land(app, landing);
-                // A command may have logged the very thing the widgets show,
-                // so whatever is in flight describes a moment already gone.
-                if let Some(stale) = reading.take() {
-                    stale.abort();
-                }
-                reading = Some(begin(app, globals, theme));
-            }
+            Intent::Run(path) => job = Some(Job::start(&path, globals, theme)),
         }
     }
+}
+
+/// Whether this key ends the session whatever is on the screen.
+fn forces_quit(key: crossterm::event::KeyEvent) -> bool {
+    motion_for(key) == Motion::Quit
 }
 
 /// Starts a read, and says on the screen that one is running.
@@ -122,36 +163,6 @@ async fn collect(app: &mut App, reading: &mut Option<data::Reading>) {
         Err(trouble) => app
             .facts
             .record_trouble(&format!("the read stopped: {trouble}")),
-    }
-}
-
-/// Where the menu goes once a command is finished with.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Landing {
-    /// A recording finished: start again from the top.
-    Home,
-    /// A view or a utility finished: stay where it was opened from.
-    Stay,
-    /// Escape, or Ctrl-C during a wait.
-    Cancelled,
-    /// It failed, and the failure has already been read.
-    Failed,
-}
-
-/// Reports how a command ended, with the full screen still out of the way so
-/// the failure can be read and scrolled back to.
-fn settle(result: Result<bool>, theme: Theme) -> Landing {
-    match result {
-        Ok(true) => Landing::Home,
-        Ok(false) => Landing::Stay,
-        Err(error) if crate::prompt::is_cancelled(&error) => Landing::Cancelled,
-        Err(error) => {
-            eprintln!("{}", theme.error_line("error:", &format!("{error:#}")));
-            // A failed write is never replayed on its own; this only holds the
-            // message on screen until it has been read.
-            let _ = crate::interactive::pause(theme);
-            Landing::Failed
-        }
     }
 }
 
