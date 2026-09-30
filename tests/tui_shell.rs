@@ -284,6 +284,9 @@ fn every_command_the_catalog_knows_is_reachable_by_moving_and_opening() {
             let depth = app.breadcrumb().matches('›').count();
             match app.apply(Motion::Open, HEIGHT) {
                 Intent::Run(path) => found.push(path.0),
+                // The dashboard is reached the same way and drawn by the shell
+                // rather than run as a command; it is still reached.
+                Intent::Dashboard => found.push(vec!["dash".to_owned()]),
                 Intent::Stay if app.breadcrumb().matches('›').count() > depth => {
                     walk(app, found);
                     app.apply(Motion::Back, HEIGHT);
@@ -428,4 +431,35 @@ fn a_refresh_does_not_move_the_cursor_or_the_menu() {
     app.apply(Motion::Refresh, HEIGHT);
     assert_eq!(app.cursor(), before);
     assert_eq!(app.breadcrumb(), "Home");
+}
+
+#[test]
+fn the_dashboard_opens_in_the_panel_rather_than_taking_the_screen() {
+    let mut app = App::new();
+    highlight(&mut app, "Visualizations");
+    app.apply(Motion::Open, HEIGHT);
+    highlight(&mut app, "Dashboard");
+    assert_eq!(
+        app.apply(Motion::Open, HEIGHT),
+        Intent::Dashboard,
+        "it is a screen the shell draws, not a command it steps aside for"
+    );
+}
+
+#[test]
+fn the_dashboard_needs_something_read_before_it_can_open() {
+    let mut app = App::new();
+    app.open_dashboard(7);
+    assert!(app.dashboard.is_none(), "there is nothing to draw yet");
+    assert_eq!(app.status(), Some("nothing read yet · press r"));
+}
+
+#[test]
+fn closing_the_dashboard_puts_the_menu_back() {
+    let mut app = App::new();
+    assert!(!app.close_dashboard(), "there was none to close");
+    assert!(
+        !app.rows().is_empty(),
+        "and the menu is what the panel shows"
+    );
 }

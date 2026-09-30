@@ -9,6 +9,12 @@ use super::facts::Facts;
 use super::keys::Motion;
 use crate::interactive::catalog::{self, CommandPath, MenuEntry, MenuId, MenuTarget};
 
+/// Whether this command is the dashboard.
+#[must_use]
+pub fn is_dashboard(path: &CommandPath) -> bool {
+    path.0.first().is_some_and(|word| word == "dash")
+}
+
 /// One menu on the stack: which one, where the cursor is, and how far it has
 /// scrolled. Each level keeps its own cursor so backing out of a submenu lands
 /// on the row it was opened from.
@@ -51,6 +57,8 @@ pub enum Intent {
     Help,
     /// Re-read everything the widgets show.
     Refresh,
+    /// Open the dashboard in the panel where the menu is.
+    Dashboard,
     /// Report the build version.
     Version,
     /// End the session.
@@ -63,6 +71,8 @@ pub struct App {
     status: Option<String>,
     /// What the widgets draw, and how stale it is.
     pub facts: Facts,
+    /// The dashboard, when it is the thing in the panel.
+    pub dashboard: Option<crate::dashboard::State>,
 }
 
 impl Default for App {
@@ -79,6 +89,7 @@ impl App {
             levels: vec![Level::new(MenuId::Home, "Home".into())],
             status: None,
             facts: Facts::new(),
+            dashboard: None,
         }
     }
 
@@ -144,6 +155,47 @@ impl App {
         self.levels.truncate(1);
     }
 
+    /// Opens the dashboard on what has already been read.
+    ///
+    /// It needs no read of its own: the shell has one, and refreshing the
+    /// widgets refreshes this too. Before the first read there is nothing to
+    /// draw, so it says so rather than opening empty.
+    pub fn open_dashboard(&mut self, days: usize) {
+        let Some(reading) = self.facts.reading() else {
+            self.set_status("nothing read yet · press r");
+            return;
+        };
+        self.dashboard = Some(
+            crate::dashboard::State::new(reading.dataset.clone(), reading.calendar.clone(), days)
+                .with_rule(reading.rule)
+                .in_panel(),
+        );
+    }
+
+    /// Takes on a fresh read, and gives it to the dashboard as well.
+    pub fn refreshed(
+        &mut self,
+        dataset: crate::domain::types::Dataset,
+        calendar: crate::domain::Calendar,
+        units: crate::cli::Units,
+        rule: crate::domain::today::DayRule,
+    ) {
+        if let Some(dashboard) = self.dashboard.as_mut() {
+            dashboard.calendar = calendar.clone();
+            dashboard.rule = rule;
+            dashboard.replace(dataset.clone());
+        }
+        self.facts.replace(dataset, calendar, units, rule);
+    }
+
+    /// Closes the dashboard, which puts the menu back.
+    ///
+    /// Returns whether there was one, so a key that closes it is not also a
+    /// key that does something to the menu underneath.
+    pub fn close_dashboard(&mut self) -> bool {
+        self.dashboard.take().is_some()
+    }
+
     /// Applies one motion, given how many rows the viewport can show.
     pub fn apply(&mut self, motion: Motion, height: usize) -> Intent {
         self.status = None;
@@ -191,6 +243,10 @@ impl App {
                 self.levels.push(Level::new(*menu, entry.label.clone()));
                 Intent::Stay
             }
+            // The dashboard is a screen rather than a command with
+            // questions, so the shell draws it itself. It stays a command in
+            // the catalog, because `h dash` is still one.
+            MenuTarget::Command(path) if is_dashboard(path) => Intent::Dashboard,
             MenuTarget::Command(path) => Intent::Run(path.clone()),
             MenuTarget::Back => {
                 self.pop();

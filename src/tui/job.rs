@@ -30,21 +30,6 @@ pub enum Landing {
     Failed,
 }
 
-/// Whether this command draws a full screen of its own.
-///
-/// `dash` is the one. It is a second full-screen program rather than a command
-/// with questions, and a terminal has one alternate screen to give, so the
-/// shell steps aside for it and takes the screen back when it ends. Everything
-/// else runs in the panel where the menu was.
-///
-/// This is the last thing in the tool that suspends the shell, and it is on
-/// its way out: the shell already shows what the dashboard's first tab does,
-/// and the rest of its tabs are commands.
-#[must_use]
-pub fn takes_the_screen(path: &CommandPath) -> bool {
-    path.0.first().is_some_and(|word| word == "dash")
-}
-
 /// What to draw, given what a command has said and how tall the panel is.
 ///
 /// The foot of a long flow is where the question is, so a panel too short to
@@ -255,22 +240,5 @@ mod flows {
     #[test]
     fn output_with_no_question_needs_no_gap_after_it() {
         assert_eq!(window(&lines(&["done"]), None, 10), ["done"]);
-    }
-
-    #[test]
-    fn the_dashboard_is_the_only_command_that_takes_the_screen() {
-        assert!(takes_the_screen(&CommandPath(vec!["dash".into()])));
-        for words in [
-            vec!["now".to_owned()],
-            vec!["diaper".to_owned()],
-            vec!["log".to_owned()],
-            vec!["feed".to_owned(), "bottle".to_owned()],
-            vec!["stripes".to_owned()],
-        ] {
-            assert!(
-                !takes_the_screen(&CommandPath(words.clone())),
-                "{words:?} runs in the panel where the menu was"
-            );
-        }
     }
 }

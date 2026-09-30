@@ -137,17 +137,6 @@ widget beside it, and **widget** and **panel** mean the same thing.
 
 ```
  Huckleberry · Wren                                                  Home
-┌ What would you like to do? ────────────────────────────────────────────┐
-│▌ 1. Log a diaper                                                       │
-│  2. Log a feed                                                       › │
-│  3. Log sleep                                                        › │
-│  4. Edit                                                               │
-│  5. Visualizations                                                   › │
-│  6. View logs                                                          │
-│  7. Other logging                                                    › │
-│  8. Delete                                                             │
-│  9. More                                                             › │
-└────────────────────────────────────────────────────────────────────────┘
 ┌ Now ───────────────────────────────────────────────────────────────────┐
 │ Wren                                                                   │
 │                                                                        │
@@ -160,6 +149,17 @@ widget beside it, and **widget** and **panel** mean the same thing.
 │ Slept today    11h 18m                                                 │
 │                                                                        │
 │ as of 2m ago                                                           │
+└────────────────────────────────────────────────────────────────────────┘
+┌ What would you like to do? ────────────────────────────────────────────┐
+│▌ 1. Log a diaper                                                       │
+│  2. Log a feed                                                       › │
+│  3. Log sleep                                                        › │
+│  4. Edit                                                               │
+│  5. Visualizations                                                   › │
+│  6. View logs                                                          │
+│  7. Other logging                                                    › │
+│  8. Delete                                                             │
+│  9. More                                                             › │
 └────────────────────────────────────────────────────────────────────────┘
  ↑/↓ j/k move · ← h back · → l open · Enter select · r refresh · ctrl-q quit
 ```
@@ -215,15 +215,16 @@ question can never word itself one way in one place and another way in the
 other. It is the same rule as the Now drawer, applied to input instead of
 output.
 
-### The one exception
+### There are no exceptions
 
-`dash` still takes the screen. It is a second full-screen program rather than a
-command with questions, and a terminal has one alternate screen to give. The
-shell steps aside for it and takes the screen back when it ends.
+The dashboard used to be one: a second full-screen program that the shell
+stepped aside for. It does not any more. It is drawn in the panel like
+everything else, from the reading the shell already has, so `r` refreshes it
+along with the widgets and there is no second read.
 
-That is on its way out rather than settled: the shell already shows what the
-dashboard's first tab does, and the rest of its tabs are commands that run in
-the panel like any other.
+`h dash` still opens it on its own from the command line. Inside the shell it
+is a view rather than a command, so Back closes it and puts the menu back, and
+the footer names its keys while it is open.
 
 ### Where the output goes
 
@@ -273,15 +274,17 @@ line tells the truth about how old they are.
 
 ## Where the Now drawer sits, and why
 
-It is a full-width strip along the **bottom**, under the Menu view:
+It is a full-width strip across the **top**, above the Menu view:
 
-- It is where a glance goes and comes back from without leaving the row being
-  navigated. The menu keeps the cursor; the drawer keeps the facts.
+- It is where the eye lands first, and the facts are read without looking past
+  anything else to find them.
 - Full width means the facts keep the shape they have everywhere else in this
   tool, label and value on one line, rather than being folded to fit a column.
-- The Menu view is the main panel and takes everything left over. The drawer is
-  only as tall as it has something to say, and gives way to the menu on a short
-  terminal rather than the other way round.
+- The Menu view is still the main panel and takes everything left over beneath
+  it. The drawer is only as tall as it has something to say, and gives way to
+  the menu on a short terminal rather than the other way round: the menu is the
+  part being operated, and a drawer short of its last line is still readable
+  where a menu with no rows is not.
 
 ### 16. The Now drawer is `h now`, and nothing else
 
@@ -303,10 +306,10 @@ both follow. If the two ever have to differ, that is a decision for
 
 1. More widgets, added one at a time and each answering a question somebody
    would otherwise navigate to ask.
-2. Absorbing `dash`, which is the last thing that takes the screen and is
-   mostly things the shell already shows.
-3. Panels that are better than a hosted prompt for the flows asked most: a
+2. Panels that are better than a hosted prompt for the flows asked most: a
    diaper is four questions in a row where it could be one screen.
+3. The dashboard's Now tab and the Now drawer say the same things twice while
+   the dashboard is open. One of them should give way to the other.
 
 ## Known rough edge
 

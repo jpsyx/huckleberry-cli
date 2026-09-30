@@ -12,7 +12,7 @@
 //! is a picture rather than a table because at 3am a picture is faster.
 
 use ratatui::Frame;
-use ratatui::layout::{Constraint, Direction, Layout};
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Tabs};
@@ -38,6 +38,11 @@ pub const fn tone(role: Tone) -> Color {
 
 /// Draws the whole frame.
 pub fn draw(frame: &mut Frame, state: &State, units: Units, at: f64) {
+    draw_in(frame, frame.area(), state, units, at);
+}
+
+/// Draws the dashboard into one area, which is how the shell shows it.
+pub fn draw_in(frame: &mut Frame, area: Rect, state: &State, units: Units, at: f64) {
     let areas = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -45,7 +50,7 @@ pub fn draw(frame: &mut Frame, state: &State, units: Units, at: f64) {
             Constraint::Min(6),
             Constraint::Length(1),
         ])
-        .split(frame.area());
+        .split(area);
 
     frame.render_widget(tab_bar(state), areas[0]);
     match state.tab {
@@ -108,10 +113,12 @@ fn status_bar(state: &State, at: f64) -> Paragraph<'_> {
             Style::default().fg(tone(Tone::Warning)),
         ));
     }
-    spans.push(Span::styled(
-        "   q quit · r refresh · tab/1-5 screens",
-        Style::default().fg(tone(Tone::Muted)),
-    ));
+    if !state.in_panel {
+        spans.push(Span::styled(
+            "   q quit · r refresh · tab/1-5 screens",
+            Style::default().fg(tone(Tone::Muted)),
+        ));
+    }
     Paragraph::new(Line::from(spans))
 }
 

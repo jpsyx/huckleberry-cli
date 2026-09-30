@@ -27,7 +27,7 @@ use huckleberry_api::client::now_seconds;
 use shell::Shell;
 
 use crate::cli::Cli;
-use crate::interactive::{operation, session::SessionOptions};
+use crate::interactive::session::SessionOptions;
 use crate::theme::Theme;
 use job::{Job, Landing};
 
@@ -100,6 +100,9 @@ async fn navigate(
             }
             continue;
         }
+        if app.dashboard.is_some() && dashboard_key(app, key, globals, theme, &mut reading) {
+            continue;
+        }
 
         match app.apply(motion_for(key), height) {
             Intent::Stay => {}
@@ -113,16 +116,7 @@ async fn navigate(
                 app.set_status(format!("{} {}", crate::APP_NAME, env!("CARGO_PKG_VERSION")));
             }
             Intent::Help => job = Some(Job::help(theme)),
-            Intent::Run(path) if job::takes_the_screen(&path) => {
-                // The one command that is a full screen of its own. A terminal
-                // has one alternate screen to give, so the shell takes it back
-                // when the dashboard is done with it.
-                shell.suspend()?;
-                let landing =
-                    job::settle(Box::pin(operation::run(&path, globals, theme)).await, theme);
-                shell.resume()?;
-                land(app, landing);
-            }
+            Intent::Dashboard => app.open_dashboard(days(globals, theme)),
             Intent::Run(path) => job = Some(Job::start(&path, globals, theme)),
         }
     }
@@ -131,6 +125,44 @@ async fn navigate(
 /// Whether this key ends the session whatever is on the screen.
 fn forces_quit(key: crossterm::event::KeyEvent) -> bool {
     motion_for(key) == Motion::Quit
+}
+
+/// Gives a key to the dashboard, and says whether it took it.
+///
+/// Back closes it and puts the menu back, which is what the same key does
+/// everywhere else in this shell. `r` reads again, for the dashboard and every
+/// widget at once, because they are all drawn from the one reading.
+fn dashboard_key(
+    app: &mut App,
+    key: crossterm::event::KeyEvent,
+    globals: &SessionOptions,
+    theme: Theme,
+    reading: &mut Option<data::Reading>,
+) -> bool {
+    match motion_for(key) {
+        Motion::Back | Motion::Cancel => {
+            app.close_dashboard();
+        }
+        Motion::Refresh => {
+            if reading.is_none() {
+                *reading = Some(begin(app, globals, theme));
+            }
+        }
+        _ => {
+            if let Some(dashboard) = app.dashboard.as_mut() {
+                // Its own keys: tabs, digits and scrolling. Quitting it is
+                // Back, which never reaches here.
+                dashboard.apply(key);
+            }
+        }
+    }
+    true
+}
+
+/// How many days of history the dashboard covers.
+fn days(globals: &SessionOptions, theme: Theme) -> usize {
+    crate::interactive::session::load_context(globals, theme)
+        .map_or(crate::config::DEFAULT_DAYS, |context| context.days(None)) as usize
 }
 
 /// Starts a read, and says on the screen that one is running.
@@ -157,7 +189,7 @@ async fn collect(app: &mut App, reading: &mut Option<data::Reading>) {
     };
     match handle.await {
         Ok(Ok((dataset, calendar, units, rule))) => {
-            app.facts.replace(dataset, calendar, units, rule);
+            app.refreshed(dataset, calendar, units, rule);
         }
         Ok(Err(trouble)) => app.facts.record_trouble(&format!("{trouble:#}")),
         Err(trouble) => app

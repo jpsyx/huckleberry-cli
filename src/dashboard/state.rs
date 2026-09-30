@@ -148,6 +148,12 @@ pub struct State {
     pub refreshing: bool,
     /// How this family counts a day.
     pub rule: crate::domain::today::DayRule,
+    /// Whether it is being drawn inside the shell rather than on its own.
+    ///
+    /// The shell's footer already names the keys, and they are not the same
+    /// keys: `q` does not leave in there. So the status bar keeps the child
+    /// and the staleness and drops the hints.
+    pub in_panel: bool,
 }
 
 impl State {
@@ -163,7 +169,15 @@ impl State {
             trouble: None,
             refreshing: false,
             rule: crate::domain::today::DayRule::assumed(),
+            in_panel: false,
         }
+    }
+
+    /// Drawn inside the shell, where the keys belong to the shell.
+    #[must_use]
+    pub const fn in_panel(mut self) -> Self {
+        self.in_panel = true;
+        self
     }
 
     /// Counts days the way the family configured.
