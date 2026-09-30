@@ -175,10 +175,52 @@ impl State {
     }
 
     /// Drawn inside the shell, where the keys belong to the shell.
+    ///
+    /// The Now tab goes with it: the shell's own Now drawer is already on the
+    /// screen above, and the same facts twice is one of them wasted.
     #[must_use]
     pub const fn in_panel(mut self) -> Self {
         self.in_panel = true;
+        self.tab = Tab::Sleep;
         self
+    }
+
+    /// The tabs this dashboard has, in the order they appear.
+    #[must_use]
+    pub const fn tabs(&self) -> &'static [Tab] {
+        if self.in_panel {
+            // Everything but Now, which is the first.
+            Tab::ALL.split_first().expect("five tabs").1
+        } else {
+            &Tab::ALL
+        }
+    }
+
+    /// Where the tab showing sits on the bar.
+    #[must_use]
+    pub fn tab_index(&self) -> usize {
+        self.tabs()
+            .iter()
+            .position(|tab| *tab == self.tab)
+            .unwrap_or(0)
+    }
+
+    /// The tab a number key selects, counting from one.
+    fn tab_from_digit(&self, digit: char) -> Option<Tab> {
+        let index = digit.to_digit(10)?.checked_sub(1)? as usize;
+        self.tabs().get(index).copied()
+    }
+
+    /// The next tab, wrapping at the end of the ones there are.
+    fn next_tab(&self) -> Tab {
+        let tabs = self.tabs();
+        tabs[(self.tab_index() + 1) % tabs.len()]
+    }
+
+    /// The previous tab, wrapping at the start.
+    fn previous_tab(&self) -> Tab {
+        let tabs = self.tabs();
+        tabs[(self.tab_index() + tabs.len() - 1) % tabs.len()]
     }
 
     /// Counts days the way the family configured.
@@ -207,9 +249,9 @@ impl State {
     /// Works out which tab a movement key meant.
     fn move_to(&mut self, key: KeyEvent) {
         self.tab = match key.code {
-            KeyCode::Tab | KeyCode::Right | KeyCode::Char('l') => self.tab.next(),
-            KeyCode::BackTab | KeyCode::Left | KeyCode::Char('h') => self.tab.previous(),
-            KeyCode::Char(digit) => Tab::from_digit(digit).unwrap_or(self.tab),
+            KeyCode::Tab | KeyCode::Right | KeyCode::Char('l' | 'L') => self.next_tab(),
+            KeyCode::BackTab | KeyCode::Left | KeyCode::Char('h' | 'H') => self.previous_tab(),
+            KeyCode::Char(digit) => self.tab_from_digit(digit).unwrap_or(self.tab),
             _ => self.tab,
         };
         // A tab change starts at the top: carrying a scroll offset from the
@@ -374,5 +416,77 @@ mod reads {
         state.record_trouble("could not reach Huckleberry");
         state.replace(dataset());
         assert!(state.trouble.is_none());
+    }
+}
+
+#[cfg(test)]
+mod panels {
+    //! Inside the shell the Now drawer is already on the screen, so the
+    //! dashboard's own Now tab would be the same facts twice.
+
+    use super::*;
+    use crate::domain::Calendar;
+    use crate::domain::fixtures::dataset;
+
+    fn state() -> State {
+        State::new(
+            dataset(),
+            Calendar::new("America/New_York").expect("a real timezone"),
+            7,
+        )
+    }
+
+    fn press(character: char) -> KeyEvent {
+        KeyEvent::new(KeyCode::Char(character), KeyModifiers::NONE)
+    }
+
+    #[test]
+    fn on_its_own_the_dashboard_shows_every_tab() {
+        assert_eq!(state().tabs(), Tab::ALL);
+        assert_eq!(state().tab, Tab::Now);
+    }
+
+    #[test]
+    fn inside_the_shell_the_now_tab_is_left_out() {
+        let state = state().in_panel();
+        assert_eq!(
+            state.tabs(),
+            [Tab::Sleep, Tab::Feeding, Tab::Diapers, Tab::Log],
+            "the Now drawer is already showing those facts"
+        );
+        assert_eq!(state.tab, Tab::Sleep, "so it opens on the first one left");
+    }
+
+    #[test]
+    fn the_numbers_count_the_tabs_that_are_there() {
+        let mut state = state().in_panel();
+        for (digit, expected) in [
+            ('1', Tab::Sleep),
+            ('2', Tab::Feeding),
+            ('3', Tab::Diapers),
+            ('4', Tab::Log),
+        ] {
+            state.apply(press(digit));
+            assert_eq!(state.tab, expected, "{digit}");
+        }
+        state.apply(press('5'));
+        assert_eq!(state.tab, Tab::Log, "there is no fifth tab to go to");
+    }
+
+    #[test]
+    fn moving_wraps_around_the_tabs_that_are_there() {
+        let mut state = state().in_panel();
+        assert_eq!(state.tab, Tab::Sleep);
+        state.apply(press('h'));
+        assert_eq!(state.tab, Tab::Log, "back from the first is the last");
+        state.apply(press('l'));
+        assert_eq!(state.tab, Tab::Sleep, "and on from the last is the first");
+    }
+
+    #[test]
+    fn the_tab_bar_names_only_the_tabs_that_are_there() {
+        let drawn = crate::dashboard::draw::tab_titles(&state().in_panel());
+        assert!(!drawn.contains(&"Now"), "{drawn:?}");
+        assert_eq!(drawn, ["Sleep", "Feeding", "Diapers", "Log"]);
     }
 }

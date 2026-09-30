@@ -922,3 +922,42 @@ scroll. `action_for_tab` no longer varies by tab, which is the point of it.
 
 **Revisit when.** A screen turns up with a left and a right that is not the
 dashboard, and `h` has to mean one of them there rather than back.
+
+## A running sleep takes two lines, and says when the last one finished
+
+**Decision.** While a sleep is running, `now` draws it on one line and the
+previous sleep on another beneath it, muted and indented to the value column.
+The note reads `(previous sleep finished 2h 10m ago for 1h 20m)`.
+
+**Why.** It was one line holding two facts, and a tired eye reads that twice to
+find where the first one ends. Splitting them costs a row on a screen that has
+rows to spare, and the indent keeps the note under the value it is about rather
+than under the label, so the column still reads down.
+
+The wording changed with it. It said *was*, which reads as when the sleep
+happened; what the number actually measures is from that sleep's **end**, so it
+says *finished*. And it now carries how long that sleep ran, which is the
+question asked straight after "when did it end".
+
+**Consequences.** `render::now::screen` returns rows rather than one row per
+fact, so a fact may take more than one. The shell's Now drawer follows without
+changing, which is the point of it drawing the same rows.
+
+**Revisit when.** Another fact wants a note of its own and the pattern needs a
+name rather than a helper.
+
+## The dashboard drops its Now tab inside the shell
+
+**Decision.** Drawn in the shell's panel, the dashboard leaves out its Now tab
+and opens on Sleep. Run on its own, `h dash` still has all five.
+
+**Why.** The shell's Now drawer is already on the screen above it. The same
+facts twice is one of them wasted, on the screen where room is scarcest.
+
+**Consequences.** The tab list is a property of the state rather than a
+constant, so the digits count the tabs that are there and wrapping wraps around
+them. `Tab::ALL` stays the full set, because the standalone dashboard still
+has it; `State::tabs` is what anything drawing or moving should ask.
+
+**Revisit when.** The drawer stops showing what the Now tab shows, or the
+dashboard stops being drawn beneath it.

@@ -43,9 +43,9 @@ pub fn screen(
         Row::new(),
         fact("Last fed", &feed_line(view, calendar, units, now)),
         fact("Diaper", &diaper_line(view, calendar, now)),
-        sleep_row(view, dataset, now),
-        fact(&stretch_label(view), &stretch_line(view, calendar)),
     ];
+    rows.extend(sleep_rows(view, dataset, now));
+    rows.push(fact(&stretch_label(view), &stretch_line(view, calendar)));
 
     if let Some(nursing) = &view.nursing_now {
         let state = if nursing.paused { " (paused)" } else { "" };
@@ -106,12 +106,33 @@ pub fn lines(
         .collect()
 }
 
+/// How wide the label column is, so a note under a value lines up with it
+/// rather than with the label it belongs to.
+const LABEL: usize = 13;
+
+/// The gap between a label and its value.
+const GAP: usize = 2;
+
 /// One labelled fact. The gap travels with the label so that a screen with no
 /// colour is the same text either way.
 fn fact(label: &str, value: &str) -> Row {
     vec![
-        Piece::new(format!("{}  ", format::pad(label, 13)), Tone::Accent),
+        Piece::new(
+            format!("{}{}", format::pad(label, LABEL), " ".repeat(GAP)),
+            Tone::Accent,
+        ),
         Piece::new(value.to_owned(), Tone::Value),
+    ]
+}
+
+/// A quieter line under a fact, indented to the value it is about.
+///
+/// The indent is its own piece so the note itself is one span of text: what is
+/// said and what it is painted are then the same thing.
+fn note(text: &str) -> Row {
+    vec![
+        Piece::new(" ".repeat(LABEL + GAP), Tone::Value),
+        Piece::new(text.to_owned(), Tone::Muted),
     ]
 }
 
@@ -181,40 +202,49 @@ fn diaper_line(view: &NowView, calendar: &Calendar, now: f64) -> String {
 }
 
 /// Current sleep leads; the last completed sleep is secondary while asleep.
-fn sleep_row(view: &NowView, dataset: &Dataset, now: f64) -> Row {
+///
+/// Two lines rather than one while a sleep is running. The running one is what
+/// somebody opened this for, and one long line holding both is a line a tired
+/// eye reads twice to find where the first fact ends.
+///
+/// The note says *finished*, because that is what it measures: how long ago
+/// the previous sleep ended, not when it began. It carries how long that sleep
+/// ran as well, which is the question asked straight after.
+fn sleep_rows(view: &NowView, dataset: &Dataset, now: f64) -> Vec<Row> {
     let state = &view.sleep_state;
-    if state.asleep {
-        let paused = if state.paused { " (timer paused)" } else { "" };
-        let current = state.asleep_seconds.map_or_else(
-            || format!("currently sleeping{paused}"),
-            |seconds| {
+    if !state.asleep {
+        let previous = dataset.last_sleep().map_or_else(
+            || "no sleep logged".to_owned(),
+            |sleep| {
                 format!(
-                    "currently sleeping for {}{paused}",
-                    format_duration(seconds)
+                    "{} · slept for {}",
+                    format_ago(sleep.end(), now),
+                    format_duration(sleep.duration)
                 )
             },
         );
-        let mut row = fact("Sleep", &current);
-        if let Some(end) = state.last_sleep_end {
-            row.push(Piece::new(" ", Tone::Value));
-            row.push(Piece::new(
-                format!("(previous sleep was {})", format_ago(end, now)),
-                Tone::Muted,
-            ));
-        }
-        return row;
+        return vec![fact("Sleep", &previous)];
     }
-    let previous = dataset.last_sleep().map_or_else(
-        || "no sleep logged".to_owned(),
-        |sleep| {
+
+    let paused = if state.paused { " (timer paused)" } else { "" };
+    let current = state.asleep_seconds.map_or_else(
+        || format!("currently sleeping{paused}"),
+        |seconds| {
             format!(
-                "{} · slept for {}",
-                format_ago(sleep.end(), now),
-                format_duration(sleep.duration)
+                "currently sleeping for {}{paused}",
+                format_duration(seconds)
             )
         },
     );
-    fact("Sleep", &previous)
+    let mut rows = vec![fact("Sleep", &current)];
+    if let Some(sleep) = dataset.last_sleep() {
+        rows.push(note(&format!(
+            "(previous sleep finished {} for {})",
+            format_ago(sleep.end(), now),
+            format_duration(sleep.duration)
+        )));
+    }
+    rows
 }
 
 /// What the running totals call their window.
@@ -369,6 +399,7 @@ mod tests {
         assert!(text.contains("2h 10m ago · slept for 1h 20m"), "{text}");
     }
 
+    /// A running sleep, and the one before it on a line of its own.
     #[test]
     fn a_live_sleep_keeps_previous_sleep_as_muted_context() {
         let mut data = dataset();
@@ -381,13 +412,64 @@ mod tests {
         let text = lines(&view, &data, &calendar, theme, Units::Ml, AFTERNOON).join("\n");
         assert!(text.contains("currently sleeping for 30m"), "{text}");
         assert!(
-            text.contains(&theme.muted("(previous sleep was 2h 10m ago)")),
-            "{text}"
+            text.contains(&theme.muted("(previous sleep finished 2h 10m ago for 1h 20m)")),
+            "the note says when it ended and how long it ran: {text}"
         );
+    }
+
+    /// Two lines, because one long line is one a tired eye reads twice.
+    #[test]
+    fn the_previous_sleep_sits_on_its_own_line_under_the_running_one() {
+        let mut data = dataset();
+        data.sleep = vec![sleep(AFTERNOON - 12600.0, 4800.0)];
+        data.live.sleep_active = true;
+        data.live.sleep_start = Some(AFTERNOON - 1800.0);
+        let screen = screen(&data, AFTERNOON);
+
+        let running = screen
+            .iter()
+            .position(|line| line.contains("currently sleeping for 30m"))
+            .expect("a running sleep");
         assert!(
-            joined(&data, AFTERNOON)
-                .contains("currently sleeping for 30m (previous sleep was 2h 10m ago)")
+            !screen[running].contains("previous sleep"),
+            "the note is not on the same line: {}",
+            screen[running]
         );
+        let note = &screen[running + 1];
+        assert!(
+            note.contains("(previous sleep finished 2h 10m ago for 1h 20m)"),
+            "it is on the next one: {note}"
+        );
+    }
+
+    /// The note lines up under the value it is about, not under the label.
+    #[test]
+    fn the_note_is_indented_to_where_the_value_column_starts() {
+        let mut data = dataset();
+        data.sleep = vec![sleep(AFTERNOON - 12600.0, 4800.0)];
+        data.live.sleep_active = true;
+        data.live.sleep_start = Some(AFTERNOON - 1800.0);
+        let screen = screen(&data, AFTERNOON);
+
+        let running = screen
+            .iter()
+            .position(|line| line.contains("currently sleeping"))
+            .expect("a running sleep");
+        let value_at = screen[running]
+            .find("currently sleeping")
+            .expect("a value column");
+        let note_at = screen[running + 1].find("(previous sleep").expect("a note");
+        assert_eq!(note_at, value_at, "{:?}", &screen[running..=running + 1]);
+    }
+
+    #[test]
+    fn a_running_sleep_with_nothing_before_it_gets_no_note_at_all() {
+        let mut data = dataset();
+        data.live.sleep_active = true;
+        data.live.sleep_start = Some(AFTERNOON - 1800.0);
+        let text = joined(&data, AFTERNOON);
+        assert!(text.contains("currently sleeping for 30m"), "{text}");
+        assert!(!text.contains("previous sleep"), "{text}");
     }
 
     #[test]

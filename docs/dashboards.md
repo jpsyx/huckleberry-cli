@@ -55,7 +55,8 @@ Wren
 
 Last fed       36m ago · 73 ml of Formula · 8:03 pm
 Diaper          1h 31m ago · wet · 7:09 pm
-Sleep          asleep 40m
+Sleep          currently sleeping for 30m
+               (previous sleep finished 2h 10m ago for 1h 20m)
 Tonight        nothing finished yet
 Last 3h        73 ml · 1 feed
 Fed today      430 ml · 6 feeds · since 6:00 am
@@ -64,7 +65,14 @@ Slept today    11h 18m
 as of 2m ago
 ```
 
-The fourth line relabels itself. Inside the family's night window it reads
+A running sleep takes two lines: what is happening now, and the one before it
+underneath in muted text, indented to line up with the value it is about. One
+long line holding both is a line a tired eye reads twice to find where the
+first fact ends. The note says *finished* because it measures from that
+sleep's end, and it carries how long the sleep ran, which is the question asked
+straight after.
+
+The next line relabels itself. Inside the family's night window it reads
 `Tonight`; outside it reads `Night of Sun 21 Sep` and names the night it means.
 An ambiguous label there is the one that gets misread at 3am.
 

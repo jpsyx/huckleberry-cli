@@ -63,10 +63,17 @@ pub fn draw_in(frame: &mut Frame, area: Rect, state: &State, units: Units, at: f
     frame.render_widget(status_bar(state, at), areas[2]);
 }
 
+/// What the tab bar names, which is the tabs this dashboard has.
+#[must_use]
+pub fn tab_titles(state: &State) -> Vec<&'static str> {
+    state.tabs().iter().map(|tab| tab.title()).collect()
+}
+
 /// The tab bar, with the child's name on it.
 fn tab_bar(state: &State) -> Tabs<'_> {
-    let titles: Vec<Line<'_>> = Tab::ALL
-        .into_iter()
+    let titles: Vec<Line<'_>> = state
+        .tabs()
+        .iter()
         .enumerate()
         .map(|(index, tab)| {
             Line::from(vec![
@@ -79,7 +86,7 @@ fn tab_bar(state: &State) -> Tabs<'_> {
         })
         .collect();
     Tabs::new(titles)
-        .select(state.tab.index())
+        .select(state.tab_index())
         .style(Style::default().fg(tone(Tone::Accent)))
         .highlight_style(
             Style::default()

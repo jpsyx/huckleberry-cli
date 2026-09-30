@@ -79,12 +79,18 @@ sign-in does. Backspace and Ctrl-U erase; Ctrl-C and Esc abandon.
 | `dash` | all of the above, full screen, live |
 | `export` | the lot, as JSON |
 
-`now` leads its Sleep row with the current session, for example
-`currently sleeping for 30m (previous sleep was 2h 10m ago)`. The parenthetical
-is muted when colour is enabled and omitted if no previous sleep is recorded.
-When no sleep is running, the row reads `2h 10m ago · slept for 1h 20m`.
-Previous-sleep elapsed time always starts at that sleep's **end**, not its
-start. The longest-night-stretch row and `now --json` retain their existing
+`now` leads its Sleep row with the current session, and puts the one before it
+on a line of its own beneath, indented to the value column:
+
+```text
+Sleep          currently sleeping for 30m
+               (previous sleep finished 2h 10m ago for 1h 20m)
+```
+
+The note is muted when colour is enabled and left out when no previous sleep is
+recorded. It says **finished** because that is what it measures: the time is
+from that sleep's **end**, not its start. When no sleep is running the row
+reads `2h 10m ago · slept for 1h 20m` on one line. The longest-night-stretch row and `now --json` retain their existing
 meanings.
 
 `log` takes `--search <TEXT>` as well, which is the same filter the `/` key
