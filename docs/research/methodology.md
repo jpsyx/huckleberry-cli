@@ -21,7 +21,9 @@ That cuts both ways, and both ways are bad:
 - A range set too high tells a parent whose baby is fine that something is
   wrong. At 3am that is not a minor inconvenience.
 - A range set too low tells a parent whose baby is not fine that everything is
-  normal. That is worse, and it is the one nobody notices.
+  normal. That is worse, and it is the one nobody notices. Nothing in a test
+  suite catches it, no reviewer feels it, and the only evidence it ever
+  produces is a parent who did not call somebody.
 
 So the bar is not "this number appears on the internet". The bar is "a named
 body that a clinician would accept said this, in these words, about this age,
@@ -146,10 +148,31 @@ These recur across topics. Ask them every time:
 Research produces sources. Deciding what to publish is a separate act with its
 own rules, and the rules lean one direction: toward saying less.
 
-1. **A floor sits under every qualifying source, never above one.** Where
-   sources disagree, the published floor goes beneath the lowest of them. A
-   band that tells somebody they are short when a reputable body says they are
-   not is worse than a band that is merely wide.
+1. **A floor sits under every qualifying source, and a ceiling sits over every
+   one.** Where sources disagree, the floor goes beneath the lowest of them and
+   the top above the highest. A band that tells somebody they are short when a
+   reputable body says they are not is worse than a band that is merely wide,
+   and the mirror is just as true: the first correction of this repository's
+   ranges left a ceiling that flagged one healthy newborn in nine as sleeping
+   too much, because only the floor had been thought about.
+
+   **Two limits on this rule, both learned by getting them wrong.** They matter
+   more than the rule itself, because the rule read literally always resolves
+   to the most permissive number available, and the most permissive number is
+   often the wrong one.
+
+   *A vague source does not override a specific one from an equally qualified
+   body.* "In the first few days" loses to a chart with a row per day. Taking
+   the vague source's lower number because it is lower is not caution, it is
+   picking the weaker evidence for being weaker.
+
+   *Where sources describe two populations that genuinely differ, the lowest
+   floor silently adopts the population whose low reading is least dangerous.*
+   That is the worst outcome available: it looks like conservatism and is
+   under-warning. When a tool cannot tell which population a reader belongs to,
+   the answer is no band, not the gentler band. This repository shipped a stool
+   floor that reassured exactly the baby a clinician would have acted on,
+   twice, in opposite directions, before arriving at publishing nothing.
 2. **Material disagreement widens the band or removes it.** Never split the
    difference between two sources and present the result as though it came from
    somewhere. That number has no source, and the file requires one.

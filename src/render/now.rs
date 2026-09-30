@@ -1038,11 +1038,11 @@ mod tests {
             "{text}"
         );
         assert!(
-            text.contains("typical from day 5: 5 or more wet diapers a day"),
+            text.contains("typical from day 3: 5 or more wet diapers a day"),
             "{text}"
         );
         assert!(
-            text.contains("typical at this age: 8 to 18 hours in 24"),
+            text.contains("typical at this age: 8 to 20 hours in 24"),
             "{text}"
         );
     }
@@ -1093,9 +1093,9 @@ mod tests {
     #[test]
     fn a_figure_already_past_the_top_of_its_range_says_so() {
         let mut data = a_newborns_day();
-        // Ten sleeps of just under two hours, one every two hours, so they
+        // Twelve sleeps of just under two hours, one every two hours, so they
         // never overlap and together run past the top of the newborn band.
-        data.sleep = (0..10)
+        data.sleep = (0..12)
             .map(|index| sleep(AFTERNOON - 7_200.0 * f64::from(index) - 7_200.0, 7_000.0))
             .collect();
         let calendar = calendar();

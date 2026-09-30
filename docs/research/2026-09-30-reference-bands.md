@@ -24,9 +24,15 @@ the Galland meta-analysis abstract.
 ages intact**, both of them sleep bands from the AASM consensus statement, and
 even those had the opening word of their label corrected. Five rested on
 attributions the named body had never written, and two cited no body at all.
-Three age ranges lost their band entirely, because no qualifying source
-supports a range there: milk feeds past six months, wet diapers past six
-months, and dirty diapers past three weeks. The file went from 16 bands to 12.
+Age ranges lost their band entirely wherever no qualifying source supports a
+range there: milk feeds past six months, wet diapers past six months, and, after
+the second pass described below, stool counts past the fourth day. The file went
+from 16 bands to 11.
+
+**The four tables below record the first pass.** A second reviewer then attacked
+those corrections and broke three of them, which is written up under "The second
+pass, which broke the first". Where the two disagree, the second pass is what
+shipped.
 
 The failures were not random. Three patterns produced nearly all of them:
 
@@ -298,6 +304,83 @@ whether anybody publishes the figure:
 To which the review adds a third the earlier drafts missed: the figure depends
 on whether a bottle holds expressed milk or formula, and this tool cannot know
 which.
+
+## The second pass, which broke the first
+
+The corrections above were then given to a sixth reviewer, told to attack the
+fix rather than the original. It found that three of the corrected bands still
+put a wrong number in front of a parent, and two of them under-warned, which
+this project's own methodology calls the worse failure. All three are now
+fixed. They are recorded here rather than quietly repaired, because the
+pattern behind them is the useful part.
+
+**The common cause was rule 4.** "A floor sits under every qualifying source"
+reads as caution and is not, because taken literally it always resolves to the
+most permissive number available.
+
+### The stool floor, corrected twice in opposite directions
+
+The original floor of 3 from day 4 was the review's headline finding: it
+reassured at the exact value the literature flags. The first correction
+replaced it with a floor of 1 running to three weeks, on the grounds that the
+AAP puts a formula-fed baby at "at least one bowel movement a day" and the tool
+cannot tell feeding modes apart.
+
+That was worse than what it replaced. The AAP puts a *breastfed* baby at "at
+least 3 to 4 of these per day" by 5 to 7 days, and the CDC lists "fewer than 3
+poops ... per day by 5 days old" as a warning sign. A floor of 1 painted that
+baby green for seventeen consecutive days, and low stool output in a breastfed
+newborn is the classic sign of inadequate milk transfer. The correction had
+also made day 4 *more* permissive than the number it condemned: 2, where the
+original was 3 and the flagged range is 3 or fewer.
+
+Taking the lowest floor had quietly adopted the population whose low reading is
+least dangerous. The bands now stop after the meconium days. Breastfed and
+formula-fed babies differ about threefold here and no single number is honest
+for both, so there is none.
+
+One correction to the reviewer, which changed the outcome: it argued the CDC
+publishes 3 stools for all newborns with no feeding-method split, so a floor of
+3 was available. Fetching the chart directly shows the page is explicitly a
+breastfeeding page. The split is real, which is why the band is gone rather
+than raised.
+
+### The wet floors on days 3 and 4
+
+The corrected floor of 2 sat four below the only source giving a day-4 number.
+The AAP's "In the first few days after birth, a baby should have 2 to 3 wet
+diapers each day" had been allowed to override the CDC's chart, which gives 5
+on day 3 and 6 from day 4, purely because it was lower. A vague phrase covering
+an unspecified span had beaten a table with a row per day.
+
+The floor is now 5 from day 3, which matches the CDC exactly on day 3 and sits
+one under it afterwards, where the AAP and the ABM both settle on "at least 5
+to 6".
+
+### The newborn sleep ceiling
+
+Replacing the 14-to-17-hour recommendation with an observed 8-to-18 fixed the
+floor and left the top alone. Against Galland's 0-to-2-month row, a ceiling of
+18 flags about one healthy newborn in nine as sleeping too much, and the file
+had no rule requiring anyone to check. The ceiling is now 20, Galland's own
+upper limit, which leaves about 2%.
+
+The justifying comment was also citing the wrong row of the table it named:
+Galland's 12.8 (9.7 to 15.9) is the aggregated 0-to-23-month category, not the
+newborn one, which is 14.6 (9.3 to 20.0). The claim that a floor of 14 would
+call "more than half" of newborns short was 41% on the correct row. The
+decision survived; the arithmetic supporting it did not.
+
+**Rule 4 now carries its mirror and its two limits**, and the same text is in
+[`methodology.md`](methodology.md) so the next topic inherits it.
+
+Smaller corrections in the same pass: the sleep table stopped one day late, at
+the sixth birthday, where the AASM's next band begins; the feeds comment quoted
+half of Kent's sentence, hiding a decline between 1 and 3 months that does
+happen; the claim that "the CDC declines to give a number" past six months is
+true only of its breastfeeding page, its formula page giving 5 to 6; and the
+ABM citation now names the 2014 revision, since the 2022 one dropped the
+day-by-day figures.
 
 ## What was deliberately not done
 

@@ -231,18 +231,18 @@ mod tests {
     /// The bands that were researched and written down, spot-checked at the
     /// ages either side of each boundary.
     #[test]
-    fn sleep_has_a_band_at_every_age_up_to_five_years() {
+    fn sleep_has_a_band_at_every_age_through_the_fifth_year() {
         for (age, low_hours, high_hours) in [
             // Observed normal, which is far wider than the recommendation.
-            (0, 8.0, 18.0),
-            (121, 8.0, 18.0),
+            (0, 8.0, 20.0),
+            (121, 8.0, 20.0),
             // The AASM bands, which start at four months and not before.
             (122, 12.0, 16.0),
             (364, 12.0, 16.0),
             (365, 11.0, 14.0),
             (1094, 11.0, 14.0),
             (1095, 10.0, 13.0),
-            (2190, 10.0, 13.0),
+            (2189, 10.0, 13.0),
         ] {
             let band = band_for(Metric::SleepPerDay, Some(age))
                 .unwrap_or_else(|| panic!("no sleep band at {age} days"));
@@ -254,9 +254,9 @@ mod tests {
             assert_eq!(band.high, Some(high_hours * 3600.0), "at {age} days");
         }
         assert_eq!(
-            band_for(Metric::SleepPerDay, Some(2191)),
+            band_for(Metric::SleepPerDay, Some(2190)),
             None,
-            "past five years this table stops"
+            "the sixth birthday is the AASM's next band, not this one"
         );
     }
 
@@ -284,7 +284,7 @@ mod tests {
     /// Ages here are days since birth, so age 4 is the fifth day of life.
     #[test]
     fn wet_diapers_climb_over_the_first_days_and_then_hold() {
-        for (age, low) in [(0, 1.0), (1, 1.0), (2, 2.0), (3, 2.0), (4, 5.0), (180, 5.0)] {
+        for (age, low) in [(0, 1.0), (1, 2.0), (2, 5.0), (3, 5.0), (4, 5.0), (180, 5.0)] {
             let band = band_for(Metric::WetPerDay, Some(age))
                 .unwrap_or_else(|| panic!("no wet band at {age} days"));
             assert!((band.low - low).abs() < f64::EPSILON, "at {age} days");
@@ -362,10 +362,10 @@ mod tests {
     #[test]
     fn the_first_days_have_a_band_each() {
         let floor = |age| band_for(Metric::WetPerDay, Some(age)).expect("a band").low;
-        assert!(floor(0) < floor(2), "day 1 expects less than day 3");
+        assert!(floor(0) < floor(1), "day 1 expects less than day 2");
         assert!(
-            floor(3) < floor(4),
-            "the fifth day is where the floor jumps"
+            floor(1) < floor(2),
+            "and the third day is where output climbs"
         );
     }
 
@@ -392,34 +392,42 @@ mod tests {
             "the bottom is inside"
         );
         assert_eq!(
-            band.standing(18.0 * 3600.0),
+            band.standing(20.0 * 3600.0),
             Standing::Inside,
             "so is the top"
         );
         assert_eq!(band.standing(7.9 * 3600.0), Standing::Below);
-        assert_eq!(band.standing(18.1 * 3600.0), Standing::Above);
+        assert_eq!(band.standing(20.1 * 3600.0), Standing::Above);
     }
 
     /// Ages are days since birth, so age 2 is the third day of life.
     ///
-    /// The floor rises for the meconium days and then falls again, which looks
-    /// odd until you know why: days 3 and 4 are when every source expects the
-    /// clearing stools, and after that breastfed and formula-fed babies
-    /// diverge so far that the only floor honest for both is one.
+    /// The metric covers the meconium days and stops. Past them a breastfed
+    /// baby and a formula-fed one differ about threefold, and no single floor
+    /// is honest for both.
     #[test]
-    fn dirty_diapers_clear_meconium_and_then_stop_being_bandable() {
-        for (age, low) in [(0, 1.0), (1, 1.0), (2, 2.0), (3, 2.0), (4, 1.0), (20, 1.0)] {
+    fn dirty_diapers_cover_the_meconium_days_and_then_stop() {
+        for (age, low) in [(0, 1.0), (1, 1.0), (2, 2.0), (3, 2.0)] {
             let band = band_for(Metric::DirtyPerDay, Some(age))
                 .unwrap_or_else(|| panic!("no dirty band at {age} days"));
             assert!((band.low - low).abs() < f64::EPSILON, "at {age} days");
             assert_eq!(band.high, None, "no source calls a high count atypical");
         }
         assert_eq!(
-            band_for(Metric::DirtyPerDay, Some(21)),
+            band_for(Metric::DirtyPerDay, Some(4)),
             None,
-            "from three weeks some breastfed babies stool weekly and are fine"
+            "from the fifth day the two feeding patterns come apart"
         );
         assert_eq!(band_for(Metric::DirtyPerDay, Some(60)), None);
+    }
+
+    /// A floor of one from the fifth day paints a breastfed baby with a single
+    /// stool green, which is the reading the CDC names as a warning sign and
+    /// the AAP puts three to four times higher. Rather than pick the
+    /// population whose low output is least dangerous, there is no band.
+    #[test]
+    fn no_dirty_band_survives_where_the_feeding_patterns_diverge() {
+        assert_eq!(band_for(Metric::DirtyPerDay, Some(6)), None);
     }
 
     /// The floor a day-4 baby is judged against must not be the number the

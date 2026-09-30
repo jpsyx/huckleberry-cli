@@ -125,8 +125,8 @@ Sat 26 Sep       9      443         299        144   1h 1m   13.1    9.9   2h 38
 average over 6 complete days: 9.0 feeds · 441 ml milk · 13.8h sleep · 8.0 wet · 3.5 dirty
 Wren is 21 days old
   typical in the first weeks: 8 or more feeds a day
-  typical at this age: 8 to 18 hours in 24
-  typical from day 5: 5 or more wet diapers a day
+  typical at this age: 8 to 20 hours in 24
+  typical from day 3: 5 or more wet diapers a day
 
   typical ranges are not your baby: where your pediatrician disagrees, they are right
 ```
