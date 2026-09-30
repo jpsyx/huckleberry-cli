@@ -38,6 +38,18 @@ pub async fn run(cli: &Cli, theme: Theme) -> Result<()> {
         return dispatch(&Context::open(cli, theme)?, command).await;
     }
     if prompt::available() {
+        // The shell draws its widgets before it dispatches anything, so what
+        // setup would otherwise ask on the first keystroke is asked here,
+        // while the full screen is not yet in the way of the question.
+        let context = Context::open(cli, theme)?;
+        crate::setup::run::ensure(
+            &context,
+            crate::setup::Needs {
+                credentials: cli.offline.is_none(),
+                settings: true,
+            },
+        )
+        .await?;
         return Box::pin(crate::tui::run(cli, theme)).await;
     }
     Cli::command().print_help()?;
@@ -45,8 +57,22 @@ pub async fn run(cli: &Cli, theme: Theme) -> Result<()> {
     Ok(())
 }
 
-/// Runs a typed command with fresh operation context.
+/// Runs a typed command, putting first-use setup in place before it acts.
+///
+/// The gate lives here rather than in [`run`] so that every route reaches it:
+/// an explicit invocation, a row chosen in the shell, and a view retried after
+/// a failure all come through this function.
 pub async fn dispatch(context: &Context, command: &Command) -> Result<()> {
+    let ready = crate::setup::run::ensure(
+        context,
+        crate::setup::needs(command, context.offline.is_some()),
+    )
+    .await?;
+    act(&ready, command).await
+}
+
+/// The dispatch itself, with everything setup needed already in place.
+async fn act(context: &Context, command: &Command) -> Result<()> {
     match command {
         Command::Auth { action } => auth::run(context, action).await,
         Command::Child { action } => child::run(context, action).await,
@@ -197,7 +223,8 @@ pub async fn which_child(context: &Context, client: &Huckleberry) -> Result<Stri
 pub async fn load(context: &Context, days: Option<u32>) -> Result<(Dataset, Calendar)> {
     if let Some(path) = &context.offline {
         context.detail(&format!("reading {}", path.display()));
-        let dataset = crate::dataset::read_snapshot(path)?;
+        let mut dataset = crate::dataset::read_snapshot(path)?;
+        context.config.day_rule().apply_to(&mut dataset.child);
         let calendar = Calendar::new(&dataset.timezone)?;
         return Ok((dataset, calendar));
     }
@@ -208,7 +235,7 @@ pub async fn load(context: &Context, days: Option<u32>) -> Result<(Dataset, Cale
     context.narrate(&format!("Reading {days} days from Huckleberry..."));
 
     let nickname = nickname_for(&client, &cid).await;
-    let dataset = crate::dataset::pull(
+    let mut dataset = crate::dataset::pull(
         &client,
         &cid,
         nickname.as_deref(),
@@ -217,6 +244,9 @@ pub async fn load(context: &Context, days: Option<u32>) -> Result<(Dataset, Cale
         now_seconds(),
     )
     .await?;
+    // The family's own night replaces the profile's here, once, so every
+    // screen that asks the child about its night gets the same answer.
+    context.config.day_rule().apply_to(&mut dataset.child);
     persist_session(context, &client).await?;
 
     for note in &dataset.notes {

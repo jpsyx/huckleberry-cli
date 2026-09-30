@@ -51,7 +51,8 @@
   [`architecture.md`](docs/architecture.md), [`api.md`](docs/api.md),
   [`cli.md`](docs/cli.md), [`dashboards.md`](docs/dashboards.md),
   [`decisions.md`](docs/decisions.md), [`nomenclature.md`](docs/nomenclature.md),
-  [`skills.md`](docs/skills.md) and [`tui.md`](docs/tui.md).
+  [`setup.md`](docs/setup.md), [`skills.md`](docs/skills.md) and
+  [`tui.md`](docs/tui.md).
 - **Keep the docs current as you build. This is a rule, not a suggestion.**
   Whenever you add, change, or remove a feature, module, route, data model, or
   architectural boundary, create or update the relevant file(s) in `docs/` as

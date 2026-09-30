@@ -22,7 +22,7 @@ use super::{bordered, tone};
 
 /// The Now tab: the four facts, large, and a week of sleep beneath them.
 pub(super) fn draw_now(frame: &mut Frame, area: Rect, state: &State, units: Units, at: f64) {
-    let view = now::build(&state.dataset, &state.calendar, at);
+    let view = now::build(&state.dataset, &state.calendar, state.rule, at);
     let rows = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(9), Constraint::Min(4)])

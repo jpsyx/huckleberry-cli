@@ -136,7 +136,13 @@ fn log_uses_the_configured_default_for_an_offline_snapshot() {
     )
     .unwrap();
     for units in [Units::Oz, Units::Ml] {
-        std::fs::write(&config, format!("units = '{}'\n", units.as_str())).unwrap();
+        // `day_mode` is answered because first-use setup asks for it on every
+        // command; this test is about units, not about the setup gate.
+        std::fs::write(
+            &config,
+            format!("units = '{}'\nday_mode = 'continuous'\n", units.as_str()),
+        )
+        .unwrap();
         let output = std::process::Command::new(env!("CARGO_BIN_EXE_huckleberry-cli"))
             .arg("--config")
             .arg(&config)

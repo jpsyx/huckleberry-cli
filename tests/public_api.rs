@@ -121,7 +121,12 @@ fn a_snapshot_round_trips_through_its_file_format() {
 fn the_now_screen_answers_the_question_it_exists_for() {
     let dataset = dataset();
     let calendar = Calendar::new(&dataset.timezone).expect("a real timezone");
-    let view = now::build(&dataset, &calendar, AFTERNOON);
+    let view = now::build(
+        &dataset,
+        &calendar,
+        app::domain::today::DayRule::discrete(6.0, None),
+        AFTERNOON,
+    );
     let screen = render::now::lines(
         &view,
         &dataset,
@@ -241,7 +246,12 @@ fn piped_output_carries_no_escape_sequences() {
 
     let dataset = dataset();
     let calendar = Calendar::new(&dataset.timezone).expect("a real timezone");
-    let view = now::build(&dataset, &calendar, AFTERNOON);
+    let view = now::build(
+        &dataset,
+        &calendar,
+        app::domain::today::DayRule::discrete(6.0, None),
+        AFTERNOON,
+    );
     let screen =
         render::now::lines(&view, &dataset, &calendar, plain, Units::Ml, AFTERNOON).join("\n");
     assert!(!screen.contains('\u{1b}'), "{screen}");

@@ -29,6 +29,7 @@ pub mod reference;
 pub mod stripes;
 pub mod summaries;
 pub mod time;
+pub mod today;
 pub mod types;
 
 pub use time::Calendar;

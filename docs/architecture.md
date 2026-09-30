@@ -62,8 +62,10 @@ src/
 ├── prompt/mod.rs        asking for a value that was left out
 ├── prompt/time.rs   shared clock-time and relative-event questions
 ├── theme.rs         semantic colours
+├── setup/           first use: an account, and the settings with no default
 ├── domain/          everything the tool works out, and nothing it prints
-│   └── clock.rs     a time somebody typed, and the instant it means
+│   ├── clock.rs     a time somebody typed, and the instant it means
+│   └── today.rs     what "today" means to this family, and what it adds up to
 ├── render/          domain values to lines of text
 ├── tui/             the always-on shell `h` opens with no command
 ├── dashboard/       the full-screen version of the same values
@@ -147,6 +149,29 @@ Drawing on stderr rather than stdout is what keeps `h > entries.txt` filling the
 file with what the commands printed. The menu is the conversation; the commands
 are the data. It is also why `prompt::available` (stdin and stderr) is still the
 right gate for opening it at all.
+
+## Setup, and the settings with no default
+
+Every command goes through `src/setup/` before it acts, and the gate lives in
+[`dispatch`](#) rather than in `run` so that every route reaches it: an
+explicit invocation, a row chosen in the shell, and a view retried after a
+failure. `--help` and `--version` never reach it, because clap answers those
+and exits first.
+
+`setup/mod.rs` holds the decisions and is pure: which commands are exempt, what
+is missing, which mode a baby of a given age is offered, and what the refusal
+says. `setup/run.rs` is the thin shell that signs in, asks, and writes.
+
+Two things have no default worth having, so the file starts them empty and
+setup asks: **how a family counts a day**, and, for a family counting discrete
+days, **when a day and a night begin**. Midnight is the one boundary that is
+wrong for everybody. See [`setup.md`](setup.md).
+
+The rule is applied to the dataset once, where it is read
+(`DayRule::apply_to`), so every screen that asks the child about its night gets
+the same answer without each of them having to know the setting exists. The
+same applies on the dashboard's re-read and on the shell's refresh, or the
+screen would quietly revert to the profile's night after a minute.
 
 ## Command presentation
 

@@ -16,24 +16,30 @@ use huckleberry_api::client::now_seconds;
 
 use crate::cli::Units;
 use crate::domain::Calendar;
+use crate::domain::today::DayRule;
 use crate::domain::types::Dataset;
 use crate::interactive::session::{SessionOptions, load_context};
 use crate::theme::Theme;
 
 /// One read, or the reason there is not one.
-pub async fn read(globals: &SessionOptions, theme: Theme) -> Result<(Dataset, Calendar, Units)> {
+pub async fn read(
+    globals: &SessionOptions,
+    theme: Theme,
+) -> Result<(Dataset, Calendar, Units, DayRule)> {
     // Reopened every time, so a settings change made from the menu takes
     // effect on the next refresh rather than on the next session.
     let context = load_context(globals, theme)?;
     let units = Units::from_setting(&context.config.units);
+    let rule = context.config.day_rule();
     if let Some(path) = &context.offline {
-        let dataset = crate::dataset::read_snapshot(path)?;
+        let mut dataset = crate::dataset::read_snapshot(path)?;
+        rule.apply_to(&mut dataset.child);
         let calendar = Calendar::new(&dataset.timezone)?;
-        return Ok((dataset, calendar, units));
+        return Ok((dataset, calendar, units, rule));
     }
     let client: Huckleberry = context.client()?;
     let cid = child_without_asking(&context, &client).await?;
-    let dataset = crate::dataset::pull(
+    let mut dataset = crate::dataset::pull(
         &client,
         &cid,
         None,
@@ -42,9 +48,10 @@ pub async fn read(globals: &SessionOptions, theme: Theme) -> Result<(Dataset, Ca
         now_seconds(),
     )
     .await?;
+    rule.apply_to(&mut dataset.child);
     crate::commands::persist_session(&context, &client).await?;
     let calendar = Calendar::new(&dataset.timezone)?;
-    Ok((dataset, calendar, units))
+    Ok((dataset, calendar, units, rule))
 }
 
 /// Starts a read in the background and hands back the handle to collect it.
@@ -61,7 +68,7 @@ pub fn start(globals: &SessionOptions, theme: Theme) -> Reading {
 }
 
 /// A read in flight.
-pub type Reading = tokio::task::JoinHandle<Result<(Dataset, Calendar, Units)>>;
+pub type Reading = tokio::task::JoinHandle<Result<(Dataset, Calendar, Units, DayRule)>>;
 
 /// The child to draw, resolved without a question.
 async fn child_without_asking(

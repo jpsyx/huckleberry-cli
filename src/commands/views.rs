@@ -18,7 +18,7 @@ use crate::session::Context;
 pub async fn now(context: &Context, json: bool) -> Result<()> {
     let (dataset, calendar) = super::load(context, Some(1)).await?;
     let at = now_seconds();
-    let view = now::build(&dataset, &calendar, at);
+    let view = now::build(&dataset, &calendar, context.config.day_rule(), at);
 
     if json {
         println!(
@@ -181,7 +181,27 @@ fn as_json(
             "elapsed_seconds": nursing.elapsed_seconds,
             "paused": nursing.paused,
         })),
+        "recent": totals_as_json(&view.recent),
+        "today": totals_as_json(&view.today),
+        "today_window": {
+            "mode": view.today_window.mode.key(),
+            "start": view.today_window.start,
+            "end": view.today_window.end,
+            "began_at_hour": view.today_window.began_at_hour,
+        },
+        "recent_hours": crate::domain::now::RECENT_HOURS,
         "notes": dataset.notes,
+    })
+}
+
+/// What a window amounts to, as numbers a script can add up.
+fn totals_as_json(totals: &crate::domain::today::Totals) -> serde_json::Value {
+    serde_json::json!({
+        "ml": totals.millilitres,
+        "nursing_seconds": totals.nursing_seconds,
+        "milk_feeds": totals.milk_feeds,
+        "solids": totals.solids,
+        "sleep_seconds": totals.sleep_seconds,
     })
 }
 
@@ -229,15 +249,20 @@ mod tests {
     use super::*;
     use crate::domain::Calendar;
     use crate::domain::fixtures::{AFTERNOON, bottle, dataset};
+    use crate::domain::today::DayRule;
 
     #[test]
     fn the_json_facts_carry_every_number_the_screen_shows() {
         let mut data = dataset();
         data.feeds = vec![bottle(AFTERNOON - 3_600.0, 90.0)];
         let calendar = Calendar::new("America/New_York").expect("a real timezone");
-        let view = now::build(&data, &calendar, AFTERNOON);
+        let view = now::build(&data, &calendar, DayRule::discrete_default(), AFTERNOON);
         let json = as_json(&view, &data, AFTERNOON);
         assert_eq!(json["last_feed"]["ml"], serde_json::json!(90.0));
+        assert_eq!(json["today"]["ml"], serde_json::json!(90.0));
+        assert_eq!(json["today"]["milk_feeds"], serde_json::json!(1));
+        assert_eq!(json["today_window"]["mode"], serde_json::json!("discrete"));
+        assert_eq!(json["recent"]["milk_feeds"], serde_json::json!(1));
         assert_eq!(json["last_feed"]["ago_seconds"], serde_json::json!(3600.0));
         assert_eq!(json["child"], serde_json::json!("Bear"));
     }
@@ -246,7 +271,7 @@ mod tests {
     fn nothing_logged_is_null_in_the_json_rather_than_a_zero() {
         let calendar = Calendar::new("America/New_York").expect("a real timezone");
         let data = dataset();
-        let view = now::build(&data, &calendar, AFTERNOON);
+        let view = now::build(&data, &calendar, DayRule::discrete_default(), AFTERNOON);
         let json = as_json(&view, &data, AFTERNOON);
         assert_eq!(json["last_feed"], serde_json::Value::Null);
         assert_eq!(json["sleep"]["asleep_seconds"], serde_json::Value::Null);

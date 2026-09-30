@@ -20,6 +20,8 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 
+use crate::domain::today::{DayMode, DayRule};
+
 /// The file name inside this tool's own configuration directory.
 const FILE_NAME: &str = "config.toml";
 
@@ -55,6 +57,15 @@ pub struct Config {
     pub refresh: u32,
     /// Print detailed diagnostics without passing `--verbose` every time.
     pub verbose: bool,
+    /// How this family counts a day: `continuous` or `discrete`. Empty means
+    /// nobody has said, which is what first-use setup asks about.
+    pub day_mode: String,
+    /// When a day begins, as `HH:MM`, for a family counting discrete days.
+    /// Empty means nobody has said.
+    pub day_start: String,
+    /// When night begins, as `HH:MM`. Empty means use whatever Huckleberry's
+    /// own profile says.
+    pub night_start: String,
 }
 
 impl Default for Config {
@@ -70,13 +81,19 @@ impl Default for Config {
             measurements: "metric".to_owned(),
             refresh: DEFAULT_REFRESH_SECONDS,
             verbose: false,
+            // Empty rather than a default, because there is no default worth
+            // having: midnight is wrong for everybody, and which of the two
+            // modes is right depends on how old the baby is. Setup asks.
+            day_mode: String::new(),
+            day_start: String::new(),
+            night_start: String::new(),
         }
     }
 }
 
 impl Config {
     /// Every setting name, in the order `config show` prints them.
-    pub const KEYS: [&'static str; 7] = [
+    pub const KEYS: [&'static str; 10] = [
         "child",
         "timezone",
         "days",
@@ -84,6 +101,9 @@ impl Config {
         "measurements",
         "refresh",
         "verbose",
+        "day_mode",
+        "day_start",
+        "night_start",
     ];
 
     /// One line saying what a setting is for, or `None` for an unknown key.
@@ -97,6 +117,9 @@ impl Config {
             "measurements" => Some("growth measurements: metric or imperial"),
             "refresh" => Some("how often the dashboard re-reads, in seconds"),
             "verbose" => Some("print detailed diagnostics without --verbose"),
+            "day_mode" => Some("how a day is counted: continuous (rolling 24h) or discrete"),
+            "day_start" => Some("when a day begins, e.g. 6:00 or 6am (discrete days only)"),
+            "night_start" => Some("when night begins, e.g. 19:30 or 7:30pm"),
             _ => None,
         }
     }
@@ -112,6 +135,9 @@ impl Config {
             ("measurements", self.measurements.clone()),
             ("refresh", self.refresh.to_string()),
             ("verbose", self.verbose.to_string()),
+            ("day_mode", self.day_mode.clone()),
+            ("day_start", self.day_start.clone()),
+            ("night_start", self.night_start.clone()),
         ]
     }
 
@@ -144,6 +170,9 @@ impl Config {
             }
             "refresh" => self.refresh = parse_refresh(value)?,
             "verbose" => self.verbose = parse_bool(value)?,
+            "day_mode" => self.day_mode = parse_day_mode(value)?,
+            "day_start" => self.day_start = parse_hour(value, "day_start")?,
+            "night_start" => self.night_start = parse_hour(value, "night_start")?,
             _ => bail!(unknown_key_message(key)),
         }
         Ok(())
@@ -159,6 +188,83 @@ impl Config {
     /// The calendar the family's days are counted in.
     pub fn calendar(&self) -> Result<crate::domain::Calendar> {
         crate::domain::Calendar::new(&self.timezone)
+    }
+
+    /// How this family counts a day, or `None` when nobody has said.
+    #[must_use]
+    pub fn day_mode(&self) -> Option<DayMode> {
+        DayMode::from_key(self.day_mode.trim())
+    }
+
+    /// When a day begins, as an hour fraction.
+    #[must_use]
+    pub fn day_start_hour(&self) -> Option<f64> {
+        hour_fraction(&self.day_start)
+    }
+
+    /// When night begins, as an hour fraction, when the family has said.
+    #[must_use]
+    pub fn night_start_hour(&self) -> Option<f64> {
+        hour_fraction(&self.night_start)
+    }
+
+    /// The rule every screen counts days by.
+    ///
+    /// An unanswered `day_mode` reads as discrete from midnight, which is what
+    /// the tool does while setup has not run yet. It is deliberately the
+    /// least surprising wrong answer rather than a refusal, so that
+    /// `--offline` and a hand-written configuration still draw a screen.
+    #[must_use]
+    pub fn day_rule(&self) -> DayRule {
+        let night = self.night_start_hour();
+        match self.day_mode() {
+            Some(DayMode::Continuous) => DayRule {
+                mode: DayMode::Continuous,
+                day_start_hour: None,
+                night_start_hour: night,
+            },
+            _ => DayRule {
+                mode: DayMode::Discrete,
+                day_start_hour: self.day_start_hour(),
+                night_start_hour: night,
+            },
+        }
+    }
+}
+
+/// Reads a day-counting mode, naming both spellings when it is neither.
+fn parse_day_mode(value: &str) -> Result<String> {
+    let lowered = value.to_lowercase();
+    if DayMode::from_key(&lowered).is_some() {
+        return Ok(lowered);
+    }
+    bail!("expected day_mode to be continuous or discrete, not `{value}`")
+}
+
+/// Reads a time of day, and stores it in one spelling.
+///
+/// A bare `6` is two different times and this setting is read at 3am, so it is
+/// refused rather than guessed at: the refusal says both ways to be clear.
+fn parse_hour(value: &str, setting: &str) -> Result<String> {
+    match crate::domain::clock::parse(value) {
+        Some(crate::domain::clock::Typed::Certain(time)) => {
+            Ok(format!("{:02}:{:02}", time.hour, time.minute))
+        }
+        Some(crate::domain::clock::Typed::Ambiguous { .. }) => bail!(
+            "`{value}` could be morning or evening: write {setting} as 24-hour \
+             time (`06:00`) or say am or pm (`6am`)"
+        ),
+        None => bail!("expected {setting} to be a time like 06:00 or 6am, not `{value}`"),
+    }
+}
+
+/// A stored `HH:MM` as an hour with a fraction.
+fn hour_fraction(stored: &str) -> Option<f64> {
+    match crate::domain::clock::parse(stored.trim()) {
+        Some(crate::domain::clock::Typed::Certain(time)) => {
+            Some(f64::from(time.hour) + f64::from(time.minute) / 60.0)
+        }
+        _ => None,
     }
 }
 
@@ -362,6 +468,7 @@ mod settings {
             ("measurements", "imperial"),
             ("refresh", "30"),
             ("verbose", "true"),
+            ("day_mode", "continuous"),
         ] {
             config
                 .set(key, value)
@@ -412,6 +519,68 @@ mod settings {
         assert_eq!(config.child(), None);
         config.set("child", "  abc  ").expect("a child id");
         assert_eq!(config.child(), Some("abc"));
+    }
+
+    #[test]
+    fn a_day_is_counted_one_of_exactly_two_ways() {
+        let mut config = Config::default();
+        assert_eq!(config.day_mode(), None, "nobody has said yet");
+        config.set("day_mode", "Continuous").expect("a mode");
+        assert_eq!(config.day_mode(), Some(DayMode::Continuous));
+        let error = config.set("day_mode", "weekly").expect_err("refused");
+        assert!(format!("{error:#}").contains("discrete"), "{error:#}");
+    }
+
+    #[test]
+    fn a_day_start_is_stored_in_one_spelling_however_it_was_typed() {
+        for (typed, stored) in [
+            ("6am", "06:00"),
+            ("06:00", "06:00"),
+            ("6:30 am", "06:30"),
+            ("19:30", "19:30"),
+            ("7:30pm", "19:30"),
+        ] {
+            let mut config = Config::default();
+            config
+                .set("day_start", typed)
+                .unwrap_or_else(|error| panic!("{typed}: {error:#}"));
+            assert_eq!(config.day_start, stored, "{typed}");
+        }
+    }
+
+    #[test]
+    fn a_time_that_could_be_either_half_of_the_day_is_refused_not_guessed() {
+        let mut config = Config::default();
+        let error = config.set("day_start", "6").expect_err("refused");
+        assert!(format!("{error:#}").contains("am or pm"), "{error:#}");
+        assert!(config.day_start.is_empty(), "the refusal changed nothing");
+        assert!(config.set("night_start", "half past seven").is_err());
+    }
+
+    #[test]
+    fn a_configured_hour_reads_back_as_an_hour_fraction() {
+        let mut config = Config::default();
+        config.set("day_start", "6:30am").expect("a time");
+        config.set("night_start", "19:00").expect("a time");
+        assert!((config.day_start_hour().expect("set") - 6.5).abs() < f64::EPSILON);
+        assert!((config.night_start_hour().expect("set") - 19.0).abs() < f64::EPSILON);
+        assert_eq!(Config::default().day_start_hour(), None);
+    }
+
+    #[test]
+    fn the_rule_follows_the_mode_and_falls_back_to_discrete_midnight() {
+        let mut config = Config::default();
+        assert_eq!(config.day_rule(), DayRule::discrete_default());
+        config.set("day_mode", "continuous").expect("a mode");
+        assert_eq!(config.day_rule().mode, DayMode::Continuous);
+        assert_eq!(
+            config.day_rule().day_start_hour,
+            None,
+            "a rolling day has no hour to begin at"
+        );
+        config.set("day_mode", "discrete").expect("a mode");
+        config.set("day_start", "6am").expect("a time");
+        assert_eq!(config.day_rule().day_start_hour, Some(6.0));
     }
 
     #[test]

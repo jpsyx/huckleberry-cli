@@ -6,7 +6,14 @@
 //! kind of number that sends somebody to wake a sleeping baby.
 
 use super::time::Calendar;
+use super::today::{self, DayRule, Totals, Window};
 use super::types::{Dataset, FeedEvent};
+
+/// How far back "recently" reaches on the 3am screen.
+///
+/// Three hours, because that is the interval a newborn feeds on and the
+/// question being asked is whether one is due, not what the day looks like.
+pub const RECENT_HOURS: f64 = 3.0;
 
 /// Where an instant falls relative to the family's night.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -147,11 +154,21 @@ pub struct NowView {
     pub longest_stretch: LongestStretch,
     /// A nursing session in progress.
     pub nursing_now: Option<NursingNow>,
+    /// What has gone in over the last [`RECENT_HOURS`].
+    pub recent: Totals,
+    /// What today amounts to, today meaning whatever this family counts.
+    pub today: Totals,
+    /// Which window that was, so a label never has to guess what it means.
+    pub today_window: Window,
 }
 
 /// Builds the 3am screen's facts.
+///
+/// The rule is passed in rather than read from the dataset, because how a
+/// family counts a day is a decision they made and not something Huckleberry
+/// knows about.
 #[must_use]
-pub fn build(dataset: &Dataset, calendar: &Calendar, now: f64) -> NowView {
+pub fn build(dataset: &Dataset, calendar: &Calendar, rule: DayRule, now: f64) -> NowView {
     let last_feed = dataset.last_feed().map(|feed| LastFeed {
         start: feed.start(),
         ago_seconds: since(feed.start(), now),
@@ -207,7 +224,11 @@ pub fn build(dataset: &Dataset, calendar: &Calendar, now: f64) -> NowView {
                 .unwrap_or(core::cmp::Ordering::Equal)
         });
 
+    let today_window = rule.window(calendar, now);
     NowView {
+        recent: today::totals(dataset, now - RECENT_HOURS * 3600.0, now),
+        today: today::totals(dataset, today_window.start, today_window.end),
+        today_window,
         last_feed,
         last_diaper,
         sleep_state,
@@ -302,7 +323,12 @@ mod facts {
 
     #[test]
     fn with_nothing_logged_every_fact_is_absent_rather_than_zero() {
-        let view = build(&dataset(), &calendar(), AFTERNOON);
+        let view = build(
+            &dataset(),
+            &calendar(),
+            DayRule::discrete_default(),
+            AFTERNOON,
+        );
         assert!(view.last_feed.is_none());
         assert!(view.last_diaper.is_none());
         assert!(view.sleep_state.awake_seconds.is_none());
@@ -316,7 +342,7 @@ mod facts {
             bottle(AFTERNOON - 7200.0, 60.0),
             bottle(AFTERNOON - 3600.0, 90.0),
         ];
-        let view = build(&data, &calendar(), AFTERNOON);
+        let view = build(&data, &calendar(), DayRule::discrete_default(), AFTERNOON);
         let last = view.last_feed.expect("a feed");
         assert!((last.ago_seconds - 3600.0).abs() < f64::EPSILON);
         assert_eq!(last.feed.millilitres(), Some(90.0));
@@ -326,7 +352,7 @@ mod facts {
     fn a_feed_logged_a_moment_in_the_future_reads_as_now_rather_than_negative() {
         let mut data = dataset();
         data.feeds = vec![bottle(AFTERNOON + 30.0, 90.0)];
-        let view = build(&data, &calendar(), AFTERNOON);
+        let view = build(&data, &calendar(), DayRule::discrete_default(), AFTERNOON);
         assert!((view.last_feed.expect("a feed").ago_seconds).abs() < f64::EPSILON);
     }
 
@@ -336,7 +362,7 @@ mod facts {
         data.sleep = vec![sleep(AFTERNOON - 20_000.0, 3_600.0)];
         data.live.sleep_active = true;
         data.live.sleep_start = Some(AFTERNOON - 1_800.0);
-        let view = build(&data, &calendar(), AFTERNOON);
+        let view = build(&data, &calendar(), DayRule::discrete_default(), AFTERNOON);
         assert!(view.sleep_state.asleep);
         assert_eq!(view.sleep_state.asleep_seconds, Some(1_800.0));
         assert_eq!(view.sleep_state.awake_seconds, None);
@@ -346,7 +372,7 @@ mod facts {
     fn awake_time_is_measured_from_the_end_of_the_last_sleep() {
         let mut data = dataset();
         data.sleep = vec![sleep(AFTERNOON - 7_200.0, 3_600.0)];
-        let view = build(&data, &calendar(), AFTERNOON);
+        let view = build(&data, &calendar(), DayRule::discrete_default(), AFTERNOON);
         assert!(!view.sleep_state.asleep);
         assert_eq!(view.sleep_state.awake_seconds, Some(3_600.0));
     }
@@ -356,7 +382,7 @@ mod facts {
         let mut data = dataset();
         // 11pm on the 22nd, for two hours: inside the night of the 22nd.
         data.sleep = vec![sleep(THREE_AM - 14_400.0, 7_200.0)];
-        let view = build(&data, &calendar(), THREE_AM);
+        let view = build(&data, &calendar(), DayRule::discrete_default(), THREE_AM);
         assert!(view.longest_stretch.tonight);
         assert_eq!(view.longest_stretch.night_of.to_string(), "2025-09-22");
         assert_eq!(view.longest_stretch.seconds, Some(7_200.0));
@@ -367,7 +393,7 @@ mod facts {
         let mut data = dataset();
         // Inside the night of the 21st.
         data.sleep = vec![sleep(AFTERNOON - 50_400.0, 10_800.0)];
-        let view = build(&data, &calendar(), AFTERNOON);
+        let view = build(&data, &calendar(), DayRule::discrete_default(), AFTERNOON);
         assert!(!view.longest_stretch.tonight);
         assert_eq!(view.longest_stretch.night_of.to_string(), "2025-09-21");
         assert_eq!(view.longest_stretch.seconds, Some(10_800.0));
@@ -380,7 +406,7 @@ mod facts {
             sleep(THREE_AM - 21_600.0, 10_800.0),
             sleep(THREE_AM - 3_600.0, 1_800.0),
         ];
-        let view = build(&data, &calendar(), THREE_AM);
+        let view = build(&data, &calendar(), DayRule::discrete_default(), THREE_AM);
         assert_eq!(view.longest_stretch.seconds, Some(10_800.0));
     }
 
@@ -389,7 +415,7 @@ mod facts {
         let mut data = dataset();
         // A nap at 2pm on the 22nd, read at 3am on the 23rd.
         data.sleep = vec![sleep(AFTERNOON, 5_400.0)];
-        let view = build(&data, &calendar(), THREE_AM);
+        let view = build(&data, &calendar(), DayRule::discrete_default(), THREE_AM);
         assert_eq!(view.longest_stretch.seconds, None);
     }
 
@@ -397,7 +423,7 @@ mod facts {
     fn a_diaper_is_labelled_by_what_was_in_it() {
         let mut data = dataset();
         data.diapers = vec![diaper(AFTERNOON - 600.0, true, true)];
-        let view = build(&data, &calendar(), AFTERNOON);
+        let view = build(&data, &calendar(), DayRule::discrete_default(), AFTERNOON);
         assert_eq!(view.last_diaper.expect("a diaper").label(), "wet + dirty");
     }
 
@@ -407,7 +433,7 @@ mod facts {
         data.live.nursing_active = true;
         data.live.nursing_start = Some(AFTERNOON - 300.0);
         data.live.nursing_side = Some("right".to_owned());
-        let view = build(&data, &calendar(), AFTERNOON);
+        let view = build(&data, &calendar(), DayRule::discrete_default(), AFTERNOON);
         let nursing = view.nursing_now.expect("a session");
         assert_eq!(nursing.side, "right");
         assert!((nursing.elapsed_seconds - 300.0).abs() < f64::EPSILON);
@@ -417,6 +443,10 @@ mod facts {
     fn a_stale_inactive_timer_is_not_a_session_in_progress() {
         let mut data = dataset();
         data.live.nursing_start = Some(AFTERNOON - 300.0);
-        assert!(build(&data, &calendar(), AFTERNOON).nursing_now.is_none());
+        assert!(
+            build(&data, &calendar(), DayRule::discrete_default(), AFTERNOON)
+                .nursing_now
+                .is_none()
+        );
     }
 }

@@ -12,6 +12,7 @@
 
 use crate::cli::Units;
 use crate::domain::Calendar;
+use crate::domain::today::DayRule;
 use crate::domain::types::Dataset;
 
 /// Everything one read produced, kept together so a screen can never pair a
@@ -23,6 +24,8 @@ pub struct Reading {
     pub calendar: Calendar,
     /// The volume unit the reader chose.
     pub units: Units,
+    /// How this family counts a day.
+    pub rule: DayRule,
 }
 
 /// The shell's copy of the facts, and what is happening to them.
@@ -67,11 +70,12 @@ impl Facts {
     }
 
     /// Takes on a fresh read, clearing whatever went wrong last time.
-    pub fn replace(&mut self, dataset: Dataset, calendar: Calendar, units: Units) {
+    pub fn replace(&mut self, dataset: Dataset, calendar: Calendar, units: Units, rule: DayRule) {
         self.reading = Some(Reading {
             dataset,
             calendar,
             units,
+            rule,
         });
         self.trouble = None;
         self.refreshing = false;
