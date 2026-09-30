@@ -23,7 +23,7 @@ if I _didn't_ vibe code this app.
 
 _**I'm not sure I can trust this CLI if it's fully vibe coded**_
 
-I literally do not care, I'm just trying to feed my baby.
+I truly do not care, I'm just trying to feed my baby.
 
 _**How can I contribute to this repo?**_
 
@@ -40,7 +40,7 @@ memorizing long complicated commands.
 _However_, the CLI is built such that everything you can do interactively
 can also be done through a single command by passing in different options.
 This means that, yes, if you wanted to make this even more ridiculously
-overengineered, you can have the CLI be driven by your Claude or Codex or
+overengineered, the CLI can be driven by your Claude or Codex or
 whatever LLM you swear fealty to.
 
 ## Getting started
