@@ -191,7 +191,7 @@ mod frames {
 
     /// Days from 6am, which is what setup asks a family with an older baby.
     fn rule() -> crate::domain::today::DayRule {
-        crate::domain::today::DayRule::discrete(6.0, None)
+        crate::domain::today::DayRule::discrete(6.0, 19.5)
     }
 
     fn populated() -> Dataset {
@@ -266,7 +266,7 @@ mod frames {
             populated(),
             calendar(),
             Units::Ml,
-            crate::domain::today::DayRule::continuous(),
+            crate::domain::today::DayRule::continuous(6.0, 19.5),
         );
         let drawn = screen(&app, 100, 24);
         assert!(drawn.contains("Fed in 24h"), "{drawn}");

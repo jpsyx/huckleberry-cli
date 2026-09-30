@@ -289,13 +289,19 @@ mod tests {
     use super::*;
     use crate::domain::fixtures::{AFTERNOON, bottle, dataset, diaper};
 
+    /// Days from 7am and nights from 8pm, which is what Huckleberry assumes
+    /// and what a configuration nobody has finished falls back to.
+    fn rule() -> crate::domain::today::DayRule {
+        crate::domain::today::DayRule::default()
+    }
+
     fn calendar() -> Calendar {
         Calendar::new("America/New_York").expect("a real timezone")
     }
 
     fn table(data: &Dataset, days: usize) -> String {
         let calendar = calendar();
-        let rows = summaries::build(data, &calendar, AFTERNOON, days);
+        let rows = summaries::build(data, &calendar, rule(), AFTERNOON, days);
         lines(
             &rows,
             data,
@@ -309,7 +315,7 @@ mod tests {
 
     #[test]
     fn sleep_columns_show_hours_and_minutes() {
-        let mut rows = summaries::build(&dataset(), &calendar(), AFTERNOON, 1);
+        let mut rows = summaries::build(&dataset(), &calendar(), rule(), AFTERNOON, 1);
         rows[0].sleep_seconds = 9000.0;
         rows[0].night_sleep_seconds = 9000.0;
         let rendered = data_row(&rows[0], Units::Ml);
@@ -337,7 +343,7 @@ mod tests {
         let mut data = dataset();
         data.feeds = vec![bottle(AFTERNOON - 3_600.0, 90.0)];
         let calendar = calendar();
-        let rows = summaries::build(&data, &calendar, AFTERNOON, 3);
+        let rows = summaries::build(&data, &calendar, rule(), AFTERNOON, 3);
         let width = heading_row(Units::Ml).chars().count();
         for row in &rows {
             assert_eq!(
@@ -432,7 +438,7 @@ mod tests {
 
     fn painted(data: &Dataset, days: usize) -> String {
         let calendar = calendar();
-        let rows = summaries::build(data, &calendar, AFTERNOON, days);
+        let rows = summaries::build(data, &calendar, rule(), AFTERNOON, days);
         lines(
             &rows,
             data,
@@ -528,7 +534,7 @@ mod tests {
         let mut data = dataset();
         data.diapers = vec![diaper(AFTERNOON - 86_400.0, true, false)];
         let calendar = calendar();
-        let rows = summaries::build(&data, &calendar, AFTERNOON, 3);
+        let rows = summaries::build(&data, &calendar, rule(), AFTERNOON, 3);
         let painted = lines(
             &rows,
             &data,

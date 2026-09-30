@@ -43,7 +43,7 @@ pub async fn summary(context: &Context, days: Option<u32>, json: bool) -> Result
     let (dataset, calendar) = super::load(context, days).await?;
     let at = now_seconds();
     let window = context.days(days) as usize;
-    let rows = summaries::build(&dataset, &calendar, at, window);
+    let rows = summaries::build(&dataset, &calendar, context.config.day_rule(), at, window);
 
     if json {
         println!("{}", serde_json::to_string_pretty(&rows_as_json(&rows))?);
@@ -72,7 +72,13 @@ pub async fn trends(
     };
     let (dataset, calendar) = super::load(context, days).await?;
     let window = context.days(days) as usize;
-    let rows = summaries::build(&dataset, &calendar, now_seconds(), window);
+    let rows = summaries::build(
+        &dataset,
+        &calendar,
+        context.config.day_rule(),
+        now_seconds(),
+        window,
+    );
     render::print(&render::trends::lines(
         &rows,
         metric,
@@ -86,7 +92,13 @@ pub async fn trends(
 pub async fn stripes(context: &Context, days: Option<u32>) -> Result<()> {
     let (dataset, calendar) = super::load(context, days).await?;
     let window = context.days(days) as usize;
-    let rows = stripes::build(&dataset, &calendar, now_seconds(), window);
+    let rows = stripes::build(
+        &dataset,
+        &calendar,
+        context.config.day_rule(),
+        now_seconds(),
+        window,
+    );
     render::print(&render::stripes::lines(&rows, context.output_theme()));
     Ok(())
 }
@@ -256,7 +268,7 @@ mod tests {
         let mut data = dataset();
         data.feeds = vec![bottle(AFTERNOON - 3_600.0, 90.0)];
         let calendar = Calendar::new("America/New_York").expect("a real timezone");
-        let view = now::build(&data, &calendar, DayRule::discrete_default(), AFTERNOON);
+        let view = now::build(&data, &calendar, DayRule::assumed(), AFTERNOON);
         let json = as_json(&view, &data, AFTERNOON);
         assert_eq!(json["last_feed"]["ml"], serde_json::json!(90.0));
         assert_eq!(json["today"]["ml"], serde_json::json!(90.0));
@@ -271,7 +283,7 @@ mod tests {
     fn nothing_logged_is_null_in_the_json_rather_than_a_zero() {
         let calendar = Calendar::new("America/New_York").expect("a real timezone");
         let data = dataset();
-        let view = now::build(&data, &calendar, DayRule::discrete_default(), AFTERNOON);
+        let view = now::build(&data, &calendar, DayRule::assumed(), AFTERNOON);
         let json = as_json(&view, &data, AFTERNOON);
         assert_eq!(json["last_feed"], serde_json::Value::Null);
         assert_eq!(json["sleep"]["asleep_seconds"], serde_json::Value::Null);
@@ -282,7 +294,7 @@ mod tests {
         let mut data = dataset();
         data.feeds = vec![bottle(AFTERNOON - 3_600.0, 90.0)];
         let calendar = Calendar::new("America/New_York").expect("a real timezone");
-        let rows = summaries::build(&data, &calendar, AFTERNOON, 3);
+        let rows = summaries::build(&data, &calendar, DayRule::default(), AFTERNOON, 3);
         let json = rows_as_json(&rows);
         assert_eq!(json.as_array().expect("an array").len(), 3);
         assert_eq!(json[0]["day"], serde_json::json!("2025-09-22"));

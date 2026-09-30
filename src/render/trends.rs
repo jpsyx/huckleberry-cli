@@ -157,12 +157,18 @@ pub fn lines(rows: &[DaySummary], metric: TrendMetric, theme: Theme, units: Unit
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Days from 7am and nights from 8pm, which is what Huckleberry assumes
+    /// and what a configuration nobody has finished falls back to.
+    fn rule() -> crate::domain::today::DayRule {
+        crate::domain::today::DayRule::default()
+    }
     use crate::domain::Calendar;
     use crate::domain::fixtures::{AFTERNOON, bottle, dataset};
 
     fn rows(data: &crate::domain::types::Dataset, days: usize) -> Vec<DaySummary> {
         let calendar = Calendar::new("America/New_York").expect("a real timezone");
-        summaries::build(data, &calendar, AFTERNOON, days)
+        summaries::build(data, &calendar, rule(), AFTERNOON, days)
     }
 
     fn chart(data: &crate::domain::types::Dataset, metric: TrendMetric) -> String {

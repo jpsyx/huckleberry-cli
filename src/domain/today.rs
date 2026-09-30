@@ -1,25 +1,35 @@
 //! What "today" means to this family, and what it adds up to.
 //!
-//! There is no one answer, which is why this is a setting rather than a
-//! constant. A newborn's day has no shape: feeds and sleeps are scattered
-//! round the clock, and the only honest window is the last twenty-four hours.
-//! An older baby has a day with a beginning, and the question "how much has
-//! she eaten today" means since she woke, not since midnight.
+//! There is no one answer, which is why this is configured rather than
+//! assumed. Midnight is the one answer that is wrong for everybody: nobody
+//! with a baby is awake at midnight thinking of it as a boundary, and a 4am
+//! feed filed under a fresh day is a 4am feed nobody can find.
 //!
-//! Midnight itself is the one answer that is wrong for everybody. Nobody with
-//! a baby is awake at midnight thinking of it as a boundary, and a 4am feed
-//! filed under a fresh day is a 4am feed nobody can find.
+//! Two things are configured, and they are independent.
+//!
+//! **When a day starts and ends** is always known, because every screen with a
+//! day on it needs both: the summary counts its rows between them, the stripe
+//! chart draws its rows from one day's end to the next, and the night is the
+//! stretch between the end of one day and the start of the next.
+//!
+//! **How "today" is counted** is separate, and decides only whether the
+//! running totals on the 3am screen use those hours or ignore them for a
+//! rolling twenty-four. A newborn's day has no shape: feeds and sleeps are
+//! scattered round the clock, and the only honest window is the last
+//! twenty-four hours. An older baby has a day with a beginning.
 //!
 //! Everything here is pure and takes `now` as an argument, like the rest of
 //! `domain`.
 
+use jiff::civil::Date;
+
 use super::time::Calendar;
 use super::types::{Child, Dataset, FeedEvent};
 
-/// How a family counts a day.
+/// How a family counts "today" for the running totals.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DayMode {
-    /// A rolling twenty-four hours, ending now.
+    /// A rolling twenty-four hours, ending now. The day hours are ignored.
     Continuous,
     /// From the hour the family calls the start of the day.
     Discrete,
@@ -50,56 +60,58 @@ impl DayMode {
     pub const fn describe(self) -> &'static str {
         match self {
             Self::Continuous => "a rolling 24 hours, which suits a newborn",
-            Self::Discrete => "from a set hour each morning",
+            Self::Discrete => "from the hour the day starts",
         }
     }
 }
 
-/// How this family counts a day, and where its night sits.
+/// How this family counts a day.
+///
+/// The two hours are always known, because everything with a day on it needs
+/// them. [`mode`](Self::mode) decides only whether the running totals use the
+/// day hours or a rolling window.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct DayRule {
-    /// Rolling, or from an hour.
+    /// Rolling, or from the hour the day starts.
     pub mode: DayMode,
-    /// When a day begins, as an hour fraction. Only read when discrete.
-    pub day_start_hour: Option<f64>,
-    /// When night begins, when the family said rather than Huckleberry.
-    pub night_start_hour: Option<f64>,
+    /// When a day begins.
+    pub day_start_hour: f64,
+    /// When a day ends and the night begins.
+    pub day_end_hour: f64,
 }
 
-/// Where a day begins when a discrete family has not said.
-///
-/// Midnight, which is wrong for everybody, and is why setup asks.
-const MIDNIGHT: f64 = 0.0;
-
 impl DayRule {
-    /// A rolling twenty-four hours, with the profile's night left alone.
+    /// When a day begins when nobody has said.
+    ///
+    /// Huckleberry's own profile default, so a configuration nobody has
+    /// finished draws the same boundaries the app already assumed rather than
+    /// a boundary nobody chose.
+    pub const DEFAULT_DAY_START: f64 = 7.0;
+
+    /// When a day ends when nobody has said. Huckleberry's default too.
+    pub const DEFAULT_DAY_END: f64 = 20.0;
+
+    /// A rule with both hours and a mode.
     #[must_use]
-    pub const fn continuous() -> Self {
+    pub const fn new(mode: DayMode, day_start_hour: f64, day_end_hour: f64) -> Self {
         Self {
-            mode: DayMode::Continuous,
-            day_start_hour: None,
-            night_start_hour: None,
+            mode,
+            day_start_hour,
+            day_end_hour,
         }
     }
 
-    /// Days from an hour, with the night ending at that same hour.
+    /// Totals over a rolling twenty-four hours; the day hours still draw every
+    /// other screen.
     #[must_use]
-    pub const fn discrete(day_start_hour: f64, night_start_hour: Option<f64>) -> Self {
-        Self {
-            mode: DayMode::Discrete,
-            day_start_hour: Some(day_start_hour),
-            night_start_hour,
-        }
+    pub const fn continuous(day_start_hour: f64, day_end_hour: f64) -> Self {
+        Self::new(DayMode::Continuous, day_start_hour, day_end_hour)
     }
 
-    /// Discrete days with nobody having said when one begins.
+    /// Totals from the hour the day starts.
     #[must_use]
-    pub const fn discrete_default() -> Self {
-        Self {
-            mode: DayMode::Discrete,
-            day_start_hour: None,
-            night_start_hour: None,
-        }
+    pub const fn discrete(day_start_hour: f64, day_end_hour: f64) -> Self {
+        Self::new(DayMode::Discrete, day_start_hour, day_end_hour)
     }
 
     /// The window "today" means, as of `now`.
@@ -112,35 +124,146 @@ impl DayRule {
                 mode: DayMode::Continuous,
                 began_at_hour: None,
             },
-            DayMode::Discrete => {
-                let hour = self.day_start_hour.unwrap_or(MIDNIGHT);
-                Window {
-                    start: most_recent_day_start(calendar, hour, now),
-                    end: now,
-                    mode: DayMode::Discrete,
-                    began_at_hour: self.day_start_hour,
-                }
-            }
+            DayMode::Discrete => Window {
+                start: self.day_bounds(calendar, self.day_of(calendar, now)).0,
+                end: now,
+                mode: DayMode::Discrete,
+                began_at_hour: Some(self.day_start_hour),
+            },
         }
     }
 
-    /// Replaces the child's night with the one the family configured.
+    /// Replaces the child's night with this family's own.
     ///
     /// Applied to the dataset once, where it is read, so every screen that
     /// asks the child about its night gets the same answer without each of
-    /// them having to know this setting exists. The night ends where the day
-    /// begins, because a family that has said both and had them disagree would
-    /// have an hour belonging to neither.
-    pub fn apply_to(&self, child: &mut Child) {
-        if let Some(night) = self.night_start_hour {
-            child.night_start_hour = night;
-        }
-        if self.mode == DayMode::Discrete
-            && let Some(start) = self.day_start_hour
-        {
-            child.morning_cutoff_hour = start;
+    /// them having to know these settings exist. The night is simply the
+    /// stretch between the end of one day and the start of the next, which is
+    /// why there is no third hour to configure.
+    pub const fn apply_to(&self, child: &mut Child) {
+        child.night_start_hour = self.day_end_hour;
+        child.morning_cutoff_hour = self.day_start_hour;
+    }
+
+    // -- Days, as this family counts them -----------------------------------
+
+    /// When the day named `day` begins and ends.
+    #[must_use]
+    pub fn day_bounds(&self, calendar: &Calendar, day: Date) -> (f64, f64) {
+        (
+            calendar.at_hour_fraction(day, self.day_start_hour),
+            calendar.at_hour_fraction(calendar.offset_day(day, 1), self.day_start_hour),
+        )
+    }
+
+    /// Which day an instant belongs to.
+    ///
+    /// Under a day starting at 6am, a 4am feed belongs to the day before,
+    /// which is where the person who gave it will look for it.
+    #[must_use]
+    pub fn day_of(&self, calendar: &Calendar, at: f64) -> Date {
+        let named = calendar.day_of(at);
+        if at >= calendar.at_hour_fraction(named, self.day_start_hour) {
+            named
+        } else {
+            calendar.offset_day(named, -1)
         }
     }
+
+    /// The days ending at `at`, newest first.
+    #[must_use]
+    pub fn recent_days(&self, calendar: &Calendar, at: f64, count: usize) -> Vec<Date> {
+        let today = self.day_of(calendar, at);
+        (0..count)
+            .map(|back| calendar.offset_day(today, -i32::try_from(back).unwrap_or(i32::MAX)))
+            .collect()
+    }
+
+    /// How a span divides across the days it covered.
+    ///
+    /// Sleep seconds are apportioned to the days they actually fell in, which
+    /// is what stops a night being lost off one day or counted twice.
+    #[must_use]
+    pub fn split_across_days(
+        &self,
+        calendar: &Calendar,
+        start: f64,
+        duration: f64,
+    ) -> Vec<(Date, f64)> {
+        split(start, duration, |at| {
+            let day = self.day_of(calendar, at);
+            (day, self.day_bounds(calendar, day).1)
+        })
+    }
+
+    // -- Stripe rows, which open on the night ------------------------------
+
+    /// When the stripe row named `day` begins and ends.
+    ///
+    /// It opens at the previous day's end, so a night appears whole on one row
+    /// instead of cut in two by a boundary nobody sleeps through. A row is
+    /// therefore "the night leading into this day, and then this day", which
+    /// is how the night is talked about anyway.
+    #[must_use]
+    pub fn stripe_bounds(&self, calendar: &Calendar, day: Date) -> (f64, f64) {
+        (
+            calendar.at_hour_fraction(calendar.offset_day(day, -1), self.day_end_hour),
+            calendar.at_hour_fraction(day, self.day_end_hour),
+        )
+    }
+
+    /// Which stripe row an instant falls on.
+    #[must_use]
+    pub fn stripe_day_of(&self, calendar: &Calendar, at: f64) -> Date {
+        let named = calendar.day_of(at);
+        if at < calendar.at_hour_fraction(named, self.day_end_hour) {
+            named
+        } else {
+            calendar.offset_day(named, 1)
+        }
+    }
+
+    /// The stripe rows ending at `at`, newest first.
+    #[must_use]
+    pub fn recent_stripe_days(&self, calendar: &Calendar, at: f64, count: usize) -> Vec<Date> {
+        let today = self.stripe_day_of(calendar, at);
+        (0..count)
+            .map(|back| calendar.offset_day(today, -i32::try_from(back).unwrap_or(i32::MAX)))
+            .collect()
+    }
+}
+
+impl DayRule {
+    /// Huckleberry's own hours, for a screen drawn before anybody has said.
+    #[must_use]
+    pub const fn assumed() -> Self {
+        Self::discrete(Self::DEFAULT_DAY_START, Self::DEFAULT_DAY_END)
+    }
+}
+
+impl Default for DayRule {
+    fn default() -> Self {
+        Self::assumed()
+    }
+}
+
+/// Divides a span at whatever boundaries `next` reports.
+fn split(start: f64, duration: f64, next: impl Fn(f64) -> (Date, f64)) -> Vec<(Date, f64)> {
+    let end = start + duration;
+    let mut pieces = Vec::new();
+    let mut at = start;
+    // Bounded by the window any caller reads, and by the boundary always
+    // moving forward; a zero-length span still yields its own day.
+    while at < end || pieces.is_empty() {
+        let (day, boundary) = next(at);
+        let stop = boundary.min(end);
+        pieces.push((day, (stop - at).max(0.0)));
+        if stop <= at {
+            break;
+        }
+        at = stop;
+    }
+    pieces
 }
 
 /// The stretch of time a screen means by "today".
@@ -152,7 +275,7 @@ pub struct Window {
     pub end: f64,
     /// Which rule drew it, so a label never has to guess what it means.
     pub mode: DayMode,
-    /// The hour it began at, when a discrete family named one.
+    /// The hour it began at, when the family counts discrete days.
     pub began_at_hour: Option<f64>,
 }
 
@@ -162,16 +285,6 @@ impl Window {
     pub fn seconds(&self) -> f64 {
         (self.end - self.start).max(0.0)
     }
-}
-
-/// The most recent occurrence of an hour, at or before `now`.
-fn most_recent_day_start(calendar: &Calendar, hour: f64, now: f64) -> f64 {
-    let today = calendar.day_of(now);
-    let began = calendar.at_hour_fraction(today, hour);
-    if began <= now {
-        return began;
-    }
-    calendar.at_hour_fraction(calendar.offset_day(today, -1), hour)
 }
 
 /// What a window amounts to.
@@ -261,9 +374,14 @@ mod windows {
         Calendar::new("America/New_York").expect("a real timezone")
     }
 
+    /// Days from 6am, nights from 7:30pm.
+    fn rule(mode: DayMode) -> DayRule {
+        DayRule::new(mode, 6.0, 19.5)
+    }
+
     #[test]
     fn a_continuous_day_is_the_last_twenty_four_hours_whenever_you_ask() {
-        let rule = DayRule::continuous();
+        let rule = rule(DayMode::Continuous);
         for at in [AFTERNOON, THREE_AM] {
             let window = rule.window(&calendar(), at);
             assert!((window.end - at).abs() < f64::EPSILON);
@@ -273,7 +391,7 @@ mod windows {
 
     #[test]
     fn a_discrete_day_begins_at_the_hour_the_family_chose() {
-        let rule = DayRule::discrete(6.0, None);
+        let rule = rule(DayMode::Discrete);
         let calendar = calendar();
         // 2pm: today began at 6am today.
         let afternoon = rule.window(&calendar, AFTERNOON);
@@ -284,7 +402,7 @@ mod windows {
     #[test]
     fn a_four_in_the_morning_feed_still_belongs_to_the_day_before() {
         let calendar = calendar();
-        let rule = DayRule::discrete(6.0, None);
+        let rule = rule(DayMode::Discrete);
         // 3am, which is before a 6am day start, so the day began yesterday.
         let window = rule.window(&calendar, THREE_AM);
         let yesterday = calendar.offset_day(calendar.day_of(THREE_AM), -1);
@@ -300,57 +418,147 @@ mod windows {
     }
 
     #[test]
-    fn a_discrete_day_with_no_hour_chosen_falls_back_to_midnight() {
-        let calendar = calendar();
-        let window = DayRule::discrete_default().window(&calendar, AFTERNOON);
-        assert!((window.start - calendar.start_of(calendar.day_of(AFTERNOON))).abs() < 1.0);
+    fn with_nobody_having_said_the_day_is_the_one_huckleberry_assumes() {
+        let rule = DayRule::default();
+        assert!((rule.day_start_hour - 7.0).abs() < f64::EPSILON);
+        assert!((rule.day_end_hour - 20.0).abs() < f64::EPSILON);
+        assert_eq!(rule.mode, DayMode::Discrete);
     }
 
     #[test]
     fn the_window_says_which_rule_drew_it_so_a_label_never_has_to_guess() {
         let calendar = calendar();
         assert_eq!(
-            DayRule::continuous().window(&calendar, AFTERNOON).mode,
+            rule(DayMode::Continuous).window(&calendar, AFTERNOON).mode,
             DayMode::Continuous
         );
-        let discrete = DayRule::discrete(6.0, None).window(&calendar, AFTERNOON);
+        let discrete = rule(DayMode::Discrete).window(&calendar, AFTERNOON);
         assert_eq!(discrete.mode, DayMode::Discrete);
         assert_eq!(discrete.began_at_hour, Some(6.0));
     }
 
     #[test]
-    fn a_configured_night_replaces_the_one_on_the_profile() {
-        let mut data = dataset();
-        DayRule::discrete(6.5, Some(19.0)).apply_to(&mut data.child);
-        assert!((data.child.night_start_hour - 19.0).abs() < f64::EPSILON);
-        assert!(
-            (data.child.morning_cutoff_hour - 6.5).abs() < f64::EPSILON,
-            "the night ends where the day begins, or the two disagree"
-        );
+    fn the_family_night_replaces_the_profile_one_whichever_mode_they_count_in() {
+        for mode in [DayMode::Discrete, DayMode::Continuous] {
+            let mut data = dataset();
+            DayRule::new(mode, 6.5, 19.0).apply_to(&mut data.child);
+            assert!(
+                (data.child.night_start_hour - 19.0).abs() < f64::EPSILON,
+                "{mode:?}"
+            );
+            assert!(
+                (data.child.morning_cutoff_hour - 6.5).abs() < f64::EPSILON,
+                "the night ends where the day begins, or the two disagree: {mode:?}"
+            );
+        }
     }
 
     #[test]
-    fn a_continuous_family_keeps_the_night_huckleberry_gave_them() {
-        let mut data = dataset();
-        let before = (data.child.night_start_hour, data.child.morning_cutoff_hour);
-        DayRule::continuous().apply_to(&mut data.child);
+    fn a_day_runs_from_its_start_to_the_next_ones() {
+        let calendar = calendar();
+        let rule = rule(DayMode::Discrete);
+        let today = rule.day_of(&calendar, AFTERNOON);
+        let (start, end) = rule.day_bounds(&calendar, today);
+        assert!((start - calendar.at(today, 6, 0)).abs() < 1.0);
+        assert!((end - calendar.at(calendar.offset_day(today, 1), 6, 0)).abs() < 1.0);
+        assert!(start <= AFTERNOON && AFTERNOON < end);
+    }
+
+    #[test]
+    fn an_instant_before_the_day_started_belongs_to_the_day_before() {
+        let calendar = calendar();
+        let rule = rule(DayMode::Discrete);
+        // 3am with a 6am day start: still yesterday's day.
         assert_eq!(
-            (data.child.night_start_hour, data.child.morning_cutoff_hour),
-            before
+            rule.day_of(&calendar, THREE_AM),
+            calendar.offset_day(calendar.day_of(THREE_AM), -1)
+        );
+        // 2pm: today's.
+        assert_eq!(
+            rule.day_of(&calendar, AFTERNOON),
+            calendar.day_of(AFTERNOON)
         );
     }
 
     #[test]
-    fn a_night_start_on_its_own_still_takes_effect() {
-        let mut data = dataset();
-        let rule = DayRule {
-            mode: DayMode::Continuous,
-            day_start_hour: None,
-            night_start_hour: Some(21.0),
-        };
-        rule.apply_to(&mut data.child);
-        assert!((data.child.night_start_hour - 21.0).abs() < f64::EPSILON);
-        assert!((data.child.morning_cutoff_hour - 7.0).abs() < f64::EPSILON);
+    fn recent_days_count_back_from_the_day_that_is_running() {
+        let calendar = calendar();
+        let rule = rule(DayMode::Discrete);
+        let days = rule.recent_days(&calendar, THREE_AM, 3);
+        assert_eq!(days.len(), 3);
+        assert_eq!(days[0], rule.day_of(&calendar, THREE_AM));
+        assert_eq!(days[1], calendar.offset_day(days[0], -1));
+    }
+
+    #[test]
+    fn a_sleep_across_the_day_start_is_divided_at_it_and_nowhere_else() {
+        let calendar = calendar();
+        let rule = rule(DayMode::Discrete);
+        let today = rule.day_of(&calendar, AFTERNOON);
+        let boundary = rule.day_bounds(&calendar, today).1;
+        // Two hours, straddling the 6am boundary by an hour each side.
+        let pieces = rule.split_across_days(&calendar, boundary - 3_600.0, 7_200.0);
+        assert_eq!(pieces.len(), 2, "{pieces:?}");
+        assert_eq!(pieces[0].0, today);
+        assert_eq!(pieces[1].0, calendar.offset_day(today, 1));
+        assert!((pieces[0].1 - 3_600.0).abs() < 1.0);
+        assert!((pieces[1].1 - 3_600.0).abs() < 1.0);
+        assert!(
+            (pieces.iter().map(|(_, seconds)| seconds).sum::<f64>() - 7_200.0).abs() < 1.0,
+            "nothing is lost or counted twice"
+        );
+    }
+
+    #[test]
+    fn a_sleep_inside_one_day_is_not_divided_at_all() {
+        let calendar = calendar();
+        let pieces = rule(DayMode::Discrete).split_across_days(&calendar, AFTERNOON, 3_600.0);
+        assert_eq!(pieces.len(), 1);
+        assert!((pieces[0].1 - 3_600.0).abs() < 1.0);
+    }
+
+    #[test]
+    fn a_stripe_row_opens_on_the_night_before_the_day_it_names() {
+        let calendar = calendar();
+        let rule = rule(DayMode::Discrete);
+        let day = calendar.day_of(AFTERNOON);
+        let (start, end) = rule.stripe_bounds(&calendar, day);
+        assert!(
+            (start - calendar.at_hour_fraction(calendar.offset_day(day, -1), 19.5)).abs() < 1.0,
+            "the row starts at the previous day's end"
+        );
+        assert!((end - calendar.at_hour_fraction(day, 19.5)).abs() < 1.0);
+        assert!(
+            (end - start - 86_400.0).abs() < 1.0,
+            "and still covers exactly one day"
+        );
+    }
+
+    #[test]
+    fn a_night_lands_whole_on_one_stripe_row_instead_of_split_by_midnight() {
+        let calendar = calendar();
+        let rule = rule(DayMode::Discrete);
+        let evening = calendar.at(calendar.day_of(AFTERNOON), 22, 0);
+        let small_hours = calendar.at(calendar.offset_day(calendar.day_of(AFTERNOON), 1), 3, 0);
+        assert_eq!(
+            rule.stripe_day_of(&calendar, evening),
+            rule.stripe_day_of(&calendar, small_hours),
+            "10pm and 3am are the same night, so they belong on the same row"
+        );
+    }
+
+    #[test]
+    fn a_stripe_row_is_named_for_the_day_its_daytime_falls_in() {
+        let calendar = calendar();
+        let rule = rule(DayMode::Discrete);
+        assert_eq!(
+            rule.stripe_day_of(&calendar, AFTERNOON),
+            calendar.day_of(AFTERNOON),
+            "2pm is on the row named for today"
+        );
+        let rows = rule.recent_stripe_days(&calendar, AFTERNOON, 2);
+        assert_eq!(rows[0], calendar.day_of(AFTERNOON));
+        assert_eq!(rows[1], calendar.offset_day(rows[0], -1));
     }
 
     #[test]

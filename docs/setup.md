@@ -10,10 +10,11 @@ never reach it, because clap answers those and exits before this program runs.
 
 1. **An account.** With no usable credentials, `auth login` runs first: email,
    password, timezone, and the child if there is only one on the account.
-2. **How a day is counted** (`day_mode`), which has no default worth having.
-3. **When a day begins** (`day_start`) and **when night begins**
-   (`night_start`), for a family counting discrete days. A rolling day has no
-   hour to begin at, so neither is asked.
+2. **When a day begins** (`day_start`) and **when it ends** (`day_end`).
+   Always, whichever way totals are counted: every screen with a day on it is
+   drawn between these two hours.
+3. **How "today" is counted** for the running totals (`day_mode`), which
+   decides only whether those totals use the hours or ignore them.
 
 Three families of command are exempt from all of it, and all for the same
 reason: they are how somebody gets out of an unconfigured state, and a gate in
@@ -34,6 +35,11 @@ different questions.
 | --- | --- |
 | **an account** | every command that is not exempt, unless `--offline` is reading a snapshot, which opens no socket and has nobody to be signed in as |
 | **the day settings** | only the commands whose output depends on them: `now`, `dash`, `summary`, `trends`, `stripes`, and the shell, whose Now widget shows the same figures |
+
+The two are independent on purpose. The hours are what a day *is*, and the
+summary table, the trend bars, the stripe chart and the night window all need
+them. The mode is a separate question about one thing only: what the running
+totals on the 3am screen cover.
 
 So `h --offline snapshot.json log` draws its list on a machine nobody has
 configured, and `h diaper --pee` records a diaper without stopping a script to
@@ -61,9 +67,9 @@ this is asked for; here, set it:
 So a script sets them once and never meets the gate again:
 
 ```sh
-h config set day_mode discrete
 h config set day_start 6am
-h config set night_start 7:30pm
+h config set day_end 7:30pm
+h config set day_mode discrete   # or continuous
 ```
 
 ## The two ways to count a day
@@ -82,9 +88,10 @@ starting at 6am, a 4am feed belongs to the day before, which is where the
 person who gave it will look for it. Midnight is the one boundary that is wrong
 for everybody: nobody with a baby is awake at midnight thinking of it as one.
 
-The night runs from `night_start` to `day_start`. The night ends where the day
-begins, because a family that had said both and had them disagree would have an
-hour belonging to neither.
+The night is simply the stretch from `day_end` to the next `day_start`, which
+is why there is no third hour to configure: the night ends where the day
+begins, and a family that had said both separately could have had an hour
+belonging to neither.
 
 ## Which one you are offered
 
@@ -112,33 +119,38 @@ chose.
 
 | Where | What it does |
 | --- | --- |
-| `now`, and the shell's Now widget | what `Fed today` and `Slept today` cover, and whether they are labelled `today` or `in 24h` |
-| every screen with a night on it | `night_start` and `day_start` replace the profile's night, applied to the dataset once as it is read |
-| `summary`, `stripes`, `dash` | the night window they shade and total |
+| `now`, and the shell's Now widget | `day_mode` decides what `Fed today` and `Slept today` cover, and whether they read `today` or `in 24h` |
+| `summary` and `trends` | each row is one of this family's days, `day_start` to `day_start`, so a 4am feed is counted on the row before |
+| `stripes` | each row runs from the previous `day_end` to this one, so a night lands whole on one row |
+| every screen with a night on it | `day_end` and `day_start` replace the profile's night, applied to the dataset once as it is read |
 
 `child show` prints the night this tool uses, which is the configured one when
 there is one. That is deliberate: it is the night the screens are drawn with.
 
-## What it does not change yet
+## Why the stripe chart opens on the night
 
-**`summary`, `trends` and `stripes` still count their day rows from midnight.**
-Only the running totals on `now` and in the Now widget are counted from
-`day_start`, so the two can disagree about the same feed:
+The summary counts its rows from `day_start`, because a day's totals are the
+totals of a waking day. The stripe chart does not: its rows run from one
+`day_end` to the next, so a row reads as *the night leading into this day, and
+then this day*.
 
-```text
-h now       →  Fed today   nothing logged · since 6:00 am
-h summary   →  Tue 29 Sep       1      111 ml
-```
+That is because of what the chart is for. Midnight, and `day_start` too, both
+fall inside the longest sleep there is. Cutting a row at either puts half a
+night at the right-hand end of one row and half at the left-hand end of the
+next, which is the one thing a picture of where sleep lands exists not to do.
+Opening on the night puts each night whole, at the left, where a week of them
+can be compared at a glance.
 
-Both are describing one 4am bottle under a 6am day start. `now` files it with
-the night before, which is where the person who gave it will look; the day
-table files it under the calendar day, which is the machinery those rows have
-always used.
+The ruler above the chart still carries wall-clock hours (`00`, `06`, `12`,
+`18`) placed where they actually fall, rather than hours counted from the left
+edge. Looking up when a sleep happened should not be a sum.
 
-Re-basing the day table, the trend bars and the stripe chart on `day_start` is
-the rest of this change and has not been done. It is not a small one: the
-summaries split sleep at midnight on purpose, and the stripe chart's geometry
-and its `00 06 12 18` axis assume a day that begins at midnight.
+## What still counts by the calendar
+
+`log`, `edit` and `delete` group their entries under calendar-day headings.
+Nothing about how much was eaten or slept is computed there, so the headings
+are labels rather than arithmetic, but a 4am feed does appear under the new
+calendar day in those lists while the summary counts it on the day before.
 
 ## Where the settings live
 

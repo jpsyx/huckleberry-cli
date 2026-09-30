@@ -424,18 +424,23 @@ Off a terminal nothing is asked. The command fails naming every setting that is
 missing and the `config set` that answers each, all in one message.
 
 ```sh
+h config set day_start 6am       # always wanted
+h config set day_end 7:30pm      # always wanted
 h config set day_mode discrete   # or continuous
-h config set day_start 6am
-h config set night_start 7:30pm
 ```
 
-`day_mode` decides what `Fed today` and `Slept today` cover on `now` and in the
-shell's Now widget: `continuous` is a rolling twenty-four hours, labelled
-`in 24h`; `discrete` runs from `day_start` and is labelled `today`. A discrete
-day is **not** a calendar day: with a day starting at 6am, a 4am feed belongs
-to the day before. `night_start` and `day_start` also replace the night on
-Huckleberry's own profile, so `summary`, `stripes` and `dash` shade and total
-the night this family keeps.
+`day_start` and `day_end` are what a day *is*, and every screen with a day on
+it is drawn between them. `summary` and `trends` count each row from
+`day_start` to `day_start`, so a 4am feed under a 6am day start is counted on
+the row before, not on a fresh one. `stripes` runs each row from the previous
+`day_end` to this one, so a night lands whole on a single row instead of cut in
+half by midnight; its ruler still carries wall-clock hours, placed where they
+fall. The night is the stretch from `day_end` to the next `day_start`, and it
+replaces the night on Huckleberry's own profile.
+
+`day_mode` is a separate question, about the running totals on `now` and in the
+shell's Now widget only: `continuous` is a rolling twenty-four hours, labelled
+`in 24h`; `discrete` runs from `day_start` and is labelled `today`.
 
 Setup offers `continuous` to a baby twelve weeks old or under and `discrete`
 to an older one, reading the age off the profile once. Either is one keystroke,
@@ -445,10 +450,11 @@ A time is stored as 24-hour `HH:MM` and read back as a person says it, so
 `06:00` is confirmed as `6:00 am`. A bare `6` is refused rather than guessed
 at: write `6am` or `06:00`.
 
-`day_start` governs the running totals on `now` and in the Now widget.
-`summary`, `trends` and `stripes` still count their day rows from midnight, so
-under a 6am day start a 4am feed appears in today's summary row and not in
-`Fed today`. See [`setup.md`](setup.md).
+`log`, `edit` and `delete` still group their entries under calendar-day
+headings, which are labels rather than arithmetic. See [`setup.md`](setup.md).
+
+A configuration written when `day_end` was called `night_start` is still read:
+the old spelling is accepted and stored under the new name.
 
 ## Settings
 

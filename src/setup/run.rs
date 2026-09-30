@@ -117,7 +117,7 @@ fn ask_hour(context: &Context, key: &str) -> Result<String> {
     let label = if key == "day_start" {
         "What time does a day start? Anything earlier counts as the day before."
     } else {
-        "What time does night start? The night ends when the day starts."
+        "What time does a day end? Night runs from here to the next day's start."
     };
     prompt::ask(
         &Question::new(key, label, &format!("config set {key}"))
@@ -157,7 +157,10 @@ pub fn confirmation(key: &str, stored: &str) -> String {
             |mode| format!("A day is counted {stored}: {}.", mode.describe()),
         ),
         "day_start" => format!("The day starts at {}.", label_for(stored)),
-        _ => format!("Night starts at {}.", label_for(stored)),
+        _ => format!(
+            "The day ends at {}, and night runs from there.",
+            label_for(stored)
+        ),
     }
 }
 

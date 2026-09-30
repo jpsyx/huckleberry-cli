@@ -1,6 +1,7 @@
 //! The 24-hour stripe chart, in text.
 //!
-//! One row per day, each row a strip of cells across midnight-to-midnight.
+//! One row per day, each row a strip of cells running from the end of the
+//! previous day to the end of this one, so a night lands whole on one row.
 //! Sleep fills a cell, a feed marks one, a diaper marks one, and the night
 //! shows as a dimmer background. At a glance it answers the question a week of
 //! numbers does not: *where* is the sleep actually landing.
@@ -104,10 +105,11 @@ fn index_of(position: f64) -> usize {
 /// The chart, oldest at the top.
 #[must_use]
 pub fn lines(rows: &[StripeRow], theme: Theme) -> Vec<String> {
+    let opens_at = rows.first().map_or(0.0, |row| row.starts_at_hour);
     let mut lines = vec![
         theme.heading("Where sleep lands"),
         String::new(),
-        theme.muted(&ruler()),
+        theme.muted(&ruler(opens_at)),
     ];
     for row in rows.iter().rev() {
         let strip: String = cells(row).into_iter().map(Cell::glyph).collect();
@@ -128,12 +130,18 @@ pub fn lines(rows: &[StripeRow], theme: Theme) -> Vec<String> {
     lines
 }
 
-/// The hour ruler above the chart.
+/// The hour ruler above the chart, for a strip opening at `opens_at`.
+///
+/// The labels are wall-clock hours placed where they actually fall, rather
+/// than hours counted from the left edge. A row opening at 8pm is still read
+/// by finding `00` and `06` on it, which is how somebody looks up when a sleep
+/// happened; numbering the edge `00` would make every label a sum.
 #[must_use]
-pub fn ruler() -> String {
+pub fn ruler(opens_at: f64) -> String {
     let mut ruler = [' '; CELLS];
     for hour in (0..24).step_by(6) {
-        let at = hour * CELLS / 24;
+        let along = (f64::from(hour) - opens_at).rem_euclid(24.0) / 24.0;
+        let at = (along * CELLS as f64).round() as usize;
         for (offset, character) in format!("{hour:02}").chars().enumerate() {
             if let Some(cell) = ruler.get_mut(at + offset) {
                 *cell = character;
@@ -161,12 +169,21 @@ mod tests {
     use crate::domain::fixtures::{AFTERNOON, bottle, dataset, diaper, sleep};
     use crate::domain::{Calendar, stripes};
 
+    /// Days from 7am and nights from 8pm, which is what Huckleberry assumes
+    /// and what a configuration nobody has finished falls back to.
+    fn rule() -> crate::domain::today::DayRule {
+        crate::domain::today::DayRule::default()
+    }
+
+    /// Which cell noon falls in on a row that opens at 8pm.
+    const NOON: usize = 32;
+
     fn calendar() -> Calendar {
         Calendar::new("America/New_York").expect("a real timezone")
     }
 
     fn rows(data: &crate::domain::types::Dataset, days: usize) -> Vec<StripeRow> {
-        stripes::build(data, &calendar(), AFTERNOON, days)
+        stripes::build(data, &calendar(), rule(), AFTERNOON, days)
     }
 
     #[test]
@@ -177,11 +194,16 @@ mod tests {
     }
 
     #[test]
-    fn the_night_shows_at_both_ends_of_a_day_and_not_in_the_middle() {
+    fn the_night_is_one_band_at_the_start_because_that_is_where_the_row_opens() {
         let strip = cells(&rows(&dataset(), 2)[1]);
-        assert_eq!(strip[0], Cell::NightAwake, "just after midnight is night");
-        assert_eq!(strip[CELLS - 1], Cell::NightAwake, "just before is too");
-        assert_eq!(strip[CELLS / 2], Cell::DayAwake, "noon is not");
+        assert_eq!(strip[0], Cell::NightAwake, "the row opens in the evening");
+        assert_eq!(strip[21], Cell::NightAwake, "and is still night before 7am");
+        assert_eq!(strip[22], Cell::DayAwake, "which is where the day starts");
+        assert_eq!(
+            strip[CELLS - 1],
+            Cell::DayAwake,
+            "the row ends where the next night begins, so it ends in daylight"
+        );
     }
 
     #[test]
@@ -191,7 +213,8 @@ mod tests {
         let start = calendar.at("2025-09-21".parse().expect("a date"), 12, 0);
         data.sleep = vec![sleep(start, 3_600.0)];
         let strip = cells(&rows(&data, 2)[1]);
-        assert_eq!(strip[CELLS / 2], Cell::Asleep);
+        // Noon sits two thirds along a row that opened at 8pm.
+        assert_eq!(strip[NOON], Cell::Asleep);
     }
 
     #[test]
@@ -201,7 +224,7 @@ mod tests {
         let noon = calendar.at("2025-09-21".parse().expect("a date"), 12, 0);
         data.sleep = vec![sleep(noon, 3_600.0)];
         data.feeds = vec![bottle(noon + 60.0, 90.0)];
-        assert_eq!(cells(&rows(&data, 2)[1])[CELLS / 2], Cell::Feed);
+        assert_eq!(cells(&rows(&data, 2)[1])[NOON], Cell::Feed);
     }
 
     #[test]
@@ -210,7 +233,7 @@ mod tests {
         let mut data = dataset();
         let noon = calendar.at("2025-09-21".parse().expect("a date"), 12, 0);
         data.diapers = vec![diaper(noon, true, false)];
-        assert_eq!(cells(&rows(&data, 2)[1])[CELLS / 2], Cell::Diaper);
+        assert_eq!(cells(&rows(&data, 2)[1])[NOON], Cell::Diaper);
     }
 
     #[test]
@@ -228,8 +251,21 @@ mod tests {
     }
 
     #[test]
+    fn the_ruler_labels_the_hour_where_it_actually_falls() {
+        // A row opening at 8pm still carries `00` and `06`, four and ten
+        // hours along, because that is how somebody looks up when a sleep was.
+        let evening = ruler(20.0);
+        let cells: Vec<char> = evening.chars().skip(12).collect();
+        assert_eq!(cells[CELLS / 6], '0', "{evening}");
+        assert_eq!(cells[CELLS / 6 + 1], '0', "midnight four hours in");
+        for hour in ["00", "06", "12", "18"] {
+            assert!(evening.contains(hour), "`{hour}` missing from `{evening}`");
+        }
+    }
+
+    #[test]
     fn the_ruler_marks_every_sixth_hour() {
-        let ruler = ruler();
+        let ruler = ruler(0.0);
         for hour in ["00", "06", "12", "18"] {
             assert!(ruler.contains(hour), "`{hour}` missing from `{ruler}`");
         }
