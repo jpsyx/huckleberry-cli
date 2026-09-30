@@ -355,7 +355,11 @@ fn totals_rows(view: &NowView, units: Units, now: f64) -> Vec<Row> {
     rows.push(fact(sleep_today, &slept(&view.today)));
     rows.push(fact(
         &format!("Fed in last {hours}h"),
-        &with_lone_time(intake(&view.recent, units), &view.recent_feed_starts, now),
+        &with_lone_time(
+            as_total(intake(&view.recent, units)),
+            &view.recent_feed_starts,
+            now,
+        ),
     ));
     rows.extend(times_under("fed", &view.recent_feed_starts, now));
     rows.push(fact(fed_today, &today_intake_line(view, units)));
@@ -372,12 +376,28 @@ fn recent_sleep(view: &NowView, now: f64) -> String {
     if ends.is_empty() {
         return slept(&view.recent);
     }
-    let total = format!(
+    let total = as_total(format!(
         "{} · {}",
         slept(&view.recent),
         plural(ends.len(), "sleep", "sleeps")
-    );
+    ));
     with_lone_time(total, ends, now)
+}
+
+/// Marks the quantity as the whole window's, not one feed's or one sleep's.
+///
+/// "350 ml · 5 feeds" reads as 350 ml each about as easily as it reads as 350
+/// altogether, and one of those is four hundred per cent of the truth. The
+/// word goes on the quantity rather than on the count, because the count was
+/// never the ambiguous half.
+///
+/// Only the recent rows get it. The day rows already carry "Total" in their
+/// label, and a window with nothing in it has no total to qualify.
+fn as_total(value: String) -> String {
+    match value.split_once(" · ") {
+        Some((quantity, rest)) => format!("{quantity} total · {rest}"),
+        None => value,
+    }
 }
 
 /// A single time goes on the end of the total it belongs to.
@@ -702,6 +722,51 @@ mod tests {
     /// The night line named the day it was talking about, which is precise and
     /// is not what anybody calls it at 3am.
     /// The age heads the column; the ranges under it are a separate thought.
+    /// "350 ml · 5 feeds" can be read as 350 ml each, which is four hundred
+    /// per cent of the truth and exactly the kind of number that gets acted on.
+    #[test]
+    fn the_recent_totals_say_total_so_the_figure_is_not_read_as_one_feed() {
+        let text = joined(&a_newborns_day(), AFTERNOON);
+        assert!(text.contains("350 ml total · 5 feeds"), "{text}");
+    }
+
+    #[test]
+    fn the_recent_sleep_total_says_total_too() {
+        let mut data = dataset();
+        data.sleep = vec![
+            sleep(AFTERNOON - 4_320.0, 1_800.0),
+            sleep(AFTERNOON - 10_020.0, 1_800.0),
+        ];
+        let text = joined(&data, AFTERNOON);
+        assert!(text.contains("1h 0m total · 2 sleeps"), "{text}");
+    }
+
+    /// The lone time still lands on the end, after the word.
+    #[test]
+    fn a_single_recent_feed_keeps_its_time_after_the_total() {
+        let mut data = dataset();
+        data.feeds = vec![bottle(AFTERNOON - 2_520.0, 30.0)];
+        data.sleep = vec![sleep(AFTERNOON - 4_320.0, 1_800.0)];
+        let text = joined(&data, AFTERNOON);
+        assert!(text.contains("30 ml total · 1 feed 42m ago"), "{text}");
+        assert!(text.contains("30m total · 1 sleep 42m ago"), "{text}");
+    }
+
+    /// Only the recent rows need it: the day rows already say "Total" in the
+    /// label, and a window with nothing in it has no total to qualify.
+    #[test]
+    fn the_word_total_goes_nowhere_it_is_not_needed() {
+        let text = joined(&a_newborns_day(), AFTERNOON);
+        for line in text.lines() {
+            if line.starts_with("Total fed today") || line.starts_with("Total sleep today") {
+                assert!(!line.contains(" total"), "{line}");
+            }
+            if line.contains("nothing logged") {
+                assert!(!line.contains(" total"), "{line}");
+            }
+        }
+    }
+
     #[test]
     fn a_blank_line_separates_the_age_from_the_first_range() {
         let text = joined(&a_newborns_day(), AFTERNOON);
@@ -1159,7 +1224,7 @@ mod tests {
             .lines()
             .find(|line| line.starts_with("Fed in last 4h"))
             .unwrap_or_else(|| panic!("no `Fed in last 4h` line in {text}"));
-        assert!(recent.contains("100 ml · 2 feeds"), "{recent}");
+        assert!(recent.contains("100 ml total · 2 feeds"), "{recent}");
         assert!(
             !recent.contains("300 ml"),
             "the five-hour-old feed is outside the window: {recent}"

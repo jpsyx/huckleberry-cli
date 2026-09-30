@@ -149,9 +149,9 @@ widget beside it, and **widget** and **panel** mean the same thing.
 │ Sleep               currently sleeping for 40m                         │
 │                     (previous sleep finished 2h ago · slept for 1h 20m)│
 │ Tonight             nothing finished yet                               │
-│ Sleep in last 4h    1h 20m · 1 sleep 2h 10m ago                        │
+│ Sleep in last 4h    1h 20m total · 1 sleep 2h 10m ago                  │
 │ Total sleep today   11h 18m                                            │
-│ Fed in last 4h      146 ml · 2 feeds                                   │
+│ Fed in last 4h      146 ml total · 2 feeds                             │
 │                     fed 36m ago and 3h 4m ago                          │
 │ Total fed today     430 ml · 6 feeds · since 6:00 am                   │
 │                                                                        │

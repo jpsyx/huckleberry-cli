@@ -76,9 +76,9 @@ Diaper              1h 31m ago · wet · 7:09 pm
 Sleep               currently sleeping for 30m
                     (previous sleep finished 2h 10m ago · slept for 1h 20m)
 Tonight             nothing finished yet
-Sleep in last 4h    1h 20m · 1 sleep 2h 10m ago
+Sleep in last 4h    1h 20m total · 1 sleep 2h 10m ago
 Total sleep today   11h 18m
-Fed in last 4h      146 ml · 2 feeds
+Fed in last 4h      146 ml total · 2 feeds
                     fed 36m ago and 3h 4m ago
 Total fed today     430 ml · 6 feeds · since 6:00 am
 
@@ -100,6 +100,12 @@ The next line relabels itself. Inside the family's night window it reads
 `Tonight`; outside it reads `Last night's sleep`. It used to name the date, which
 was precise and is not what anybody calls it at 3am. An ambiguous label there is
 the one that gets misread, so "tonight" and "last night" stay distinct.
+
+**The recent totals say "total".** `350 ml · 5 feeds` reads as 350 ml each
+about as easily as it reads as 350 altogether, and one of those is four hundred
+per cent of the truth. The word goes on the quantity rather than on the count,
+because the count was never the ambiguous half. The day rows do not need it:
+they already carry `Total` in the label.
 
 **Each recent total carries the times behind it.** `3 feeds` does not say
 whether they were spread through the window or all at once, which is the next
