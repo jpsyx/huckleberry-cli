@@ -27,6 +27,20 @@ use serde::Deserialize;
 /// The table as it is written down.
 const SOURCE: &str = include_str!("../../data/reference.toml");
 
+/// The one line beside the ranges that is not itself a range.
+///
+/// Everything in this table describes populations. A pediatrician has the one
+/// thing the table structurally cannot have, which is the actual child, so the
+/// tool says so where the ranges are printed rather than only in the manual: a
+/// caveat nobody sees is a caveat that does not exist.
+///
+/// This is the single exception to the rule that labels never tell anybody
+/// what to do. It is a statement about the standing of the whole table rather
+/// than advice triggered by any particular reading, every screen that prints a
+/// range prints this one string, and there is exactly one of it.
+pub const PEDIATRICIAN_NOTE: &str =
+    "typical ranges are not your baby: where your pediatrician disagrees, they are right";
+
 /// Every metric that has bands, as read from the file.
 #[derive(Debug, Deserialize)]
 pub struct Table {

@@ -227,3 +227,33 @@ in [`NOTICE`](NOTICE), as that licence requires.
 Huckleberry is a product of Huckleberry Labs, Inc. This project is an
 unofficial client, is not affiliated with or endorsed by them, and uses their
 name only to say what it talks to.
+
+## About the typical ranges, and a disclaimer
+
+This tool prints "typical ranges" next to your baby's figures: how much sleep,
+how many feeds, how many diapers are usual at a given age. Please read this
+before you rely on any of them.
+
+**Those ranges were researched by a large language model.** They were not
+written, reviewed, or approved by a doctor. The research was done carefully and
+adversarially: every number is traced to a named source, the sources were
+tiered so that advocacy groups and manufacturers could not stand in for
+professional bodies, independent reviewers were sent to try to disprove each
+number, and the whole method and its findings are written down in
+[`docs/research/`](docs/research/) so you can check the work rather than take
+it on faith. The ranges themselves live in
+[`data/reference.toml`](data/reference.toml), one band per age, each naming
+where it came from.
+
+That makes the work **checkable. It does not make it authoritative.** An LLM
+can misread a study, cite a body that said something subtly different, or miss
+the guideline that supersedes the one it found. Treat nothing here as fact.
+
+**Your pediatrician knows your baby. This file does not.** These are general
+ranges describing populations, and no range describes any particular child.
+Where this tool and your pediatrician disagree, your pediatrician is right and
+this tool is wrong. If something about your baby worries you, call them, and do
+not let a green number on a terminal talk you out of it.
+
+This software is not a medical device, and nothing it prints is medical advice,
+a diagnosis, or a reason to delay care.

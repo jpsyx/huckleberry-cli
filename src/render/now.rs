@@ -266,6 +266,13 @@ fn ranges(view: &NowView, child: &Child, calendar: &Calendar, now: f64) -> Vec<R
     // ones.
     let mut lines = vec![vec![Piece::new(format!("{age} days old"), Tone::Muted)]];
     lines.extend(rows);
+    // Last, because a caveat that arrives before the thing it qualifies is a
+    // caveat nobody reads.
+    lines.push(Row::new());
+    lines.push(vec![Piece::new(
+        reference::PEDIATRICIAN_NOTE.to_owned(),
+        Tone::Muted,
+    )]);
     lines
 }
 
@@ -1088,6 +1095,46 @@ mod tests {
             .collect();
         let text = wide(&data, AFTERNOON);
         assert!(text.contains("(today is over that)"), "{text}");
+    }
+
+    /// The pediatrician outranks this table, and the screen says so where the
+    /// ranges are rather than only in the manual.
+    #[test]
+    fn the_ranges_carry_the_note_that_a_pediatrician_outranks_them() {
+        let text = wide(&a_newborns_day(), AFTERNOON);
+        assert!(
+            text.contains(
+                "typical ranges are not your baby: where your pediatrician disagrees, they are right"
+            ),
+            "{text}"
+        );
+    }
+
+    /// The note qualifies the ranges, so with no ranges there is nothing for
+    /// it to qualify and it would only be noise.
+    #[test]
+    fn with_no_ranges_there_is_no_pediatrician_note_either() {
+        let mut data = a_newborns_day();
+        data.child.birthdate = None;
+        let text = wide(&data, AFTERNOON);
+        assert!(!text.contains("pediatrician"), "{text}");
+    }
+
+    /// It is the last thing in the ranges column: a caveat that came before
+    /// the thing it qualifies is a caveat nobody reads.
+    #[test]
+    fn the_pediatrician_note_comes_after_every_range() {
+        let text = joined(&a_newborns_day(), AFTERNOON);
+        let lines: Vec<&str> = text.lines().collect();
+        let last_range = lines
+            .iter()
+            .rposition(|line| line.contains("typical at this age"))
+            .expect("a range");
+        let note = lines
+            .iter()
+            .position(|line| line.contains("pediatrician"))
+            .expect("the note");
+        assert!(note > last_range, "{text}");
     }
 
     #[test]
