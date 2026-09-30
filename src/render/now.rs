@@ -68,11 +68,9 @@ pub fn screen(
         &format!("Fed in last {}h", RECENT_HOURS as i64),
         &intake(&view.recent, units),
     ));
-    rows.push(fact(fed_label(view), &today_intake_line(view, units)));
-    rows.push(fact(
-        &format!("Slept {}", window_label(view)),
-        &slept(&view.today),
-    ));
+    let (fed, slept_label) = total_labels(view);
+    rows.push(fact(fed, &today_intake_line(view, units)));
+    rows.push(fact(slept_label, &slept(&view.today)));
 
     rows.push(Row::new());
     rows.push(vec![Piece::new(as_of(dataset, now), Tone::Muted)]);
@@ -331,7 +329,7 @@ const fn tone_for(standing: Standing) -> Tone {
 
 /// How wide the label column is, so a note under a value lines up with it
 /// rather than with the label it belongs to.
-const LABEL: usize = 15;
+const LABEL: usize = 17;
 
 /// The gap between a label and its value.
 const GAP: usize = 2;
@@ -470,28 +468,17 @@ fn sleep_rows(view: &NowView, dataset: &Dataset, now: f64) -> Vec<Row> {
     rows
 }
 
-/// What the running totals call their window.
+/// What the running totals are called: `(fed, slept)`.
 ///
-/// A rolling window says so, because "today" for a family counting a rolling
-/// day would be a word doing the opposite of its job at 3am: the whole point
-/// of that mode is that there is no today.
+/// A rolling window reads as the span it covers, because "today" for a family
+/// counting a rolling day would be a word doing the opposite of its job at
+/// 3am. A discrete day reads as the day's total, because that is the question
+/// it answers.
 #[must_use]
-pub const fn window_label(view: &NowView) -> &'static str {
+pub const fn total_labels(view: &NowView) -> (&'static str, &'static str) {
     match view.today_window.mode {
-        DayMode::Continuous => "in 24h",
-        DayMode::Discrete => "today",
-    }
-}
-
-/// What the running feed total is called.
-///
-/// A rolling window reads as the span it covers; a discrete day reads as the
-/// day's total, because that is the question it answers.
-#[must_use]
-pub const fn fed_label(view: &NowView) -> &'static str {
-    match view.today_window.mode {
-        DayMode::Continuous => "Fed in last 24h",
-        DayMode::Discrete => "Total fed today",
+        DayMode::Continuous => ("Fed in last 24h", "Slept in last 24h"),
+        DayMode::Discrete => ("Total fed today", "Total slept today"),
     }
 }
 
@@ -912,7 +899,7 @@ mod tests {
         data.sleep = vec![sleep(AFTERNOON - 10_800.0, 7_200.0)];
         let text = joined(&data, AFTERNOON);
         assert!(text.contains("Total fed today"), "{text}");
-        assert!(text.contains("Slept today"), "{text}");
+        assert!(text.contains("Total slept today"), "{text}");
         assert!(text.contains("2h 0m"), "{text}");
     }
 
@@ -941,7 +928,7 @@ mod tests {
             AFTERNOON,
         );
         assert!(text.contains("Fed in last 24h"), "{text}");
-        assert!(text.contains("Slept in 24h"), "{text}");
+        assert!(text.contains("Slept in last 24h"), "{text}");
         assert!(text.contains("350 ml · 4 feeds"), "{text}");
         assert!(
             !text.contains("since"),
@@ -1000,7 +987,13 @@ mod tests {
         ] {
             let text = with_rule(&dataset(), rule, AFTERNOON);
             let expected = column(&text, "Last fed");
-            for label in ["Fed in last 4h", "Total fed today", "Fed in last 24h"] {
+            for label in [
+                "Fed in last 4h",
+                "Total fed today",
+                "Fed in last 24h",
+                "Total slept today",
+                "Slept in last 24h",
+            ] {
                 if text.contains(label) {
                     assert_eq!(column(&text, label), expected, "{text}");
                 }
@@ -1011,7 +1004,7 @@ mod tests {
     #[test]
     fn a_window_with_nothing_in_it_says_so_rather_than_printing_a_zero() {
         let text = joined(&dataset(), AFTERNOON);
-        for label in ["Fed in last 4h", "Total fed today", "Slept today"] {
+        for label in ["Fed in last 4h", "Total fed today", "Total slept today"] {
             let line = text
                 .lines()
                 .find(|line| line.starts_with(label))
@@ -1030,7 +1023,7 @@ mod tests {
         let text = joined(&data, AFTERNOON);
         let line = text
             .lines()
-            .find(|line| line.starts_with("Slept today"))
+            .find(|line| line.starts_with("Total slept today"))
             .unwrap_or_default();
         assert!(line.contains("1h 0m"), "{text}");
     }
@@ -1059,7 +1052,7 @@ mod tests {
             Theme::dark(false),
             Units::Ml,
             at,
-            Some(140),
+            Some(142),
         )
         .join("\n")
     }

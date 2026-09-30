@@ -346,7 +346,7 @@ mod frames {
             "Sleep",
             "Fed in last 4h",
             "Total fed today",
-            "Slept",
+            "Total slept today",
         ] {
             assert!(drawn.contains(fact), "`{fact}` missing: {drawn}");
         }
@@ -364,7 +364,7 @@ mod frames {
     #[test]
     fn the_widget_carries_the_running_totals_the_now_command_shows() {
         let drawn = screen(&loaded(), 100, 30);
-        for fact in ["Fed in last 4h", "Total fed today", "Slept today"] {
+        for fact in ["Fed in last 4h", "Total fed today", "Total slept today"] {
             assert!(drawn.contains(fact), "`{fact}` missing: {drawn}");
         }
         assert!(drawn.contains("90 ml · 1 feed"), "{drawn}");

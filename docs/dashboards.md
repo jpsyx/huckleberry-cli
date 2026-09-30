@@ -71,14 +71,14 @@ The 3am screen: four facts, in the order they get asked.
 ```
 Wren
 
-Last fed         36m ago · 73 ml of Formula · 8:03 pm
-Diaper           1h 31m ago · wet · 7:09 pm
-Sleep            currently sleeping for 30m
-                 (previous sleep finished 2h 10m ago · slept for 1h 20m)
-Tonight          nothing finished yet
-Fed in last 4h   73 ml · 1 feed
-Total fed today  430 ml · 6 feeds · since 6:00 am
-Slept today      11h 18m
+Last fed           36m ago · 73 ml of Formula · 8:03 pm
+Diaper             1h 31m ago · wet · 7:09 pm
+Sleep              currently sleeping for 30m
+                   (previous sleep finished 2h 10m ago · slept for 1h 20m)
+Tonight            nothing finished yet
+Fed in last 4h     73 ml · 1 feed
+Total fed today    430 ml · 6 feeds · since 6:00 am
+Total slept today  11h 18m
 
 as of 2m ago
 ```
@@ -108,12 +108,12 @@ a newborn's usual feeding interval with room to spare, so the question the line
 answers is whether one is due.
 
 The last two say which window they mean rather than assuming one.
-A family counting a rolling day sees `Fed in last 24h` and `Slept in 24h`; a
-family counting from an hour sees `Total fed today` and `Slept today`, with
-`since 6:00 am`
+A family counting a rolling day sees `Fed in last 24h` and `Slept in last 24h`;
+a family counting from an hour sees `Total fed today` and `Total slept today`,
+with `since 6:00 am`
 on the first of them so both are anchored without saying it twice. What
 `today` covers is a setting, and [`setup.md`](setup.md) is what asks. A sleep
-in progress counts towards `Slept today`, because a baby asleep right now has
+in progress counts towards `Total slept today`, because a baby asleep right now has
 slept that time today whatever the intervals collection says.
 
 A window with nothing in it says `nothing logged` rather than `0 ml`, for the

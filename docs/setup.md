@@ -77,7 +77,7 @@ h config set day_mode discrete   # or continuous
 ### `continuous`: a rolling twenty-four hours
 
 "Today" is the last twenty-four hours, ending now, and it moves with the clock.
-The screens say `in 24h` rather than `today`, because for a family counting
+The screens say `in last 24h` rather than `today`, because for a family counting
 this way there is no today and a word doing the opposite of its job at 3am is
 the word that gets misread.
 
@@ -119,7 +119,7 @@ chose.
 
 | Where | What it does |
 | --- | --- |
-| `now`, and the shell's Now widget | `day_mode` decides what the feed total and `Slept today` cover, and whether they read `Total fed today` / `Slept today` or `Fed in last 24h` / `Slept in 24h` |
+| `now`, and the shell's Now widget | `day_mode` decides what the feed and sleep totals cover, and whether they read `Total fed today` / `Total slept today` or `Fed in last 24h` / `Slept in last 24h` |
 | `summary` and `trends` | each row is one of this family's days, `day_start` to `day_start`, so a 4am feed is counted on the row before |
 | `stripes` | each row runs from the previous `day_end` to this one, so a night lands whole on one row |
 | every screen with a night on it | `day_end` and `day_start` replace the profile's night, applied to the dataset once as it is read |

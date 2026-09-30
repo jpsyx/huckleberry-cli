@@ -62,7 +62,7 @@ either, say which.
 | --- | --- |
 | **today** | Whatever this family counts as one, which is a setting and not a calendar day. Never assume midnight. |
 | **the day rule** | How a family counts a day: the mode, and the hours it turns on. `DayRule` in `src/domain/today.rs`. |
-| **continuous** | A day mode: a rolling twenty-four hours ending now. Screens say `in 24h`, never `today`. |
+| **continuous** | A day mode: a rolling twenty-four hours ending now. Screens say `in last 24h`, never `today`. |
 | **discrete** | A day mode: from `day_start` each morning to now. |
 | **day start** | The hour a day begins at. Anything earlier belongs to the day before. Always configured. |
 | **day end** | The hour a day ends at, which is where night begins. Always configured. Was called **night start**, which is the same hour under a name that made it sound like a third setting. |

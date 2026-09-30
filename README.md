@@ -63,9 +63,9 @@ name, and `BIN_DIR` chooses somewhere other than `~/.local/bin`.
 $ h now
 Ada
 
-Last fed         36m ago · 73 ml of Formula · 8:03 pm
-Diaper           1h 31m ago · wet · 7:09 pm
-Sleep            28m ago · slept for 1h 40m
+Last fed           36m ago · 73 ml of Formula · 8:03 pm
+Diaper             1h 31m ago · wet · 7:09 pm
+Sleep              28m ago · slept for 1h 40m
 Night of Sun 27 Sep  longest 3h 16m · from 2:00 am
 ```
 
