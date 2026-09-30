@@ -46,8 +46,7 @@ pub fn style(role: Tone) -> Style {
 }
 
 /// The keys, spelled out on every screen rather than hidden behind `?`.
-pub const HINTS: &str =
-    "↑/↓ j/k move · ← h back · → l open · Enter select · r refresh · ctrl-q quit";
+pub const HINTS: &str = "↑/↓ j/k move · ← h back · → l open · Enter select · r refresh · q quit";
 
 /// The fewest rows the menu is ever squeezed to.
 ///
@@ -200,8 +199,7 @@ fn block(title: &str) -> Block<'static> {
 const FLOW_HINTS: &str = "the command has the keys · ctrl-q quit";
 
 /// The keys the dashboard answers to while it is the thing in the panel.
-const DASH_HINTS: &str =
-    "1-5 screens · tab moves · j/k scroll · r refresh · ← h back · ctrl-q quit";
+const DASH_HINTS: &str = "1-5 screens · tab moves · j/k scroll · r refresh · ← h back · q quit";
 
 fn footer(app: &App, running: bool) -> Paragraph<'static> {
     let note = if app.facts.refreshing {

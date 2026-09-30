@@ -40,21 +40,25 @@ without looking.
 `h` means **back** here. It is the vim direction, and in a tree of menus back
 is what left means.
 
-### 2. Only a chord leaves, and the two chords differ
+### 2. `q` leaves, and `Ctrl-Q` leaves from anywhere
 
-The shell is meant to be left running all day, so leaving it takes a deliberate
-two-key act. **No menu row ends the session**, and neither does any single key:
-`q` used to quit and no longer does, because `q` is one keystroke away from
-every letter a tired hand presses by reflex, and the widgets should still be
-there afterwards.
+**No menu row ends the session.** Leaving is a key, and there are two of them,
+which differ only in how far each one reaches.
 
-| Chord | Does |
+| Key | Does |
 | --- | --- |
+| `q` | ends the session, whenever the shell itself has the keyboard |
+| `Ctrl-Q` | ends the session from anywhere at all, including from inside a question |
 | `Ctrl-C` | cancels what you are in: one menu level, or the session when you are already at the top |
-| `Ctrl-Q` | ends the session from anywhere, however deep the menu is |
+
+While a command is asking something, every ordinary key belongs to it, `q`
+included: `q` is a letter, and a shell that quit when somebody typed the word
+"quiet" into a note is a shell nobody trusts with a text field. `Ctrl-Q` is not
+a letter, so it always gets through. That is the whole of the difference, and
+it is why both exist.
 
 `Ctrl-C` means what it means everywhere else, which is why it is not simply a
-second quit. Inside a submenu the thing being cancelled is the submenu; at the
+third quit. Inside a submenu the thing being cancelled is the submenu; at the
 top level there is nothing left to cancel, so it is the session. The reflex
 chord never destroys more than it looks like it will, and somebody who holds it
 down walks out rather than losing the screen in one press.
@@ -161,7 +165,7 @@ widget beside it, and **widget** and **panel** mean the same thing.
 │  8. Delete                                                             │
 │  9. More                                                             › │
 └────────────────────────────────────────────────────────────────────────┘
- ↑/↓ j/k move · ← h back · → l open · Enter select · r refresh · ctrl-q quit
+ ↑/↓ j/k move · ← h back · → l open · Enter select · r refresh · q quit
 ```
 
 | Key | Does |
@@ -173,8 +177,9 @@ widget beside it, and **widget** and **panel** mean the same thing.
 | `1`–`9` | put the cursor on that row |
 | `g`, `Home` / `G`, `End` | first row, last row |
 | `r` | refresh every widget |
+| `q` | leave, whenever the shell has the keyboard |
+| `Ctrl-Q` | leave, from anywhere, including from inside a question |
 | `Ctrl-C` | leave this menu, or the session at the top level |
-| `Ctrl-Q` | leave the session, from anywhere |
 
 A chevron (`›`) marks a row that opens another menu, so nothing is a surprise.
 The numbers are right-aligned as a column, so every label starts in the same
