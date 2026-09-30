@@ -91,7 +91,7 @@ async fn navigate(
             continue;
         };
         // One key never reaches a command, however deep it is in a question.
-        if forces_quit(key) {
+        if keys::forces_quit(key) {
             return Ok(());
         }
         if let Some(running) = job.as_mut() {
@@ -122,11 +122,6 @@ async fn navigate(
     }
 }
 
-/// Whether this key ends the session whatever is on the screen.
-fn forces_quit(key: crossterm::event::KeyEvent) -> bool {
-    motion_for(key) == Motion::Quit
-}
-
 /// Gives a key to the dashboard, and says whether it took it.
 ///
 /// Back closes it and puts the menu back, which is what the same key does
@@ -140,6 +135,8 @@ fn dashboard_key(
     reading: &mut Option<data::Reading>,
 ) -> bool {
     match motion_for(key) {
+        // Leaving is the shell's to do, wherever the cursor happens to be.
+        Motion::Quit => return false,
         Motion::Back | Motion::Cancel => {
             app.close_dashboard();
         }

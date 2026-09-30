@@ -835,3 +835,32 @@ That is worth fixing and is not fixed here.
 
 **Revisit when.** The shell's own widgets cover enough that the dashboard is
 redundant rather than convenient.
+
+## `q` leaves, and `Ctrl-Q` leaves from inside a question too
+
+**Decision.** Both `q` and `Ctrl-Q` end the session. `q` works whenever the
+shell itself has the keyboard; `Ctrl-Q` works from anywhere, including from
+inside a question somebody is typing an answer into. This supersedes the
+earlier decision above that took `q` away.
+
+**Why.** Taking `q` away was solving the wrong problem. The worry was a tired
+hand hitting `q` by reflex, but the case where that actually matters is a text
+field, where `q` is a letter going into an answer. Everywhere else `q` is what
+a hand reaches for to close a full-screen program, and making somebody use a
+chord for it was a cost paid on every use to avoid a mistake possible on a few.
+
+Now commands run inside the shell, the distinction is easy to draw. While one
+is asking, every ordinary key belongs to it. `Ctrl-Q` is not a letter, so it
+gets through regardless, which is exactly what a force quit is for.
+
+**Consequences.** `keys::forces_quit` is the predicate the loop checks before
+handing a key to a running command, and it is the chord alone. The footer names
+`q quit` on the ordinary screens and `ctrl-q quit` while a command has the
+keys, so each says the one that works where it is shown.
+
+A hosted prompt that wants `q` for itself gets it. The browsable listing
+already does: `q` leaves the list, and now that is what it does inside the
+shell too.
+
+**Revisit when.** A prompt turns up where `q` is neither a letter nor a
+shortcut, and somebody expects it to quit.

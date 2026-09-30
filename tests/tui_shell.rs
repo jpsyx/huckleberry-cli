@@ -55,22 +55,51 @@ fn enter_opens_and_escape_goes_back() {
 }
 
 #[test]
-fn no_ordinary_key_leaves_and_a_bare_q_no_longer_does() {
+fn q_leaves_and_so_does_the_chord() {
     for quit in ['q', 'Q'] {
+        assert_eq!(motion_for(key(KeyCode::Char(quit))), Motion::Quit);
         assert_eq!(
             motion_for(KeyEvent::new(KeyCode::Char(quit), KeyModifiers::CONTROL)),
             Motion::Quit
-        );
-        assert_eq!(
-            motion_for(key(KeyCode::Char(quit))),
-            Motion::Ignore,
-            "the shell is left running, so a bare `{quit}` must not end it"
         );
     }
     assert_eq!(
         motion_for(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL)),
         Motion::Cancel,
         "ctrl-c cancels what you are in, which is not always the session"
+    );
+}
+
+/// The difference between the two is how far each one reaches.
+#[test]
+fn only_the_chord_reaches_past_a_question_somebody_is_typing_into() {
+    use app::tui::keys::forces_quit;
+
+    for quit in ['q', 'Q'] {
+        assert!(
+            forces_quit(KeyEvent::new(KeyCode::Char(quit), KeyModifiers::CONTROL)),
+            "ctrl-{quit} ends the session from inside anything"
+        );
+        assert!(
+            !forces_quit(key(KeyCode::Char(quit))),
+            "a bare `{quit}` is a letter when something is asking for letters"
+        );
+    }
+    for other in [
+        key(KeyCode::Char('a')),
+        key(KeyCode::Enter),
+        key(KeyCode::Esc),
+        KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL),
+    ] {
+        assert!(!forces_quit(other), "{other:?}");
+    }
+    assert!(
+        !forces_quit(KeyEvent::new_with_kind(
+            KeyCode::Char('q'),
+            KeyModifiers::CONTROL,
+            KeyEventKind::Release,
+        )),
+        "a release is not a press"
     );
 }
 
@@ -349,7 +378,7 @@ fn the_shell_draws_the_breadcrumb_the_rows_and_the_keys_it_answers_to() {
         !drawn.contains("Exit"),
         "no row leaves the shell, so none offers to: {drawn}"
     );
-    for hint in ["j/k", "h", "l", "Enter", "r refresh", "ctrl-q quit"] {
+    for hint in ["j/k", "h", "l", "Enter", "r refresh", "q quit"] {
         assert!(
             drawn.contains(hint),
             "`{hint}` missing from the key hints: {drawn}"

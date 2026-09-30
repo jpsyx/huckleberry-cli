@@ -37,22 +37,20 @@ pub enum Motion {
 
 /// What a keystroke means.
 ///
-/// **No ordinary key leaves the shell.** It is meant to be left running all
-/// day, so Enter opens rows, Back walks out of submenus, and neither ever ends
-/// the session. A bare `q` used to quit and no longer does, because `q` is one
-/// keystroke away from every letter somebody presses by reflex and the widgets
-/// should still be there afterwards.
+/// **Enter opens rows and Back walks out of submenus; neither ever ends the
+/// session.** The shell is meant to be left running, so leaving it is `q`, and
+/// no row in any menu offers to do it.
 ///
-/// Two chords leave, and they are deliberately different.
+/// `q` and `Ctrl-Q` both leave, and the difference is where they reach.
+/// `Ctrl-Q` ends the session from anywhere at all, including from inside a
+/// question somebody is typing an answer into, where a bare `q` is a letter
+/// and nothing else. See [`forces_quit`].
 ///
 /// `Ctrl-C` means what it means everywhere: cancel what you are in. Inside a
 /// submenu that is the submenu, so it walks out one level; at the top level
 /// there is nothing left to cancel, so it ends the session. That is the shape
 /// somebody's hand already knows, and it means the reflex chord never destroys
 /// more than it looks like it will.
-///
-/// `Ctrl-Q` ends the session from anywhere, however deep the menu is. It is
-/// the one key that does not care where you are.
 #[must_use]
 pub fn motion_for(key: KeyEvent) -> Motion {
     // Windows reports press and release; acting on both moves two rows.
@@ -75,6 +73,7 @@ pub fn motion_for(key: KeyEvent) -> Motion {
         KeyCode::Left | KeyCode::Char('h' | 'H') | KeyCode::Esc | KeyCode::Backspace => {
             Motion::Back
         }
+        KeyCode::Char('q' | 'Q') => Motion::Quit,
         KeyCode::Char('r' | 'R') => Motion::Refresh,
         KeyCode::Home | KeyCode::Char('g') => Motion::First,
         KeyCode::End | KeyCode::Char('G') => Motion::Last,
@@ -82,4 +81,18 @@ pub fn motion_for(key: KeyEvent) -> Motion {
         KeyCode::Char(digit @ '1'..='9') => Motion::Highlight(digit as usize - '1' as usize),
         _ => Motion::Ignore,
     }
+}
+
+/// Whether this key ends the session even when something else has the
+/// keyboard.
+///
+/// Only the chord. A running command owns every other key while it is asking,
+/// because a bare `q` might be a letter going into an answer, and a shell that
+/// quit when somebody typed the word "quiet" would be a shell nobody trusts
+/// with a text field. `Ctrl-Q` is not a letter, so it always reaches here.
+#[must_use]
+pub fn forces_quit(key: KeyEvent) -> bool {
+    key.kind == KeyEventKind::Press
+        && key.modifiers.contains(KeyModifiers::CONTROL)
+        && matches!(key.code, KeyCode::Char('q' | 'Q'))
 }

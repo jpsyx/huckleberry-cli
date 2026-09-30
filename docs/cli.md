@@ -574,11 +574,13 @@ Every direction has an arrow and a letter that mean the same thing: `↓`/`j` an
 back. `1`-`9` put the cursor on a row without opening it, `g` and `G` reach the
 first and last rows, and `r` refreshes every widget without moving the cursor.
 
-**Only a chord leaves the shell.** No menu row ends the session and neither
-does any single key: a bare `q` used to quit and no longer does, and Back at
-Home does nothing, so a reflex keystroke cannot end it. `Ctrl-C` cancels what
+**No menu row leaves the shell**, and Back at Home does nothing, so a reflex
+keystroke cannot end it. `q` ends the session whenever the shell itself has the
+keyboard. While a command is asking something, every ordinary key belongs to
+it, `q` included, because `q` is a letter; `Ctrl-Q` is not, so it ends the
+session from anywhere including from inside a question. `Ctrl-C` cancels what
 you are in, which is one menu level, or the session when you are already at the
-top. `Ctrl-Q` ends the session from anywhere, however deep the menu is. A chevron marks a row that opens another menu, and
+top. A chevron marks a row that opens another menu, and
 every submenu ends in Back.
 
 Choosing a command hands the terminal back for as long as that command runs, so
