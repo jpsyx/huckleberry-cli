@@ -40,21 +40,28 @@ without looking.
 `h` means **back** here. It is the vim direction, and in a tree of menus back
 is what left means.
 
-### 2. Nothing leaves the shell but `Ctrl-Q`
+### 2. Only a chord leaves, and the two chords differ
 
-The shell is meant to be left running all day, so leaving it should take a
-deliberate two-key act and nothing else. **No menu row ends the session**, and
-neither does any single key: `q` used to quit and no longer does, because `q`
-is one keystroke away from every letter a tired hand presses by reflex, and the
-widgets should still be there afterwards.
+The shell is meant to be left running all day, so leaving it takes a deliberate
+two-key act. **No menu row ends the session**, and neither does any single key:
+`q` used to quit and no longer does, because `q` is one keystroke away from
+every letter a tired hand presses by reflex, and the widgets should still be
+there afterwards.
 
-`Ctrl-C` leaves too, and is the only exception. It is what every hand reaches
-for when a full-screen program will not let go, and a program that ignores it
-is one somebody has to kill from another terminal.
+| Chord | Does |
+| --- | --- |
+| `Ctrl-C` | cancels what you are in: one menu level, or the session when you are already at the top |
+| `Ctrl-Q` | ends the session from anywhere, however deep the menu is |
 
-Back at the top level does nothing at all, for the same reason: `h` and `Esc`
-are navigation keys, and a session that ends because a thumb went left one row
-too far is a session that has to be reopened in the dark.
+`Ctrl-C` means what it means everywhere else, which is why it is not simply a
+second quit. Inside a submenu the thing being cancelled is the submenu; at the
+top level there is nothing left to cancel, so it is the session. The reflex
+chord never destroys more than it looks like it will, and somebody who holds it
+down walks out rather than losing the screen in one press.
+
+Back at the top level does nothing at all: `h` and `Esc` are navigation keys,
+and a session that ends because a thumb went left one row too far is a session
+that has to be reopened in the dark.
 
 Every submenu still ends in a Back row, so walking out of one is a row on the
 screen as well as a key. Home ends in nothing, because there is nothing at Home
@@ -166,7 +173,8 @@ widget beside it, and **widget** and **panel** mean the same thing.
 | `1`–`9` | put the cursor on that row |
 | `g`, `Home` / `G`, `End` | first row, last row |
 | `r` | refresh every widget |
-| `Ctrl-Q` | leave. The only way out, with `Ctrl-C` as the escape hatch |
+| `Ctrl-C` | leave this menu, or the session at the top level |
+| `Ctrl-Q` | leave the session, from anywhere |
 
 A chevron (`›`) marks a row that opens another menu, so nothing is a surprise.
 The numbers are right-aligned as a column, so every label starts in the same

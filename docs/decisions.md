@@ -710,3 +710,53 @@ has to kill from another terminal.
 
 **Revisit when.** Somebody gets stuck. That would mean the footer is not doing
 its job, which is a thing to fix rather than a reason to hand `q` back.
+
+## `Ctrl-C` cancels a level; `Ctrl-Q` cancels the session
+
+**Decision.** `Ctrl-C` walks out of one menu level, and ends the session only
+when there is no level left to walk out of. `Ctrl-Q` ends it from anywhere.
+
+**Why.** The first version of this made `Ctrl-C` a second quit, which was a
+worse answer than either alternative. `Ctrl-C` already means something
+everywhere else: cancel the thing you are in. Inside a submenu that thing is
+the submenu. Honouring that means the chord a tired hand reaches for never
+destroys more than it looks like it will, and somebody holding it down walks
+out of the menu rather than losing the screen on the first press.
+
+That leaves `Ctrl-Q` as the one key that does not care where you are, which is
+what a force quit should be.
+
+**Consequences.** There is no single key that leaves, by design, and the footer
+names `ctrl-q quit` on every screen because that is the one worth advertising.
+`Ctrl-C` needs no advertising: it is the key somebody presses without being
+told, and it now does the least surprising thing when they do.
+
+**Revisit when.** Somebody wants out of a deep menu in one press and finds
+`Ctrl-Q` too far from the home row.
+
+## The family's day governs arithmetic, never timestamps
+
+**Decision.** `day_start`, `day_end` and `day_mode` decide which events are
+counted together. They never decide what day a thing is said to have happened
+on. `log`, `edit` and `delete` group under ordinary calendar days, midnight to
+midnight, and will not be re-based.
+
+**Why.** "When did this happen" has one answer and it is the one on the clock.
+A 4am feed happened at 4am on the date the clock said, and a list of what
+happened must not argue with a phone, a hospital note or anybody's memory. It
+is only when that feed is being *counted* that it matters which day's total it
+belongs to, and that is the only question these hours answer.
+
+**Consequences.** Under a 6am day start, a 4am feed appears under today's date
+in `log` and is counted on yesterday's row in `summary`. That looks like a
+contradiction and is not: the two screens are answering different questions,
+and each is answering its own correctly. This was previously recorded here as
+an unfinished edge; it is the intended design.
+
+A new screen joins the rule by asking one question: does it aggregate? If it
+adds, averages, groups for a total or draws a row that sums, it uses the day
+rule. If it lists what happened, it uses the calendar.
+
+**Revisit when.** Never for the principle. A screen that does both at once
+would need its two halves labelled, which is a presentation problem rather than
+a reason to change which day is which.

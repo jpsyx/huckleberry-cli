@@ -162,6 +162,13 @@ impl App {
                 self.level_mut().cursor = index;
             }
             Motion::Back => self.pop(),
+            // Cancel what you are in. At the top level that is the session.
+            Motion::Cancel => {
+                if self.levels.len() == 1 {
+                    return Intent::Quit;
+                }
+                self.pop();
+            }
             Motion::Quit => return Intent::Quit,
             // Deliberately not a movement: refreshing under somebody's cursor
             // and then moving it would be its own small betrayal.

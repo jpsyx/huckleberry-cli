@@ -63,6 +63,7 @@ either, say which.
 | **day end** | The hour a day ends at, which is where night begins. Always configured. Was called **night start**, which is the same hour under a name that made it sound like a third setting. |
 | **the night** | The stretch from `day_end` to the next `day_start`. Not configured separately: it is what is left over. |
 | **a day row** | One row of `summary` or `trends`: `day_start` to `day_start`. |
+| **a calendar day** | Midnight to midnight, in the family's timezone. What `log`, `edit` and `delete` group under, and what a timestamp is always reported against. Never used for arithmetic. |
 | **a stripe row** | One row of `stripes`: the previous `day_end` to this one, so a night lands whole on it. |
 | **the window** (of a screen) | The stretch `today` resolved to on this screen, as of now. `Window` in `src/domain/today.rs`. Not to be confused with **the read window**, which is how many days back a read covers. |
 | **totals** | What a window adds up to: millilitres, nursing seconds, milk feeds, meals, sleep. |

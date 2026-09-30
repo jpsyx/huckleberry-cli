@@ -55,7 +55,7 @@ fn enter_opens_and_escape_goes_back() {
 }
 
 #[test]
-fn only_ctrl_q_leaves_and_a_bare_q_no_longer_does() {
+fn no_ordinary_key_leaves_and_a_bare_q_no_longer_does() {
     for quit in ['q', 'Q'] {
         assert_eq!(
             motion_for(KeyEvent::new(KeyCode::Char(quit), KeyModifiers::CONTROL)),
@@ -69,9 +69,75 @@ fn only_ctrl_q_leaves_and_a_bare_q_no_longer_does() {
     }
     assert_eq!(
         motion_for(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL)),
-        Motion::Quit,
-        "the escape hatch every hand reaches for still works"
+        Motion::Cancel,
+        "ctrl-c cancels what you are in, which is not always the session"
     );
+}
+
+#[test]
+fn ctrl_c_walks_out_of_a_submenu_rather_than_ending_the_session() {
+    let mut app = App::new();
+    highlight(&mut app, "Log a feed");
+    app.apply(Motion::Open, HEIGHT);
+    highlight(&mut app, "Nursing");
+    app.apply(Motion::Open, HEIGHT);
+    assert_eq!(app.breadcrumb(), "Home › Log a feed › Nursing");
+
+    assert_eq!(app.apply(Motion::Cancel, HEIGHT), Intent::Stay);
+    assert_eq!(
+        app.breadcrumb(),
+        "Home › Log a feed",
+        "one level, not all of them"
+    );
+    assert_eq!(app.apply(Motion::Cancel, HEIGHT), Intent::Stay);
+    assert_eq!(app.breadcrumb(), "Home");
+}
+
+#[test]
+fn ctrl_c_ends_the_session_once_there_is_nothing_left_to_cancel() {
+    let mut app = App::new();
+    assert_eq!(app.breadcrumb(), "Home");
+    assert_eq!(
+        app.apply(Motion::Cancel, HEIGHT),
+        Intent::Quit,
+        "at the top level the thing being cancelled is the session"
+    );
+}
+
+#[test]
+fn ctrl_q_ends_the_session_however_deep_the_menu_is() {
+    let mut app = App::new();
+    assert_eq!(app.apply(Motion::Quit, HEIGHT), Intent::Quit);
+    highlight(&mut app, "Log a feed");
+    app.apply(Motion::Open, HEIGHT);
+    highlight(&mut app, "Nursing");
+    app.apply(Motion::Open, HEIGHT);
+    assert_eq!(
+        app.apply(Motion::Quit, HEIGHT),
+        Intent::Quit,
+        "it is the one key that does not care where you are"
+    );
+}
+
+#[test]
+fn the_reflex_navigation_keys_still_never_end_the_session() {
+    let mut app = App::new();
+    for motion in [
+        Motion::Back,
+        Motion::Next,
+        Motion::Previous,
+        Motion::Refresh,
+    ] {
+        assert_ne!(app.apply(motion, HEIGHT), Intent::Quit, "{motion:?}");
+    }
+    for code in [
+        KeyCode::Esc,
+        KeyCode::Backspace,
+        KeyCode::Left,
+        KeyCode::Char('h'),
+    ] {
+        assert_eq!(motion_for(key(code)), Motion::Back, "{code:?}");
+    }
 }
 
 #[test]
