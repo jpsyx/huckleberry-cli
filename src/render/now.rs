@@ -151,22 +151,34 @@ pub fn laid_out(
             WhenNarrow::Drop => facts,
         };
     }
-    beside(&facts, &ranges, left + GUTTER, room)
+    beside(&facts, &ranges, left, room)
 }
 
-/// The two columns, zipped, each row padded out to the gutter.
-fn beside(facts: &[Row], ranges: &[Row], at: usize, room: usize) -> Vec<Row> {
+/// The rule drawn down the gutter between the two columns.
+///
+/// Without it the ranges read as though each one belonged to the fact it
+/// happens to sit beside, which is the one thing they are not: the two columns
+/// are two lists that share a screen, not a table of pairs.
+const RULE: &str = "\u{2502}";
+
+/// The two columns, zipped, with the rule between them.
+///
+/// The rule is drawn on every row of the block rather than only where the
+/// right column has something to say, because a line that stops and starts
+/// again is read as a border that has gone wrong.
+fn beside(facts: &[Row], ranges: &[Row], left: usize, room: usize) -> Vec<Row> {
     let wrapped: Vec<Row> = ranges.iter().flat_map(|row| wrap(row, room)).collect();
     let height = facts.len().max(wrapped.len());
     (0..height)
         .map(|index| {
             let mut row = facts.get(index).cloned().unwrap_or_default();
-            let Some(right) = wrapped.get(index) else {
-                return row;
-            };
-            let pad = at.saturating_sub(plain_width(&row)).max(1);
+            let pad = (left + 1).saturating_sub(plain_width(&row)).max(1);
             row.push(Piece::new(" ".repeat(pad), Tone::Value));
-            row.extend(right.iter().cloned());
+            row.push(Piece::new(RULE.to_owned(), Tone::Muted));
+            if let Some(right) = wrapped.get(index).filter(|right| !right.is_empty()) {
+                row.push(Piece::new(" ".to_owned(), Tone::Value));
+                row.extend(right.iter().cloned());
+            }
             row
         })
         .collect()
@@ -250,7 +262,12 @@ fn ranges(view: &NowView, child: &Child, calendar: &Calendar, now: f64) -> Vec<R
     // The left column already says the name, so this says the thing it does
     // not: how old the baby is, which is what makes these ranges the right
     // ones.
-    let mut lines = vec![vec![Piece::new(format!("{age} days old"), Tone::Muted)]];
+    // The age heads the column and the ranges under it are a separate
+    // thought, so they are not run together.
+    let mut lines = vec![
+        vec![Piece::new(format!("{age} days old"), Tone::Muted)],
+        Row::new(),
+    ];
     lines.extend(rows);
     // Last, because a caveat that arrives before the thing it qualifies is a
     // caveat nobody reads.
@@ -327,19 +344,21 @@ const fn tone_for(standing: Standing) -> Tone {
 /// or all at once.
 fn totals_rows(view: &NowView, units: Units, now: f64) -> Vec<Row> {
     let hours = RECENT_HOURS as i64;
-    let (fed_today, slept_today) = total_labels(view);
+    let (fed_today, sleep_today) = total_labels(view);
+    // Sleep first, because the lines above it are about sleep: the eye that
+    // has just read "last night" is still on the subject.
     let mut rows = vec![fact(
+        &format!("Sleep in last {hours}h"),
+        &recent_sleep(view, now),
+    )];
+    rows.extend(times_under("slept", &view.recent_sleep_ends, now));
+    rows.push(fact(sleep_today, &slept(&view.today)));
+    rows.push(fact(
         &format!("Fed in last {hours}h"),
         &with_lone_time(intake(&view.recent, units), &view.recent_feed_starts, now),
-    )];
+    ));
     rows.extend(times_under("fed", &view.recent_feed_starts, now));
     rows.push(fact(fed_today, &today_intake_line(view, units)));
-    rows.push(fact(
-        &format!("Slept in last {hours}h"),
-        &recent_sleep(view, now),
-    ));
-    rows.extend(times_under("slept", &view.recent_sleep_ends, now));
-    rows.push(fact(slept_today, &slept(&view.today)));
     rows
 }
 
@@ -539,8 +558,8 @@ fn sleep_rows(view: &NowView, dataset: &Dataset, now: f64) -> Vec<Row> {
 #[must_use]
 pub const fn total_labels(view: &NowView) -> (&'static str, &'static str) {
     match view.today_window.mode {
-        DayMode::Continuous => ("Fed in last 24h", "Slept in last 24h"),
-        DayMode::Discrete => ("Total fed today", "Total slept today"),
+        DayMode::Continuous => ("Fed in last 24h", "Sleep in last 24h"),
+        DayMode::Discrete => ("Total fed today", "Total sleep today"),
     }
 }
 
@@ -682,6 +701,72 @@ mod tests {
 
     /// The night line named the day it was talking about, which is precise and
     /// is not what anybody calls it at 3am.
+    /// The age heads the column; the ranges under it are a separate thought.
+    #[test]
+    fn a_blank_line_separates_the_age_from_the_first_range() {
+        let text = joined(&a_newborns_day(), AFTERNOON);
+        let lines: Vec<&str> = text.lines().collect();
+        let age = lines
+            .iter()
+            .position(|line| line.contains("days old"))
+            .expect("an age line");
+        assert!(lines[age + 1].trim().is_empty(), "{text}");
+        assert!(lines[age + 2].contains("typical"), "{text}");
+    }
+
+    /// "typical at this age" leaves the reader to work out what of.
+    #[test]
+    fn every_range_names_what_it_is_about() {
+        let text = wide(&a_newborns_day(), AFTERNOON);
+        assert!(text.contains("typical feed in the first weeks"), "{text}");
+        assert!(text.contains("typical sleep at this age"), "{text}");
+        assert!(text.contains("typical diapers from day 3"), "{text}");
+    }
+
+    /// Sleep before feeding, and the noun rather than the past tense.
+    #[test]
+    fn the_totals_run_sleep_before_feeding() {
+        let text = joined(&a_newborns_day(), AFTERNOON);
+        let lines: Vec<&str> = text.lines().collect();
+        let at = |label: &str| {
+            lines
+                .iter()
+                .position(|line| line.starts_with(label))
+                .unwrap_or_else(|| panic!("no {label} row: {text}"))
+        };
+        assert!(at("Last fed") < at("Diaper"), "{text}");
+        assert!(at("Diaper") < at("Sleep "), "{text}");
+        assert!(at("Last night's sleep") < at("Sleep in last 4h"), "{text}");
+        assert!(at("Sleep in last 4h") < at("Total sleep today"), "{text}");
+        assert!(at("Total sleep today") < at("Fed in last 4h"), "{text}");
+        assert!(at("Fed in last 4h") < at("Total fed today"), "{text}");
+    }
+
+    #[test]
+    fn the_sleep_totals_say_sleep_rather_than_slept() {
+        let text = joined(&a_newborns_day(), AFTERNOON);
+        assert!(!text.contains("Slept"), "{text}");
+    }
+
+    /// The columns are not rows: nothing on the right belongs to the line it
+    /// happens to sit beside, and a rule is what says so.
+    #[test]
+    fn a_rule_separates_the_two_columns() {
+        let text = wide(&a_newborns_day(), AFTERNOON);
+        let columns: Vec<usize> = text
+            .lines()
+            .filter_map(|line| line.chars().position(|glyph| glyph == '\u{2502}'))
+            .collect();
+        assert!(
+            columns.len() >= 8,
+            "the rule runs the height of the panel: {text}"
+        );
+        assert!(
+            columns.windows(2).all(|pair| pair[0] == pair[1]),
+            "and stays in one column: {text}"
+        );
+    }
+
     #[test]
     fn the_night_line_says_last_night_rather_than_naming_the_day() {
         let text = joined(&dataset(), AFTERNOON);
@@ -695,11 +780,11 @@ mod tests {
         let lines: Vec<&str> = text.lines().collect();
         let recent = lines
             .iter()
-            .position(|line| line.starts_with("Slept in last 4h"))
+            .position(|line| line.starts_with("Sleep in last 4h"))
             .expect("a recent sleep row");
         let day = lines
             .iter()
-            .position(|line| line.starts_with("Total slept today"))
+            .position(|line| line.starts_with("Total sleep today"))
             .expect("a day sleep row");
         assert_eq!(recent + 1, day, "{text}");
     }
@@ -1091,7 +1176,7 @@ mod tests {
         data.sleep = vec![sleep(AFTERNOON - 10_800.0, 7_200.0)];
         let text = joined(&data, AFTERNOON);
         assert!(text.contains("Total fed today"), "{text}");
-        assert!(text.contains("Total slept today"), "{text}");
+        assert!(text.contains("Total sleep today"), "{text}");
         assert!(text.contains("2h 0m"), "{text}");
     }
 
@@ -1120,7 +1205,7 @@ mod tests {
             AFTERNOON,
         );
         assert!(text.contains("Fed in last 24h"), "{text}");
-        assert!(text.contains("Slept in last 24h"), "{text}");
+        assert!(text.contains("Sleep in last 24h"), "{text}");
         assert!(text.contains("350 ml · 4 feeds"), "{text}");
         assert!(
             !text.contains("since"),
@@ -1183,8 +1268,8 @@ mod tests {
                 "Fed in last 4h",
                 "Total fed today",
                 "Fed in last 24h",
-                "Total slept today",
-                "Slept in last 24h",
+                "Total sleep today",
+                "Sleep in last 24h",
             ] {
                 if text.contains(label) {
                     assert_eq!(column(&text, label), expected, "{text}");
@@ -1196,7 +1281,7 @@ mod tests {
     #[test]
     fn a_window_with_nothing_in_it_says_so_rather_than_printing_a_zero() {
         let text = joined(&dataset(), AFTERNOON);
-        for label in ["Fed in last 4h", "Total fed today", "Total slept today"] {
+        for label in ["Fed in last 4h", "Total fed today", "Total sleep today"] {
             let line = text
                 .lines()
                 .find(|line| line.starts_with(label))
@@ -1215,7 +1300,7 @@ mod tests {
         let text = joined(&data, AFTERNOON);
         let line = text
             .lines()
-            .find(|line| line.starts_with("Total slept today"))
+            .find(|line| line.starts_with("Total sleep today"))
             .unwrap_or_default();
         assert!(line.contains("1h 0m"), "{text}");
     }
@@ -1253,15 +1338,15 @@ mod tests {
     fn a_wide_screen_carries_the_typical_ranges_beside_the_facts() {
         let text = wide(&a_newborns_day(), AFTERNOON);
         assert!(
-            text.contains("typical in the first weeks: 8 or more feeds a day"),
+            text.contains("typical feed in the first weeks: 8 or more feeds a day"),
             "{text}"
         );
         assert!(
-            text.contains("typical from day 3: 5 or more wet diapers a day"),
+            text.contains("typical diapers from day 3: 5 or more wet diapers a day"),
             "{text}"
         );
         assert!(
-            text.contains("typical at this age: 8 to 20 hours in 24"),
+            text.contains("typical sleep at this age: 8 to 20 hours in 24"),
             "{text}"
         );
     }
@@ -1366,7 +1451,7 @@ mod tests {
         let lines: Vec<&str> = text.lines().collect();
         let last_range = lines
             .iter()
-            .rposition(|line| line.contains("typical at this age"))
+            .rposition(|line| line.contains("typical ") && !line.contains("pediatrician"))
             .expect("a range");
         let note = lines
             .iter()
@@ -1393,7 +1478,7 @@ mod tests {
         let text = joined(&a_newborns_day(), AFTERNOON);
         assert!(text.contains("Last fed"), "{text}");
         assert!(
-            text.contains("typical in the first weeks: 8 or more feeds a day"),
+            text.contains("typical feed in the first weeks: 8 or more feeds a day"),
             "the ranges are still there, under the facts: {text}"
         );
         for line in text.lines() {

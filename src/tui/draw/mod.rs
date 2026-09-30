@@ -339,7 +339,7 @@ mod frames {
         data.child.birthdate = Some("2025-09-08".to_owned());
         app.facts.replace(data, calendar(), Units::Ml, rule());
         let drawn = screen(&app, 150, 30);
-        assert!(drawn.contains("typical at this age"), "{drawn}");
+        assert!(drawn.contains("typical sleep at this age"), "{drawn}");
         assert!(drawn.contains("days old"), "{drawn}");
     }
 
@@ -353,7 +353,7 @@ mod frames {
             "Sleep",
             "Fed in last 4h",
             "Total fed today",
-            "Total slept today",
+            "Total sleep today",
         ] {
             assert!(drawn.contains(fact), "`{fact}` missing: {drawn}");
         }
@@ -371,7 +371,7 @@ mod frames {
     #[test]
     fn the_widget_carries_the_running_totals_the_now_command_shows() {
         let drawn = screen(&loaded(), 100, 30);
-        for fact in ["Fed in last 4h", "Total fed today", "Total slept today"] {
+        for fact in ["Fed in last 4h", "Total fed today", "Total sleep today"] {
             assert!(drawn.contains(fact), "`{fact}` missing: {drawn}");
         }
         assert!(drawn.contains("90 ml · 1 feed"), "{drawn}");

@@ -33,11 +33,16 @@
 #      special case somebody could delete, and a test asserts that no metric
 #      here mentions volume.
 #
-#   2. Labels say what kind of claim they are making. "typical" describes what
-#      was observed in a population; "recommended" reports what a body advises.
-#      The two are not the same and are not honestly said in each other's
-#      words: the sleep bands from four months on are recommendations, and
-#      observed normal is wider than all of them.
+#   2. Labels say what kind of claim they are making, and what they are about.
+#      "typical" describes what was observed in a population; "recommended"
+#      reports what a body advises. The two are not the same and are not
+#      honestly said in each other's words: the sleep bands from four months on
+#      are recommendations, and observed normal is wider than all of them.
+#
+#      Then comes the subject: "typical SLEEP at this age", "typical FEED in
+#      the first weeks", "typical DIAPERS from day 3". These are printed in a
+#      column with no header, one under another, so a label that does not say
+#      what it is about is a label the reader has to decode.
 #
 #   3. Labels are declarative, never imperative. No "should", no "call your
 #      doctor". The parent decides what to do; this says what is typical. The
@@ -113,7 +118,7 @@ unit = "seconds"
   max_age_days = 121
   low = 28800.0    # 8 hours
   high = 72000.0   # 20 hours
-  label = "typical at this age: 8 to 20 hours in 24"
+  label = "typical sleep at this age: 8 to 20 hours in 24"
   source = "NHS Best Start in Life, your baby's sleep patterns (8 to 18 hours, either perfectly normal); Galland et al., Sleep Med Rev 2012;16(3):213, table 2, 0-2 months (9.3 to 20.0)"
 
   # From four months the AASM does make a recommendation, so these say
@@ -134,14 +139,14 @@ unit = "seconds"
   max_age_days = 364
   low = 43200.0    # 12 hours
   high = 57600.0   # 16 hours
-  label = "recommended at this age: 12 to 16 hours in 24"
+  label = "recommended sleep at this age: 12 to 16 hours in 24"
   source = "AASM consensus, endorsed by the AAP (4 to 12 months): Paruthi et al., J Clin Sleep Med 2016;12(6):785"
 
   [[metrics.bands]]
   max_age_days = 1094
   low = 39600.0    # 11 hours
   high = 50400.0   # 14 hours
-  label = "recommended at this age: 11 to 14 hours in 24"
+  label = "recommended sleep at this age: 11 to 14 hours in 24"
   source = "AASM consensus, endorsed by the AAP (1 to 2 years, stated in the methods paper as 1 to <3 years)"
 
   # Stops the day before the sixth birthday, where the AASM's next band begins
@@ -150,7 +155,7 @@ unit = "seconds"
   max_age_days = 2189
   low = 36000.0    # 10 hours
   high = 46800.0   # 13 hours
-  label = "recommended at this age: 10 to 13 hours in 24"
+  label = "recommended sleep at this age: 10 to 13 hours in 24"
   source = "AASM consensus, endorsed by the AAP (3 to 5 years, stated in the methods paper as 3 to <6 years)"
 
 # ---------------------------------------------------------------------------
@@ -169,7 +174,7 @@ unit = "count"
   [[metrics.bands]]
   max_age_days = 28
   low = 8.0
-  label = "typical in the first weeks: 8 or more feeds a day"
+  label = "typical feed in the first weeks: 8 or more feeds a day"
   source = "CDC: about 8 to 12 times in 24 hours; AAP: 10-12 sessions is the norm breastfed, 8 the minimum bottle-fed"
 
   # The floor drops here, and it drops on purpose. Kent's observed mean for
@@ -186,7 +191,7 @@ unit = "count"
   [[metrics.bands]]
   max_age_days = 180
   low = 4.0
-  label = "typical at this age: 4 or more feeds a day"
+  label = "typical feed at this age: 4 or more feeds a day"
   source = "Kent et al., Pediatrics 2006;117(3):e387 (7.9 meals a day, range 4-13) and Breastfeeding Medicine 2013 (steady 3 to 6 months), both funded by Medela AG, a breast pump manufacturer"
 
   # Past six months there is no band, because the two feeding modes stop
@@ -219,13 +224,13 @@ unit = "count"
   [[metrics.bands]]
   max_age_days = 0
   low = 1.0
-  label = "typical on day 1: 1 or more wet diapers"
+  label = "typical diapers on day 1: 1 or more wet diapers"
   source = "CDC newborn breastfeeding chart, day 1 minimum 1; AAP newborn visit, a minimum of 1 wet and soiled on day 1"
 
   [[metrics.bands]]
   max_age_days = 1
   low = 2.0
-  label = "typical on day 2: 2 or more wet diapers"
+  label = "typical diapers on day 2: 2 or more wet diapers"
   source = "CDC newborn breastfeeding chart, day 2 minimum 2; AAP newborn visit, a minimum of 2 wet and soiled on day 2"
 
   # The CDC gives 5 on day 3 and 6 from day 4. The floor stays at 5 rather than
@@ -236,7 +241,7 @@ unit = "count"
   [[metrics.bands]]
   max_age_days = 180
   low = 5.0
-  label = "typical from day 3: 5 or more wet diapers a day"
+  label = "typical diapers from day 3: 5 or more wet diapers a day"
   source = "CDC newborn breastfeeding chart, day 3 minimum 5; AAP, after the first 4 to 5 days at least 5 to 6 a day; ABM Clinical Protocol #2 (2014 revision), at least five to six urinations by Day 5"
 
   # Past six months there is no band. Every figure that exists for an older
@@ -279,11 +284,11 @@ unit = "count"
   [[metrics.bands]]
   max_age_days = 1
   low = 1.0
-  label = "typical in the first 2 days: 1 or more dirty diapers a day"
+  label = "typical diapers in the first 2 days: 1 or more dirty diapers a day"
   source = "AAP: 1 or 2 bowel movements per day on days 1 and 2, blackish and tarry; UNICEF UK: day 1-2, 1 or more"
 
   [[metrics.bands]]
   max_age_days = 3
   low = 2.0
-  label = "typical on days 3 and 4: 2 or more dirty diapers a day"
+  label = "typical diapers on days 3 and 4: 2 or more dirty diapers a day"
   source = "AAP: at least two stools on days 3 and 4, turning greenish to yellow; UNICEF UK: day 3-4, 2 preferably more"

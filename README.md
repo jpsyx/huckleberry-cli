@@ -67,11 +67,11 @@ Last fed            36m ago · 73 ml of Formula · 8:03 pm
 Diaper              1h 31m ago · wet · 7:09 pm
 Sleep               28m ago · slept for 1h 40m
 Last night's sleep  longest 3h 16m · from 2:00 am
+Sleep in last 4h    1h 40m · 1 sleep 28m ago
+Total sleep today   11h 18m
 Fed in last 4h      146 ml · 2 feeds
                     fed 36m ago and 3h 4m ago
 Total fed today     430 ml · 6 feeds · since 6:00 am
-Slept in last 4h    1h 40m · 1 sleep 28m ago
-Total slept today   11h 18m
 ```
 
 ## Log new activity

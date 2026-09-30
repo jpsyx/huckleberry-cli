@@ -76,14 +76,18 @@ Diaper              1h 31m ago · wet · 7:09 pm
 Sleep               currently sleeping for 30m
                     (previous sleep finished 2h 10m ago · slept for 1h 20m)
 Tonight             nothing finished yet
+Sleep in last 4h    1h 20m · 1 sleep 2h 10m ago
+Total sleep today   11h 18m
 Fed in last 4h      146 ml · 2 feeds
                     fed 36m ago and 3h 4m ago
 Total fed today     430 ml · 6 feeds · since 6:00 am
-Slept in last 4h    1h 20m · 1 sleep 2h 10m ago
-Total slept today   11h 18m
 
 as of 2m ago
 ```
+
+The sleep facts run together and the feeding facts run together: last night,
+then the last four hours, then the day, and only then what went in. An eye that
+has just read "last night" is still on the subject.
 
 A running sleep takes two lines: what is happening now, and the one before it
 underneath in muted text, indented to line up with the value it is about. One
@@ -114,6 +118,20 @@ in the shell's drawer, which cannot grow without taking room from the menu,
 they are simply left out. The ranges themselves live in
 [`data/reference.toml`](../data/reference.toml); see [`setup.md`](setup.md) for
 what a day means here.
+
+**A rule runs down the gutter between the two columns**, and it is not
+decoration. The columns are two lists that share a screen, not a table of
+pairs: the range sitting beside "Diaper" is about sleep as often as not, and
+without a divider the eye reads across. The rule is drawn on every row of the
+block rather than only where the right column has something to say, because a
+line that stops and starts again reads as a border that has gone wrong.
+
+**Each range names its subject**: `typical sleep at this age`, `typical feed in
+the first weeks`, `typical diapers from day 3`. A label that opened with
+`typical at this age` left the reader to work out what of, which is fine in a
+table with a header and not fine in a column that has none. The age heads the
+column with a blank line under it, so it reads as the heading it is rather than
+as the first range.
 
 The three running totals answer the second question rather than the first: not
 "when did she last eat" but "has she had enough". Four hours because that spans
