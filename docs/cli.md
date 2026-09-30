@@ -410,10 +410,15 @@ recent of that kind, or taken away when there is none.
 ## First use
 
 The first command run against an account asks for what the tool cannot guess:
-an account to sign in to, and how this family counts a day. It asks once, on
-whatever command is run first; `--help` and `--version` are answered by the
-argument parser and never reach it, and `auth`, `config` and `info` are exempt
-because they are how somebody gets set up.
+an account to sign in to, and how this family counts a day. `--help` and
+`--version` are answered by the argument parser and never reach it, and `auth`,
+`config` and `info` are exempt because they are how somebody gets set up.
+
+The two are asked for separately. An account is needed by every command that
+opens a socket, so not by anything under `--offline`. The day settings are
+asked for only by the screens whose figures depend on them: `now`, `dash`,
+`summary`, `trends`, `stripes`, and the shell. Reading a snapshot's log or
+recording a diaper needs neither.
 
 Off a terminal nothing is asked. The command fails naming every setting that is
 missing and the `config set` that answers each, all in one message.
@@ -439,6 +444,11 @@ and `config set day_mode` changes it later. See [`setup.md`](setup.md).
 A time is stored as 24-hour `HH:MM` and read back as a person says it, so
 `06:00` is confirmed as `6:00 am`. A bare `6` is refused rather than guessed
 at: write `6am` or `06:00`.
+
+`day_start` governs the running totals on `now` and in the Now widget.
+`summary`, `trends` and `stripes` still count their day rows from midnight, so
+under a 6am day start a 4am feed appears in today's summary row and not in
+`Fed today`. See [`setup.md`](setup.md).
 
 ## Settings
 

@@ -602,17 +602,26 @@ The three exemptions are the same exemption: they are how somebody gets out of
 an unconfigured state. A gate in front of `config set` would be a locked door
 with the key behind it.
 
-**Consequences.** A script or an agent meeting a fresh configuration now fails
-rather than running. That is the two-audiences rule working as designed and
-not an exception to it: the refusal names every missing setting and the
-`config set` that answers each, in one message, so one pass fixes all of them.
-It does mean `--offline` needs the settings too, which is a real cost for the
-"demonstrable without an account" path and is the part of this most likely to
-be worth relaxing.
+**Consequences.** A script or an agent meeting a fresh configuration fails
+rather than running, for anything the missing answer would change. That is the
+two-audiences rule working as designed and not an exception to it: the refusal
+names every missing setting and the `config set` that answers each, in one
+message, so one pass fixes all of them.
+
+Each half of the gate asks only for what it is for. An account is wanted by
+anything that opens a socket, so not by `--offline`. The day settings are
+wanted by the screens whose figures depend on them, so
+`h --offline snapshot.json log` draws its list on an unconfigured machine and
+`h diaper --pee` does not stop a script to ask about a setting it never reads.
+The first cut of this gated everything on every command, which turned the
+"demonstrable without an account" path into one that needed configuring first,
+and made a diaper wait on a question about arithmetic it does not do.
+
+The list of day-showing commands is the thing to keep right: a screen left off
+it gets midnight, quietly. It is named in one place with a comment saying so.
 
 The gate reloads the context after anything is written, so a command never acts
 on the settings as they were before setup ran.
 
-**Revisit when.** A setting is added that only some commands need. The gate
-asks for everything missing on every command today, which is right while the
-list is short and would become rude if it were long.
+**Revisit when.** The list of day-showing commands stops being short enough to
+read, or a setting arrives that does not divide the commands the same way.

@@ -1,15 +1,15 @@
 //! Resolve event time before collecting or validating activity details.
 use std::process::{Command, Stdio};
 
-/// A configuration file with first-use setup already answered, so these tests
-/// exercise the ordering they are about rather than the setup gate.
+/// A configuration file that does not exist, which is the defaults.
+///
+/// Recording a diaper does not depend on how a day is counted, so first-use
+/// setup never stops one to ask: these tests reach the ordering they are about
+/// with nothing configured at all.
 fn configured(name: &str) -> std::path::PathBuf {
-    let path = std::env::temp_dir()
+    std::env::temp_dir()
         .join(format!("huckleberry-{name}-{}", std::process::id()))
-        .join("config.toml");
-    std::fs::create_dir_all(path.parent().expect("a parent")).expect("a directory");
-    std::fs::write(&path, "day_mode = \"continuous\"\n").expect("a configuration");
-    path
+        .join("config.toml")
 }
 
 #[test]
