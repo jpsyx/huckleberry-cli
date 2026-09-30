@@ -38,6 +38,10 @@
   `render::print` and `render::note`, which are the only two places this tool
   writes, so a host can take them. **There are no exceptions**: the dashboard
   is drawn in the panel too, from the reading the shell already has.
+- **Typical ranges live in [`data/reference.toml`](data/reference.toml)**, one
+  band per age, each naming where it came from. There is no band for milk
+  volume at any age and there must never be one: see the file's own header for
+  why. Labels state what is typical and never tell anybody what to do.
 - **The family's day (`day_start`, `day_end`, `day_mode`) governs arithmetic,
   never timestamps.** Anything that aggregates uses it: `summary`, `trends`,
   `stripes`, the running totals. Anything that reports an individual entry uses

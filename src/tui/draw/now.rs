@@ -19,10 +19,10 @@ use crate::tui::facts::Facts;
 
 use super::{style, tone};
 
-/// The drawer's rows, ready to render inside a block.
+/// The drawer's rows, ready to render inside a block `width` columns wide.
 #[must_use]
-pub fn widget(facts: &Facts, at: f64) -> Paragraph<'static> {
-    Paragraph::new(lines(facts, at))
+pub fn widget(facts: &Facts, at: f64, width: u16) -> Paragraph<'static> {
+    Paragraph::new(lines(facts, at, width))
 }
 
 /// How many rows the drawer wants, borders included.
@@ -30,8 +30,13 @@ pub fn widget(facts: &Facts, at: f64) -> Paragraph<'static> {
 /// Asked before the layout is split, so the menu can be given everything left
 /// over rather than a guess.
 #[must_use]
-pub fn height(facts: &Facts) -> u16 {
-    u16::try_from(lines(facts, measured_at(facts)).len().saturating_add(2)).unwrap_or(u16::MAX)
+pub fn height(facts: &Facts, width: u16) -> u16 {
+    u16::try_from(
+        lines(facts, measured_at(facts), width)
+            .len()
+            .saturating_add(2),
+    )
+    .unwrap_or(u16::MAX)
 }
 
 /// The instant used for measuring alone: how many rows there are does not
@@ -42,17 +47,24 @@ fn measured_at(facts: &Facts) -> f64 {
         .map_or(0.0, |reading| reading.dataset.fetched_at)
 }
 
-fn lines(facts: &Facts, at: f64) -> Vec<Line<'static>> {
+fn lines(facts: &Facts, at: f64, width: u16) -> Vec<Line<'static>> {
     let Some(reading) = facts.reading() else {
         return vec![waiting(facts)];
     };
     let view = now::build(&reading.dataset, &reading.calendar, reading.rule, at);
-    crate::render::now::screen(
+    // Two columns here too when the panel is wide enough: the drawer is
+    // `h now`, and it lays itself out the same way.
+    crate::render::now::laid_out(
         &view,
         &reading.dataset,
         &reading.calendar,
         reading.units,
         at,
+        // Its own width, not the terminal's: the drawer is a panel.
+        Some(usize::from(width).saturating_sub(1)),
+        // A drawer cannot grow: stacking the ranges under the facts would make
+        // the glance strip the biggest thing on a screen it shares.
+        crate::render::now::WhenNarrow::Drop,
     )
     .into_iter()
     .map(|row| {

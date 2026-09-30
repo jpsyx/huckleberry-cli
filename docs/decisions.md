@@ -961,3 +961,58 @@ has it; `State::tabs` is what anything drawing or moving should ask.
 
 **Revisit when.** The drawer stops showing what the Now tab shows, or the
 dashboard stops being drawn beneath it.
+
+## The typical ranges live in a file, and say where they came from
+
+**Decision.** The age bands are `data/reference.toml`, read in at compile time,
+one band per age with a `source` line naming where the range came from. They
+run from the first day to five years.
+
+**Why.** They were Rust constants, which made adding an age band a code change
+and made checking one a matter of trusting whoever typed it. In a file they can
+be read, argued with and corrected by somebody who is not editing the program,
+and the `source` line means a future reader can check a number rather than
+trust it. The two rules that matter are in the file's own header, where
+somebody editing it will see them.
+
+TOML rather than YAML, which is what was asked for: `toml` is already a
+dependency of this tool and does the same job, and the rule in
+[`rules/rust.md`](rules/rust.md) is to check whether something already present
+does it before adding a crate. It is a one-line change if YAML is wanted.
+
+**Consequences.** A band with no ceiling leaves `high` out, and a test asserts
+every such band says "or more" in its label, so a line missing by accident
+cannot quietly turn a range into a floor. Another test asserts no metric in the
+file mentions volume, which is the rule about milk made mechanical.
+
+Where sources disagreed, the band is the wider one. Wet diapers over the second
+half of the first year are quoted between four and eight a day depending who is
+asked, and the floor here sits under all of them: a band that tells somebody
+they are short when every source says they are not is worse than a band that is
+merely wide.
+
+**Revisit when.** A band is wanted that is not a simple low/high by age, such
+as one that depends on weight.
+
+## A day still going is never called short
+
+**Decision.** On `now`, a figure below its typical range reads as where today
+has got to (`3 so far today`), not as a verdict. Over and inside are said
+plainly, because they have already happened.
+
+**Why.** The ranges are per day, and for most of the day every figure is under
+every one of them: at eight in the morning the day is an hour old. "Today is
+under that" would be true and useless, four times over, every morning, on a
+screen whose whole job is not to frighten anybody. It is the same reason the
+summary's averages skip today and the trend chart marks today "still going".
+
+**Consequences.** Below is painted grey rather than yellow, because it is not a
+reading. Zero reads as "nothing yet today" rather than `0s`, the way the column
+beside it already says "nothing logged".
+
+The summary still says "this week is under that", and should: a week of
+complete days is a thing that can be short.
+
+**Revisit when.** The screen learns what time it is well enough to say "under"
+once the day is nearly over, which is a real improvement and a different
+change.

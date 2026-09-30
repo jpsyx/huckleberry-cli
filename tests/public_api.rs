@@ -134,6 +134,7 @@ fn the_now_screen_answers_the_question_it_exists_for() {
         Theme::dark(false),
         Units::Ml,
         AFTERNOON,
+        None,
     )
     .join("\n");
 
@@ -264,8 +265,16 @@ fn piped_output_carries_no_escape_sequences() {
         app::domain::today::DayRule::discrete(6.0, 19.5),
         AFTERNOON,
     );
-    let screen =
-        render::now::lines(&view, &dataset, &calendar, plain, Units::Ml, AFTERNOON).join("\n");
+    let screen = render::now::lines(
+        &view,
+        &dataset,
+        &calendar,
+        plain,
+        Units::Ml,
+        AFTERNOON,
+        None,
+    )
+    .join("\n");
     assert!(!screen.contains('\u{1b}'), "{screen}");
 }
 

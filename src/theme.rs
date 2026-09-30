@@ -109,19 +109,29 @@ impl Tone {
             // today reads as brighter rather than as a different kind of
             // thing.
             Self::Today | Self::Selected => "1;97",
-            // Faint, so the block at the foot of a table stays secondary
-            // while still carrying its colour. A terminal that ignores SGR 2
-            // simply shows the bright colour, which is no worse than before.
-            Self::Good => "2;92",
-            Self::Attention => "2;93",
             // One hue per tracker, so a stream of forty entries can be read by
             // shape before it is read by word. A kind shares its colour with a
             // role it never appears beside: `Pumping` is the green of
             // `Success` and means nothing of the sort, because in a list of
             // kinds a colour is a category and not a verdict, and every row
             // says its kind in words as well.
-            Self::Success | Self::Pumping => "92",
-            Self::Warning | Self::Milestone => "93",
+            //
+            // `Good` is here too, and is no longer faint: it is the block
+            // somebody reads to find out whether anything is off, and faint
+            // made it the hardest thing on the screen to read, which is the
+            // opposite of what it is for. It is secondary by where it sits,
+            // not by being hard to see.
+            Self::Good | Self::Success | Self::Pumping => "92",
+            // Bold, so it stays apart from `Attention`, which is the same
+            // yellow and is not. The tool having a problem is a louder thing
+            // than a figure sitting outside what is usual, and now that the
+            // foot of a table is no longer faint, bold is what keeps the two
+            // from being the same bytes.
+            Self::Warning => "1;93",
+            // `Attention` shares this yellow with `Milestone`, which it never
+            // appears beside: in a list of kinds a colour is a category, and
+            // here it is a reading.
+            Self::Attention | Self::Milestone => "93",
             Self::Info | Self::Sleep => "94",
             Self::Diaper => "95",
             Self::Accent | Self::Feeding => "96",
@@ -404,12 +414,26 @@ mod tests {
         );
     }
 
+    /// "Outside the usual" and "the tool has a problem" must never be the same
+    /// thing on the screen, however they are painted.
     #[test]
-    fn the_foot_of_a_table_keeps_its_colour_while_staying_faint() {
+    fn a_figure_outside_the_usual_never_looks_like_the_tool_complaining() {
+        assert_ne!(
+            Tone::Attention.sgr(),
+            Tone::Warning.sgr(),
+            "a screen about a baby would be indistinguishable from a failure"
+        );
+    }
+
+    /// The block at the foot of a summary is what somebody reads to find out
+    /// whether anything is off. Faint made it the hardest thing on the screen
+    /// to read, which is the opposite of what it is for.
+    #[test]
+    fn the_foot_of_a_table_is_meant_to_be_read_so_it_is_not_faint() {
         for tone in [Tone::Good, Tone::Attention] {
             assert!(
-                tone.sgr().starts_with("2;"),
-                "{tone:?} should be faint: {}",
+                !tone.sgr().starts_with('2'),
+                "{tone:?} is faint: {}",
                 tone.sgr()
             );
         }

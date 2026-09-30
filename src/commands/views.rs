@@ -31,6 +31,7 @@ pub async fn now(context: &Context, json: bool) -> Result<()> {
         context.output_theme(),
         units(context),
         at,
+        context.screen_width(),
     ));
     Ok(())
 }
