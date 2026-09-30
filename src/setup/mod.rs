@@ -37,25 +37,47 @@ impl Needs {
 
 /// What this command needs, given where its data is coming from.
 ///
-/// Three families of command are exempt, and all for the same reason: they are
-/// how somebody gets out of an unconfigured state. `auth` signs in, `config`
-/// sets the settings, and `info` says where both of those live. A setup gate
-/// in front of them would be a locked door with the key behind it.
+/// Three families of command are exempt from everything, and all for the same
+/// reason: they are how somebody gets out of an unconfigured state. `auth`
+/// signs in, `config` sets the settings, and `info` says where both of those
+/// live. A setup gate in front of them would be a locked door with the key
+/// behind it.
 #[must_use]
 pub const fn needs(command: &Command, offline: bool) -> Needs {
     match command {
         Command::Auth { .. } | Command::Config { .. } | Command::Info => Needs::NOTHING,
-        // A snapshot is a different source, deliberately chosen, and nothing
-        // under it opens a socket. There is nobody to be signed in as.
-        _ if offline => Needs {
-            credentials: false,
-            settings: true,
-        },
         _ => Needs {
-            credentials: true,
-            settings: true,
+            // A snapshot is a different source, deliberately chosen, and
+            // nothing under it opens a socket. There is nobody to sign in as.
+            credentials: !offline,
+            settings: shows_a_day(command),
         },
     }
+}
+
+/// Whether what this command puts on the screen depends on how a day is
+/// counted, or on where this family's night sits.
+///
+/// The gate asks only for what the answer would change, which is what keeps
+/// `h --offline snapshot.json log` working on a machine nobody has configured
+/// and keeps `h diaper --pee` from stopping a script to ask about a setting it
+/// will never read. The commands here are the ones that would otherwise print
+/// a confident figure against a boundary nobody chose.
+///
+/// **Add a command here the moment it starts reading
+/// [`Config::day_rule`](crate::config::Config::day_rule).** A screen that
+/// shows a day and is left off this list gets midnight, quietly, which is the
+/// one boundary that is wrong for everybody.
+#[must_use]
+pub const fn shows_a_day(command: &Command) -> bool {
+    matches!(
+        command,
+        Command::Now { .. }
+            | Command::Dash { .. }
+            | Command::Summary { .. }
+            | Command::Trends { .. }
+            | Command::Stripes { .. }
+    )
 }
 
 /// Settings with no default worth using, in the order setup asks for them.
@@ -186,19 +208,57 @@ mod gate {
     }
 
     #[test]
-    fn every_other_command_needs_an_account_and_the_settings() {
+    fn every_other_command_needs_an_account() {
         for words in ["now", "diaper", "summary", "log", "edit", "feed bottle"] {
-            let needs = needs(&command(words), false);
-            assert!(needs.credentials, "{words}");
-            assert!(needs.settings, "{words}");
+            assert!(needs(&command(words), false).credentials, "{words}");
         }
     }
 
     #[test]
-    fn a_snapshot_needs_the_settings_but_nobody_to_sign_in_as() {
-        let needs = needs(&command("now"), true);
-        assert!(!needs.credentials, "nothing under --offline opens a socket");
-        assert!(needs.settings, "a snapshot still has to be counted somehow");
+    fn nothing_under_a_snapshot_needs_anybody_to_sign_in_as() {
+        for words in ["now", "summary", "log", "stripes"] {
+            assert!(
+                !needs(&command(words), true).credentials,
+                "nothing under --offline opens a socket: {words}"
+            );
+        }
+    }
+
+    #[test]
+    fn every_screen_that_shows_a_day_is_asked_how_one_is_counted() {
+        for words in ["now", "dash", "summary", "trends", "stripes"] {
+            for offline in [false, true] {
+                assert!(
+                    needs(&command(words), offline).settings,
+                    "`{words}` would otherwise print a figure against midnight"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_command_that_shows_no_day_is_never_stopped_to_be_asked_about_one() {
+        for words in [
+            "log",
+            "export",
+            "diaper",
+            "potty",
+            "growth",
+            "edit",
+            "delete",
+            "feed bottle",
+            "sleep start",
+            "child list",
+            "foods list",
+        ] {
+            for offline in [false, true] {
+                assert!(
+                    !needs(&command(words), offline).settings,
+                    "`{words}` never reads the setting, so asking for it is a \
+                     locked door in front of something that works: {offline}"
+                );
+            }
+        }
     }
 
     #[test]

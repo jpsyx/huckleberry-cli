@@ -167,6 +167,11 @@ setup asks: **how a family counts a day**, and, for a family counting discrete
 days, **when a day and a night begin**. Midnight is the one boundary that is
 wrong for everybody. See [`setup.md`](setup.md).
 
+Each half of the gate asks only for what it is for. Credentials are wanted by
+anything that opens a socket, so not under `--offline`; the day settings are
+wanted by the commands `shows_a_day` names, which are the ones whose figures
+would otherwise be drawn against a boundary nobody chose.
+
 The rule is applied to the dataset once, where it is read
 (`DayRule::apply_to`), so every screen that asks the child about its night gets
 the same answer without each of them having to know the setting exists. The

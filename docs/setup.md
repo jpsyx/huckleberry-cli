@@ -15,15 +15,35 @@ never reach it, because clap answers those and exits before this program runs.
    (`night_start`), for a family counting discrete days. A rolling day has no
    hour to begin at, so neither is asked.
 
-Three families of command are exempt, all for the same reason: they are how
-somebody gets out of an unconfigured state, and a gate in front of them would
-be a locked door with the key behind it.
+Three families of command are exempt from all of it, and all for the same
+reason: they are how somebody gets out of an unconfigured state, and a gate in
+front of them would be a locked door with the key behind it.
 
 | Exempt | Why |
 | --- | --- |
 | `auth …` | it is how you sign in |
 | `config …` | it is how you set the settings |
 | `info` | it says where both of those live |
+
+### Each half asks only for what it is for
+
+The two halves of the gate are asked for separately, because they answer
+different questions.
+
+| | Asked for |
+| --- | --- |
+| **an account** | every command that is not exempt, unless `--offline` is reading a snapshot, which opens no socket and has nobody to be signed in as |
+| **the day settings** | only the commands whose output depends on them: `now`, `dash`, `summary`, `trends`, `stripes`, and the shell, whose Now widget shows the same figures |
+
+So `h --offline snapshot.json log` draws its list on a machine nobody has
+configured, and `h diaper --pee` records a diaper without stopping a script to
+ask about a setting it will never read. `h --offline snapshot.json now` still
+asks, because it would otherwise print `Fed today` against midnight, quietly,
+and midnight is the one boundary that is wrong for everybody.
+
+`shows_a_day` in `src/setup/mod.rs` is the list. **A command joins it the
+moment it starts reading `Config::day_rule`**, and a screen left off it gets
+midnight without saying so.
 
 ## Both audiences, as everywhere else
 
@@ -98,6 +118,27 @@ chose.
 
 `child show` prints the night this tool uses, which is the configured one when
 there is one. That is deliberate: it is the night the screens are drawn with.
+
+## What it does not change yet
+
+**`summary`, `trends` and `stripes` still count their day rows from midnight.**
+Only the running totals on `now` and in the Now widget are counted from
+`day_start`, so the two can disagree about the same feed:
+
+```text
+h now       →  Fed today   nothing logged · since 6:00 am
+h summary   →  Tue 29 Sep       1      111 ml
+```
+
+Both are describing one 4am bottle under a 6am day start. `now` files it with
+the night before, which is where the person who gave it will look; the day
+table files it under the calendar day, which is the machinery those rows have
+always used.
+
+Re-basing the day table, the trend bars and the stripe chart on `day_start` is
+the rest of this change and has not been done. It is not a small one: the
+summaries split sleep at midnight on purpose, and the stripe chart's geometry
+and its `00 06 12 18` axis assume a day that begins at midnight.
 
 ## Where the settings live
 
