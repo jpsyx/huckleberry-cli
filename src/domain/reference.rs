@@ -5,20 +5,44 @@
 //! not clinical thresholds and not targets, and each one says in the file
 //! where it came from so a future reader can check it rather than trust it.
 //!
-//! Two rules govern the file, and both came from the parent this was built
-//! for.
+//! Every band was adversarially reviewed against primary sources on
+//! 2026-09-30. The record is in `docs/research/`, and the method for doing it
+//! again, for this or for anything else this tool ever asserts about a child,
+//! is in `docs/research/methodology.md`. Read it before adding a band.
 //!
-//! 1. **There is no band for milk volume, at any age.** The obvious candidate,
-//!    150 to 200 ml per kilogram per day, describes established feeding from
-//!    roughly two weeks on, not the first week, when intake is still ramping
-//!    steeply from a few millilitres a feed. Drawing it for a seven-day-old
-//!    would quietly tell a frightened first-time parent they are underfeeding
-//!    their baby, every day, in a chart. It is absent by construction rather
-//!    than by a special case somebody could delete, and a test asserts no
-//!    metric in the file mentions volume.
+//! Four rules govern the file, and the file's own header gives the evidence
+//! for each.
 //!
-//! 2. **Labels are declarative, never imperative.** No "should", no "call your
+//! 1. **There is no band for milk volume, at any age.** The figure people
+//!    reach for, 150 to 200 ml per kilogram per day, does get published, so
+//!    the reason it stays out is not that nobody says it. The reason is what
+//!    it would do: measured intake in healthy exclusively breastfed term
+//!    infants runs 135 ml/kg/day at one month, 126 at three and 107 at six, so
+//!    a floor of 150 would tell the parent of a thriving breastfed baby they
+//!    were underfeeding, every day, for most of the first year. The sources
+//!    also disagree at the age where the figure peaks, and the number depends
+//!    on whether a bottle holds milk or formula, which this tool cannot know.
+//!    It is absent by construction rather than by a special case somebody
+//!    could delete, and a test asserts no metric in the file mentions volume.
+//!
+//! 2. **Labels say what kind of claim they make.** "typical" describes what
+//!    was observed; "recommended" reports what a body advises. The sleep bands
+//!    from four months on are recommendations, and observed normal is wider.
+//!
+//! 3. **Labels are declarative, never imperative.** No "should", no "call your
 //!    doctor". The parent decides what to do; this only says what is typical.
+//!    [`PEDIATRICIAN_NOTE`] is the single exception, and it is about the
+//!    standing of the whole table rather than about any one reading.
+//!
+//! 4. **A floor sits under every qualifying source, never above one.** Where
+//!    sources disagree, the floor goes beneath the lowest of them.
+//!
+//! Counts have no ceilings, because no qualifying source calls a high number
+//! of feeds or diapers atypical. Sleep is the one metric with a top.
+//!
+//! Ages here are **days since birth**, so age 0 is the first day of life,
+//! while clinical guidance counts from 1. The labels are written in days of
+//! life, so a label reading "day 5" belongs to the band whose ages reach 4.
 
 use std::sync::OnceLock;
 
@@ -26,6 +50,20 @@ use serde::Deserialize;
 
 /// The table as it is written down.
 const SOURCE: &str = include_str!("../../data/reference.toml");
+
+/// The one line beside the ranges that is not itself a range.
+///
+/// Everything in this table describes populations. A pediatrician has the one
+/// thing the table structurally cannot have, which is the actual child, so the
+/// tool says so where the ranges are printed rather than only in the manual: a
+/// caveat nobody sees is a caveat that does not exist.
+///
+/// This is the single exception to the rule that labels never tell anybody
+/// what to do. It is a statement about the standing of the whole table rather
+/// than advice triggered by any particular reading, every screen that prints a
+/// range prints this one string, and there is exactly one of it.
+pub const PEDIATRICIAN_NOTE: &str =
+    "typical ranges are not your baby: where your pediatrician disagrees, they are right";
 
 /// Every metric that has bands, as read from the file.
 #[derive(Debug, Deserialize)]
@@ -169,13 +207,16 @@ mod tests {
     fn a_newborn_gets_the_newborn_band() {
         let band = band_for(Metric::FeedsPerDay, Some(7)).expect("a band");
         assert!((band.low - 8.0).abs() < f64::EPSILON);
-        assert_eq!(band.high, Some(12.0));
+        assert_eq!(
+            band.high, None,
+            "no source calls a high feed count atypical"
+        );
     }
 
     #[test]
     fn an_older_baby_gets_the_next_band_down() {
         let band = band_for(Metric::FeedsPerDay, Some(60)).expect("a band");
-        assert!((band.low - 6.0).abs() < f64::EPSILON);
+        assert!((band.low - 4.0).abs() < f64::EPSILON);
     }
 
     #[test]
@@ -190,16 +231,18 @@ mod tests {
     /// The bands that were researched and written down, spot-checked at the
     /// ages either side of each boundary.
     #[test]
-    fn sleep_has_a_band_at_every_age_up_to_five_years() {
+    fn sleep_has_a_band_at_every_age_through_the_fifth_year() {
         for (age, low_hours, high_hours) in [
-            (0, 14.0, 17.0),
-            (89, 14.0, 17.0),
-            (90, 12.0, 16.0),
+            // Observed normal, which is far wider than the recommendation.
+            (0, 8.0, 20.0),
+            (121, 8.0, 20.0),
+            // The AASM bands, which start at four months and not before.
+            (122, 12.0, 16.0),
             (364, 12.0, 16.0),
             (365, 11.0, 14.0),
             (1094, 11.0, 14.0),
             (1095, 10.0, 13.0),
-            (2190, 10.0, 13.0),
+            (2189, 10.0, 13.0),
         ] {
             let band = band_for(Metric::SleepPerDay, Some(age))
                 .unwrap_or_else(|| panic!("no sleep band at {age} days"));
@@ -211,44 +254,46 @@ mod tests {
             assert_eq!(band.high, Some(high_hours * 3600.0), "at {age} days");
         }
         assert_eq!(
-            band_for(Metric::SleepPerDay, Some(2191)),
+            band_for(Metric::SleepPerDay, Some(2190)),
             None,
-            "past five years this table stops"
+            "the sixth birthday is the AASM's next band, not this one"
         );
     }
 
+    /// Two bands, both floors, and then nothing.
+    ///
+    /// The newborn floor is the one every body agrees on. After a month the
+    /// floor drops to what was actually observed, because the observed mean is
+    /// 7.9 sessions a day and a floor of 8 would call half of a normal
+    /// population short.
     #[test]
-    fn feeds_thin_out_as_solids_arrive_and_then_stop_being_counted() {
-        for (age, low, high) in [
-            (0, 8.0, 12.0),
-            (28, 8.0, 12.0),
-            (29, 6.0, 10.0),
-            (120, 6.0, 10.0),
-            (121, 5.0, 8.0),
-            (180, 5.0, 8.0),
-            (181, 4.0, 6.0),
-            (365, 4.0, 6.0),
-        ] {
+    fn feeds_have_a_newborn_floor_then_an_observed_one_and_then_stop() {
+        for (age, low) in [(0, 8.0), (28, 8.0), (29, 4.0), (180, 4.0)] {
             let band = band_for(Metric::FeedsPerDay, Some(age))
                 .unwrap_or_else(|| panic!("no feed band at {age} days"));
             assert!((band.low - low).abs() < f64::EPSILON, "at {age} days");
-            assert_eq!(band.high, Some(high), "at {age} days");
+            assert_eq!(band.high, None, "at {age} days a count has no ceiling");
         }
-        assert_eq!(band_for(Metric::FeedsPerDay, Some(366)), None);
+        assert_eq!(
+            band_for(Metric::FeedsPerDay, Some(181)),
+            None,
+            "past six months the CDC declines to give a number and the AAP's is formula-only"
+        );
     }
 
+    /// Ages here are days since birth, so age 4 is the fifth day of life.
     #[test]
-    fn wet_diapers_have_a_floor_that_holds_through_the_nappy_years() {
-        for (age, low) in [(5, 6.0), (180, 6.0), (181, 4.0), (730, 4.0)] {
+    fn wet_diapers_climb_over_the_first_days_and_then_hold() {
+        for (age, low) in [(0, 1.0), (1, 2.0), (2, 5.0), (3, 5.0), (4, 5.0), (180, 5.0)] {
             let band = band_for(Metric::WetPerDay, Some(age))
                 .unwrap_or_else(|| panic!("no wet band at {age} days"));
             assert!((band.low - low).abs() < f64::EPSILON, "at {age} days");
             assert_eq!(band.high, None, "a floor has no ceiling");
         }
         assert_eq!(
-            band_for(Metric::WetPerDay, Some(731)),
+            band_for(Metric::WetPerDay, Some(181)),
             None,
-            "past two years a nappy count says more about potty training"
+            "past six months every figure is a dehydration threshold, not a typical count"
         );
     }
 
@@ -312,22 +357,20 @@ mod tests {
         assert_eq!(band_for(Metric::WetPerDay, None), None);
     }
 
+    /// The count climbing day by day is the thing being watched, so the first
+    /// days get their own bands rather than one average across them.
     #[test]
     fn the_first_days_have_a_band_each() {
-        assert_eq!(
-            band_for(Metric::WetPerDay, Some(0)).expect("a band").high,
-            Some(2.0)
-        );
-        assert_eq!(
-            band_for(Metric::WetPerDay, Some(1)).expect("a band").high,
-            Some(3.0)
-        );
-        assert_eq!(
-            band_for(Metric::WetPerDay, Some(2)).expect("a band").high,
-            Some(4.0)
+        let floor = |age| band_for(Metric::WetPerDay, Some(age)).expect("a band").low;
+        assert!(floor(0) < floor(1), "day 1 expects less than day 2");
+        assert!(
+            floor(1) < floor(2),
+            "and the third day is where output climbs"
         );
     }
 
+    /// Observed voiding runs to about twenty a day in the first month, so a
+    /// high count is never the thing worth flagging.
     #[test]
     fn an_open_ended_band_has_no_top() {
         let band = band_for(Metric::WetPerDay, Some(10)).expect("a band");
@@ -342,31 +385,80 @@ mod tests {
 
     #[test]
     fn a_value_inside_the_band_is_inside_it() {
-        let band = band_for(Metric::FeedsPerDay, Some(7)).expect("a band");
-        assert_eq!(band.standing(8.0), Standing::Inside, "the bottom is inside");
-        assert_eq!(band.standing(12.0), Standing::Inside, "so is the top");
-        assert_eq!(band.standing(7.9), Standing::Below);
-        assert_eq!(band.standing(12.1), Standing::Above);
+        let band = band_for(Metric::SleepPerDay, Some(7)).expect("a band");
+        assert_eq!(
+            band.standing(8.0 * 3600.0),
+            Standing::Inside,
+            "the bottom is inside"
+        );
+        assert_eq!(
+            band.standing(20.0 * 3600.0),
+            Standing::Inside,
+            "so is the top"
+        );
+        assert_eq!(band.standing(7.9 * 3600.0), Standing::Below);
+        assert_eq!(band.standing(20.1 * 3600.0), Standing::Above);
     }
 
+    /// Ages are days since birth, so age 2 is the third day of life.
+    ///
+    /// The metric covers the meconium days and stops. Past them a breastfed
+    /// baby and a formula-fed one differ about threefold, and no single floor
+    /// is honest for both.
     #[test]
-    fn dirty_diapers_stop_having_a_band_once_the_pattern_stops_being_typical() {
-        assert!(band_for(Metric::DirtyPerDay, Some(30)).is_some());
+    fn dirty_diapers_cover_the_meconium_days_and_then_stop() {
+        for (age, low) in [(0, 1.0), (1, 1.0), (2, 2.0), (3, 2.0)] {
+            let band = band_for(Metric::DirtyPerDay, Some(age))
+                .unwrap_or_else(|| panic!("no dirty band at {age} days"));
+            assert!((band.low - low).abs() < f64::EPSILON, "at {age} days");
+            assert_eq!(band.high, None, "no source calls a high count atypical");
+        }
+        assert_eq!(
+            band_for(Metric::DirtyPerDay, Some(4)),
+            None,
+            "from the fifth day the two feeding patterns come apart"
+        );
         assert_eq!(band_for(Metric::DirtyPerDay, Some(60)), None);
+    }
+
+    /// A floor of one from the fifth day paints a breastfed baby with a single
+    /// stool green, which is the reading the CDC names as a warning sign and
+    /// the AAP puts three to four times higher. Rather than pick the
+    /// population whose low output is least dangerous, there is no band.
+    #[test]
+    fn no_dirty_band_survives_where_the_feeding_patterns_diverge() {
+        assert_eq!(band_for(Metric::DirtyPerDay, Some(6)), None);
+    }
+
+    /// The floor a day-4 baby is judged against must not be the number the
+    /// literature uses to flag inadequate intake. Ours used to be exactly
+    /// that: three soiled diapers on day 4 is the published warning value, and
+    /// we called it typical.
+    #[test]
+    fn no_dirty_floor_sits_at_the_published_warning_value() {
+        let day_four = band_for(Metric::DirtyPerDay, Some(3)).expect("a band");
+        assert!(
+            day_four.low < 3.0,
+            "three on day 4 is a warning sign, not a floor to reassure with"
+        );
     }
 
     #[test]
     fn sleep_bands_are_in_seconds_so_they_compare_to_a_total_directly() {
         let band = band_for(Metric::SleepPerDay, Some(30)).expect("a band");
-        assert!((band.low - 50_400.0).abs() < f64::EPSILON);
+        assert!((band.low - 28_800.0).abs() < f64::EPSILON);
     }
 
     #[test]
     fn every_label_states_what_is_typical_and_tells_nobody_what_to_do() {
         for entry in table_ref().metrics.iter().flat_map(|table| &table.bands) {
+            // Two openings, because the sources make two different kinds of
+            // claim. "typical" describes what was observed; "recommended"
+            // reports what a body advises, which is not the same thing and is
+            // not honestly said in the other's words.
             assert!(
-                entry.label.starts_with("typical"),
-                "`{}` does not read as an observation",
+                entry.label.starts_with("typical") || entry.label.starts_with("recommended"),
+                "`{}` reads as neither an observation nor a recommendation",
                 entry.label
             );
             for imperative in ["should", "must", "need", "doctor", "call "] {

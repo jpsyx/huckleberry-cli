@@ -28,13 +28,26 @@ enforced by tests rather than by good intentions.
 - **Colour is never the only carrier.** Each band line says where the week sits
   in words as well, so the meaning survives a pipe, a screenshot and colour
   blindness.
-- **No typical range for milk volume, at any age.** The obvious rule, 150 to
-  200 ml per kilogram per day, describes established feeding from about two
-  weeks on, not the first week when intake is still ramping. Drawing it for a
-  seven-day-old would quietly tell a frightened first-time parent they are
-  underfeeding their baby, every day, in a chart. `data/reference.toml` simply
-  has no such metric, so it returns nothing by construction rather than by a
-  special case somebody could delete, and a test asserts none appears.
+- **No typical range for milk volume, at any age.** The rule people reach for,
+  150 to 200 ml per kilogram per day, is not published as a range by any
+  professional body for a term baby, and measured intake in exclusively
+  breastfed babies never reaches even its floor at any age. Drawing it would
+  quietly tell a frightened first-time parent they are underfeeding their baby,
+  every day, for a year. `data/reference.toml` simply has no such metric, so it
+  returns nothing by construction rather than by a special case somebody could
+  delete, and a test asserts none appears.
+- **Counts are floors, and only sleep has a ceiling.** No qualifying source
+  calls a high number of feeds or diapers atypical, so nothing can read as over
+  the top of those bands. Sleep is the one metric a body puts a top on.
+- **A band says what kind of claim it makes.** "typical" describes what was
+  observed; "recommended" reports what a body advises. The sleep bands from
+  four months on are recommendations, and observed normal is wider than all of
+  them.
+- **Every range closes with the pediatrician.** Wherever bands are printed, the
+  last line says that these ranges are not this baby and that the pediatrician
+  is right where they disagree. Both screens print the same constant, so the
+  wording cannot drift. See [`research/`](research/) for where the numbers came
+  from and how hard they were argued with.
 - **A day still going is never called short.** Every figure is under every
   range at eight in the morning, because the day is an hour old. `now` says
   where today has reached instead (`3 so far today`) and leaves the reading to
@@ -121,10 +134,11 @@ Sat 26 Sep       9      443         299        144     1h 1m    13h 6m    9h 54m
 
 average over 6 complete days: 9.0 feeds · 441 ml milk · 13h 48m sleep · 8.0 wet · 3.5 dirty
 Wren is 21 days old
-  typical at this age: 8 to 12 feeds a day (this week is in that range)
-  typical at this age: 14 to 17 hours in 24 (this week is under that)
-  typical from day 5: 6 or more wet diapers a day (this week is in that range)
-  typical at this age: 3 or more dirty diapers a day (this week is in that range)
+  typical in the first weeks: 8 or more feeds a day (this week is in that range)
+  typical at this age: 8 to 20 hours in 24 (this week is in that range)
+  typical from day 3: 5 or more wet diapers a day (this week is in that range)
+
+  typical ranges are not your baby: where your pediatrician disagrees, they are right
 ```
 
 Today's row is bold bright white. In the block underneath, each figure and each

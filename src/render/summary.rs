@@ -265,11 +265,13 @@ fn bands(rows: &[DaySummary], dataset: &Dataset, theme: Theme, age: Option<i64>)
     };
 
     let mut lines = vec![theme.muted(&format!("{} is {age} days old", dataset.child.name))];
+    let mut any_band = false;
     for figure in AVERAGED {
         let (pick, _, metric) = figure;
         let Some(band) = metric.and_then(|metric| reference::band_for(metric, Some(age))) else {
             continue;
         };
+        any_band = true;
         let standing = summaries::average(rows, pick).map(|mean| band.standing(mean));
         let aside = match standing {
             Some(Standing::Below) => " (this week is under that)",
@@ -281,6 +283,12 @@ fn bands(rows: &[DaySummary], dataset: &Dataset, theme: Theme, age: Option<i64>)
         };
         lines.push(theme.paint(tone_for(standing), &format!("  {}{aside}", band.label)));
     }
+    // An age too old for any band leaves nothing for the note to qualify.
+    if !any_band {
+        return Vec::new();
+    }
+    lines.push(String::new());
+    lines.push(theme.muted(&format!("  {}", reference::PEDIATRICIAN_NOTE)));
     lines
 }
 
@@ -398,6 +406,26 @@ mod tests {
         let rendered = table(&data, 3);
         assert!(rendered.contains("is 21 days old"), "{rendered}");
         assert!(rendered.contains("typical"), "{rendered}");
+    }
+
+    /// The same note the `now` screen carries, in the same words, because the
+    /// pediatrician outranks this table wherever it is printed.
+    #[test]
+    fn the_typical_ranges_carry_the_pediatrician_note() {
+        let rendered = table(&dataset(), 3);
+        assert!(
+            rendered.contains(
+                "typical ranges are not your baby: where your pediatrician disagrees, they are right"
+            ),
+            "{rendered}"
+        );
+    }
+
+    #[test]
+    fn with_no_bands_there_is_no_pediatrician_note_either() {
+        let mut data = dataset();
+        data.child.birthdate = None;
+        assert!(!table(&data, 3).contains("pediatrician"));
     }
 
     #[test]
