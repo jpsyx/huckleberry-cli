@@ -32,7 +32,7 @@ to your heart's content to add any features you want.
 
 _**Can this CLI be operated by agents?**_
 
-This CLI was intended for human babies with human parents using their human hands to type commands.
+This CLI was intended for human babies with human parents using their human fingers to type commands.
 The UX design centers around interactive menus and quick inputs, rather than
 memorizing long complicated commands.
 
