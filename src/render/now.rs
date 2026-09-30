@@ -239,7 +239,7 @@ fn sleep_rows(view: &NowView, dataset: &Dataset, now: f64) -> Vec<Row> {
     let mut rows = vec![fact("Sleep", &current)];
     if let Some(sleep) = dataset.last_sleep() {
         rows.push(note(&format!(
-            "(previous sleep finished {} for {})",
+            "(previous sleep finished {} · slept for {})",
             format_ago(sleep.end(), now),
             format_duration(sleep.duration)
         )));
@@ -412,7 +412,7 @@ mod tests {
         let text = lines(&view, &data, &calendar, theme, Units::Ml, AFTERNOON).join("\n");
         assert!(text.contains("currently sleeping for 30m"), "{text}");
         assert!(
-            text.contains(&theme.muted("(previous sleep finished 2h 10m ago for 1h 20m)")),
+            text.contains(&theme.muted("(previous sleep finished 2h 10m ago · slept for 1h 20m)")),
             "the note says when it ended and how long it ran: {text}"
         );
     }
@@ -437,7 +437,7 @@ mod tests {
         );
         let note = &screen[running + 1];
         assert!(
-            note.contains("(previous sleep finished 2h 10m ago for 1h 20m)"),
+            note.contains("(previous sleep finished 2h 10m ago · slept for 1h 20m)"),
             "it is on the next one: {note}"
         );
     }

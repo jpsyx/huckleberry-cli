@@ -56,7 +56,7 @@ Wren
 Last fed       36m ago · 73 ml of Formula · 8:03 pm
 Diaper          1h 31m ago · wet · 7:09 pm
 Sleep          currently sleeping for 30m
-               (previous sleep finished 2h 10m ago for 1h 20m)
+               (previous sleep finished 2h 10m ago · slept for 1h 20m)
 Tonight        nothing finished yet
 Last 3h        73 ml · 1 feed
 Fed today      430 ml · 6 feeds · since 6:00 am

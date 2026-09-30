@@ -927,7 +927,7 @@ dashboard, and `h` has to mean one of them there rather than back.
 
 **Decision.** While a sleep is running, `now` draws it on one line and the
 previous sleep on another beneath it, muted and indented to the value column.
-The note reads `(previous sleep finished 2h 10m ago for 1h 20m)`.
+The note reads `(previous sleep finished 2h 10m ago · slept for 1h 20m)`.
 
 **Why.** It was one line holding two facts, and a tired eye reads that twice to
 find where the first one ends. Splitting them costs a row on a screen that has

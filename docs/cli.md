@@ -84,7 +84,7 @@ on a line of its own beneath, indented to the value column:
 
 ```text
 Sleep          currently sleeping for 30m
-               (previous sleep finished 2h 10m ago for 1h 20m)
+               (previous sleep finished 2h 10m ago · slept for 1h 20m)
 ```
 
 The note is muted when colour is enabled and left out when no previous sleep is
