@@ -38,9 +38,9 @@ memorizing long complicated commands.
 
 _However_, the CLI is built such that everything you can do interactively
 can also be done through a single command by passing in different options.
-This means that, yes, the CLI can be driven by your agent frontend of choice,
-such as Claude or Codex, if you wanted to make this even more unnecessarily
-overengineered.
+This means that, yes, if you wanted to make this even more ridiculously
+overengineered, you can have the CLI be driven by your Claude or Codex or
+whatever LLM you swear fealty to.
 
 ## Getting started
 
