@@ -197,12 +197,6 @@ Conventions live in [`AGENTS.md`](AGENTS.md) and
 [`docs/architecture.md`](docs/architecture.md) and the decisions behind it in
 [`docs/decisions.md`](docs/decisions.md).
 
-## Agent skills
-
-Agent skills are not tracked in git, but `skills-lock.json` is.
-`just skills-install` restores them after a clone. See
-[`docs/skills.md`](docs/skills.md).
-
 ## Credit
 
 **`crates/huckleberry-api` is a Rust port of
@@ -232,34 +226,3 @@ in [`NOTICE`](NOTICE), as that licence requires.
 Huckleberry is a product of Huckleberry Labs, Inc. This project is an
 unofficial client, is not affiliated with or endorsed by them, and uses their
 name only to say what it talks to.
-
-Run `h` with no command to open the full-screen shell. It is meant to be left
-running in a terminal: a Now widget beside the menu keeps the answer to "when
-did she last eat" on the screen, every command is reachable from the menu and
-starts its flow immediately when selected, and command-line flags still supply
-optional overrides.
-
-```text
- Huckleberry · Wren                                                  Home
-┌ Now ───────────────────────────────┐┌ What would you like to do? ─────┐
-│ Last fed    36m ago                ││▌  1. Log a diaper               │
-│             73 ml of Formula       ││   2. Log a feed               › │
-│ Diaper      1h 31m ago             ││   3. Log sleep                › │
-│             wet                    ││   4. Edit                       │
-│ Asleep      40m                    ││   5. Visualizations           › │
-│ Longest     3h 0m                  ││   6. View logs                  │
-│             night of Mon 28 Sep    ││   7. Other logging            › │
-│                                    ││   8. Delete                     │
-│ as of 2m ago                       ││   9. More                     › │
-└────────────────────────────────────┘│  10. Exit                       │
-                                      └─────────────────────────────────┘
- ↑/↓ j/k move · ← h back · → l open · Enter select · r refresh · q quit
-```
-
-Every direction has an arrow and a letter that mean the same thing: `↓`/`j` and
-`↑`/`k` move, `→`/`l` and `Enter` open, and `←`/`h` goes back. `1`-`9` highlight
-a row without opening it, `r` refreshes every widget, and `q` or `Ctrl-C`
-leaves, as does the Exit row on the first screen. Why it works that way, and the rules every feature in this
-tool is held to, are in [`docs/tui.md`](docs/tui.md): one hand, in the dark,
-holding a baby. Without terminal input and stderr, a bare invocation prints
-help.
