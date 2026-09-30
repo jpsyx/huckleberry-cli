@@ -90,8 +90,8 @@ fn digit_releases_repeats_and_control_chords_do_not_move() {
 
 #[test]
 fn menu_keys_select_only_on_enter() {
-    for down in ['j', 'J', 'h', 'H'] {
-        for up in ['k', 'K', 'p', 'P'] {
+    for down in ['j', 'J'] {
+        for up in ['k', 'K'] {
             let mut state = Selection::new(3, 0);
             assert_eq!(
                 state.apply(key(KeyCode::Char(down)), 3, 2),
@@ -106,6 +106,69 @@ fn menu_keys_select_only_on_enter() {
             assert_eq!(state.cursor, 0);
         }
     }
+}
+
+/// `j` and `k` are the only letters that move. `h` is for going back, and a
+/// letter that moves the cursor in one place and leaves in another is a letter
+/// nobody can press without looking.
+#[test]
+fn only_j_and_k_move_a_menu() {
+    for letter in ['h', 'H', 'p', 'P', 'l', 'L'] {
+        let mut state = Selection::new(3, 1);
+        state.apply(key(KeyCode::Char(letter)), 3, 2);
+        assert_eq!(
+            state.cursor, 1,
+            "`{letter}` is not a movement key and must not move the cursor"
+        );
+    }
+}
+
+#[test]
+fn h_and_the_left_arrow_back_out_of_a_menu_as_escape_does() {
+    for code in [KeyCode::Char('h'), KeyCode::Char('H'), KeyCode::Left] {
+        let mut state = Selection::new(3, 1);
+        assert_eq!(
+            state.apply(key(code), 3, 2),
+            SelectionAction::Cancel,
+            "{code:?} means back, which in a question means not answering it"
+        );
+    }
+}
+
+/// `j` and `k` only, in a list too, and `h` leaves it.
+#[test]
+fn only_j_and_k_move_a_listing_and_h_backs_out_of_it() {
+    use app::listing::state::{Flow, State, apply, key_for};
+
+    for letter in ['h', 'H', 'p', 'P'] {
+        let mut state = State::new(String::new());
+        apply(&mut state, key_for(key(KeyCode::Char(letter))), 5, 2);
+        assert_eq!(state.cursor, 0, "`{letter}` must not move the cursor");
+    }
+    for code in [KeyCode::Char('h'), KeyCode::Char('H'), KeyCode::Left] {
+        let mut state = State::new(String::new());
+        assert_eq!(
+            apply(&mut state, key_for(key(code)), 5, 2),
+            Flow::Quit,
+            "{code:?} leaves the list, as Escape does"
+        );
+    }
+    let mut state = State::new(String::new());
+    apply(&mut state, key_for(key(KeyCode::Char('j'))), 5, 2);
+    assert_eq!(state.cursor, 1, "and `j` still moves");
+}
+
+/// A list being searched is typing, so every letter is text there.
+#[test]
+fn h_is_a_letter_while_a_listing_is_being_searched() {
+    use app::listing::state::{State, apply, key_for};
+
+    let mut state = State::new(String::new());
+    state.searching = true;
+    for letter in "hush".chars() {
+        apply(&mut state, key_for(key(KeyCode::Char(letter))), 5, 2);
+    }
+    assert_eq!(state.query, "hush");
 }
 
 #[test]
@@ -204,38 +267,52 @@ fn typed_cancel_survives_error_context() {
 }
 
 #[test]
-fn lists_use_extra_keys_but_search_keeps_letters() {
-    use app::listing::state::{Flow, State, apply, key_for};
+fn lists_move_a_half_screen_and_jump_to_either_end() {
+    use app::listing::state::{State, apply, key_for};
     let mut state = State::new(String::new());
-    assert_eq!(
-        apply(&mut state, key_for(key(KeyCode::Char('H'))), 5, 2),
-        Flow::Stay
-    );
-    assert_eq!(state.cursor, 1);
-    apply(&mut state, key_for(key(KeyCode::Char('P'))), 5, 2);
-    assert_eq!(state.cursor, 0);
-    state.searching = true;
-    for letter in "happy".chars() {
-        apply(&mut state, key_for(key(KeyCode::Char(letter))), 5, 2);
-    }
-    assert_eq!(state.query, "happy");
+    apply(&mut state, key_for(key(KeyCode::Char('G'))), 5, 2);
+    assert_eq!(state.cursor, 4, "`G` is the last row");
+    apply(&mut state, key_for(key(KeyCode::Char('u'))), 5, 2);
+    assert_eq!(state.cursor, 2, "`u` is half a screen back");
+    apply(&mut state, key_for(key(KeyCode::Char('g'))), 5, 2);
+    assert_eq!(state.cursor, 0, "`g` is the first row");
 }
 
+/// The dashboard is the one screen with a left and a right, so `h` and `l`
+/// mean them. `j` and `k` still scroll, on every tab including the Log.
 #[test]
-fn dashboard_h_scrolls_log_instead_of_changing_tab() {
+fn dashboard_h_and_l_move_between_tabs_on_every_tab() {
     use app::dashboard::state::{Action, Tab, action_for_tab};
-    assert_eq!(
-        action_for_tab(key(KeyCode::Char('H')), Tab::Log),
-        Action::ScrollDown
-    );
-    assert_eq!(
-        action_for_tab(key(KeyCode::Char('p')), Tab::Log),
-        Action::ScrollUp
-    );
-    assert!(matches!(
-        action_for_tab(key(KeyCode::Left), Tab::Log),
-        Action::Show(_)
-    ));
+    for tab in Tab::ALL {
+        assert!(
+            matches!(
+                action_for_tab(key(KeyCode::Char('h')), tab),
+                Action::Show(_)
+            ),
+            "`h` is left, not down, on the {} tab",
+            tab.title()
+        );
+        assert!(matches!(
+            action_for_tab(key(KeyCode::Left), tab),
+            Action::Show(_)
+        ));
+        assert!(matches!(
+            action_for_tab(key(KeyCode::Char('l')), tab),
+            Action::Show(_)
+        ));
+        assert_eq!(
+            action_for_tab(key(KeyCode::Char('j')), tab),
+            Action::ScrollDown,
+            "{}",
+            tab.title()
+        );
+        assert_eq!(
+            action_for_tab(key(KeyCode::Char('k')), tab),
+            Action::ScrollUp,
+            "{}",
+            tab.title()
+        );
+    }
 }
 
 #[test]

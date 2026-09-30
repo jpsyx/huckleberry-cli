@@ -540,8 +540,9 @@ h --offline snapshot.json dash
 
 Write commands refuse `--offline` rather than pretending.
 
-Fixed-choice prompts are numbered menus: arrows or J/H move down and K/P move
-up; 1-9 highlight the corresponding item in every menu without accepting it.
+Fixed-choice prompts are numbered menus: `↓`/`j` move down and `↑`/`k` move up;
+`←`/`h` backs out, which in a question means not answering it, the same as
+Escape; 1-9 highlight the corresponding item in every menu without accepting it.
 Enter accepts the highlighted item. Zero and numbers beyond the menu's length
 are ignored; items 10 and later remain reachable with arrows or letter keys.
 The highlighted item is bold bright
@@ -626,9 +627,9 @@ are clipped to its width. Completing Edit's field
 picker without changing any fields reports that the entry is unchanged. Menu
 output remains on stderr even when command results are redirected to a file.
 
-Inside a suspended prompt the older mapping still applies: `J`/`H` move down and
-`K`/`P` move up. The shell's `h` means back. See the rough edge noted at the end
-of [`tui.md`](tui.md).
+`j` and `k` are the only letters that move, in the shell and in every prompt
+and list it opens. `h` and the left arrow mean back everywhere: out of a
+submenu, out of a list, and out of a question without answering it.
 
 History edits ask which fields to change, each shown with the value it would be
 saved with; Done keeps every field as listed. Keep

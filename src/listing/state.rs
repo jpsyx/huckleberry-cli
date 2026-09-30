@@ -51,7 +51,9 @@ pub const fn key_for(key: KeyEvent) -> Key {
     }
     match key.code {
         KeyCode::Enter => Key::Enter,
-        KeyCode::Esc => Key::Escape,
+        // Back, which for a list is out of it. `h` joins them below, where it
+        // is still a letter while the filter has focus.
+        KeyCode::Esc | KeyCode::Left => Key::Escape,
         KeyCode::Backspace => Key::Backspace,
         KeyCode::Up => Key::Up,
         KeyCode::Down => Key::Down,
@@ -120,8 +122,8 @@ pub fn moved(cursor: usize, rows: usize, page: usize, key: Key) -> usize {
     }
     let last = rows - 1;
     match key {
-        Key::Down | Key::Char('j' | 'J' | 'h' | 'H') => (cursor + 1).min(last),
-        Key::Up | Key::Char('k' | 'K' | 'p' | 'P') => cursor.saturating_sub(1),
+        Key::Down | Key::Char('j' | 'J') => (cursor + 1).min(last),
+        Key::Up | Key::Char('k' | 'K') => cursor.saturating_sub(1),
         Key::PageDown | Key::Char('d') => (cursor + page.max(1)).min(last),
         Key::PageUp | Key::Char('u') => cursor.saturating_sub(page.max(1)),
         Key::Char('G') => last,
@@ -152,7 +154,7 @@ pub fn apply(state: &mut State, key: Key, rows: usize, page: usize) -> Flow {
         return typing(state, key, rows, page);
     }
     match key {
-        Key::Quit | Key::Escape | Key::Char('q') => Flow::Quit,
+        Key::Quit | Key::Escape | Key::Char('q' | 'h' | 'H') => Flow::Quit,
         Key::Enter => Flow::Choose,
         Key::Char('/') => {
             state.searching = true;

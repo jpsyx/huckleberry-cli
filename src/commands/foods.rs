@@ -84,7 +84,7 @@ async fn list(
         .group_heading(str::to_owned)
         .empty("no foods")
         .query(search)
-        .verb("j/k or ↑/↓ move · / searches · q leaves")
+        .verb("j/k or ↑/↓ move · / searches · h or q leaves")
         .show(context.output_theme())
 }
 

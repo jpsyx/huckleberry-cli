@@ -53,14 +53,20 @@ impl Selection {
             };
         }
         match key.code {
-            KeyCode::Esc => return SelectionAction::Cancel,
+            // Back, and in a question that means not answering it. `h` is the
+            // same key as the left arrow everywhere in this tool, and a letter
+            // that moves the cursor in one place and leaves in another is a
+            // letter nobody can press without looking.
+            KeyCode::Esc | KeyCode::Left | KeyCode::Char('h' | 'H') => {
+                return SelectionAction::Cancel;
+            }
             KeyCode::Enter if count > 0 => {
                 return SelectionAction::Submit(self.cursor.min(count - 1));
             }
-            KeyCode::Down | KeyCode::Char('j' | 'J' | 'h' | 'H') => {
+            KeyCode::Down | KeyCode::Char('j' | 'J') => {
                 self.cursor = self.cursor.saturating_add(1).min(count.saturating_sub(1));
             }
-            KeyCode::Up | KeyCode::Char('k' | 'K' | 'p' | 'P') => {
+            KeyCode::Up | KeyCode::Char('k' | 'K') => {
                 self.cursor = self.cursor.saturating_sub(1);
             }
             KeyCode::Char(digit @ '1'..='9') => {

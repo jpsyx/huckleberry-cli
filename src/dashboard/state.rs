@@ -105,10 +105,12 @@ pub fn action_for(key: KeyEvent) -> Action {
     match key.code {
         KeyCode::Char('q' | 'Q') | KeyCode::Esc => Action::Quit,
         KeyCode::Char('r' | 'R') => Action::Refresh,
-        KeyCode::Tab | KeyCode::Right | KeyCode::Char('l') => Action::Show(Tab::Now.next()),
-        KeyCode::BackTab | KeyCode::Left | KeyCode::Char('h') => Action::Show(Tab::Now.previous()),
-        KeyCode::Down | KeyCode::Char('j') => Action::ScrollDown,
-        KeyCode::Up | KeyCode::Char('k') => Action::ScrollUp,
+        KeyCode::Tab | KeyCode::Right | KeyCode::Char('l' | 'L') => Action::Show(Tab::Now.next()),
+        KeyCode::BackTab | KeyCode::Left | KeyCode::Char('h' | 'H') => {
+            Action::Show(Tab::Now.previous())
+        }
+        KeyCode::Down | KeyCode::Char('j' | 'J') => Action::ScrollDown,
+        KeyCode::Up | KeyCode::Char('k' | 'K') => Action::ScrollUp,
         KeyCode::Char(digit @ '1'..='9') => {
             Tab::from_digit(digit).map_or(Action::Ignore, Action::Show)
         }
@@ -116,16 +118,15 @@ pub fn action_for(key: KeyEvent) -> Action {
     }
 }
 
-/// Resolves navigation letters according to the focused dashboard tab.
+/// What a keystroke means on a given tab.
+///
+/// The same thing on every one of them. The Log tab used to read `h` as down
+/// so a long list could be scrolled with it, but the dashboard is the one
+/// screen here with a left and a right, and a letter that means left on four
+/// tabs and down on the fifth is a letter nobody can press without looking.
+/// `j` and `k` scroll, everywhere.
 #[must_use]
-pub fn action_for_tab(key: KeyEvent, tab: Tab) -> Action {
-    if tab == Tab::Log && !key.modifiers.contains(KeyModifiers::CONTROL) {
-        match key.code {
-            KeyCode::Char('j' | 'J' | 'h' | 'H') => return Action::ScrollDown,
-            KeyCode::Char('k' | 'K' | 'p' | 'P') => return Action::ScrollUp,
-            _ => {}
-        }
-    }
+pub fn action_for_tab(key: KeyEvent, _tab: Tab) -> Action {
     action_for(key)
 }
 
