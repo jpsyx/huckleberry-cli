@@ -326,6 +326,10 @@ pub struct Totals {
     pub solids: usize,
     /// Sleep, counted only for the part that fell inside the window.
     pub sleep_seconds: f64,
+    /// Wet diapers.
+    pub wet: usize,
+    /// Dirty diapers.
+    pub dirty: usize,
 }
 
 impl Totals {
@@ -335,7 +339,11 @@ impl Totals {
     /// what stops a screen printing a confident zero.
     #[must_use]
     pub fn anything_recorded(&self) -> bool {
-        self.milk_feeds > 0 || self.solids > 0 || self.sleep_seconds > 0.0
+        self.milk_feeds > 0
+            || self.solids > 0
+            || self.sleep_seconds > 0.0
+            || self.wet > 0
+            || self.dirty > 0
     }
 }
 
@@ -361,6 +369,17 @@ pub fn totals(dataset: &Dataset, start: f64, end: f64) -> Totals {
                 totals.nursing_seconds += left_seconds + right_seconds;
             }
             FeedEvent::Solids { .. } => totals.solids += 1,
+        }
+    }
+    for diaper in &dataset.diapers {
+        if !inside(diaper.start, start, end) {
+            continue;
+        }
+        if diaper.wet {
+            totals.wet += 1;
+        }
+        if diaper.dirty {
+            totals.dirty += 1;
         }
     }
     for asleep in &dataset.sleep {
@@ -645,12 +664,28 @@ mod windows {
     }
 
     #[test]
+    fn diapers_are_counted_by_what_was_in_them() {
+        let mut data = dataset();
+        data.diapers = vec![
+            crate::domain::fixtures::diaper(AFTERNOON - 3_600.0, true, false),
+            crate::domain::fixtures::diaper(AFTERNOON - 7_200.0, true, true),
+            // Outside the window.
+            crate::domain::fixtures::diaper(AFTERNOON - 40_000.0, true, true),
+        ];
+        let totals = totals(&data, AFTERNOON - 10_800.0, AFTERNOON);
+        assert_eq!(totals.wet, 2);
+        assert_eq!(totals.dirty, 1, "only one of them had anything in it");
+    }
+
+    #[test]
     fn nothing_recorded_adds_up_to_nothing_rather_than_to_a_guess() {
         let totals = totals(&dataset(), AFTERNOON - 86_400.0, AFTERNOON);
         assert_eq!(totals.milk_feeds, 0);
         assert_eq!(totals.solids, 0);
         assert!(totals.millilitres.abs() < f64::EPSILON);
         assert!(totals.sleep_seconds.abs() < f64::EPSILON);
+        assert_eq!(totals.wet, 0);
+        assert_eq!(totals.dirty, 0);
         assert!(!totals.anything_recorded());
     }
 }

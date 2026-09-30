@@ -65,7 +65,8 @@ src/
 ├── setup/           first use: an account, and the settings with no default
 ├── domain/          everything the tool works out, and nothing it prints
 │   ├── clock.rs     a time somebody typed, and the instant it means
-│   └── today.rs     what "today" means to this family, and what it adds up to
+│   ├── today.rs     what "today" means to this family, and what it adds up to
+│   └── reference.rs age-aware typical ranges, read from data/reference.toml
 ├── render/          domain values to lines of text
 ├── tui/             the always-on shell `h` opens with no command
 ├── dashboard/       the full-screen version of the same values

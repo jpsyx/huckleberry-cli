@@ -15,8 +15,10 @@
 use crate::cli::Units;
 use crate::domain::clock::TimeOfDay;
 use crate::domain::now::{NowView, RECENT_HOURS};
+use crate::domain::reference::{self, Metric, Standing};
 use crate::domain::time::{Calendar, format_ago, format_duration, split_hour};
 use crate::domain::today::{DayMode, Totals};
+use crate::domain::types::Child;
 use crate::domain::types::{Dataset, FeedEvent};
 use crate::listing::Piece;
 use crate::theme::{Theme, Tone};
@@ -87,6 +89,10 @@ pub fn screen(
 }
 
 /// The screen as lines of text, ready for stdout.
+///
+/// `width` is how many columns there are to draw in, when that is known. With
+/// room, the typical ranges for this baby's age go in a second column beside
+/// the facts; without it they follow underneath, saying the same things.
 #[must_use]
 pub fn lines(
     view: &NowView,
@@ -95,15 +101,228 @@ pub fn lines(
     theme: Theme,
     units: Units,
     now: f64,
+    width: Option<usize>,
 ) -> Vec<String> {
-    screen(view, dataset, calendar, units, now)
-        .into_iter()
-        .map(|row| {
-            row.into_iter()
-                .map(|piece| theme.paint(piece.tone, &piece.text))
-                .collect()
+    laid_out(
+        view,
+        dataset,
+        calendar,
+        units,
+        now,
+        width,
+        WhenNarrow::Stack,
+    )
+    .into_iter()
+    .map(|row| {
+        row.into_iter()
+            .map(|piece| theme.paint(piece.tone, &piece.text))
+            .collect()
+    })
+    .collect()
+}
+
+/// How wide the ranges column has to be before it is worth having one.
+///
+/// A range sentence that wraps every other word is harder to read than one
+/// under the facts, so below this they go underneath.
+const RANGES_FLOOR: usize = 46;
+
+/// The gap between the two columns.
+const GUTTER: usize = 3;
+
+/// What to do with the ranges when there is no room beside the facts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WhenNarrow {
+    /// Put them underneath. What a command does: its output can be as long as
+    /// it likes, because nothing else is sharing the screen with it.
+    Stack,
+    /// Leave them out. What a panel does, because it cannot grow without
+    /// taking the room from whatever is beside it.
+    Drop,
+}
+
+/// The facts, and the ranges beside or under them.
+#[must_use]
+pub fn laid_out(
+    view: &NowView,
+    dataset: &Dataset,
+    calendar: &Calendar,
+    units: Units,
+    now: f64,
+    width: Option<usize>,
+    narrow: WhenNarrow,
+) -> Vec<Row> {
+    let facts = screen(view, dataset, calendar, units, now);
+    let ranges = ranges(view, &dataset.child, calendar, now);
+    if ranges.is_empty() {
+        return facts;
+    }
+    let left = facts.iter().map(plain_width).max().unwrap_or_default();
+    let room = width.unwrap_or(0).saturating_sub(left + GUTTER);
+    if room < RANGES_FLOOR {
+        return match narrow {
+            WhenNarrow::Stack => stacked(facts, ranges),
+            WhenNarrow::Drop => facts,
+        };
+    }
+    beside(&facts, &ranges, left + GUTTER, room)
+}
+
+/// The two columns, zipped, each row padded out to the gutter.
+fn beside(facts: &[Row], ranges: &[Row], at: usize, room: usize) -> Vec<Row> {
+    let wrapped: Vec<Row> = ranges.iter().flat_map(|row| wrap(row, room)).collect();
+    let height = facts.len().max(wrapped.len());
+    (0..height)
+        .map(|index| {
+            let mut row = facts.get(index).cloned().unwrap_or_default();
+            let Some(right) = wrapped.get(index) else {
+                return row;
+            };
+            let pad = at.saturating_sub(plain_width(&row)).max(1);
+            row.push(Piece::new(" ".repeat(pad), Tone::Value));
+            row.extend(right.iter().cloned());
+            row
         })
         .collect()
+}
+
+/// The ranges under the facts, for a screen with no room beside them.
+fn stacked(mut facts: Vec<Row>, ranges: Vec<Row>) -> Vec<Row> {
+    facts.push(Row::new());
+    facts.extend(ranges);
+    facts
+}
+
+/// One row broken to a width, keeping every piece's tone.
+///
+/// A range sentence is one piece, so this only ever splits on spaces.
+fn wrap(row: &Row, width: usize) -> Vec<Row> {
+    if plain_width(row) <= width || row.len() != 1 {
+        return vec![row.clone()];
+    }
+    let piece = &row[0];
+    let mut rows = Vec::new();
+    let mut line = String::new();
+    for word in piece.text.split(' ') {
+        let candidate = if line.is_empty() {
+            word.to_owned()
+        } else {
+            format!("{line} {word}")
+        };
+        if candidate.chars().count() > width && !line.is_empty() {
+            rows.push(vec![Piece::new(std::mem::take(&mut line), piece.tone)]);
+            // Continued lines are indented, so a wrapped sentence still reads
+            // as one thing rather than as two.
+            line = format!("  {word}");
+        } else {
+            line = candidate;
+        }
+    }
+    rows.push(vec![Piece::new(line, piece.tone)]);
+    rows
+}
+
+/// How wide a row is once its colour is taken off.
+fn plain_width(row: &Row) -> usize {
+    row.iter().map(|piece| piece.text.chars().count()).sum()
+}
+
+/// The typical ranges for this baby's age, each judged against today.
+///
+/// The same sentences the summary shows, against today rather than the week.
+/// Yellow, never red: a figure outside a typical range is worth a second look
+/// and is not an emergency, and this tool is in no position to say which.
+fn ranges(view: &NowView, child: &Child, calendar: &Calendar, now: f64) -> Vec<Row> {
+    let Some(age) = child
+        .birthdate
+        .as_deref()
+        .and_then(|birthdate| calendar.age_in_days(birthdate, now))
+    else {
+        return Vec::new();
+    };
+    let today = &view.today;
+    let figures: [Figure; 4] = [
+        (Metric::FeedsPerDay, today.milk_feeds as f64, Saying::Count),
+        (Metric::SleepPerDay, today.sleep_seconds, Saying::Duration),
+        (Metric::WetPerDay, today.wet as f64, Saying::Count),
+        (Metric::DirtyPerDay, today.dirty as f64, Saying::Count),
+    ];
+    let mut rows: Vec<Row> = Vec::new();
+    for (metric, value, say) in figures {
+        let Some(band) = reference::band_for(metric, Some(age)) else {
+            continue;
+        };
+        let standing = band.standing(value);
+        rows.push(vec![Piece::new(
+            format!("{} {}", band.label, aside(standing, value, say)),
+            tone_for(standing),
+        )]);
+    }
+    if rows.is_empty() {
+        return rows;
+    }
+    // The left column already says the name, so this says the thing it does
+    // not: how old the baby is, which is what makes these ranges the right
+    // ones.
+    let mut lines = vec![vec![Piece::new(format!("{age} days old"), Tone::Muted)]];
+    lines.extend(rows);
+    lines
+}
+
+/// One figure judged against a range: what it is, where it stands, how to
+/// say it.
+type Figure = (Metric, f64, Saying);
+
+/// How a figure reads back when today has not reached its range yet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Saying {
+    /// A plain number of things.
+    Count,
+    /// A stretch of time.
+    Duration,
+}
+
+impl Saying {
+    fn say(self, value: f64) -> String {
+        match self {
+            Self::Count => format!("{value:.0}"),
+            Self::Duration => format_duration(value),
+        }
+    }
+}
+
+/// What to say beside a range, given where today has got to.
+///
+/// **A day still going is never called short.** Every figure is under every
+/// range at eight in the morning, because the day is an hour old, and saying
+/// so would be a false alarm every morning on a screen a frightened parent
+/// opens at 3am. Below the range it says where the day has reached and leaves
+/// the reading to the reader; above it, and inside it, are verdicts a partial
+/// day can support, because they have already happened.
+///
+/// Said in words as well as in colour, so the meaning survives a pipe, a
+/// screenshot, and colour blindness.
+fn aside(standing: Standing, value: f64, say: Saying) -> String {
+    match standing {
+        // Zero reads as nothing, the way it does in the column beside it: a
+        // screen that says `0s` about a baby is counting where it should be
+        // admitting it has nothing to count.
+        Standing::Below if value <= 0.0 => "(nothing yet today)".to_owned(),
+        Standing::Below => format!("({} so far today)", say.say(value)),
+        Standing::Above => "(today is over that)".to_owned(),
+        Standing::Inside => "(today is in that range)".to_owned(),
+    }
+}
+
+/// How a figure is painted, given where it sits.
+///
+/// A day still going is not judged, so it is not coloured as though it were.
+const fn tone_for(standing: Standing) -> Tone {
+    match standing {
+        Standing::Inside => Tone::Good,
+        Standing::Above => Tone::Attention,
+        Standing::Below => Tone::Muted,
+    }
 }
 
 /// How wide the label column is, so a note under a value lines up with it
@@ -384,7 +603,15 @@ mod tests {
     fn screen(dataset: &Dataset, at: f64) -> Vec<String> {
         let calendar = calendar();
         let view = now::build(dataset, &calendar, rule(), at);
-        lines(&view, dataset, &calendar, Theme::dark(false), Units::Ml, at)
+        lines(
+            &view,
+            dataset,
+            &calendar,
+            Theme::dark(false),
+            Units::Ml,
+            at,
+            None,
+        )
     }
 
     fn joined(dataset: &Dataset, at: f64) -> String {
@@ -409,7 +636,7 @@ mod tests {
         let calendar = calendar();
         let view = now::build(&data, &calendar, rule(), AFTERNOON);
         let theme = Theme::dark(true);
-        let text = lines(&view, &data, &calendar, theme, Units::Ml, AFTERNOON).join("\n");
+        let text = lines(&view, &data, &calendar, theme, Units::Ml, AFTERNOON, None).join("\n");
         assert!(text.contains("currently sleeping for 30m"), "{text}");
         assert!(
             text.contains(&theme.muted("(previous sleep finished 2h 10m ago · slept for 1h 20m)")),
@@ -502,6 +729,7 @@ mod tests {
             Theme::dark(false),
             Units::Oz,
             AFTERNOON,
+            None,
         )
         .join("\n");
         assert!(text.contains("3.0 oz"), "{text}");
@@ -612,7 +840,16 @@ mod tests {
     fn with_rule(data: &Dataset, rule: crate::domain::today::DayRule, at: f64) -> String {
         let calendar = calendar();
         let view = now::build(data, &calendar, rule, at);
-        lines(&view, data, &calendar, Theme::dark(false), Units::Ml, at).join("\n")
+        lines(
+            &view,
+            data,
+            &calendar,
+            Theme::dark(false),
+            Units::Ml,
+            at,
+            None,
+        )
+        .join("\n")
     }
 
     /// A day's worth of feeds: two before a 6am start, two after.
@@ -755,6 +992,140 @@ mod tests {
             .find(|line| line.starts_with("Slept today"))
             .unwrap_or_default();
         assert!(line.contains("1h 0m"), "{text}");
+    }
+
+    /// A day's worth of a newborn: enough feeds, enough diapers, little sleep.
+    fn a_newborns_day() -> Dataset {
+        let mut data = dataset();
+        data.child.birthdate = Some("2025-09-08".to_owned());
+        data.feeds = (0..9)
+            .map(|index| bottle(AFTERNOON - 3_600.0 * f64::from(index), 70.0))
+            .collect();
+        data.diapers = (0..7)
+            .map(|index| diaper(AFTERNOON - 3_600.0 * f64::from(index), true, index < 3))
+            .collect();
+        data.sleep = vec![sleep(AFTERNOON - 40_000.0, 4.0 * 3600.0)];
+        data
+    }
+
+    fn wide(data: &Dataset, at: f64) -> String {
+        let calendar = calendar();
+        let view = now::build(data, &calendar, rule(), at);
+        lines(
+            &view,
+            data,
+            &calendar,
+            Theme::dark(false),
+            Units::Ml,
+            at,
+            Some(140),
+        )
+        .join("\n")
+    }
+
+    #[test]
+    fn a_wide_screen_carries_the_typical_ranges_beside_the_facts() {
+        let text = wide(&a_newborns_day(), AFTERNOON);
+        assert!(
+            text.contains("typical at this age: 8 to 12 feeds a day"),
+            "{text}"
+        );
+        assert!(
+            text.contains("typical from day 5: 6 or more wet diapers a day"),
+            "{text}"
+        );
+        assert!(
+            text.contains("typical at this age: 14 to 17 hours in 24"),
+            "{text}"
+        );
+    }
+
+    /// The summary says "this week". This screen is about today.
+    #[test]
+    fn the_ranges_are_judged_against_today_and_say_so() {
+        let text = wide(&a_newborns_day(), AFTERNOON);
+        assert!(text.contains("(today is in that range)"), "{text}");
+        assert!(!text.contains("this week"), "{text}");
+    }
+
+    /// A day that is still going cannot be short of anything yet.
+    ///
+    /// At eight in the morning every figure is under every range, because the
+    /// day is an hour old. Saying so would be a false alarm every morning, and
+    /// this is a tool a frightened parent opens at 3am.
+    #[test]
+    fn a_day_still_going_is_never_called_short_only_reported() {
+        let text = wide(&a_newborns_day(), AFTERNOON);
+        assert!(
+            !text.contains("under that"),
+            "a partial day is never called short: {text}"
+        );
+        assert!(
+            text.contains("so far today"),
+            "it says where the day has got to instead: {text}"
+        );
+        // The sleep began before the day did, so only its tail counts today.
+        assert!(text.contains("(53m so far today)"), "{text}");
+    }
+
+    /// Over is a verdict a partial day can support: it has already happened.
+    /// Zero reads as nothing, the way it does in the column beside it.
+    #[test]
+    fn nothing_yet_today_says_so_rather_than_counting_to_zero() {
+        let mut data = a_newborns_day();
+        data.sleep.clear();
+        let text = wide(&data, AFTERNOON);
+        assert!(text.contains("(nothing yet today)"), "{text}");
+        assert!(!text.contains("0s so far"), "{text}");
+        assert!(!text.contains("(0 so far"), "{text}");
+    }
+
+    #[test]
+    fn a_figure_already_past_the_top_of_its_range_says_so() {
+        let mut data = a_newborns_day();
+        data.feeds = (0..20)
+            .map(|index| bottle(AFTERNOON - 1_800.0 * f64::from(index), 30.0))
+            .collect();
+        let text = wide(&data, AFTERNOON);
+        assert!(text.contains("(today is over that)"), "{text}");
+    }
+
+    #[test]
+    fn the_ranges_sit_beside_the_facts_rather_than_under_them() {
+        let text = wide(&a_newborns_day(), AFTERNOON);
+        let beside = text
+            .lines()
+            .find(|line| line.contains("Last fed") && line.contains("typical"))
+            .unwrap_or_else(|| panic!("no line holding both: {text}"));
+        assert!(
+            beside.find("Last fed") < beside.find("typical"),
+            "the facts are the left column: {beside}"
+        );
+    }
+
+    #[test]
+    fn a_narrow_screen_keeps_one_column_and_says_the_same_things() {
+        let text = joined(&a_newborns_day(), AFTERNOON);
+        assert!(text.contains("Last fed"), "{text}");
+        assert!(
+            text.contains("typical at this age: 8 to 12 feeds a day"),
+            "the ranges are still there, under the facts: {text}"
+        );
+        for line in text.lines() {
+            assert!(
+                !(line.contains("Last fed") && line.contains("typical")),
+                "nothing shares a row when there is no room: {line}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_baby_too_old_for_any_range_gets_facts_and_nothing_else() {
+        let mut data = a_newborns_day();
+        data.child.birthdate = Some("2019-01-01".to_owned());
+        let text = wide(&data, AFTERNOON);
+        assert!(text.contains("Last fed"), "{text}");
+        assert!(!text.contains("typical"), "{text}");
     }
 
     #[test]

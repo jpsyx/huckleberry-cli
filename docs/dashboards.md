@@ -32,9 +32,14 @@ enforced by tests rather than by good intentions.
   200 ml per kilogram per day, describes established feeding from about two
   weeks on, not the first week when intake is still ramping. Drawing it for a
   seven-day-old would quietly tell a frightened first-time parent they are
-  underfeeding their baby, every day, in a chart. `domain::reference` simply
+  underfeeding their baby, every day, in a chart. `data/reference.toml` simply
   has no such metric, so it returns nothing by construction rather than by a
-  special case somebody could delete.
+  special case somebody could delete, and a test asserts none appears.
+- **A day still going is never called short.** Every figure is under every
+  range at eight in the morning, because the day is an hour old. `now` says
+  where today has reached instead (`3 so far today`) and leaves the reading to
+  the reader. Over, and inside, are verdicts a partial day can support, because
+  they have already happened.
 - **A number nobody recorded prints as a dash.** `0 ml` is a claim about the
   baby; `—` is a claim about the record. A bottle with no amount counts as a
   feed and contributes no volume.
@@ -76,6 +81,14 @@ The next line relabels itself. Inside the family's night window it reads
 `Tonight`; outside it reads `Night of Sun 21 Sep` and names the night it means.
 An ambiguous label there is the one that gets misread at 3am.
 
+On a screen wide enough, the typical ranges for this baby's age go in a second
+column beside the facts, each judged against **today** rather than against the
+week the summary judges. Below that width they follow underneath instead, and
+in the shell's drawer, which cannot grow without taking room from the menu,
+they are simply left out. The ranges themselves live in
+[`data/reference.toml`](../data/reference.toml); see [`setup.md`](setup.md) for
+what a day means here.
+
 The three running totals answer the second question rather than the first: not
 "when did she last eat" but "has she had enough". Three hours because that is
 the interval a newborn feeds on, so the question the line answers is whether
@@ -115,9 +128,11 @@ Wren is 21 days old
 ```
 
 Today's row is bold bright white. In the block underneath, each figure and each
-band line is faint green when the week is inside the range and faint yellow
-when it is not, with milk grey because it has no range. Faint keeps the block
-secondary; the colour is what makes it scannable.
+band line is green when the week is inside the range and yellow when it is not,
+with milk grey because it has no range. It is not faint: this is the part
+somebody reads to find out whether anything is off, and faint made it the
+hardest thing on the screen to read. It is secondary by where it sits, not by
+being hard to see.
 
 Each row is one of this family's days, `day_start` to `day_start`, not a
 calendar day. Under a day starting at 6am a 4am feed is counted on the row

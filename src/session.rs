@@ -188,6 +188,24 @@ impl Context {
         }
     }
 
+    /// How wide the screen is, when something is drawing on one.
+    ///
+    /// A host panel reports its own width; otherwise it is the terminal's, and
+    /// `None` on a pipe, where a layout would be a decoration nobody asked for.
+    #[must_use]
+    pub fn screen_width(&self) -> Option<usize> {
+        if crate::prompt::host::hosted() {
+            return Some(usize::from(crate::prompt::host::size().0));
+        }
+        self.human_output()
+            .then(|| {
+                crossterm::terminal::size()
+                    .ok()
+                    .map(|(columns, _)| usize::from(columns))
+            })
+            .flatten()
+    }
+
     /// Whether stdout is being read directly by a person.
     #[must_use]
     pub fn human_output(&self) -> bool {

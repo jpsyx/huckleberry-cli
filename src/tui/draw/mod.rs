@@ -97,7 +97,10 @@ pub fn draw_with(frame: &mut Frame, app: &App, job: Option<&crate::tui::job::Job
         }
         (None, None) => menu::draw(frame, rows, app),
     }
-    frame.render_widget(now::widget(&app.facts, at).block(block("Now")), facts);
+    frame.render_widget(
+        now::widget(&app.facts, at, facts.width.saturating_sub(2)).block(block("Now")),
+        facts,
+    );
     frame.render_widget(footer(app, job.is_some()), areas[2]);
 }
 
@@ -113,7 +116,7 @@ fn split(body: Rect, app: &App) -> (Rect, Rect) {
     let areas = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(now::height(&app.facts).min(room)),
+            Constraint::Length(now::height(&app.facts, body.width.saturating_sub(2)).min(room)),
             Constraint::Min(3),
         ])
         .split(body);
@@ -299,14 +302,19 @@ mod frames {
         let reading = app.facts.reading().expect("a reading");
         let view =
             crate::domain::now::build(&reading.dataset, &reading.calendar, reading.rule, AFTERNOON);
-        let printed = crate::render::now::lines(
+        // The facts, which are what "same wording" means. Where the typical
+        // ranges go is a layout decision each surface makes for its own room;
+        // see `WhenNarrow`.
+        let printed: Vec<String> = crate::render::now::screen(
             &view,
             &reading.dataset,
             &reading.calendar,
-            crate::theme::Theme::dark(false),
             reading.units,
             AFTERNOON,
-        );
+        )
+        .into_iter()
+        .map(|row| row.into_iter().map(|piece| piece.text).collect::<String>())
+        .collect();
         let drawn = screen(&app, 100, 30);
         for line in printed.iter().filter(|line| !line.trim().is_empty()) {
             assert!(
@@ -314,6 +322,18 @@ mod frames {
                 "`h now` prints `{line}` and the drawer does not: {drawn}"
             );
         }
+    }
+
+    /// With room beside the facts, the drawer carries the ranges too.
+    #[test]
+    fn a_wide_drawer_carries_the_typical_ranges_as_the_command_does() {
+        let mut app = App::new();
+        let mut data = populated();
+        data.child.birthdate = Some("2025-09-08".to_owned());
+        app.facts.replace(data, calendar(), Units::Ml, rule());
+        let drawn = screen(&app, 150, 30);
+        assert!(drawn.contains("typical at this age"), "{drawn}");
+        assert!(drawn.contains("days old"), "{drawn}");
     }
 
     #[test]

@@ -1,0 +1,184 @@
+# Typical ranges, by age.
+#
+# What is in here is guidance a pediatrician gives a parent, not a clinical
+# threshold and not a target. Two rules govern every line of it, and both are
+# older than this file:
+#
+#   1. There is NO band for milk volume, at any age. The obvious candidate,
+#      150 to 200 ml per kilogram per day, describes established feeding from
+#      roughly two weeks on, not the first week when intake is still ramping
+#      steeply. Drawing it for a seven-day-old would quietly tell a frightened
+#      first-time parent they are underfeeding their baby, every day, in a
+#      chart. It is absent by construction rather than by a special case
+#      somebody could delete. A test asserts no metric here mentions volume.
+#
+#   2. Labels are declarative, never imperative. No "should", no "call your
+#      doctor". The parent decides what to do; this says what is typical.
+#
+# `max_age_days` is the last age in days a band applies to, and the bands of a
+# metric are read in order, so the first one whose age is not yet passed wins.
+# Running off the end means there is no band, which is the honest answer
+# wherever the pattern stops being typical enough to name.
+#
+# `high` left out means "or more": a floor with no ceiling. A test checks that
+# every band without one says so in its label, so leaving it out by accident
+# cannot quietly turn a range into a floor.
+#
+# `source` says where a range came from, so a future reader can check it rather
+# than trust it.
+
+# ---------------------------------------------------------------------------
+
+[[metrics]]
+metric = "sleep_per_day"
+unit = "seconds"
+
+  # The AASM consensus, which the AAP endorses, deliberately gives no
+  # recommendation below four months: newborn sleep is too variable to name a
+  # range for. The National Sleep Foundation does give one, and it is the one
+  # used here, because a parent of a newborn is exactly who opens this screen.
+  [[metrics.bands]]
+  max_age_days = 89
+  low = 50400.0    # 14 hours
+  high = 61200.0   # 17 hours
+  label = "typical at this age: 14 to 17 hours in 24"
+  source = "National Sleep Foundation, sleep duration recommendations (0-3 months)"
+
+  [[metrics.bands]]
+  max_age_days = 364
+  low = 43200.0    # 12 hours
+  high = 57600.0   # 16 hours
+  label = "typical at this age: 12 to 16 hours in 24"
+  source = "AASM consensus, endorsed by the AAP (4 to 12 months)"
+
+  [[metrics.bands]]
+  max_age_days = 1094
+  low = 39600.0    # 11 hours
+  high = 50400.0   # 14 hours
+  label = "typical at this age: 11 to 14 hours in 24"
+  source = "AASM consensus, endorsed by the AAP (1 to 2 years)"
+
+  [[metrics.bands]]
+  max_age_days = 2190
+  low = 36000.0    # 10 hours
+  high = 46800.0   # 13 hours
+  label = "typical at this age: 10 to 13 hours in 24"
+  source = "AASM consensus, endorsed by the AAP (3 to 5 years)"
+
+# ---------------------------------------------------------------------------
+
+[[metrics]]
+metric = "feeds_per_day"
+unit = "count"
+
+  [[metrics.bands]]
+  max_age_days = 28
+  low = 8.0
+  high = 12.0
+  label = "typical at this age: 8 to 12 feeds a day"
+  source = "AAP: at least 8 feedings in 24 hours; La Leche League: 8 to 12 in the first weeks"
+
+  [[metrics.bands]]
+  max_age_days = 120
+  low = 6.0
+  high = 10.0
+  label = "typical at this age: 6 to 10 feeds a day"
+  source = "AAP: every 3 to 4 hours by 2 months; Medela: mean 6.6 a day at 1 to 3 months"
+
+  [[metrics.bands]]
+  max_age_days = 180
+  low = 5.0
+  high = 8.0
+  label = "typical at this age: 5 to 8 feeds a day"
+  source = "AAP: every 4 to 5 hours from 4 to 6 months"
+
+  # Past six months solids are part of the day, so a milk-feed count is
+  # measuring less and less of what the baby actually ate.
+  [[metrics.bands]]
+  max_age_days = 365
+  low = 4.0
+  high = 6.0
+  label = "typical at this age: 4 to 6 milk feeds a day, alongside solids"
+  source = "AAP: 4 or 5 feedings in 24 hours at 6 months, with solids added"
+
+  # And past a year there is no band at all: what a toddler eats stops being a
+  # number of milk feeds.
+
+# ---------------------------------------------------------------------------
+
+[[metrics]]
+metric = "wet_per_day"
+unit = "count"
+
+  # The first days have a band each, because the count climbing day by day is
+  # the thing being watched, and one band across all of them would read as a
+  # shortfall on day one.
+  [[metrics.bands]]
+  max_age_days = 0
+  low = 1.0
+  high = 2.0
+  label = "typical on day 1: 1 to 2 wet diapers"
+  source = "AAP: 1 to 2 on the first day"
+
+  [[metrics.bands]]
+  max_age_days = 1
+  low = 2.0
+  high = 3.0
+  label = "typical on day 2: 2 to 3 wet diapers"
+  source = "AAP: 2 or more on the second day"
+
+  [[metrics.bands]]
+  max_age_days = 2
+  low = 3.0
+  high = 4.0
+  label = "typical on day 3: 3 to 4 wet diapers"
+  source = "AAP: 3 or more on the third day"
+
+  [[metrics.bands]]
+  max_age_days = 4
+  low = 4.0
+  high = 6.0
+  label = "typical at this age: 4 to 6 wet diapers a day"
+  source = "AAP: at least 5 to 6 a day from day 4 or 5"
+
+  [[metrics.bands]]
+  max_age_days = 180
+  low = 6.0
+  label = "typical from day 5: 6 or more wet diapers a day"
+  source = "AAP: 6 or more a day from day 5, breastfed or formula-fed"
+
+  # Sources disagree between about four and eight a day over the second half of
+  # the first year, as the bladder holds more and the nappy is changed less
+  # often. The floor here sits under all of them on purpose: a band that tells
+  # somebody they are short when every source says they are not is worse than
+  # a band that is merely wide.
+  [[metrics.bands]]
+  max_age_days = 730
+  low = 4.0
+  label = "typical at this age: 4 or more wet diapers a day"
+  source = "Common clinical floor for adequate hydration in infants and toddlers"
+
+  # Past two years a nappy count says more about potty training than about the
+  # child, so there is no band.
+
+# ---------------------------------------------------------------------------
+
+[[metrics]]
+metric = "dirty_per_day"
+unit = "count"
+
+  [[metrics.bands]]
+  max_age_days = 2
+  low = 1.0
+  label = "typical in the first days: 1 or more dirty diapers"
+  source = "One stool per day of life over the first days"
+
+  [[metrics.bands]]
+  max_age_days = 42
+  low = 3.0
+  label = "typical at this age: 3 or more dirty diapers a day"
+  source = "AAP: at least 4 stools a day by day 4; La Leche League: 3 or more through 6 weeks"
+
+  # After about six weeks the pattern becomes genuinely variable: a thriving
+  # breastfed baby can go a week between stools. A band past here would imply
+  # a target where none exists, so there is none.
