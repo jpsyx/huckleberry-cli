@@ -27,6 +27,8 @@ pub enum Motion {
     Open,
     /// Go back to where this was opened from.
     Back,
+    /// Leave this menu, and at the top level leave the shell.
+    Cancel,
     /// Re-read everything on the screen.
     Refresh,
     /// Leave the session.
@@ -35,16 +37,22 @@ pub enum Motion {
 
 /// What a keystroke means.
 ///
-/// **Nothing leaves the shell but `Ctrl-Q`.** It is meant to be left running
-/// all day, so every other key stays inside it: Enter opens rows, Back walks
-/// out of submenus, and neither ever ends the session. A bare `q` used to
-/// quit and no longer does, because `q` is one keystroke away from every
-/// letter somebody presses by reflex and the widgets should still be there
-/// afterwards.
+/// **No ordinary key leaves the shell.** It is meant to be left running all
+/// day, so Enter opens rows, Back walks out of submenus, and neither ever ends
+/// the session. A bare `q` used to quit and no longer does, because `q` is one
+/// keystroke away from every letter somebody presses by reflex and the widgets
+/// should still be there afterwards.
 ///
-/// `Ctrl-C` leaves too, and is the only exception. It is what every hand
-/// reaches for when a full-screen program will not let go, and a program that
-/// ignores it is a program somebody has to kill from another terminal.
+/// Two chords leave, and they are deliberately different.
+///
+/// `Ctrl-C` means what it means everywhere: cancel what you are in. Inside a
+/// submenu that is the submenu, so it walks out one level; at the top level
+/// there is nothing left to cancel, so it ends the session. That is the shape
+/// somebody's hand already knows, and it means the reflex chord never destroys
+/// more than it looks like it will.
+///
+/// `Ctrl-Q` ends the session from anywhere, however deep the menu is. It is
+/// the one key that does not care where you are.
 #[must_use]
 pub fn motion_for(key: KeyEvent) -> Motion {
     // Windows reports press and release; acting on both moves two rows.
@@ -53,8 +61,8 @@ pub fn motion_for(key: KeyEvent) -> Motion {
     }
     if key.modifiers.contains(KeyModifiers::CONTROL) {
         return match key.code {
-            // `c` is the escape hatch rather than the way out; see above.
-            KeyCode::Char('q' | 'Q' | 'c') => Motion::Quit,
+            KeyCode::Char('q' | 'Q') => Motion::Quit,
+            KeyCode::Char('c') => Motion::Cancel,
             KeyCode::Char('n') => Motion::Next,
             KeyCode::Char('p') => Motion::Previous,
             _ => Motion::Ignore,

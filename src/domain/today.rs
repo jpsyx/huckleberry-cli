@@ -18,6 +18,28 @@
 //! scattered round the clock, and the only honest window is the last
 //! twenty-four hours. An older baby has a day with a beginning.
 //!
+//! ## The rule governs arithmetic, not timestamps
+//!
+//! **These hours decide which events are counted together. They never decide
+//! what day a thing is said to have happened on.**
+//!
+//! Anything that adds up uses this family's day: the summary's rows, the trend
+//! bars, the stripe chart's rows, the night totals, and the running totals on
+//! the 3am screen. Anything that reports an individual entry uses an ordinary
+//! calendar day, midnight to midnight: `log`, `edit` and `delete` group their
+//! rows under plain dates and always will.
+//!
+//! The reason is that "when did this happen" has one answer and it is the one
+//! on the clock. A 4am feed happened at 4am on the date the clock said, and a
+//! list of what happened must not argue with a phone, a hospital note or
+//! anybody's memory. It is only when that feed is being *counted* that it
+//! matters which day's total it belongs to, and that is the question these
+//! hours answer.
+//!
+//! So a new screen joins this rule by asking one question: does it aggregate?
+//! If it adds, averages, groups for a total or draws a row that sums, it uses
+//! the day rule. If it lists what happened, it uses the calendar.
+//!
 //! Everything here is pure and takes `now` as an argument, like the rest of
 //! `domain`.
 

@@ -145,12 +145,31 @@ The ruler above the chart still carries wall-clock hours (`00`, `06`, `12`,
 `18`) placed where they actually fall, rather than hours counted from the left
 edge. Looking up when a sleep happened should not be a sum.
 
-## What still counts by the calendar
+## The rule: arithmetic uses your day, timestamps use the calendar
 
-`log`, `edit` and `delete` group their entries under calendar-day headings.
-Nothing about how much was eaten or slept is computed there, so the headings
-are labels rather than arithmetic, but a 4am feed does appear under the new
-calendar day in those lists while the summary counts it on the day before.
+**`day_start`, `day_end` and `day_mode` decide which events are counted
+together. They never decide what day a thing is said to have happened on.**
+
+| Kind of screen | Counts by | Examples |
+| --- | --- | --- |
+| anything that aggregates | this family's day | `summary`, `trends`, `stripes`, the running totals on `now` and in the Now drawer |
+| anything that reports an entry | the calendar, midnight to midnight | `log`, `edit`, `delete` |
+
+`log`, `edit` and `delete` group under plain calendar dates and always will.
+They are not being re-based, and that is the right answer rather than an
+unfinished one: "when did this happen" has one answer and it is the one on the
+clock. A 4am feed happened at 4am on the date the clock said, and a list of
+what happened must not argue with a phone, a hospital note or anybody's memory.
+
+It is only when that feed is being *counted* that it matters which day's total
+it belongs to, and that is the question these hours answer. So under a 6am day
+start, a 4am feed appears under today's date in `log` and is counted on
+yesterday's row in `summary`. Both are correct, and they are answering
+different questions.
+
+A new screen joins this rule by asking one question: **does it aggregate?** If
+it adds, averages, groups for a total or draws a row that sums, it uses the day
+rule. If it lists what happened, it uses the calendar.
 
 ## Where the settings live
 

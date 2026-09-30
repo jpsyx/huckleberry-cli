@@ -30,7 +30,14 @@
 - **The shell's Now drawer shows exactly what `h now` prints: same facts, same
   wording, same order.** `render::now::screen` is the one function that decides
   what either says. A request to change what the Now drawer shows is a request
-  to change `h now`, and the other way round; never change one alone. **Read it before designing any feature, not only
+  to change `h now`, and the other way round; never change one alone.
+- **The family's day (`day_start`, `day_end`, `day_mode`) governs arithmetic,
+  never timestamps.** Anything that aggregates uses it: `summary`, `trends`,
+  `stripes`, the running totals. Anything that reports an individual entry uses
+  an ordinary calendar day, midnight to midnight: `log`, `edit`, `delete`.
+  "When did this happen" has one answer and it is the one on the clock. A new
+  screen joins the rule by asking whether it aggregates. See
+  [`docs/setup.md`](docs/setup.md). **Read it before designing any feature, not only
   ones inside `src/tui/`**: menus over typing, a sensible default already
   highlighted so Enter alone answers, an arrow and a letter for every
   direction, and nothing ever reachable only from the command line. A feature

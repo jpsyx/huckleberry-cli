@@ -450,8 +450,12 @@ A time is stored as 24-hour `HH:MM` and read back as a person says it, so
 `06:00` is confirmed as `6:00 am`. A bare `6` is refused rather than guessed
 at: write `6am` or `06:00`.
 
-`log`, `edit` and `delete` still group their entries under calendar-day
-headings, which are labels rather than arithmetic. See [`setup.md`](setup.md).
+These hours govern arithmetic and never timestamps. `log`, `edit` and `delete`
+group their entries under ordinary calendar days, midnight to midnight, because
+"when did this happen" has one answer and it is the one on the clock. So under
+a 6am day start a 4am feed is listed under today's date and counted on
+yesterday's summary row: both are right, and they answer different questions.
+See [`setup.md`](setup.md).
 
 A configuration written when `day_end` was called `night_start` is still read:
 the old spelling is accepted and stored under the new name.
@@ -570,10 +574,11 @@ Every direction has an arrow and a letter that mean the same thing: `↓`/`j` an
 back. `1`-`9` put the cursor on a row without opening it, `g` and `G` reach the
 first and last rows, and `r` refreshes every widget without moving the cursor.
 
-**Nothing leaves the shell but `Ctrl-Q`**, with `Ctrl-C` as the escape hatch.
-No menu row ends the session and neither does any single key: a bare `q` used
-to quit and no longer does. Back at Home does nothing either, so a reflex
-keystroke cannot end it. A chevron marks a row that opens another menu, and
+**Only a chord leaves the shell.** No menu row ends the session and neither
+does any single key: a bare `q` used to quit and no longer does, and Back at
+Home does nothing, so a reflex keystroke cannot end it. `Ctrl-C` cancels what
+you are in, which is one menu level, or the session when you are already at the
+top. `Ctrl-Q` ends the session from anywhere, however deep the menu is. A chevron marks a row that opens another menu, and
 every submenu ends in Back.
 
 Choosing a command hands the terminal back for as long as that command runs, so
