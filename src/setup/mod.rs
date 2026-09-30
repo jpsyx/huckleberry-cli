@@ -82,18 +82,13 @@ pub const fn shows_a_day(command: &Command) -> bool {
 
 /// Settings with no default worth using, in the order setup asks for them.
 ///
-/// `day_start` and `night_start` are only asked of a family counting discrete
-/// days: a rolling day has no hour to begin at, so asking would be asking for
-/// something that will never be read.
+/// All three, always. The hours come first because every screen with a day on
+/// it is counted between them, whichever way the totals are counted; the mode
+/// comes last because all it decides is whether the running totals use those
+/// hours or ignore them for a rolling twenty-four.
 #[must_use]
 pub fn missing(config: &Config) -> Vec<&'static str> {
-    let Some(mode) = config.day_mode() else {
-        return vec!["day_mode"];
-    };
-    if mode == DayMode::Continuous {
-        return Vec::new();
-    }
-    ["day_start", "night_start"]
+    ["day_start", "day_end", "day_mode"]
         .into_iter()
         .filter(|key| config.get(key).is_none_or(|value| value.trim().is_empty()))
         .collect()
@@ -157,8 +152,8 @@ pub fn refuse(keys: &[&str]) -> Result<()> {
 /// `config set day_start`, which the menu also offers.
 pub const DAY_START_HOURS: [&str; 6] = ["04:00", "05:00", "06:00", "07:00", "08:00", "09:00"];
 
-/// The hours night is offered as beginning at.
-pub const NIGHT_START_HOURS: [&str; 7] = [
+/// The hours a day is offered as ending at, which is where night begins.
+pub const DAY_END_HOURS: [&str; 7] = [
     "17:00", "18:00", "19:00", "19:30", "20:00", "21:00", "22:00",
 ];
 
@@ -171,7 +166,7 @@ pub const NIGHT_START_HOURS: [&str; 7] = [
 pub fn choices_for(key: &str) -> (&'static [&'static str], &'static str) {
     match key {
         "day_start" => (&DAY_START_HOURS, "07:00"),
-        _ => (&NIGHT_START_HOURS, "20:00"),
+        _ => (&DAY_END_HOURS, "20:00"),
     }
 }
 
@@ -262,20 +257,21 @@ mod gate {
     }
 
     #[test]
-    fn nothing_is_missing_once_a_family_has_said_how_they_count_a_day() {
-        let mut config = Config::default();
-        assert_eq!(missing(&config), ["day_mode"]);
-        config.set("day_mode", "continuous").expect("a mode");
-        assert!(
-            missing(&config).is_empty(),
-            "a rolling day has no hour to begin at, so there is nothing to ask"
-        );
-        config.set("day_mode", "discrete").expect("a mode");
-        assert_eq!(missing(&config), ["day_start", "night_start"]);
-        config.set("day_start", "6am").expect("a time");
-        assert_eq!(missing(&config), ["night_start"]);
-        config.set("night_start", "7:30pm").expect("a time");
-        assert!(missing(&config).is_empty());
+    fn the_hours_are_asked_for_whichever_way_today_is_counted() {
+        for mode in ["continuous", "discrete"] {
+            let mut config = Config::default();
+            assert_eq!(missing(&config), ["day_start", "day_end", "day_mode"]);
+            config.set("day_mode", mode).expect("a mode");
+            assert_eq!(
+                missing(&config),
+                ["day_start", "day_end"],
+                "every screen with a day on it needs both, even a rolling one: {mode}"
+            );
+            config.set("day_start", "6am").expect("a time");
+            assert_eq!(missing(&config), ["day_end"]);
+            config.set("day_end", "7:30pm").expect("a time");
+            assert!(missing(&config).is_empty(), "{mode}");
+        }
     }
 
     #[test]
@@ -306,9 +302,10 @@ mod gate {
             "The day starts at 6:00 am.",
             "stored as 24-hour, confirmed as somebody says it"
         );
-        assert_eq!(
-            run::confirmation("night_start", "19:30"),
-            "Night starts at 7:30 pm."
+        assert!(
+            run::confirmation("day_end", "19:30").starts_with("The day ends at 7:30 pm"),
+            "{}",
+            run::confirmation("day_end", "19:30")
         );
         assert!(
             run::confirmation("day_mode", "continuous").contains("newborn"),

@@ -124,7 +124,7 @@ fn the_now_screen_answers_the_question_it_exists_for() {
     let view = now::build(
         &dataset,
         &calendar,
-        app::domain::today::DayRule::discrete(6.0, None),
+        app::domain::today::DayRule::discrete(6.0, 19.5),
         AFTERNOON,
     );
     let screen = render::now::lines(
@@ -148,7 +148,13 @@ fn the_now_screen_answers_the_question_it_exists_for() {
 fn the_day_table_has_one_row_per_day_and_they_all_line_up() {
     let dataset = dataset();
     let calendar = Calendar::new(&dataset.timezone).expect("a real timezone");
-    let rows = summaries::build(&dataset, &calendar, AFTERNOON, 7);
+    let rows = summaries::build(
+        &dataset,
+        &calendar,
+        app::domain::today::DayRule::assumed(),
+        AFTERNOON,
+        7,
+    );
     assert_eq!(rows.len(), 7);
 
     let width = render::summary::heading_row(Units::Ml).chars().count();
@@ -166,7 +172,13 @@ fn the_day_table_has_one_row_per_day_and_they_all_line_up() {
 fn the_stripe_chart_covers_every_day_at_a_fixed_width() {
     let dataset = dataset();
     let calendar = Calendar::new(&dataset.timezone).expect("a real timezone");
-    for row in stripes::build(&dataset, &calendar, AFTERNOON, 7) {
+    for row in stripes::build(
+        &dataset,
+        &calendar,
+        app::domain::today::DayRule::assumed(),
+        AFTERNOON,
+        7,
+    ) {
         assert_eq!(render::stripes::cells(&row).len(), render::stripes::CELLS);
     }
 }
@@ -249,7 +261,7 @@ fn piped_output_carries_no_escape_sequences() {
     let view = now::build(
         &dataset,
         &calendar,
-        app::domain::today::DayRule::discrete(6.0, None),
+        app::domain::today::DayRule::discrete(6.0, 19.5),
         AFTERNOON,
     );
     let screen =
@@ -261,7 +273,13 @@ fn piped_output_carries_no_escape_sequences() {
 fn nothing_a_baby_does_is_ever_an_error_or_a_warning() {
     let dataset = dataset();
     let calendar = Calendar::new(&dataset.timezone).expect("a real timezone");
-    let rows = summaries::build(&dataset, &calendar, AFTERNOON, 7);
+    let rows = summaries::build(
+        &dataset,
+        &calendar,
+        app::domain::today::DayRule::assumed(),
+        AFTERNOON,
+        7,
+    );
     let painted = render::summary::lines(
         &rows,
         &dataset,

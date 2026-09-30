@@ -111,12 +111,17 @@ band line is faint green when the week is inside the range and faint yellow
 when it is not, with milk grey because it has no range. Faint keeps the block
 secondary; the colour is what makes it scannable.
 
-One asymmetry is worth knowing about. Sleep **seconds** are split across
-midnight, so a sleep beginning at 23:46 contributes to both days. Sleep
+Each row is one of this family's days, `day_start` to `day_start`, not a
+calendar day. Under a day starting at 6am a 4am feed is counted on the row
+before, which is where the person who gave it will look for it. See
+[`setup.md`](setup.md).
+
+One asymmetry is worth knowing about. Sleep **seconds** are split at the hour
+the day starts, so a sleep across that boundary contributes to both rows. Sleep
 **counts** and the longest stretch belong to the day the sleep began. Splitting
-the counts would turn one overnight into two sleeps; not splitting the seconds
-would lose the small hours off every night, which for a newborn is most of the
-sleep there is.
+the counts would turn one sleep into two; not splitting the seconds would lose
+part of it off one row. Most nights now fall inside a single row rather than
+being divided at all, which is the point of counting days this way.
 
 ## `stripes`
 
@@ -131,7 +136,18 @@ Tue 22 Sep │███▼█████▼████▼ ◦▼ ██◦▼ 
             █ asleep   ▼ feed   ◦ diaper   · night
 ```
 
-Positions are fractions of each day's own length, not of a hardcoded 86400, so
+**A row opens at the previous day's end, not at midnight.** Midnight falls in
+the middle of the longest sleep there is, and cutting the row there puts half a
+night at the right-hand end of one row and half at the left-hand end of the
+next, which is the one thing a picture of where sleep lands exists not to do.
+Each row reads as *the night leading into this day, and then this day*, which
+is how a night gets talked about anyway.
+
+The ruler still carries wall-clock hours, placed where they actually fall
+rather than counted from the left edge. Looking up when a sleep happened should
+not be a sum.
+
+Positions are fractions of each row's own length, not of a hardcoded 86400, so
 a 23-hour or 25-hour day still fills the strip exactly. A feed is drawn over a
 sleep block on purpose: a feed during a sleep is the thing somebody opening
 this is looking for.

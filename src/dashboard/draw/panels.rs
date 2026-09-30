@@ -122,9 +122,9 @@ pub(super) fn draw_stripe_chart(
     at: f64,
     days: usize,
 ) {
-    let rows = stripes::build(&state.dataset, &state.calendar, at, days);
+    let rows = stripes::build(&state.dataset, &state.calendar, state.rule, at, days);
     let mut lines = vec![Line::from(Span::styled(
-        crate::render::stripes::ruler(),
+        crate::render::stripes::ruler(rows.first().map_or(0.0, |row| row.starts_at_hour)),
         Style::default().fg(tone(Tone::Muted)),
     ))];
 
@@ -177,7 +177,7 @@ pub const fn cell_colour(cell: Cell) -> Color {
 
 /// The Feeding tab: a day table and a sparkline of daily milk.
 pub(super) fn draw_feeding(frame: &mut Frame, area: Rect, state: &State, units: Units, at: f64) {
-    let rows = summaries::build(&state.dataset, &state.calendar, at, state.days);
+    let rows = summaries::build(&state.dataset, &state.calendar, state.rule, at, state.days);
     let areas = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Min(6), Constraint::Length(3)])
@@ -249,7 +249,7 @@ pub(super) fn draw_feeding(frame: &mut Frame, area: Rect, state: &State, units: 
 
 /// The Diapers tab: counts per day, with a sparkline of wet diapers.
 pub(super) fn draw_diapers(frame: &mut Frame, area: Rect, state: &State, at: f64) {
-    let rows = summaries::build(&state.dataset, &state.calendar, at, state.days);
+    let rows = summaries::build(&state.dataset, &state.calendar, state.rule, at, state.days);
     let areas = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Min(6), Constraint::Length(3)])

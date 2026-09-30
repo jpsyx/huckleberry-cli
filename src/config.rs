@@ -57,15 +57,21 @@ pub struct Config {
     pub refresh: u32,
     /// Print detailed diagnostics without passing `--verbose` every time.
     pub verbose: bool,
-    /// How this family counts a day: `continuous` or `discrete`. Empty means
-    /// nobody has said, which is what first-use setup asks about.
+    /// How "today" is counted for the running totals: `continuous` or
+    /// `discrete`. Empty means nobody has said, which is what first-use setup
+    /// asks about.
     pub day_mode: String,
-    /// When a day begins, as `HH:MM`, for a family counting discrete days.
-    /// Empty means nobody has said.
+    /// When a day begins, as `HH:MM`. Always wanted: every screen with a day
+    /// on it is counted between this and [`Self::day_end`].
     pub day_start: String,
-    /// When night begins, as `HH:MM`. Empty means use whatever Huckleberry's
-    /// own profile says.
-    pub night_start: String,
+    /// When a day ends and the night begins, as `HH:MM`. Always wanted, for
+    /// the same reason.
+    ///
+    /// Read from `night_start` as well, which is what this was called before
+    /// it was clear that the end of the day and the start of the night are one
+    /// hour and not two.
+    #[serde(alias = "night_start")]
+    pub day_end: String,
 }
 
 impl Default for Config {
@@ -81,12 +87,12 @@ impl Default for Config {
             measurements: "metric".to_owned(),
             refresh: DEFAULT_REFRESH_SECONDS,
             verbose: false,
-            // Empty rather than a default, because there is no default worth
-            // having: midnight is wrong for everybody, and which of the two
-            // modes is right depends on how old the baby is. Setup asks.
+            // Empty rather than a default, because which of the two modes is
+            // right depends on how old the baby is, and because the hours a
+            // family keeps are theirs. Setup asks for all three.
             day_mode: String::new(),
             day_start: String::new(),
-            night_start: String::new(),
+            day_end: String::new(),
         }
     }
 }
@@ -103,7 +109,7 @@ impl Config {
         "verbose",
         "day_mode",
         "day_start",
-        "night_start",
+        "day_end",
     ];
 
     /// One line saying what a setting is for, or `None` for an unknown key.
@@ -117,9 +123,11 @@ impl Config {
             "measurements" => Some("growth measurements: metric or imperial"),
             "refresh" => Some("how often the dashboard re-reads, in seconds"),
             "verbose" => Some("print detailed diagnostics without --verbose"),
-            "day_mode" => Some("how a day is counted: continuous (rolling 24h) or discrete"),
-            "day_start" => Some("when a day begins, e.g. 6:00 or 6am (discrete days only)"),
-            "night_start" => Some("when night begins, e.g. 19:30 or 7:30pm"),
+            "day_mode" => {
+                Some("how today is counted for totals: continuous (rolling 24h) or discrete")
+            }
+            "day_start" => Some("when a day begins, e.g. 6:00 or 6am"),
+            "day_end" => Some("when a day ends and night begins, e.g. 19:30 or 7:30pm"),
             _ => None,
         }
     }
@@ -137,7 +145,7 @@ impl Config {
             ("verbose", self.verbose.to_string()),
             ("day_mode", self.day_mode.clone()),
             ("day_start", self.day_start.clone()),
-            ("night_start", self.night_start.clone()),
+            ("day_end", self.day_end.clone()),
         ]
     }
 
@@ -172,7 +180,7 @@ impl Config {
             "verbose" => self.verbose = parse_bool(value)?,
             "day_mode" => self.day_mode = parse_day_mode(value)?,
             "day_start" => self.day_start = parse_hour(value, "day_start")?,
-            "night_start" => self.night_start = parse_hour(value, "night_start")?,
+            "day_end" => self.day_end = parse_hour(value, "day_end")?,
             _ => bail!(unknown_key_message(key)),
         }
         Ok(())
@@ -202,33 +210,25 @@ impl Config {
         hour_fraction(&self.day_start)
     }
 
-    /// When night begins, as an hour fraction, when the family has said.
+    /// When a day ends and the night begins, as an hour fraction.
     #[must_use]
-    pub fn night_start_hour(&self) -> Option<f64> {
-        hour_fraction(&self.night_start)
+    pub fn day_end_hour(&self) -> Option<f64> {
+        hour_fraction(&self.day_end)
     }
 
     /// The rule every screen counts days by.
     ///
-    /// An unanswered `day_mode` reads as discrete from midnight, which is what
-    /// the tool does while setup has not run yet. It is deliberately the
-    /// least surprising wrong answer rather than a refusal, so that
-    /// `--offline` and a hand-written configuration still draw a screen.
+    /// Anything unanswered falls back to Huckleberry's own profile defaults
+    /// rather than refusing, so `--offline` and a hand-written configuration
+    /// still draw a screen. Setup is what makes sure they are answered; this
+    /// is what makes the absence harmless rather than fatal.
     #[must_use]
     pub fn day_rule(&self) -> DayRule {
-        let night = self.night_start_hour();
-        match self.day_mode() {
-            Some(DayMode::Continuous) => DayRule {
-                mode: DayMode::Continuous,
-                day_start_hour: None,
-                night_start_hour: night,
-            },
-            _ => DayRule {
-                mode: DayMode::Discrete,
-                day_start_hour: self.day_start_hour(),
-                night_start_hour: night,
-            },
-        }
+        DayRule::new(
+            self.day_mode().unwrap_or(DayMode::Discrete),
+            self.day_start_hour().unwrap_or(DayRule::DEFAULT_DAY_START),
+            self.day_end_hour().unwrap_or(DayRule::DEFAULT_DAY_END),
+        )
     }
 }
 
@@ -554,33 +554,45 @@ mod settings {
         let error = config.set("day_start", "6").expect_err("refused");
         assert!(format!("{error:#}").contains("am or pm"), "{error:#}");
         assert!(config.day_start.is_empty(), "the refusal changed nothing");
-        assert!(config.set("night_start", "half past seven").is_err());
+        assert!(config.set("day_end", "half past seven").is_err());
     }
 
     #[test]
     fn a_configured_hour_reads_back_as_an_hour_fraction() {
         let mut config = Config::default();
         config.set("day_start", "6:30am").expect("a time");
-        config.set("night_start", "19:00").expect("a time");
+        config.set("day_end", "19:00").expect("a time");
         assert!((config.day_start_hour().expect("set") - 6.5).abs() < f64::EPSILON);
-        assert!((config.night_start_hour().expect("set") - 19.0).abs() < f64::EPSILON);
+        assert!((config.day_end_hour().expect("set") - 19.0).abs() < f64::EPSILON);
         assert_eq!(Config::default().day_start_hour(), None);
     }
 
     #[test]
-    fn the_rule_follows_the_mode_and_falls_back_to_discrete_midnight() {
+    fn the_rule_takes_the_hours_whichever_mode_is_chosen() {
         let mut config = Config::default();
-        assert_eq!(config.day_rule(), DayRule::discrete_default());
-        config.set("day_mode", "continuous").expect("a mode");
-        assert_eq!(config.day_rule().mode, DayMode::Continuous);
-        assert_eq!(
-            config.day_rule().day_start_hour,
-            None,
-            "a rolling day has no hour to begin at"
-        );
-        config.set("day_mode", "discrete").expect("a mode");
+        assert_eq!(config.day_rule(), DayRule::default());
         config.set("day_start", "6am").expect("a time");
-        assert_eq!(config.day_rule().day_start_hour, Some(6.0));
+        config.set("day_end", "7:30pm").expect("a time");
+        for (mode, expected) in [
+            ("continuous", DayMode::Continuous),
+            ("discrete", DayMode::Discrete),
+        ] {
+            config.set("day_mode", mode).expect("a mode");
+            let rule = config.day_rule();
+            assert_eq!(rule.mode, expected);
+            assert!(
+                (rule.day_start_hour - 6.0).abs() < f64::EPSILON,
+                "the hours are wanted whichever way today is counted: {mode}"
+            );
+            assert!((rule.day_end_hour - 19.5).abs() < f64::EPSILON, "{mode}");
+        }
+    }
+
+    #[test]
+    fn a_file_written_when_this_was_called_night_start_still_reads() {
+        let config = parse("night_start = \"19:30\"\n").expect("the old spelling parses");
+        assert_eq!(config.day_end, "19:30");
+        assert!((config.day_end_hour().expect("set") - 19.5).abs() < f64::EPSILON);
     }
 
     #[test]

@@ -625,3 +625,41 @@ on the settings as they were before setup ran.
 
 **Revisit when.** The list of day-showing commands stops being short enough to
 read, or a setting arrives that does not divide the commands the same way.
+
+## The hours a day keeps are always configured; how "today" is counted is separate
+
+**Decision.** `day_start` and `day_end` are asked for on first use whatever
+else is chosen, and `day_mode` is a third, independent setting. The night is
+not configured at all: it is the stretch from `day_end` to the next
+`day_start`.
+
+**Why.** The first cut treated the hours as belonging to discrete days, and
+asked for them only when a family chose that mode. That was wrong in both
+directions. Every screen with a day on it needs the hours: the summary counts
+its rows between them, the stripe chart draws its rows from them, and the night
+window on every chart is the gap between them. And a family counting a rolling
+day still has a night, still has a summary table, and still wants both drawn to
+the hours they keep.
+
+Making the night its own setting was the other mistake. `night_start` and
+`day_start` are one boundary each, and an hour that belonged to neither was
+always possible. Naming them `day_end` and `day_start` says what they are and
+makes the night what is left over, which cannot disagree with itself.
+
+**Consequences.** `night_start` is read as `day_end` through a serde alias, so
+a configuration written before this keeps working. Setup asks three questions
+rather than one or three depending on an answer, which is also easier to
+explain.
+
+`summary` and `trends` now count rows from `day_start`, and `stripes` runs its
+rows from the previous `day_end`. The two differ on purpose, and the reason is
+in `stripes.rs`: a chart about where sleep lands must not cut a row through the
+middle of a night.
+
+`log`, `edit` and `delete` still group under calendar-day headings. Those are
+labels rather than arithmetic, so nothing is counted wrongly, but a 4am feed
+appears under a different heading there than the row it is counted on.
+
+**Revisit when.** The listing headings start to look like a contradiction
+rather than a detail, or a family turns up who wants a night that is not simply
+the gap between two days.

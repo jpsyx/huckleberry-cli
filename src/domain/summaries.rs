@@ -11,6 +11,7 @@
 use jiff::civil::Date;
 
 use super::time::Calendar;
+use super::today::DayRule;
 use super::types::{Dataset, FeedEvent};
 
 /// Everything one day amounts to.
@@ -112,10 +113,20 @@ impl DaySummary {
 }
 
 /// One row per day, newest first, for the last `days` days.
+///
+/// A day is this family's day, not a calendar one: under a day starting at
+/// 6am, a 4am feed is counted on the row before, which is where the person who
+/// gave it will look for it. See [`super::today`].
 #[must_use]
-pub fn build(dataset: &Dataset, calendar: &Calendar, now: f64, days: usize) -> Vec<DaySummary> {
-    let today = calendar.day_of(now);
-    let wanted = calendar.recent_days(now, days);
+pub fn build(
+    dataset: &Dataset,
+    calendar: &Calendar,
+    rule: DayRule,
+    now: f64,
+    days: usize,
+) -> Vec<DaySummary> {
+    let today = rule.day_of(calendar, now);
+    let wanted = rule.recent_days(calendar, now, days);
     let mut rows: Vec<DaySummary> = wanted
         .iter()
         .map(|day| DaySummary::empty(*day, *day == today))
@@ -125,7 +136,7 @@ pub fn build(dataset: &Dataset, calendar: &Calendar, now: f64, days: usize) -> V
     let mut feed_starts: Vec<Vec<f64>> = vec![Vec::new(); rows.len()];
 
     for feed in &dataset.feeds {
-        let Some(slot) = index(calendar.day_of(feed.start())) else {
+        let Some(slot) = index(rule.day_of(calendar, feed.start())) else {
             continue;
         };
         add_feed(&mut rows[slot], feed);
@@ -147,7 +158,7 @@ pub fn build(dataset: &Dataset, calendar: &Calendar, now: f64, days: usize) -> V
     }
 
     for diaper in &dataset.diapers {
-        let Some(slot) = index(calendar.day_of(diaper.start)) else {
+        let Some(slot) = index(rule.day_of(calendar, diaper.start)) else {
             continue;
         };
         let row = &mut rows[slot];
@@ -165,14 +176,14 @@ pub fn build(dataset: &Dataset, calendar: &Calendar, now: f64, days: usize) -> V
 
     for sleep in &dataset.sleep {
         // Counts and the longest stretch belong to the day the sleep began.
-        if let Some(slot) = index(calendar.day_of(sleep.start)) {
+        if let Some(slot) = index(rule.day_of(calendar, sleep.start)) {
             let row = &mut rows[slot];
             row.sleep_count += 1;
             row.longest_sleep_seconds = row.longest_sleep_seconds.max(sleep.duration);
         }
         // Seconds are apportioned to whichever days the sleep actually covered.
         let mut elapsed = 0.0;
-        for (day, seconds) in calendar.split_across_days(sleep.start, sleep.duration) {
+        for (day, seconds) in rule.split_across_days(calendar, sleep.start, sleep.duration) {
             let segment_start = sleep.start + elapsed;
             elapsed += seconds;
             let Some(slot) = index(day) else {
@@ -181,7 +192,7 @@ pub fn build(dataset: &Dataset, calendar: &Calendar, now: f64, days: usize) -> V
             let row = &mut rows[slot];
             row.sleep_seconds += seconds;
             // Classified by the midpoint of each segment rather than of the
-            // whole sleep, so a sleep straddling the morning cutoff divides.
+            // whole sleep, so a sleep straddling the day's start divides.
             let midpoint = segment_start + seconds / 2.0;
             let position = super::now::night_position(
                 calendar,
@@ -198,7 +209,7 @@ pub fn build(dataset: &Dataset, calendar: &Calendar, now: f64, days: usize) -> V
     }
 
     for session in &dataset.pumps {
-        let Some(slot) = index(calendar.day_of(session.start)) else {
+        let Some(slot) = index(rule.day_of(calendar, session.start)) else {
             continue;
         };
         rows[slot].pump_count += 1;
@@ -206,7 +217,7 @@ pub fn build(dataset: &Dataset, calendar: &Calendar, now: f64, days: usize) -> V
     }
 
     for milestone in &dataset.milestones {
-        if let Some(slot) = index(calendar.day_of(milestone.start)) {
+        if let Some(slot) = index(rule.day_of(calendar, milestone.start)) {
             rows[slot].milestone_count += 1;
         }
     }
@@ -290,6 +301,12 @@ mod tests {
     use super::super::fixtures::{AFTERNOON, bottle, dataset, diaper, sleep};
     use super::*;
 
+    /// Days from 7am and nights from 8pm: Huckleberry's own assumption, and
+    /// what a configuration nobody has finished falls back to.
+    fn rule() -> DayRule {
+        DayRule::assumed()
+    }
+
     fn calendar() -> Calendar {
         Calendar::new("America/New_York").expect("a real timezone")
     }
@@ -308,7 +325,7 @@ mod tests {
 
     #[test]
     fn the_rows_are_newest_first_and_today_is_marked_partial() {
-        let rows = build(&dataset(), &calendar(), AFTERNOON, 3);
+        let rows = build(&dataset(), &calendar(), rule(), AFTERNOON, 3);
         assert_eq!(rows.len(), 3);
         assert_eq!(rows[0].day.to_string(), "2025-09-22");
         assert!(rows[0].partial);
@@ -329,7 +346,7 @@ mod tests {
                 notes: None,
             },
         ];
-        let rows = build(&data, &calendar(), AFTERNOON, 1);
+        let rows = build(&data, &calendar(), rule(), AFTERNOON, 1);
         assert!((rows[0].total_ml - 150.0).abs() < f64::EPSILON);
         assert!((rows[0].formula_ml - 90.0).abs() < f64::EPSILON);
         assert!((rows[0].breast_milk_ml - 60.0).abs() < f64::EPSILON);
@@ -346,7 +363,7 @@ mod tests {
             bottle_type: Some("Formula".to_owned()),
             notes: None,
         }];
-        let rows = build(&data, &calendar(), AFTERNOON, 1);
+        let rows = build(&data, &calendar(), rule(), AFTERNOON, 1);
         assert_eq!(rows[0].feed_count, 1);
         assert!(rows[0].total_ml.abs() < f64::EPSILON);
     }
@@ -355,7 +372,7 @@ mod tests {
     fn nursing_is_counted_in_seconds_and_by_side() {
         let mut data = dataset();
         data.feeds = vec![nursing(AFTERNOON - 3600.0, 300.0, 120.0)];
-        let rows = build(&data, &calendar(), AFTERNOON, 1);
+        let rows = build(&data, &calendar(), rule(), AFTERNOON, 1);
         assert_eq!(rows[0].nursing_count, 1);
         assert!((rows[0].nursing_seconds - 420.0).abs() < f64::EPSILON);
         assert!((rows[0].left_seconds - 300.0).abs() < f64::EPSILON);
@@ -372,7 +389,7 @@ mod tests {
             reaction: None,
             notes: None,
         }];
-        let rows = build(&data, &calendar(), AFTERNOON, 1);
+        let rows = build(&data, &calendar(), rule(), AFTERNOON, 1);
         assert_eq!(rows[0].solids_count, 1);
         assert_eq!(rows[0].feed_count, 0, "a meal is not a milk feed");
         assert!(rows[0].has_data, "but it is still data");
@@ -383,7 +400,7 @@ mod tests {
         let mut data = dataset();
         data.feeds = vec![bottle(AFTERNOON - 3600.0, 90.0)];
         assert_eq!(
-            build(&data, &calendar(), AFTERNOON, 1)[0].longest_feed_gap_seconds,
+            build(&data, &calendar(), rule(), AFTERNOON, 1)[0].longest_feed_gap_seconds,
             None
         );
     }
@@ -396,42 +413,67 @@ mod tests {
             bottle(AFTERNOON - 3_600.0, 90.0),
             bottle(AFTERNOON - 10_800.0, 90.0),
         ];
-        let rows = build(&data, &calendar(), AFTERNOON, 1);
+        let rows = build(&data, &calendar(), rule(), AFTERNOON, 1);
         // Sorted: -14400, -10800, -3600 gives gaps of 3600 and 7200.
         assert_eq!(rows[0].longest_feed_gap_seconds, Some(7_200.0));
         assert_eq!(rows[0].average_feed_gap_seconds, Some(5_400.0));
     }
 
     #[test]
-    fn a_sleep_over_midnight_gives_seconds_to_both_days_and_a_count_to_one() {
+    fn a_night_sleep_is_no_longer_cut_in_two_by_midnight() {
         let calendar = calendar();
         let mut data = dataset();
-        // 23:00 on the 21st for four hours, read on the 22nd.
+        // 23:00 on the 21st for four hours, read on the 22nd. Under a day that
+        // starts at 7am, all of it is still the 21st's night.
         let start = calendar.at("2025-09-21".parse().expect("a date"), 23, 0);
         data.sleep = vec![sleep(start, 4.0 * 3600.0)];
-        let rows = build(&data, &calendar, AFTERNOON, 2);
+        let rows = build(&data, &calendar, rule(), AFTERNOON, 2);
         let (today, yesterday) = (&rows[0], &rows[1]);
-        assert_eq!(
-            yesterday.sleep_count, 1,
-            "the count belongs to the start day"
-        );
+        assert_eq!(yesterday.sleep_count, 1);
         assert_eq!(today.sleep_count, 0);
-        assert!((yesterday.sleep_seconds - 3600.0).abs() < 1.0);
-        assert!((today.sleep_seconds - 3.0 * 3600.0).abs() < 1.0);
+        assert!(
+            (yesterday.sleep_seconds - 4.0 * 3600.0).abs() < 1.0,
+            "the whole night belongs to the day it began on: {}",
+            yesterday.sleep_seconds
+        );
+        assert!(
+            today.sleep_seconds.abs() < 1.0,
+            "and none of it leaks into the next row"
+        );
+    }
+
+    #[test]
+    fn a_sleep_across_the_hour_the_day_starts_is_divided_there() {
+        let calendar = calendar();
+        let mut data = dataset();
+        // 06:00 on the 22nd for two hours, either side of the 7am day start.
+        let start = calendar.at("2025-09-22".parse().expect("a date"), 6, 0);
+        data.sleep = vec![sleep(start, 2.0 * 3600.0)];
+        let rows = build(&data, &calendar, rule(), AFTERNOON, 2);
+        assert!(
+            (rows[1].sleep_seconds - 3600.0).abs() < 1.0,
+            "the hour before the day started belongs to the day before: {}",
+            rows[1].sleep_seconds
+        );
+        assert!((rows[0].sleep_seconds - 3600.0).abs() < 1.0);
+        assert_eq!(rows[1].sleep_count, 1, "the count goes where it began");
     }
 
     #[test]
     fn sleep_is_split_between_night_and_day_by_each_segments_midpoint() {
         let calendar = calendar();
         let mut data = dataset();
-        // 05:00 on the 22nd for four hours: two hours before the 7am cutoff
-        // and two after.
+        // 05:00 on the 22nd for four hours: two hours before the 7am day
+        // start and two after, which is also where the row divides.
         let start = calendar.at("2025-09-22".parse().expect("a date"), 5, 0);
         data.sleep = vec![sleep(start, 4.0 * 3600.0)];
-        let rows = build(&data, &calendar, AFTERNOON, 1);
-        // One segment, classified by its midpoint at 07:00, which is day.
-        assert!((rows[0].day_sleep_seconds - 4.0 * 3600.0).abs() < 1.0);
+        let rows = build(&data, &calendar, rule(), AFTERNOON, 2);
+        // The later segment sits on today's row, midpoint 08:00, which is day.
+        assert!((rows[0].day_sleep_seconds - 2.0 * 3600.0).abs() < 1.0);
         assert!(rows[0].night_sleep_seconds.abs() < 1.0);
+        // The earlier one sits on yesterday's, midpoint 06:00, which is night.
+        assert!((rows[1].night_sleep_seconds - 2.0 * 3600.0).abs() < 1.0);
+        assert!(rows[1].day_sleep_seconds.abs() < 1.0);
     }
 
     #[test]
@@ -441,7 +483,7 @@ mod tests {
             diaper(AFTERNOON - 3600.0, true, false),
             diaper(AFTERNOON - 7200.0, true, true),
         ];
-        let rows = build(&data, &calendar(), AFTERNOON, 1);
+        let rows = build(&data, &calendar(), rule(), AFTERNOON, 1);
         assert_eq!(rows[0].diaper_count, 2);
         assert_eq!(rows[0].wet_count, 2);
         assert_eq!(rows[0].dirty_count, 1);
@@ -449,7 +491,7 @@ mod tests {
 
     #[test]
     fn a_day_with_nothing_logged_is_marked_as_having_no_data() {
-        let rows = build(&dataset(), &calendar(), AFTERNOON, 2);
+        let rows = build(&dataset(), &calendar(), rule(), AFTERNOON, 2);
         assert!(rows.iter().all(|row| !row.has_data));
     }
 
@@ -468,7 +510,7 @@ mod tests {
             data.diapers
                 .push(diaper(AFTERNOON - f64::from(hour) * 3600.0, true, false));
         }
-        let rows = build(&data, &calendar(), AFTERNOON, 3);
+        let rows = build(&data, &calendar(), rule(), AFTERNOON, 3);
         let mean = average(&rows, |row| row.wet_count as f64).expect("an average");
         assert!(
             (mean - 6.0).abs() < f64::EPSILON,
@@ -478,7 +520,7 @@ mod tests {
 
     #[test]
     fn an_average_over_nothing_is_absent_rather_than_zero() {
-        let rows = build(&dataset(), &calendar(), AFTERNOON, 3);
+        let rows = build(&dataset(), &calendar(), rule(), AFTERNOON, 3);
         assert_eq!(average(&rows, |row| row.wet_count as f64), None);
     }
 
@@ -486,7 +528,7 @@ mod tests {
     fn events_outside_the_window_are_left_out_rather_than_folded_into_the_edge() {
         let mut data = dataset();
         data.feeds = vec![bottle(AFTERNOON - 30.0 * 86_400.0, 90.0)];
-        let rows = build(&data, &calendar(), AFTERNOON, 3);
+        let rows = build(&data, &calendar(), rule(), AFTERNOON, 3);
         assert!(rows.iter().all(|row| row.feed_count == 0));
     }
 }

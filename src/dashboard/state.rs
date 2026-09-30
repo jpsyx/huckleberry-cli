@@ -162,7 +162,7 @@ impl State {
             days,
             trouble: None,
             refreshing: false,
-            rule: crate::domain::today::DayRule::discrete_default(),
+            rule: crate::domain::today::DayRule::assumed(),
         }
     }
 

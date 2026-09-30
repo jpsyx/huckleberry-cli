@@ -317,7 +317,7 @@ mod tests {
 
     /// Days from 6am, which is what setup asks a family with an older baby.
     fn rule() -> crate::domain::today::DayRule {
-        crate::domain::today::DayRule::discrete(6.0, None)
+        crate::domain::today::DayRule::discrete(6.0, 19.5)
     }
 
     fn screen(dataset: &Dataset, at: f64) -> Vec<String> {
@@ -554,7 +554,7 @@ mod tests {
         // 2pm with a 6am day start: only the two feeds after 6am count.
         let text = with_rule(
             &data,
-            crate::domain::today::DayRule::discrete(6.0, None),
+            crate::domain::today::DayRule::discrete(6.0, 19.5),
             AFTERNOON,
         );
         assert!(text.contains("150 ml · 2 feeds"), "{text}");
@@ -569,7 +569,7 @@ mod tests {
         let data = across_a_day_start();
         let text = with_rule(
             &data,
-            crate::domain::today::DayRule::continuous(),
+            crate::domain::today::DayRule::continuous(6.0, 19.5),
             AFTERNOON,
         );
         assert!(text.contains("Fed in 24h"), "{text}");
@@ -588,7 +588,7 @@ mod tests {
         data.feeds = vec![bottle(THREE_AM - 3_600.0, 80.0)];
         let text = with_rule(
             &data,
-            crate::domain::today::DayRule::discrete(6.0, None),
+            crate::domain::today::DayRule::discrete(6.0, 19.5),
             THREE_AM,
         );
         assert!(
