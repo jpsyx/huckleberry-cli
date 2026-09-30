@@ -1016,3 +1016,72 @@ complete days is a thing that can be short.
 **Revisit when.** The screen learns what time it is well enough to say "under"
 once the day is nearly over, which is a real improvement and a different
 change.
+
+## Every number about a baby is adversarially reviewed, and the review is kept
+
+**Decision.** No figure describing a child goes into this tool on one source's
+word. The method is [`docs/research/methodology.md`](research/methodology.md):
+source tiers, independent reviewers told to disprove rather than confirm, a
+separate reviewer auditing the sources without seeing the verdicts on the
+numbers, a fixed verdict vocabulary, and an exact quote with a URL for every
+claim. Each review is written up in `docs/research/`, including the claims that
+came back confirmed.
+
+**Why.** The first review of `data/reference.toml` checked 19 bands and only 4
+survived unchanged. Five attributions credited a body with words it had never
+published. One floor was the exact value the literature uses to flag inadequate
+intake, presented to the parent as the reassuring number. None of that was
+visible without going back to the primary sources and trying to break them,
+and none of it would have been caught by a reviewer asked merely to check.
+
+**Consequences.** Adding a band is slow now, and deliberately so. Declining to
+publish a band is a normal outcome rather than a failure: four were deleted in
+the first review because no qualifying source supports a range at that age.
+Advocacy organisations, manufacturers and content sites cannot carry a claim on
+their own, which cost us several convenient numbers.
+
+**Revisit when.** Never for the method. For any individual band, when a body
+revises a guideline, when a source is downgraded, or when somebody reports a
+number that felt wrong in use.
+
+## Bands say whether they are describing or recommending
+
+**Decision.** A label opens with "typical" when it describes what was observed
+in a population, and "recommended" when it reports what a body advises. A test
+enforces one or the other.
+
+**Why.** The sleep bands were recommendations wearing the word "typical". The
+difference is not pedantic: observed sleep is far wider than recommended sleep,
+so a recommendation labelled "typical" told more than half of a healthy newborn
+population that they were short, every night. The same number is sound guidance
+and a false alarm depending only on which word introduces it.
+
+**Consequences.** The column mixes two vocabularies, which is a small cost in
+tidiness for a large gain in honesty. The rule that a floor sits under every
+qualifying source governs "typical" claims; a "recommended" band is judged
+against the body that recommends it, because being under advice is a true
+statement in a way that being outside normal is not.
+
+**Revisit when.** A metric acquires both an observed range and a recommendation
+worth showing together, which would need a second line rather than a second
+word.
+
+## Counts are floors, and only sleep has a ceiling
+
+**Decision.** Feeds, wet diapers and dirty diapers are floors with no upper
+bound. Sleep keeps both bounds.
+
+**Why.** No qualifying source names a high number of feeds or diapers as
+atypical, and several say the opposite: newborns void about twenty times a day
+in the first month, cluster feeding can run hourly, and the WHO exempts
+breastfed babies by name from its stool-frequency definition of diarrhoea. The
+ceilings the file used to carry were therefore inventions, and inventions that
+only ever fired on normal babies. One of them called a baby meeting CDC
+guidance exactly "above typical".
+
+**Consequences.** "Today is over that" can only ever appear for sleep, which is
+worth knowing when reading the rendering tests. A high count is not a thing
+this tool remarks on.
+
+**Revisit when.** A source publishes an upper bound for a count, which none
+currently does.

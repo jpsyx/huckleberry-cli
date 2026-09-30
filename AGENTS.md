@@ -42,6 +42,20 @@
   band per age, each naming where it came from. There is no band for milk
   volume at any age and there must never be one: see the file's own header for
   why. Labels state what is typical and never tell anybody what to do.
+- **No number about somebody's baby goes in without research, and the research
+  has a method.** [`docs/research/methodology.md`](docs/research/methodology.md)
+  is that method: source tiers, an adversarial review by independent reviewers
+  that tries to disprove rather than confirm, a fixed verdict vocabulary, and
+  the rules for turning what comes back into a band. Follow it for any new
+  band, and for anything else this tool ever asserts about a child, not only
+  for the ranges that exist today. Every review is written up in
+  `docs/research/`, including the claims that came back confirmed.
+- **The pediatrician outranks the table, and the tool says so.** Every screen
+  that prints a range closes with `reference::PEDIATRICIAN_NOTE`, and the
+  README says at greater length that this research is LLM-mediated and
+  checkable rather than authoritative. That note is the single exception to the
+  rule above that labels never tell anybody what to do: it is about the
+  standing of the whole table rather than about any one reading.
 - **The family's day (`day_start`, `day_end`, `day_mode`) governs arithmetic,
   never timestamps.** Anything that aggregates uses it: `summary`, `trends`,
   `stripes`, the running totals. Anything that reports an individual entry uses
@@ -73,8 +87,8 @@
   [`architecture.md`](docs/architecture.md), [`api.md`](docs/api.md),
   [`cli.md`](docs/cli.md), [`dashboards.md`](docs/dashboards.md),
   [`decisions.md`](docs/decisions.md), [`nomenclature.md`](docs/nomenclature.md),
-  [`setup.md`](docs/setup.md), [`skills.md`](docs/skills.md) and
-  [`tui.md`](docs/tui.md).
+  [`research/`](docs/research/), [`setup.md`](docs/setup.md),
+  [`skills.md`](docs/skills.md) and [`tui.md`](docs/tui.md).
 - **Keep the docs current as you build. This is a rule, not a suggestion.**
   Whenever you add, change, or remove a feature, module, route, data model, or
   architectural boundary, create or update the relevant file(s) in `docs/` as

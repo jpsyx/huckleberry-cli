@@ -1034,15 +1034,15 @@ mod tests {
     fn a_wide_screen_carries_the_typical_ranges_beside_the_facts() {
         let text = wide(&a_newborns_day(), AFTERNOON);
         assert!(
-            text.contains("typical at this age: 8 to 12 feeds a day"),
+            text.contains("typical in the first weeks: 8 or more feeds a day"),
             "{text}"
         );
         assert!(
-            text.contains("typical from day 5: 6 or more wet diapers a day"),
+            text.contains("typical from day 5: 5 or more wet diapers a day"),
             "{text}"
         );
         assert!(
-            text.contains("typical at this age: 14 to 17 hours in 24"),
+            text.contains("typical at this age: 8 to 18 hours in 24"),
             "{text}"
         );
     }
@@ -1087,13 +1087,32 @@ mod tests {
         assert!(!text.contains("(0 so far"), "{text}");
     }
 
+    /// Sleep is the only metric with a ceiling, because it is the only one a
+    /// source puts a top on: no body calls a high number of feeds or diapers
+    /// atypical, so those bands are floors and nothing can be over them.
     #[test]
     fn a_figure_already_past_the_top_of_its_range_says_so() {
         let mut data = a_newborns_day();
-        data.feeds = (0..20)
-            .map(|index| bottle(AFTERNOON - 1_800.0 * f64::from(index), 30.0))
+        // Ten sleeps of just under two hours, one every two hours, so they
+        // never overlap and together run past the top of the newborn band.
+        data.sleep = (0..10)
+            .map(|index| sleep(AFTERNOON - 7_200.0 * f64::from(index) - 7_200.0, 7_000.0))
             .collect();
-        let text = wide(&data, AFTERNOON);
+        let calendar = calendar();
+        // A rolling twenty-four hours, which is the window the band is stated
+        // over. A day that started this morning cannot hold nineteen hours.
+        let rolling = crate::domain::today::DayRule::continuous(6.0, 19.5);
+        let view = now::build(&data, &calendar, rolling, AFTERNOON);
+        let text = lines(
+            &view,
+            &data,
+            &calendar,
+            Theme::dark(false),
+            Units::Ml,
+            AFTERNOON,
+            Some(140),
+        )
+        .join("\n");
         assert!(text.contains("(today is over that)"), "{text}");
     }
 
@@ -1155,7 +1174,7 @@ mod tests {
         let text = joined(&a_newborns_day(), AFTERNOON);
         assert!(text.contains("Last fed"), "{text}");
         assert!(
-            text.contains("typical at this age: 8 to 12 feeds a day"),
+            text.contains("typical in the first weeks: 8 or more feeds a day"),
             "the ranges are still there, under the facts: {text}"
         );
         for line in text.lines() {
