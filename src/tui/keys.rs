@@ -35,11 +35,16 @@ pub enum Motion {
 
 /// What a keystroke means.
 ///
-/// `q` and `Ctrl-C` leave from anywhere and Home carries an Exit row, so there
-/// are always three ways out. Back is deliberately not one of them: `h` is a
-/// navigation key somebody will press by reflex, and a session that ends
-/// because a thumb went left one row too far is a session that gets reopened
-/// in the dark.
+/// **Nothing leaves the shell but `Ctrl-Q`.** It is meant to be left running
+/// all day, so every other key stays inside it: Enter opens rows, Back walks
+/// out of submenus, and neither ever ends the session. A bare `q` used to
+/// quit and no longer does, because `q` is one keystroke away from every
+/// letter somebody presses by reflex and the widgets should still be there
+/// afterwards.
+///
+/// `Ctrl-C` leaves too, and is the only exception. It is what every hand
+/// reaches for when a full-screen program will not let go, and a program that
+/// ignores it is a program somebody has to kill from another terminal.
 #[must_use]
 pub fn motion_for(key: KeyEvent) -> Motion {
     // Windows reports press and release; acting on both moves two rows.
@@ -48,7 +53,8 @@ pub fn motion_for(key: KeyEvent) -> Motion {
     }
     if key.modifiers.contains(KeyModifiers::CONTROL) {
         return match key.code {
-            KeyCode::Char('c' | 'd') => Motion::Quit,
+            // `c` is the escape hatch rather than the way out; see above.
+            KeyCode::Char('q' | 'Q' | 'c') => Motion::Quit,
             KeyCode::Char('n') => Motion::Next,
             KeyCode::Char('p') => Motion::Previous,
             _ => Motion::Ignore,
@@ -61,7 +67,6 @@ pub fn motion_for(key: KeyEvent) -> Motion {
         KeyCode::Left | KeyCode::Char('h' | 'H') | KeyCode::Esc | KeyCode::Backspace => {
             Motion::Back
         }
-        KeyCode::Char('q' | 'Q') => Motion::Quit,
         KeyCode::Char('r' | 'R') => Motion::Refresh,
         KeyCode::Home | KeyCode::Char('g') => Motion::First,
         KeyCode::End | KeyCode::Char('G') => Motion::Last,

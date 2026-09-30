@@ -1,10 +1,16 @@
-//! The 3am screen, as lines of text.
+//! The 3am screen.
 //!
 //! Four facts, large and unadorned, in the order a parent needs them. The
 //! screen answers "when did he last eat" before anything else because that is
 //! the question that gets asked at 3am, and it carries an honest "as of" line
 //! because a stale "last fed two hours ago" is what sends somebody to wake a
 //! sleeping baby.
+//!
+//! **This module is the only place that decides what `now` says.** [`screen`]
+//! returns the rows as text with a role on each piece; [`lines`] paints them
+//! for stdout and the shell's Now drawer draws the same rows as widgets. The
+//! drawer is `h now` left on the screen and nothing else, so a change to one
+//! is a change to both, by construction rather than by remembering.
 
 use crate::cli::Units;
 use crate::domain::clock::TimeOfDay;
@@ -12,33 +18,38 @@ use crate::domain::now::{NowView, RECENT_HOURS};
 use crate::domain::time::{Calendar, format_ago, format_duration, split_hour};
 use crate::domain::today::{DayMode, Totals};
 use crate::domain::types::{Dataset, FeedEvent};
-use crate::theme::Theme;
+use crate::listing::Piece;
+use crate::theme::{Theme, Tone};
 
 use super::format;
 
-/// The screen, one line per element, ready for stdout.
+/// One row of the screen: its text, and the role each piece is painted in.
+pub type Row = Vec<Piece>;
+
+/// The screen, row by row, with nothing painted yet.
+///
+/// The single source of what `now` says. Anything that shows these facts draws
+/// from here, so no second copy of the wording can drift from this one.
 #[must_use]
-pub fn lines(
+pub fn screen(
     view: &NowView,
     dataset: &Dataset,
     calendar: &Calendar,
-    theme: Theme,
     units: Units,
     now: f64,
-) -> Vec<String> {
-    let mut lines = vec![
-        theme.heading(&dataset.child.name),
-        String::new(),
-        fact(theme, "Last fed", &feed_line(view, calendar, units, now)),
-        fact(theme, "Diaper", &diaper_line(view, calendar, now)),
-        sleep_line(view, dataset, theme, now),
-        fact(theme, &stretch_label(view), &stretch_line(view, calendar)),
+) -> Vec<Row> {
+    let mut rows = vec![
+        vec![Piece::new(dataset.child.name.clone(), Tone::Heading)],
+        Row::new(),
+        fact("Last fed", &feed_line(view, calendar, units, now)),
+        fact("Diaper", &diaper_line(view, calendar, now)),
+        sleep_row(view, dataset, now),
+        fact(&stretch_label(view), &stretch_line(view, calendar)),
     ];
 
     if let Some(nursing) = &view.nursing_now {
         let state = if nursing.paused { " (paused)" } else { "" };
-        lines.push(fact(
-            theme,
+        rows.push(fact(
             "Nursing now",
             &format!(
                 "{} on the {}{state}",
@@ -51,40 +62,57 @@ pub fn lines(
     // The running totals come after the four facts, because they answer the
     // second question rather than the first: not "when did she last eat" but
     // "has she had enough".
-    lines.push(fact(
-        theme,
+    rows.push(fact(
         &format!("Last {}h", RECENT_HOURS as i64),
         &intake(&view.recent, units),
     ));
-    lines.push(fact(
-        theme,
+    rows.push(fact(
         &format!("Fed {}", window_label(view)),
         &today_intake_line(view, units),
     ));
-    lines.push(fact(
-        theme,
+    rows.push(fact(
         &format!("Slept {}", window_label(view)),
         &slept(&view.today),
     ));
 
-    lines.push(String::new());
-    lines.push(theme.muted(&as_of(dataset, now)));
+    rows.push(Row::new());
+    rows.push(vec![Piece::new(as_of(dataset, now), Tone::Muted)]);
     for note in &dataset.notes {
-        lines.push(theme.muted(&format!(
-            "  {} could not be read: {}",
-            note.collection, note.problem
-        )));
+        rows.push(vec![Piece::new(
+            format!("  {} could not be read: {}", note.collection, note.problem),
+            Tone::Muted,
+        )]);
     }
-    lines
+    rows
 }
 
-/// One labelled fact.
-fn fact(theme: Theme, label: &str, value: &str) -> String {
-    format!(
-        "{}  {}",
-        theme.accent(&format::pad(label, 13)),
-        theme.value(value)
-    )
+/// The screen as lines of text, ready for stdout.
+#[must_use]
+pub fn lines(
+    view: &NowView,
+    dataset: &Dataset,
+    calendar: &Calendar,
+    theme: Theme,
+    units: Units,
+    now: f64,
+) -> Vec<String> {
+    screen(view, dataset, calendar, units, now)
+        .into_iter()
+        .map(|row| {
+            row.into_iter()
+                .map(|piece| theme.paint(piece.tone, &piece.text))
+                .collect()
+        })
+        .collect()
+}
+
+/// One labelled fact. The gap travels with the label so that a screen with no
+/// colour is the same text either way.
+fn fact(label: &str, value: &str) -> Row {
+    vec![
+        Piece::new(format!("{}  ", format::pad(label, 13)), Tone::Accent),
+        Piece::new(value.to_owned(), Tone::Value),
+    ]
 }
 
 /// How stale the numbers are.
@@ -153,7 +181,7 @@ fn diaper_line(view: &NowView, calendar: &Calendar, now: f64) -> String {
 }
 
 /// Current sleep leads; the last completed sleep is secondary while asleep.
-fn sleep_line(view: &NowView, dataset: &Dataset, theme: Theme, now: f64) -> String {
+fn sleep_row(view: &NowView, dataset: &Dataset, now: f64) -> Row {
     let state = &view.sleep_state;
     if state.asleep {
         let paused = if state.paused { " (timer paused)" } else { "" };
@@ -166,12 +194,15 @@ fn sleep_line(view: &NowView, dataset: &Dataset, theme: Theme, now: f64) -> Stri
                 )
             },
         );
-        let mut line = fact(theme, "Sleep", &current);
+        let mut row = fact("Sleep", &current);
         if let Some(end) = state.last_sleep_end {
-            line.push(' ');
-            line.push_str(&theme.muted(&format!("(previous sleep was {})", format_ago(end, now))));
+            row.push(Piece::new(" ", Tone::Value));
+            row.push(Piece::new(
+                format!("(previous sleep was {})", format_ago(end, now)),
+                Tone::Muted,
+            ));
         }
-        return line;
+        return row;
     }
     let previous = dataset.last_sleep().map_or_else(
         || "no sleep logged".to_owned(),
@@ -183,7 +214,7 @@ fn sleep_line(view: &NowView, dataset: &Dataset, theme: Theme, now: f64) -> Stri
             )
         },
     );
-    fact(theme, "Sleep", &previous)
+    fact("Sleep", &previous)
 }
 
 /// What the running totals call their window.

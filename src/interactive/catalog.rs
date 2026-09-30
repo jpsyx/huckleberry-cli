@@ -81,8 +81,6 @@ pub enum MenuTarget {
     Help,
     /// Display the build version.
     Version,
-    /// Leave the session.
-    Exit,
 }
 
 /// A label and its destination.
@@ -111,9 +109,10 @@ fn menu(label: &str, id: MenuId) -> MenuEntry {
 
 /// Entries in the approved home order and its submenus.
 ///
-/// Every submenu ends in Back and Home ends in Exit, so the way out is always
-/// a row on the screen as well as a key: one hand should never have to
-/// remember an escape.
+/// Every submenu ends in Back, so walking out of one is always a row on the
+/// screen as well as a key. Home ends in nothing: no row leaves the shell,
+/// because the shell is meant to be left running and `Ctrl-Q` is the only way
+/// out of it.
 #[must_use]
 pub fn entries(id: MenuId) -> Vec<MenuEntry> {
     let mut entries = rows(id);
@@ -141,10 +140,6 @@ fn rows(id: MenuId) -> Vec<MenuEntry> {
             menu("Other logging", MenuId::OtherLogging),
             command("Delete", "delete"),
             menu("More", MenuId::More),
-            MenuEntry {
-                label: "Exit".into(),
-                target: MenuTarget::Exit,
-            },
         ],
         MenuId::Visualizations => vec![
             command("Dashboard", "dash"),

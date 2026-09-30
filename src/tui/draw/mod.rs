@@ -5,12 +5,10 @@
 //! because a screen somebody glances at with a baby on one arm is read by
 //! position long before it is read by word.
 //!
-//! The middle holds the [`now`] widget beside the [`menu`] view. The Now
-//! widget is on the left because the eye lands top-left first and the facts
-//! are what somebody opened the terminal to read; the Menu view is the main
-//! panel and takes everything left over, because it is the part that is
-//! navigated and its rows need the room. On a terminal too narrow to hold
-//! both, they stack with the facts on top, in the same reading order.
+//! The middle holds the [`menu`] view above the [`now`] drawer. The Menu view
+//! is the main panel and takes everything left over; the Now drawer is a
+//! full-width strip along the bottom, close to the keys and to the hand, where
+//! a glance goes without leaving the row being navigated.
 //!
 //! Colours come from [`crate::theme`] through [`crate::dashboard::draw::tone`],
 //! so this screen and every other one in the tool agree on what a heading
@@ -30,19 +28,32 @@ use crate::theme::Tone;
 
 pub use crate::dashboard::draw::tone;
 
+/// The style a semantic role draws in.
+///
+/// Bold and faint come from the palette in [`crate::theme`] rather than from a
+/// second opinion here, so a role that is bold on stdout is bold on the screen
+/// and there is still exactly one file that decides what a role looks like.
+#[must_use]
+pub fn style(role: Tone) -> Style {
+    let style = Style::default().fg(tone(role));
+    if role.sgr().starts_with("1;") {
+        return style.add_modifier(Modifier::BOLD);
+    }
+    if role.sgr().starts_with("2;") {
+        return style.add_modifier(Modifier::DIM);
+    }
+    style
+}
+
 /// The keys, spelled out on every screen rather than hidden behind `?`.
-pub const HINTS: &str = "↑/↓ j/k move · ← h back · → l open · Enter select · r refresh · q quit";
+pub const HINTS: &str =
+    "↑/↓ j/k move · ← h back · → l open · Enter select · r refresh · ctrl-q quit";
 
-/// How wide the Now widget's column is when there is room for one beside the
-/// menu. Enough for a twelve-column label and a value like
-/// `night of Mon 28 Sep` without it touching the border.
-const SIDEBAR: u16 = 36;
-
-/// Below this, the sidebar would leave the menu too narrow to read, so the two
-/// stack instead.
-const SIDE_BY_SIDE_FROM: u16 = 72;
-
-/// The fewest rows the menu is ever squeezed to when stacked.
+/// The fewest rows the menu is ever squeezed to.
+///
+/// The drawer gives way rather than the menu: the menu is the part being
+/// operated, and a drawer scrolled off its last line is still readable where a
+/// menu with no rows is not.
 const MENU_FLOOR: u16 = 5;
 
 /// How many rows fit in the menu list, given the whole terminal.
@@ -51,7 +62,7 @@ const MENU_FLOOR: u16 = 5;
 /// so scrolling and drawing agree about what is on screen.
 #[must_use]
 pub fn viewport(area: Rect, app: &App) -> usize {
-    let menu = split(area, app).1;
+    let menu = split(area, app).0;
     usize::from(menu.height).saturating_sub(2).max(1)
 }
 
@@ -67,48 +78,26 @@ pub fn draw(frame: &mut Frame, app: &App, at: f64) {
         .split(frame.area());
 
     frame.render_widget(header(app, areas[0].width), areas[0]);
-    let (facts, rows) = split(areas[1], app);
-    let stacked = is_stacked(areas[1]);
-    frame.render_widget(
-        now::widget(&app.facts, at, stacked).block(block("Now")),
-        facts,
-    );
+    let (rows, facts) = split(areas[1], app);
     menu::draw(frame, rows, app);
+    frame.render_widget(now::widget(&app.facts, at).block(block("Now")), facts);
     frame.render_widget(footer(app), areas[2]);
 }
 
-/// Where the Now widget goes, and what the menu gets.
+/// What the menu gets, and where the drawer sits under it.
 ///
-/// Either way the widget is only as tall as it has something to say. Beside
-/// the menu that leaves the foot of the column empty, which is where the next
-/// widget goes; a box two thirds full of nothing reads as broken rather than
-/// as finished.
+/// The drawer is only as tall as it has something to say, and gives way to the
+/// menu on a short terminal rather than the other way round.
 fn split(body: Rect, app: &App) -> (Rect, Rect) {
-    if is_stacked(body) {
-        let room = body.height.saturating_sub(MENU_FLOOR);
-        let areas = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(now::height(&app.facts, true).min(room)),
-                Constraint::Min(3),
-            ])
-            .split(body);
-        return (areas[0], areas[1]);
-    }
-    let columns = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Length(SIDEBAR), Constraint::Min(20)])
+    let room = body.height.saturating_sub(MENU_FLOOR);
+    let areas = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Min(3),
+            Constraint::Length(now::height(&app.facts).min(room)),
+        ])
         .split(body);
-    let facts = Rect {
-        height: now::height(&app.facts, false).min(columns[0].height),
-        ..columns[0]
-    };
-    (facts, columns[1])
-}
-
-/// Side by side when there is room, stacked when there is not.
-const fn is_stacked(body: Rect) -> bool {
-    body.width < SIDE_BY_SIDE_FROM
+    (areas[0], areas[1])
 }
 
 /// The name of the tool and the child on the left, and where you are on the
@@ -227,16 +216,41 @@ mod frames {
 
     #[test]
     fn the_now_widget_leads_with_the_last_feed() {
-        let drawn = screen(&loaded(), 100, 24);
+        let drawn = screen(&loaded(), 100, 30);
         assert!(drawn.contains("Last fed"), "{drawn}");
         assert!(drawn.contains("1h 0m ago"), "{drawn}");
         assert!(drawn.contains("90 ml of Formula"), "{drawn}");
     }
 
+    /// The rule the drawer exists to keep: it is `h now`, and nothing else.
     #[test]
-    fn the_widget_shows_every_fact_the_now_command_does() {
-        let drawn = screen(&loaded(), 100, 24);
-        for fact in ["Last fed", "Diaper", "Awake", "Longest"] {
+    fn the_drawer_draws_exactly_what_the_now_command_prints() {
+        let app = loaded();
+        let reading = app.facts.reading().expect("a reading");
+        let view =
+            crate::domain::now::build(&reading.dataset, &reading.calendar, reading.rule, AFTERNOON);
+        let printed = crate::render::now::lines(
+            &view,
+            &reading.dataset,
+            &reading.calendar,
+            crate::theme::Theme::dark(false),
+            reading.units,
+            AFTERNOON,
+        );
+        let drawn = screen(&app, 100, 30);
+        for line in printed.iter().filter(|line| !line.trim().is_empty()) {
+            assert!(
+                drawn.contains(line.trim_end()),
+                "`h now` prints `{line}` and the drawer does not: {drawn}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_drawer_shows_every_fact_the_now_command_does() {
+        let drawn = screen(&loaded(), 100, 30);
+        // The wording is `h now`'s, because the drawer has none of its own.
+        for fact in ["Last fed", "Diaper", "Sleep", "Last 3h", "Fed", "Slept"] {
             assert!(drawn.contains(fact), "`{fact}` missing: {drawn}");
         }
         assert!(drawn.contains("wet"), "{drawn}");
@@ -247,12 +261,12 @@ mod frames {
         let mut app = App::new();
         app.facts
             .replace(populated(), calendar(), Units::Oz, rule());
-        assert!(screen(&app, 100, 24).contains("3.0 oz"));
+        assert!(screen(&app, 100, 30).contains("3.0 oz"));
     }
 
     #[test]
     fn the_widget_carries_the_running_totals_the_now_command_shows() {
-        let drawn = screen(&loaded(), 100, 24);
+        let drawn = screen(&loaded(), 100, 30);
         for fact in ["Last 3h", "Fed today", "Slept today"] {
             assert!(drawn.contains(fact), "`{fact}` missing: {drawn}");
         }
@@ -268,7 +282,7 @@ mod frames {
             Units::Ml,
             crate::domain::today::DayRule::continuous(6.0, 19.5),
         );
-        let drawn = screen(&app, 100, 24);
+        let drawn = screen(&app, 100, 30);
         assert!(drawn.contains("Fed in 24h"), "{drawn}");
         assert!(!drawn.contains("Fed today"), "{drawn}");
     }
@@ -279,21 +293,24 @@ mod frames {
         data.fetched_at = AFTERNOON - 600.0;
         let mut app = App::new();
         app.facts.replace(data, calendar(), Units::Ml, rule());
-        assert!(screen(&app, 100, 24).contains("as of 10m ago"));
+        assert!(screen(&app, 100, 30).contains("as of 10m ago"));
     }
 
     #[test]
     fn the_night_a_stretch_belongs_to_is_named_rather_than_left_ambiguous() {
-        let drawn = screen(&loaded(), 100, 24);
-        assert!(drawn.contains("night of Sun 21 Sep"), "{drawn}");
-        assert!(!drawn.contains("tonight"), "{drawn}");
+        let drawn = screen(&loaded(), 100, 30);
+        assert!(drawn.contains("Night of"), "{drawn}");
+        assert!(
+            !drawn.contains("Tonight"),
+            "an ambiguous label is the bug: {drawn}"
+        );
     }
 
     #[test]
     fn before_the_first_read_the_widget_says_it_is_reading() {
         let mut app = App::new();
         app.facts.start_reading();
-        let drawn = screen(&app, 100, 24);
+        let drawn = screen(&app, 100, 30);
         assert!(drawn.contains("reading…"), "{drawn}");
         assert!(
             drawn.contains("Now"),
@@ -309,7 +326,7 @@ mod frames {
     fn a_failed_read_keeps_the_numbers_and_says_so() {
         let mut app = loaded();
         app.facts.record_trouble("could not reach Huckleberry");
-        let drawn = screen(&app, 100, 24);
+        let drawn = screen(&app, 100, 30);
         assert!(drawn.contains("could not reach"), "{drawn}");
         assert!(
             drawn.contains("90 ml"),
@@ -319,57 +336,63 @@ mod frames {
 
     #[test]
     fn with_nothing_read_at_all_the_widget_says_which_key_reads() {
-        let drawn = screen(&App::new(), 100, 24);
+        let drawn = screen(&App::new(), 100, 30);
         assert!(drawn.contains("press r"), "{drawn}");
     }
 
-    /// The layout rule: facts on the left, menu on the right, one row apiece.
+    /// The layout rule: the menu on top, the drawer along the bottom.
     #[test]
-    fn a_wide_terminal_puts_the_widget_beside_the_menu() {
-        let drawn = screen(&loaded(), 100, 24);
-        let titles = drawn
+    fn the_drawer_is_a_full_width_strip_under_the_menu() {
+        let drawn = screen(&loaded(), 100, 30);
+        let menu_row = drawn
             .lines()
-            .find(|line| line.contains("Now"))
+            .position(|line| line.contains("What would you like to do?"))
+            .expect("a menu");
+        let drawer_row = drawn
+            .lines()
+            .position(|line| line.contains(" Now "))
+            .expect("a drawer");
+        assert!(
+            menu_row < drawer_row,
+            "the drawer sits under the menu: {drawn}"
+        );
+        let width = drawn
+            .lines()
+            .nth(drawer_row)
+            .map(|line| line.trim_end().chars().count())
             .unwrap_or_default();
-        assert!(
-            titles.contains("What would you like to do?"),
-            "the two titles share a row when they are side by side: {titles}"
-        );
-        assert!(
-            titles.find("Now") < titles.find("What would"),
-            "the facts are on the left, where the eye lands first: {titles}"
-        );
+        assert_eq!(width, 100, "and spans the whole width: {drawn}");
     }
 
     #[test]
     fn the_menu_is_the_main_panel_and_gets_the_room() {
-        let body = Rect::new(0, 1, 100, 22);
-        let (facts, rows) = split(body, &loaded());
+        let body = Rect::new(0, 1, 100, 28);
+        let (rows, facts) = split(body, &loaded());
+        assert_eq!(rows.width, facts.width, "both span the width");
         assert!(
-            rows.width > facts.width,
+            rows.height > facts.height,
             "the menu view is the main panel: {} vs {}",
-            rows.width,
-            facts.width
+            rows.height,
+            facts.height
+        );
+        assert_eq!(
+            rows.y + rows.height,
+            facts.y,
+            "and the drawer is beneath it"
         );
     }
 
     #[test]
-    fn a_narrow_terminal_stacks_them_with_the_facts_on_top() {
-        let drawn = screen(&loaded(), 60, 24);
-        let now_row = drawn.lines().position(|line| line.contains("Now"));
-        let menu_row = drawn
-            .lines()
-            .position(|line| line.contains("What would you like to do?"));
-        assert!(now_row.is_some() && menu_row.is_some(), "{drawn}");
-        assert!(now_row < menu_row, "the facts stay above the menu: {drawn}");
+    fn a_narrow_terminal_keeps_the_same_shape() {
+        let drawn = screen(&loaded(), 60, 30);
         assert!(drawn.contains("Last fed"), "{drawn}");
         assert!(drawn.contains("Log a diaper"), "{drawn}");
     }
 
     #[test]
-    fn the_menu_keeps_rows_even_when_the_facts_would_fill_the_screen() {
+    fn the_menu_keeps_rows_even_when_the_drawer_would_fill_the_screen() {
         for height in [12, 16, 24] {
-            let drawn = screen(&loaded(), 60, height);
+            let drawn = screen(&loaded(), 80, height);
             assert!(
                 drawn.contains("Log a diaper"),
                 "the menu is never squeezed out at {height} rows: {drawn}"
@@ -379,13 +402,13 @@ mod frames {
 
     #[test]
     fn the_header_names_the_child_once_a_read_has_said_who_it_is() {
-        assert!(screen(&loaded(), 100, 24).contains("Huckleberry · Bear"));
-        assert!(screen(&App::new(), 100, 24).contains("Huckleberry"));
+        assert!(screen(&loaded(), 100, 30).contains("Huckleberry · Bear"));
+        assert!(screen(&App::new(), 100, 30).contains("Huckleberry"));
     }
 
     #[test]
     fn nothing_about_the_baby_is_ever_painted_red() {
-        let mut terminal = Terminal::new(TestBackend::new(100, 24)).expect("a test terminal");
+        let mut terminal = Terminal::new(TestBackend::new(100, 30)).expect("a test terminal");
         terminal
             .draw(|frame| draw(frame, &loaded(), AFTERNOON))
             .expect("a frame");

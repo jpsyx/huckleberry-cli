@@ -26,7 +26,11 @@
 - **`h` with no command opens a full-screen ratatui app (`src/tui/`), and it is
   the primary way people use this tool.** Its design brief is
   [`docs/tui.md`](docs/tui.md), and it is written for a parent at 3am, in the
-  dark, with one hand free. **Read it before designing any feature, not only
+  dark, with one hand free.
+- **The shell's Now drawer shows exactly what `h now` prints: same facts, same
+  wording, same order.** `render::now::screen` is the one function that decides
+  what either says. A request to change what the Now drawer shows is a request
+  to change `h now`, and the other way round; never change one alone. **Read it before designing any feature, not only
   ones inside `src/tui/`**: menus over typing, a sensible default already
   highlighted so Enter alone answers, an arrow and a letter for every
   direction, and nothing ever reachable only from the command line. A feature

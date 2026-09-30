@@ -663,3 +663,50 @@ appears under a different heading there than the row it is counted on.
 **Revisit when.** The listing headings start to look like a contradiction
 rather than a detail, or a family turns up who wants a night that is not simply
 the gap between two days.
+
+## The Now drawer is `h now`, not a second screen about the same data
+
+**Decision.** The shell's Now drawer draws exactly what `h now` prints: same
+facts, same wording, same order. `render::now::screen` returns the rows as text
+with a role on each piece, `lines` paints them for stdout, and the drawer draws
+the same rows as widgets.
+
+**Why.** The first version of the widget had its own wording, tuned for a
+narrow column: `Asleep 40m` where the command said `Sleep  currently sleeping
+for 40m`, `Longest` where it said `Night of Sun 21 Sep`. Two vocabularies for
+one set of facts is two things to keep right, and the one somebody reads at 3am
+would have been whichever they happened to open. Sharing the rows makes them
+identical by construction rather than by remembering.
+
+**Consequences.** A change to what the drawer shows is a change to `h now`, and
+the other way round. There is nowhere to make one without the other, which is
+the point. The drawer is taller than a hand-tuned widget would be, which is
+what moved it from a column beside the menu to a strip along the bottom.
+
+The one thing the drawer has that the command does not is what to say before a
+read has finished or after one has failed. A command in that position simply
+fails; a drawer has to keep drawing something.
+
+**Revisit when.** The two genuinely have to differ. That would be a decision to
+record here, not a line added to one of them.
+
+## Nothing leaves the shell but `Ctrl-Q`
+
+**Decision.** No menu row ends the session, and no single key does either. A
+bare `q` no longer quits. `Ctrl-Q` leaves, and `Ctrl-C` is kept as an escape
+hatch.
+
+**Why.** The shell is meant to be left running all day. Leaving it should be a
+deliberate two-key act, not something a tired hand does by reflex on its way to
+a letter. The Exit row went for the same reason: a row that ends the session
+sits in the same list as a row that logs a feed, reachable by the same
+keystroke.
+
+**Consequences.** This overrides the earlier rule that the way out should be a
+row on the screen as well as a key. The footer names `ctrl-q quit` on every
+screen, which is what carries it now. `Ctrl-C` is a deliberate exception rather
+than a second way out: a full-screen program that ignores it is one somebody
+has to kill from another terminal.
+
+**Revisit when.** Somebody gets stuck. That would mean the footer is not doing
+its job, which is a thing to fix rather than a reason to hand `q` back.

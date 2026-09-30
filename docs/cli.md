@@ -568,10 +568,13 @@ captures what the commands print. Its design rules are in [`tui.md`](tui.md).
 Every direction has an arrow and a letter that mean the same thing: `↓`/`j` and
 `↑`/`k` move, `→`/`l` and `Enter` open the highlighted row, and `←`/`h` goes
 back. `1`-`9` put the cursor on a row without opening it, `g` and `G` reach the
-first and last rows, `r` refreshes every widget without moving the cursor, and
-`q` or `Ctrl-C` leaves. Back at Home does nothing, so
-a reflex keystroke cannot end the session; Home carries an Exit row instead. A
-chevron marks a row that opens another menu, and every submenu ends in Back.
+first and last rows, and `r` refreshes every widget without moving the cursor.
+
+**Nothing leaves the shell but `Ctrl-Q`**, with `Ctrl-C` as the escape hatch.
+No menu row ends the session and neither does any single key: a bare `q` used
+to quit and no longer does. Back at Home does nothing either, so a reflex
+keystroke cannot end it. A chevron marks a row that opens another menu, and
+every submenu ends in Back.
 
 Choosing a command hands the terminal back for as long as that command runs, so
 its questions, its receipt and any failure appear where they can be scrolled to,
@@ -580,18 +583,16 @@ finished recording returns to Home; a view or a utility returns to the menu it
 was opened from; a cancelled or failed command says so on the line at the foot
 of the screen and never retries by itself.
 
-Beside the menu the shell keeps a Now widget, which shows permanently what
-`h now` prints: the last feed, the last diaper, whether anybody is asleep, the
-longest finished stretch of the night it names, and how stale all of it is. It
-sits in a column on the left when the terminal is at least 72 columns wide and
-above the menu when it is not. `r` re-reads everything it shows, and so does
+Along the bottom the shell keeps a Now drawer, a full-width strip under the
+menu. It shows exactly what `h now` prints, in the same words and the same
+order: the same command, left on the screen. `r` re-reads everything it shows, and so does
 finishing any command, since a command may have logged the very thing it is
 showing. Reads happen in the background: the rows still move while one is in
 flight, and a failure is reported on the foot of the screen without taking the
 numbers away.
 
 Home starts with diaper, feed, sleep, Edit,
-Visualizations, logs, other logging, Delete, More, and Exit. `now` is not a
+Visualizations, logs, other logging, Delete and More. `now` is not a
 Home row, because the widget already shows it; it stays reachable under
 Visualizations as Current status. Read-only views run
 immediately when selected: latest/current status, Dashboard, Trends, Summary,

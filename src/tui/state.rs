@@ -191,7 +191,6 @@ impl App {
             }
             MenuTarget::Help => Intent::Help,
             MenuTarget::Version => Intent::Version,
-            MenuTarget::Exit => Intent::Quit,
         }
     }
 

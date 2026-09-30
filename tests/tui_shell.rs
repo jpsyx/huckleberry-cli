@@ -47,20 +47,31 @@ fn every_direction_has_an_arrow_and_a_letter_that_agree() {
 }
 
 #[test]
-fn enter_opens_escape_goes_back_and_three_keys_leave() {
+fn enter_opens_and_escape_goes_back() {
     assert_eq!(motion_for(key(KeyCode::Enter)), Motion::Open);
     assert_eq!(motion_for(key(KeyCode::Char(' '))), Motion::Open);
     assert_eq!(motion_for(key(KeyCode::Esc)), Motion::Back);
     assert_eq!(motion_for(key(KeyCode::Backspace)), Motion::Back);
+}
+
+#[test]
+fn only_ctrl_q_leaves_and_a_bare_q_no_longer_does() {
     for quit in ['q', 'Q'] {
-        assert_eq!(motion_for(key(KeyCode::Char(quit))), Motion::Quit);
-    }
-    for chord in ['c', 'd'] {
         assert_eq!(
-            motion_for(KeyEvent::new(KeyCode::Char(chord), KeyModifiers::CONTROL)),
+            motion_for(KeyEvent::new(KeyCode::Char(quit), KeyModifiers::CONTROL)),
             Motion::Quit
         );
+        assert_eq!(
+            motion_for(key(KeyCode::Char(quit))),
+            Motion::Ignore,
+            "the shell is left running, so a bare `{quit}` must not end it"
+        );
     }
+    assert_eq!(
+        motion_for(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL)),
+        Motion::Quit,
+        "the escape hatch every hand reaches for still works"
+    );
 }
 
 #[test]
@@ -113,13 +124,37 @@ fn the_back_row_leaves_a_submenu_the_same_way_the_left_arrow_does() {
 }
 
 #[test]
-fn back_at_home_never_drops_the_session_and_three_ways_leave_it() {
+fn nothing_but_quit_ever_ends_the_session() {
     let mut app = App::new();
     assert_eq!(app.apply(Motion::Back, HEIGHT), Intent::Stay);
     assert_eq!(app.breadcrumb(), "Home");
     assert_eq!(app.apply(Motion::Quit, HEIGHT), Intent::Quit);
-    highlight(&mut app, "Exit");
-    assert_eq!(app.apply(Motion::Open, HEIGHT), Intent::Quit);
+}
+
+#[test]
+fn no_row_anywhere_in_the_menu_tree_can_end_the_session() {
+    fn walk(app: &mut App) {
+        for index in 0..app.rows().len() {
+            if app.rows()[index].label == "Back" {
+                continue;
+            }
+            app.apply(Motion::Highlight(index), HEIGHT);
+            let depth = app.breadcrumb().matches('›').count();
+            let intent = app.apply(Motion::Open, HEIGHT);
+            assert_ne!(
+                intent,
+                Intent::Quit,
+                "`{}` ends the session, and no row may: {}",
+                app.rows()[index].label,
+                app.breadcrumb()
+            );
+            if intent == Intent::Stay && app.breadcrumb().matches('›').count() > depth {
+                walk(app);
+                app.apply(Motion::Back, HEIGHT);
+            }
+        }
+    }
+    walk(&mut App::new());
 }
 
 #[test]
@@ -241,8 +276,11 @@ fn the_shell_draws_the_breadcrumb_the_rows_and_the_keys_it_answers_to() {
     assert!(drawn.contains("Huckleberry"), "{drawn}");
     assert!(drawn.contains("Home"), "{drawn}");
     assert!(drawn.contains("Log a diaper"), "{drawn}");
-    assert!(drawn.contains("Exit"), "{drawn}");
-    for hint in ["j/k", "h", "l", "Enter", "r refresh", "q"] {
+    assert!(
+        !drawn.contains("Exit"),
+        "no row leaves the shell, so none offers to: {drawn}"
+    );
+    for hint in ["j/k", "h", "l", "Enter", "r refresh", "ctrl-q quit"] {
         assert!(
             drawn.contains(hint),
             "`{hint}` missing from the key hints: {drawn}"
@@ -295,6 +333,7 @@ fn the_menu_view_no_longer_offers_view_latest() {
         "the Now widget shows it permanently, so the row is redundant: {labels:?}"
     );
     assert_eq!(labels.first().map(String::as_str), Some("Log a diaper"));
+    assert_eq!(labels.last().map(String::as_str), Some("More"));
     // It is still a command, and still reachable, just not from Home.
     assert!(
         catalog::command_paths()

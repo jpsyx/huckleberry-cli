@@ -231,25 +231,41 @@ optional overrides.
 
 ```text
  Huckleberry · Wren                                                  Home
-┌ Now ───────────────────────────────┐┌ What would you like to do? ─────┐
-│ Last fed    36m ago                ││▌  1. Log a diaper               │
-│             73 ml of Formula       ││   2. Log a feed               › │
-│ Diaper      1h 31m ago             ││   3. Log sleep                › │
-│             wet                    ││   4. Edit                       │
-│ Asleep      40m                    ││   5. Visualizations           › │
-│ Longest     3h 0m                  ││   6. View logs                  │
-│             night of Mon 28 Sep    ││   7. Other logging            › │
-│                                    ││   8. Delete                     │
-│ as of 2m ago                       ││   9. More                     › │
-└────────────────────────────────────┘│  10. Exit                       │
-                                      └─────────────────────────────────┘
- ↑/↓ j/k move · ← h back · → l open · Enter select · r refresh · q quit
+┌ What would you like to do? ────────────────────────────────────────────┐
+│▌ 1. Log a diaper                                                       │
+│  2. Log a feed                                                       › │
+│  3. Log sleep                                                        › │
+│  4. Edit                                                               │
+│  5. Visualizations                                                   › │
+│  6. View logs                                                          │
+│  7. Other logging                                                    › │
+│  8. Delete                                                             │
+│  9. More                                                             › │
+└────────────────────────────────────────────────────────────────────────┘
+┌ Now ───────────────────────────────────────────────────────────────────┐
+│ Wren                                                                   │
+│                                                                        │
+│ Last fed       36m ago · 73 ml of Formula · 8:03 pm                    │
+│ Diaper         1h 31m ago · wet · 7:09 pm                              │
+│ Sleep          currently sleeping for 40m                              │
+│ Tonight        nothing finished yet                                    │
+│ Last 3h        73 ml · 1 feed                                          │
+│ Fed today      430 ml · 6 feeds · since 6:00 am                        │
+│ Slept today    11h 18m                                                 │
+│                                                                        │
+│ as of 2m ago                                                           │
+└────────────────────────────────────────────────────────────────────────┘
+ ↑/↓ j/k move · ← h back · → l open · Enter select · r refresh · ctrl-q quit
 ```
+
+The drawer along the bottom is `h now`, left on the screen: the same facts in
+the same words, refreshed with everything else.
 
 Every direction has an arrow and a letter that mean the same thing: `↓`/`j` and
 `↑`/`k` move, `→`/`l` and `Enter` open, and `←`/`h` goes back. `1`-`9` highlight
-a row without opening it, `r` refreshes every widget, and `q` or `Ctrl-C`
-leaves, as does the Exit row on the first screen. Why it works that way, and the rules every feature in this
+a row without opening it, and `r` refreshes every widget. **Nothing leaves the
+shell but `Ctrl-Q`**, with `Ctrl-C` as the escape hatch: it is meant to be left
+running, so no menu row and no single key ends it. Why it works that way, and the rules every feature in this
 tool is held to, are in [`docs/tui.md`](docs/tui.md): one hand, in the dark,
 holding a baby. Without terminal input and stderr, a bare invocation prints
 help.

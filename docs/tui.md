@@ -40,15 +40,25 @@ without looking.
 `h` means **back** here. It is the vim direction, and in a tree of menus back
 is what left means.
 
-### 2. Getting out is never an accident, and never a puzzle
+### 2. Nothing leaves the shell but `Ctrl-Q`
 
-`q`, `Ctrl-C`, and the Exit row all end the session. Back at the top level does
-nothing at all: `h` and `Esc` are navigation keys somebody presses by reflex,
-and a session that ends because a thumb went left one row too far is a session
-that has to be reopened in the dark.
+The shell is meant to be left running all day, so leaving it should take a
+deliberate two-key act and nothing else. **No menu row ends the session**, and
+neither does any single key: `q` used to quit and no longer does, because `q`
+is one keystroke away from every letter a tired hand presses by reflex, and the
+widgets should still be there afterwards.
 
-Every submenu ends in a Back row, so the way out is a row on the screen as well
-as a key. Nothing in this app should require remembering anything.
+`Ctrl-C` leaves too, and is the only exception. It is what every hand reaches
+for when a full-screen program will not let go, and a program that ignores it
+is one somebody has to kill from another terminal.
+
+Back at the top level does nothing at all, for the same reason: `h` and `Esc`
+are navigation keys, and a session that ends because a thumb went left one row
+too far is a session that has to be reopened in the dark.
+
+Every submenu still ends in a Back row, so walking out of one is a row on the
+screen as well as a key. Home ends in nothing, because there is nothing at Home
+to walk out to.
 
 ### 3. Menus first, typing last
 
@@ -120,19 +130,31 @@ widget beside it, and **widget** and **panel** mean the same thing.
 
 ```
  Huckleberry · Wren                                                  Home
-┌ Now ───────────────────────────────┐┌ What would you like to do? ─────┐
-│ Last fed    36m ago                ││▌  1. Log a diaper               │
-│             73 ml of Formula       ││   2. Log a feed               › │
-│ Diaper      1h 31m ago             ││   3. Log sleep                › │
-│             wet                    ││   4. Edit                       │
-│ Asleep      40m                    ││   5. Visualizations           › │
-│ Longest     3h 0m                  ││   6. View logs                  │
-│             night of Mon 28 Sep    ││   7. Other logging            › │
-│                                    ││   8. Delete                     │
-│ as of 2m ago                       ││   9. More                     › │
-└────────────────────────────────────┘│  10. Exit                       │
-                                      └─────────────────────────────────┘
- ↑/↓ j/k move · ← h back · → l open · Enter select · r refresh · q quit
+┌ What would you like to do? ────────────────────────────────────────────┐
+│▌ 1. Log a diaper                                                       │
+│  2. Log a feed                                                       › │
+│  3. Log sleep                                                        › │
+│  4. Edit                                                               │
+│  5. Visualizations                                                   › │
+│  6. View logs                                                          │
+│  7. Other logging                                                    › │
+│  8. Delete                                                             │
+│  9. More                                                             › │
+└────────────────────────────────────────────────────────────────────────┘
+┌ Now ───────────────────────────────────────────────────────────────────┐
+│ Wren                                                                   │
+│                                                                        │
+│ Last fed       36m ago · 73 ml of Formula · 8:03 pm                    │
+│ Diaper         1h 31m ago · wet · 7:09 pm                              │
+│ Sleep          currently sleeping for 40m                              │
+│ Tonight        nothing finished yet                                    │
+│ Last 3h        73 ml · 1 feed                                          │
+│ Fed today      430 ml · 6 feeds · since 6:00 am                        │
+│ Slept today    11h 18m                                                 │
+│                                                                        │
+│ as of 2m ago                                                           │
+└────────────────────────────────────────────────────────────────────────┘
+ ↑/↓ j/k move · ← h back · → l open · Enter select · r refresh · ctrl-q quit
 ```
 
 | Key | Does |
@@ -144,7 +166,7 @@ widget beside it, and **widget** and **panel** mean the same thing.
 | `1`–`9` | put the cursor on that row |
 | `g`, `Home` / `G`, `End` | first row, last row |
 | `r` | refresh every widget |
-| `q`, `Ctrl-C` | leave |
+| `Ctrl-Q` | leave. The only way out, with `Ctrl-C` as the escape hatch |
 
 A chevron (`›`) marks a row that opens another menu, so nothing is a surprise.
 The numbers are right-aligned as a column, so every label starts in the same
@@ -181,9 +203,8 @@ ask. The Menu view is always the largest panel and always present.
 
 ### 12. A widget is only as tall as it has something to say
 
-Beside the menu, the Now widget ends where its facts end and the rest of the
-column stays empty, waiting for the next widget. A box two thirds full of
-nothing reads as broken rather than as finished.
+The drawer ends where its facts end and the menu takes the rest. A box two
+thirds full of nothing reads as broken rather than as finished.
 
 ### 13. Every widget refreshes together, on `r`
 
@@ -207,20 +228,33 @@ This is [`dashboards.md`](dashboards.md)'s rule, and it holds here: the numbers
 that were there stay there, the failure goes on the footer, and the `as of`
 line tells the truth about how old they are.
 
-## Where the Now widget sits, and why
+## Where the Now drawer sits, and why
 
-Side by side, the facts are on the **left** and the Menu view fills the rest:
+It is a full-width strip along the **bottom**, under the Menu view:
 
-- The eye lands top-left first, and the facts are what somebody opened the
-  terminal to read. The menu is the part they already know by heart.
-- The sidebar is where the next widgets stack, so the second widget needs no
-  second redesign.
-- The menu is the main panel and still gets the wider column, which its rows
-  need and the facts do not.
+- It is where a glance goes and comes back from without leaving the row being
+  navigated. The menu keeps the cursor; the drawer keeps the facts.
+- Full width means the facts keep the shape they have everywhere else in this
+  tool, label and value on one line, rather than being folded to fit a column.
+- The Menu view is the main panel and takes everything left over. The drawer is
+  only as tall as it has something to say, and gives way to the menu on a short
+  terminal rather than the other way round.
 
-Below 72 columns the sidebar would leave the menu unreadable, so the two stack
-with the facts on top: the same reading order, and each fact collapses onto one
-line to buy the menu back its rows.
+### 16. The Now drawer is `h now`, and nothing else
+
+**The drawer shows exactly what `h now` prints. Same facts, same wording, same
+order, no additions and no abbreviations.** It is that command left on the
+screen rather than a second screen about the same data.
+
+`render::now::screen` is the one function that decides what `now` says.
+`lines` paints its rows for stdout and the drawer draws the same rows as
+widgets, so the two cannot drift: there is no second copy of the wording to
+forget to update.
+
+**A request to change what the Now drawer shows is a request to change the
+output of `h now`, and the other way round.** Change `render::now::screen` and
+both follow. If the two ever have to differ, that is a decision for
+[`decisions.md`](decisions.md) rather than a line added in one of them.
 
 ## Where this is going
 
