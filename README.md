@@ -4,12 +4,12 @@ This is a CLI for the incredible app [Huckleberry](https://huckleberrycare.com),
 the baby tracking app. They didn't pay me to say the app is incredible; I'm just a fan.
 
 This CLI is for parents that can never find their phone but always have their computer
-close to them. Use this to write your log your child's sleep, feeds, diapers,\
+close to them. Use this to log your child's sleep, feeds, diapers,
 pumping, health, milestones, and see your baby's most recent data instantly.
 
 The CLI UX has been optimized for single-hand usage in the middle of the night when you are
 sitting down, baby on your lab, bottle-feeding in one hand, and you only have one
-hand to do any typing. Just run `h` and then navigate the interactive menu
+hand to type. Just run `h` and then navigate the interactive menu
 with up/down arrows and press Enter to make your selections.
 
 **Huge** props goes to [Woyken](https://github.com/Woyken) for having built the [py-huckleberry-api](https://github.com/Woyken/py-huckleberry-api)
@@ -17,20 +17,30 @@ in the first place (see [Credit](#credit)). This repo is a direct port of his re
 
 _**Ugh, did you vibe code this entire CLI?**_
 
-Yes, I did. Because I have a newborn to take care of. You should be more worried if I
-_didn't_ vibe code this app.
+Yes, I did. Because I have a newborn to take care of. It would be more concerning
+if I _didn't_ vibe code this app.
 
-## Agent compatibility
+_**I'm not sure I can trust this CLI if it's fully vibe coded**_
 
-This CLI was intended for human babies with human parents using their human hands to type commands. This is why
-the UX design centers around interactive menus and quick inputs, rather than
-memorizing long complicated commands and flags.
+I literally do not care, I'm just trying to feed my baby.
+
+_**How can I contribute to this repo?**_
+
+Please don't. I have no time to review your code. This is open source, so just
+click the "Fork" button and vibe code
+to your heart's content to add any features you want.
+
+_**Can this CLI be operated by agents?**_
+
+This CLI was intended for human babies with human parents using their human hands to type commands.
+The UX design centers around interactive menus and quick inputs, rather than
+memorizing long complicated commands.
 
 _However_, the CLI is built such that everything you can do interactively
 can also be done through a single command by passing in different options.
 This means that, yes, the CLI can be driven by your agent frontend of choice,
-such as Claude or Codex, if you wanted to add even more layers of indirection
-to satisfy your craving for an overengineered solution.
+such as Claude or Codex, if you wanted to make this even more unnecessarily
+overengineered.
 
 ## Getting started
 
