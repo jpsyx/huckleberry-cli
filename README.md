@@ -1,7 +1,7 @@
 # Huckleberry CLI
 
-This is a CLI for the incredible app [Huckleberry](https://huckleberrycare.com),
-the baby tracking app. They didn't pay me to say the app is incredible; I'm just a fan.
+This is a CLI for the incredible baby-tracking app [Huckleberry](https://huckleberrycare.com).
+They didn't pay me to say the app is incredible; I'm just a fan.
 
 This CLI is for parents that can never find their phone but always have their computer
 close to them. Use this to log your child's sleep, feeds, diapers,
