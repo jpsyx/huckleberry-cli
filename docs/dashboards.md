@@ -306,6 +306,9 @@ Daily sleep and night-sleep totals, their averages, and stripe-chart totals use
 hours and minutes (for example `2h 30m`). Nursing side durations use the same
 units as their total. JSON still exposes numeric seconds for calculations.
 
-Interactive lists number every visible row and accept J/H for down and K/P
-for up, in either case, as well as arrows. Search treats these letters as text.
-On the dashboard Log tab H/P scroll rows; Left/Right still switch tabs.
+Interactive lists number every visible row and accept `j` for down and `k` for
+up, in either case, as well as the arrows. `h` and the left arrow leave the
+list, as Escape does. Search treats every letter as text.
+
+The dashboard is the one screen here with a left and a right, so `h` and `l`
+move between tabs, on every tab including the Log; `j` and `k` scroll.

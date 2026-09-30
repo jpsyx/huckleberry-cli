@@ -367,7 +367,7 @@ Several directories exist because a file crossed it:
 Each `mod.rs` provides glue and re-exports for its subsystem.
 
 The shared prompt selection model in `prompt/select` interprets arrow,
-J/K/H/P, and 1-9 navigation without terminal I/O, with bounded cursor and scroll
+J/K, and 1-9 navigation without terminal I/O, with bounded cursor and scroll
 state. Number shortcuts highlight the corresponding item in every command and
 prompt menu; only Enter submits. Items after nine remain reachable by navigation.
 

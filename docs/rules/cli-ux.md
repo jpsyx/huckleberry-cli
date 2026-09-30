@@ -76,8 +76,11 @@ unset. The stdout palette is independent of the prompt palette on stderr, so
 piped output is always plain text. Small emoji headings accompany terminal
 receipts; meaning remains explicit in the accompanying words.
 
-Fixed-choice prompts are numbered menus: arrows or J/H move down and K/P move
-up; 1-9 highlight the corresponding item in every menu. Enter accepts the
+Fixed-choice prompts are numbered menus: `↓`/`j` move down and `↑`/`k` move up,
+and `←`/`h` backs out. **`j` and `k` are the only letters that move**, in every
+menu, list and screen in this tool: a letter that moves the cursor in one place
+and leaves in another is a letter nobody can press without looking. 1-9
+highlight the corresponding item in every menu. Enter accepts the
 highlighted item. Zero and numbers beyond the menu's length are ignored; items
 10 and later remain reachable with navigation keys. Optional choices include Skip.
 Optional text offers Skip or Enter text, and existing values can be kept or

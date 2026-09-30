@@ -127,7 +127,7 @@ pub async fn log(
         .today(|heading| heading == today)
         .empty("nothing logged in this window")
         .query(search)
-        .verb("j/k or ↑/↓ move · / searches · enter opens one · q leaves")
+        .verb("j/k or ↑/↓ move · / searches · enter opens one · h or q leaves")
         .show(context.output_theme())
 }
 

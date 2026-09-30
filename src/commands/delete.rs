@@ -275,7 +275,7 @@ fn choose(context: &Context, entries: &[Entry], calendar: &Calendar) -> Result<O
     }))
     .today(|heading| heading == today)
     .empty("nothing logged in this window")
-    .verb("j/k or ↑/↓ move · / searches · enter deletes · q leaves")
+    .verb("j/k or ↑/↓ move · / searches · enter deletes · h or q leaves")
     .choose(context.output_theme())?;
 
     chosen.map(|token| edit::parse_token(&token)).transpose()

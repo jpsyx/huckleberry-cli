@@ -337,9 +337,19 @@ both follow. If the two ever have to differ, that is a decision for
 3. The dashboard's Now tab and the Now drawer say the same things twice while
    the dashboard is open. One of them should give way to the other.
 
-## Known rough edge
+## One key map, everywhere
 
-Inside a suspended prompt, `J`/`H` move **down** and `K`/`P` move up: `h` means
-down there and back here. That mapping predates this screen and is documented in
-[`cli.md`](cli.md). Reconciling the two is worth doing before the prompts become
-panels, and it is a decision about muscle memory rather than about code.
+**`j` and `k` are the only letters that move.** In the shell, in every prompt
+it opens, and in every list. `h` and the left arrow mean back: out of a
+submenu, out of a list, and out of a question without answering it, which is
+what Escape does.
+
+That was not always true. The prompts predate the shell and read `h` as down
+and `p` as up, so the same letter moved the cursor in a question and walked out
+of the menu behind it. A letter that means two things is a letter nobody can
+press without looking, which is the one thing this screen is built not to
+require.
+
+The dashboard is the only screen here with a left and a right, and there `h`
+and `l` are them, on every tab. Its Log tab used to read `h` as down so a long
+list could be scrolled with it; `j` and `k` do that now, as everywhere else.

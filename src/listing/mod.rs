@@ -72,7 +72,7 @@ impl<'a> Listing<'a> {
             today: Box::new(|_| false),
             empty: format!("no {noun}"),
             query: String::new(),
-            verb: "j/k h/p or ↑/↓ move · / searches · enter opens · q leaves",
+            verb: "j/k or ↑/↓ move · / searches · enter opens · h or q leaves",
         }
     }
 
