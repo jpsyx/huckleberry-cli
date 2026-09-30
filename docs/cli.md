@@ -407,6 +407,39 @@ history; removing the row one of those describes would leave the app showing an
 entry that is no longer there, so it is rewritten from whatever is now the most
 recent of that kind, or taken away when there is none.
 
+## First use
+
+The first command run against an account asks for what the tool cannot guess:
+an account to sign in to, and how this family counts a day. It asks once, on
+whatever command is run first; `--help` and `--version` are answered by the
+argument parser and never reach it, and `auth`, `config` and `info` are exempt
+because they are how somebody gets set up.
+
+Off a terminal nothing is asked. The command fails naming every setting that is
+missing and the `config set` that answers each, all in one message.
+
+```sh
+h config set day_mode discrete   # or continuous
+h config set day_start 6am
+h config set night_start 7:30pm
+```
+
+`day_mode` decides what `Fed today` and `Slept today` cover on `now` and in the
+shell's Now widget: `continuous` is a rolling twenty-four hours, labelled
+`in 24h`; `discrete` runs from `day_start` and is labelled `today`. A discrete
+day is **not** a calendar day: with a day starting at 6am, a 4am feed belongs
+to the day before. `night_start` and `day_start` also replace the night on
+Huckleberry's own profile, so `summary`, `stripes` and `dash` shade and total
+the night this family keeps.
+
+Setup offers `continuous` to a baby twelve weeks old or under and `discrete`
+to an older one, reading the age off the profile once. Either is one keystroke,
+and `config set day_mode` changes it later. See [`setup.md`](setup.md).
+
+A time is stored as 24-hour `HH:MM` and read back as a person says it, so
+`06:00` is confirmed as `6:00 am`. A bare `6` is refused rather than guessed
+at: write `6am` or `06:00`.
+
 ## Settings
 
 ```sh

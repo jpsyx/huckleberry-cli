@@ -12,6 +12,7 @@ pub mod listing;
 pub mod prompt;
 pub mod render;
 pub mod session;
+pub mod setup;
 pub mod theme;
 pub mod tui;
 

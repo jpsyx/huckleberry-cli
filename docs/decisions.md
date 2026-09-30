@@ -550,3 +550,69 @@ there is one word. New parts get an entry in the same change that names them.
 
 **Revisit when.** Never as a whole; continuously in the small. The file is a
 record, so it is only useful if it keeps up.
+
+## "Today" is a setting, because midnight is wrong for everybody
+
+**Decision.** How a family counts a day is configured, not assumed. Two modes:
+`continuous`, a rolling twenty-four hours, and `discrete`, from an hour the
+family names. A discrete day is not a calendar day, and its night ends where
+its day begins.
+
+**Why.** A calendar day is the one answer that is wrong for every family with a
+baby. Nobody is awake at midnight thinking of it as a boundary, and a 4am feed
+filed under a fresh day is a feed the person who gave it cannot find. Beyond
+that the right answer depends on the baby: a newborn's day has no shape at all,
+so any boundary is a fiction and the only honest window is the last
+twenty-four hours; an older baby has a day with a beginning, and "how much has
+she eaten today" means since she woke.
+
+**Consequences.** Screens say which window they mean rather than assuming one:
+a rolling family sees `Fed in 24h`, a discrete family sees `Fed today` with
+the hour it began on it. The setting reaches every screen through one step,
+`DayRule::apply_to` on the dataset as it is read, rather than through a
+parameter on every renderer. That also means `child show` prints the night this
+tool draws with rather than the one Huckleberry stores, which is the honest
+thing for it to print and is worth knowing.
+
+The age that picks the default is read once, at setup. It is never re-read and
+the mode never changes by itself: a screen that quietly started counting
+differently one morning would be worse than one counting a way somebody chose.
+Twelve weeks is a judgement, not a clinical boundary, and it decides only which
+answer is offered first.
+
+**Revisit when.** A third way of counting turns up that neither mode covers,
+or the boundary between them is worth moving. Both are one more arm in
+`DayMode`.
+
+## Every command runs through a setup gate
+
+**Decision.** Every command puts first-use setup in place before it acts: an
+account when there is none, then the settings that have no default worth
+having. The gate lives in `dispatch`, so an explicit invocation, a row chosen
+in the shell and a retried view all reach it. `auth`, `config` and `info` are
+exempt.
+
+**Why.** A tool that quietly uses the wrong definition of "today" is worse than
+one that stops and asks, and the alternative to asking is a default that is
+wrong for whoever did not think about it. Putting the gate in `dispatch`
+rather than in `run` was what made it true for the shell as well, which
+dispatches without going through `run` at all.
+
+The three exemptions are the same exemption: they are how somebody gets out of
+an unconfigured state. A gate in front of `config set` would be a locked door
+with the key behind it.
+
+**Consequences.** A script or an agent meeting a fresh configuration now fails
+rather than running. That is the two-audiences rule working as designed and
+not an exception to it: the refusal names every missing setting and the
+`config set` that answers each, in one message, so one pass fixes all of them.
+It does mean `--offline` needs the settings too, which is a real cost for the
+"demonstrable without an account" path and is the part of this most likely to
+be worth relaxing.
+
+The gate reloads the context after anything is written, so a command never acts
+on the settings as they were before setup ran.
+
+**Revisit when.** A setting is added that only some commands need. The gate
+asks for everything missing on every command today, which is right while the
+list is short and would become rude if it were long.

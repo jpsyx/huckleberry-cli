@@ -57,6 +57,9 @@ Last fed       36m ago · 73 ml of Formula · 8:03 pm
 Diaper          1h 31m ago · wet · 7:09 pm
 Sleep          asleep 40m
 Tonight        nothing finished yet
+Last 3h        73 ml · 1 feed
+Fed today      430 ml · 6 feeds · since 6:00 am
+Slept today    11h 18m
 
 as of 2m ago
 ```
@@ -64,6 +67,23 @@ as of 2m ago
 The fourth line relabels itself. Inside the family's night window it reads
 `Tonight`; outside it reads `Night of Sun 21 Sep` and names the night it means.
 An ambiguous label there is the one that gets misread at 3am.
+
+The three running totals answer the second question rather than the first: not
+"when did she last eat" but "has she had enough". Three hours because that is
+the interval a newborn feeds on, so the question the line answers is whether
+one is due.
+
+The last two say which window they mean rather than assuming one.
+A family counting a rolling day sees `Fed in 24h` and `Slept in 24h`; a family
+counting from an hour sees `Fed today` and `Slept today`, with `since 6:00 am`
+on the first of them so both are anchored without saying it twice. What
+`today` covers is a setting, and [`setup.md`](setup.md) is what asks. A sleep
+in progress counts towards `Slept today`, because a baby asleep right now has
+slept that time today whatever the intervals collection says.
+
+A window with nothing in it says `nothing logged` rather than `0 ml`, for the
+reason every other figure here does: zero is a claim about the baby and an
+absent record is a claim about the record.
 
 The live timers win over history: a sleep in progress has not been written to
 the intervals collection yet, so history cannot know about it.

@@ -1,11 +1,20 @@
 //! Resolve event time before collecting or validating activity details.
 use std::process::{Command, Stdio};
 
+/// A configuration file with first-use setup already answered, so these tests
+/// exercise the ordering they are about rather than the setup gate.
+fn configured(name: &str) -> std::path::PathBuf {
+    let path = std::env::temp_dir()
+        .join(format!("huckleberry-{name}-{}", std::process::id()))
+        .join("config.toml");
+    std::fs::create_dir_all(path.parent().expect("a parent")).expect("a directory");
+    std::fs::write(&path, "day_mode = \"continuous\"\n").expect("a configuration");
+    path
+}
+
 #[test]
 fn manual_sleep_rejects_reversed_relative_times_before_connecting() {
-    let config = std::env::temp_dir()
-        .join(format!("huckleberry-manual-order-{}", std::process::id()))
-        .join("config.toml");
+    let config = configured("manual-order");
     let output = Command::new(env!("CARGO_BIN_EXE_huckleberry-cli"))
         .arg("--config")
         .arg(config)
@@ -23,9 +32,7 @@ fn manual_sleep_rejects_reversed_relative_times_before_connecting() {
 
 #[test]
 fn invalid_time_is_reported_before_missing_or_invalid_activity_details() {
-    let config = std::env::temp_dir()
-        .join(format!("huckleberry-logging-order-{}", std::process::id()))
-        .join("config.toml");
+    let config = configured("logging-order");
     for arguments in [
         vec!["diaper"],
         vec!["potty"],

@@ -146,6 +146,8 @@ pub struct State {
     pub trouble: Option<String>,
     /// Whether a read is in flight.
     pub refreshing: bool,
+    /// How this family counts a day.
+    pub rule: crate::domain::today::DayRule,
 }
 
 impl State {
@@ -160,7 +162,15 @@ impl State {
             days,
             trouble: None,
             refreshing: false,
+            rule: crate::domain::today::DayRule::discrete_default(),
         }
+    }
+
+    /// Counts days the way the family configured.
+    #[must_use]
+    pub const fn with_rule(mut self, rule: crate::domain::today::DayRule) -> Self {
+        self.rule = rule;
+        self
     }
 
     /// Applies a keystroke. Returns `false` when it is time to leave.

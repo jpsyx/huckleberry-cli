@@ -138,8 +138,9 @@ aligned rows when piped.
 
 [`docs/cli.md`](docs/cli.md) has the full surface;
 [`docs/dashboards.md`](docs/dashboards.md) describes each screen and the rules
-they follow; [`docs/tui.md`](docs/tui.md) is the design brief for the shell `h`
-opens, and for the one hand it is built for;
+they follow; [`docs/setup.md`](docs/setup.md) covers first use and the two ways
+a family can count a day; [`docs/tui.md`](docs/tui.md) is the design brief for
+the shell `h` opens, and for the one hand it is built for;
 [`docs/nomenclature.md`](docs/nomenclature.md) is what this project calls its
 own parts.
 

@@ -7,8 +7,10 @@
 //! sleeping baby.
 
 use crate::cli::Units;
-use crate::domain::now::NowView;
-use crate::domain::time::{Calendar, format_ago, format_duration};
+use crate::domain::clock::TimeOfDay;
+use crate::domain::now::{NowView, RECENT_HOURS};
+use crate::domain::time::{Calendar, format_ago, format_duration, split_hour};
+use crate::domain::today::{DayMode, Totals};
 use crate::domain::types::{Dataset, FeedEvent};
 use crate::theme::Theme;
 
@@ -45,6 +47,25 @@ pub fn lines(
             ),
         ));
     }
+
+    // The running totals come after the four facts, because they answer the
+    // second question rather than the first: not "when did she last eat" but
+    // "has she had enough".
+    lines.push(fact(
+        theme,
+        &format!("Last {}h", RECENT_HOURS as i64),
+        &intake(&view.recent, units),
+    ));
+    lines.push(fact(
+        theme,
+        &format!("Fed {}", window_label(view)),
+        &today_intake_line(view, units),
+    ));
+    lines.push(fact(
+        theme,
+        &format!("Slept {}", window_label(view)),
+        &slept(&view.today),
+    ));
 
     lines.push(String::new());
     lines.push(theme.muted(&as_of(dataset, now)));
@@ -165,6 +186,83 @@ fn sleep_line(view: &NowView, dataset: &Dataset, theme: Theme, now: f64) -> Stri
     fact(theme, "Sleep", &previous)
 }
 
+/// What the running totals call their window.
+///
+/// A rolling window says so, because "today" for a family counting a rolling
+/// day would be a word doing the opposite of its job at 3am: the whole point
+/// of that mode is that there is no today.
+#[must_use]
+pub const fn window_label(view: &NowView) -> &'static str {
+    match view.today_window.mode {
+        DayMode::Continuous => "in 24h",
+        DayMode::Discrete => "today",
+    }
+}
+
+/// What went in over a window, in as few words as it takes to be exact.
+///
+/// Shared with the shell's Now widget, so the two never word the same figure
+/// differently.
+#[must_use]
+pub fn intake(totals: &Totals, units: Units) -> String {
+    let mut parts = Vec::new();
+    if totals.millilitres > 0.0 {
+        parts.push(format::volume(Some(totals.millilitres), units));
+    }
+    if totals.nursing_seconds > 0.0 {
+        parts.push(format!(
+            "nursed {}",
+            format_duration(totals.nursing_seconds)
+        ));
+    }
+    if totals.milk_feeds > 0 {
+        parts.push(plural(totals.milk_feeds, "feed", "feeds"));
+    }
+    if totals.solids > 0 {
+        parts.push(plural(totals.solids, "meal", "meals"));
+    }
+    if parts.is_empty() {
+        // Not "0 ml": that is a claim about the baby, and this is a claim
+        // about the record.
+        return "nothing logged".to_owned();
+    }
+    parts.join(" · ")
+}
+
+/// Today's intake, with the hour the day began on it when there was one.
+///
+/// The hour is said once, on this line rather than on both, because two lines
+/// carrying the same qualifier reads as two different windows.
+fn today_intake_line(view: &NowView, units: Units) -> String {
+    let line = intake(&view.today, units);
+    let Some(hour) = view.today_window.began_at_hour else {
+        return line;
+    };
+    let (hours, minutes) = split_hour(hour);
+    TimeOfDay::new(hours, minutes).map_or_else(
+        || line.clone(),
+        |time| format!("{line} · since {}", time.label()),
+    )
+}
+
+/// How much sleep the window holds.
+#[must_use]
+pub fn slept(totals: &Totals) -> String {
+    if totals.sleep_seconds > 0.0 {
+        return format_duration(totals.sleep_seconds);
+    }
+    "nothing logged".to_owned()
+}
+
+/// `1 feed`, `6 feeds`.
+fn plural(count: usize, one: &str, many: &str) -> String {
+    if count == 1 {
+        format!("{count} {one}")
+    } else {
+        format!("{count} {many}")
+    }
+}
+
 /// The label the longest-stretch line gets.
 ///
 /// It relabels itself rather than saying something that reads correctly at
@@ -217,9 +315,14 @@ mod tests {
         Calendar::new("America/New_York").expect("a real timezone")
     }
 
+    /// Days from 6am, which is what setup asks a family with an older baby.
+    fn rule() -> crate::domain::today::DayRule {
+        crate::domain::today::DayRule::discrete(6.0, None)
+    }
+
     fn screen(dataset: &Dataset, at: f64) -> Vec<String> {
         let calendar = calendar();
-        let view = now::build(dataset, &calendar, at);
+        let view = now::build(dataset, &calendar, rule(), at);
         lines(&view, dataset, &calendar, Theme::dark(false), Units::Ml, at)
     }
 
@@ -242,7 +345,7 @@ mod tests {
         data.live.sleep_active = true;
         data.live.sleep_start = Some(AFTERNOON - 1800.0);
         let calendar = calendar();
-        let view = now::build(&data, &calendar, AFTERNOON);
+        let view = now::build(&data, &calendar, rule(), AFTERNOON);
         let theme = Theme::dark(true);
         let text = lines(&view, &data, &calendar, theme, Units::Ml, AFTERNOON).join("\n");
         assert!(text.contains("currently sleeping for 30m"), "{text}");
@@ -278,7 +381,7 @@ mod tests {
         let mut data = dataset();
         data.feeds = vec![bottle(AFTERNOON - 3_600.0, 88.72)];
         let calendar = calendar();
-        let view = now::build(&data, &calendar, AFTERNOON);
+        let view = now::build(&data, &calendar, rule(), AFTERNOON);
         let text = lines(
             &view,
             &data,
@@ -391,6 +494,154 @@ mod tests {
         let mut data = dataset();
         data.diapers = vec![diaper(AFTERNOON - 900.0, true, true)];
         assert!(joined(&data, AFTERNOON).contains("wet + dirty"));
+    }
+
+    fn with_rule(data: &Dataset, rule: crate::domain::today::DayRule, at: f64) -> String {
+        let calendar = calendar();
+        let view = now::build(data, &calendar, rule, at);
+        lines(&view, data, &calendar, Theme::dark(false), Units::Ml, at).join("\n")
+    }
+
+    /// A day's worth of feeds: two before a 6am start, two after.
+    fn across_a_day_start() -> Dataset {
+        let mut data = dataset();
+        data.feeds = vec![
+            bottle(AFTERNOON - 36_000.0, 100.0),
+            bottle(AFTERNOON - 32_400.0, 100.0),
+            bottle(AFTERNOON - 7_200.0, 90.0),
+            bottle(AFTERNOON - 1_800.0, 60.0),
+        ];
+        data
+    }
+
+    #[test]
+    fn the_screen_says_how_much_went_in_over_the_last_three_hours() {
+        let mut data = dataset();
+        data.feeds = vec![
+            bottle(AFTERNOON - 1_800.0, 60.0),
+            // Four hours ago, which is outside the window.
+            bottle(AFTERNOON - 14_400.0, 200.0),
+        ];
+        let text = joined(&data, AFTERNOON);
+        let recent = text
+            .lines()
+            .find(|line| line.starts_with("Last 3h"))
+            .unwrap_or_else(|| panic!("no `Last 3h` line in {text}"));
+        assert!(recent.contains("60 ml · 1 feed"), "{recent}");
+        assert!(
+            !recent.contains("260 ml"),
+            "the four-hour-old feed is outside the window: {recent}"
+        );
+        assert!(
+            text.contains("260 ml"),
+            "and inside today's, which is the point of having both: {text}"
+        );
+    }
+
+    #[test]
+    fn the_screen_says_how_much_went_in_and_how_much_sleep_there_was_today() {
+        let mut data = across_a_day_start();
+        data.sleep = vec![sleep(AFTERNOON - 10_800.0, 7_200.0)];
+        let text = joined(&data, AFTERNOON);
+        assert!(text.contains("Fed today"), "{text}");
+        assert!(text.contains("Slept today"), "{text}");
+        assert!(text.contains("2h 0m"), "{text}");
+    }
+
+    #[test]
+    fn a_discrete_day_leaves_out_what_happened_before_it_began() {
+        let data = across_a_day_start();
+        // 2pm with a 6am day start: only the two feeds after 6am count.
+        let text = with_rule(
+            &data,
+            crate::domain::today::DayRule::discrete(6.0, None),
+            AFTERNOON,
+        );
+        assert!(text.contains("150 ml · 2 feeds"), "{text}");
+        assert!(
+            text.contains("since 6:00 am"),
+            "the window says where it began: {text}"
+        );
+    }
+
+    #[test]
+    fn a_continuous_day_counts_the_whole_rolling_twenty_four_hours() {
+        let data = across_a_day_start();
+        let text = with_rule(
+            &data,
+            crate::domain::today::DayRule::continuous(),
+            AFTERNOON,
+        );
+        assert!(text.contains("Fed in 24h"), "{text}");
+        assert!(text.contains("Slept in 24h"), "{text}");
+        assert!(text.contains("350 ml · 4 feeds"), "{text}");
+        assert!(
+            !text.contains("since"),
+            "a rolling window has no hour to have begun at: {text}"
+        );
+    }
+
+    #[test]
+    fn a_four_in_the_morning_feed_belongs_to_the_day_that_has_not_ended() {
+        let mut data = dataset();
+        // THREE_AM is 3am in New York; a feed an hour earlier is 2am.
+        data.feeds = vec![bottle(THREE_AM - 3_600.0, 80.0)];
+        let text = with_rule(
+            &data,
+            crate::domain::today::DayRule::discrete(6.0, None),
+            THREE_AM,
+        );
+        assert!(
+            text.contains("Fed today") && text.contains("80 ml"),
+            "a 2am feed is still part of the day that began at 6am yesterday: {text}"
+        );
+    }
+
+    #[test]
+    fn nursing_and_meals_are_counted_in_their_own_words() {
+        let mut data = dataset();
+        data.feeds = vec![
+            crate::domain::fixtures::nursing(AFTERNOON - 1_800.0, 600.0, 300.0),
+            crate::domain::types::FeedEvent::Solids {
+                at: None,
+                id: "m".into(),
+                start: AFTERNOON - 3_000.0,
+                foods: vec!["Avocado".into()],
+                reaction: None,
+                notes: None,
+            },
+        ];
+        let text = joined(&data, AFTERNOON);
+        assert!(text.contains("nursed 15m"), "{text}");
+        assert!(text.contains("1 feed"), "{text}");
+        assert!(text.contains("1 meal"), "{text}");
+    }
+
+    #[test]
+    fn a_window_with_nothing_in_it_says_so_rather_than_printing_a_zero() {
+        let text = joined(&dataset(), AFTERNOON);
+        for label in ["Last 3h", "Fed today", "Slept today"] {
+            let line = text
+                .lines()
+                .find(|line| line.starts_with(label))
+                .unwrap_or_else(|| panic!("no `{label}` line in {text}"));
+            assert!(line.contains("nothing logged"), "{line}");
+        }
+        assert!(!text.contains("0 ml"), "{text}");
+        assert!(!text.contains("0m"), "{text}");
+    }
+
+    #[test]
+    fn a_sleep_in_progress_counts_towards_what_was_slept_today() {
+        let mut data = dataset();
+        data.live.sleep_active = true;
+        data.live.sleep_start = Some(AFTERNOON - 3_600.0);
+        let text = joined(&data, AFTERNOON);
+        let line = text
+            .lines()
+            .find(|line| line.starts_with("Slept today"))
+            .unwrap_or_default();
+        assert!(line.contains("1h 0m"), "{text}");
     }
 
     #[test]

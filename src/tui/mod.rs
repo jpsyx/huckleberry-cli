@@ -115,7 +115,9 @@ async fn collect(app: &mut App, reading: &mut Option<data::Reading>) {
         return;
     };
     match handle.await {
-        Ok(Ok((dataset, calendar, units))) => app.facts.replace(dataset, calendar, units),
+        Ok(Ok((dataset, calendar, units, rule))) => {
+            app.facts.replace(dataset, calendar, units, rule);
+        }
         Ok(Err(trouble)) => app.facts.record_trouble(&format!("{trouble:#}")),
         Err(trouble) => app
             .facts

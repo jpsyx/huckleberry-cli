@@ -55,7 +55,7 @@ fn lines(facts: &Facts, at: f64, stacked: bool) -> Vec<Line<'static>> {
     let Some(reading) = facts.reading() else {
         return vec![waiting(facts)];
     };
-    let view = now::build(&reading.dataset, &reading.calendar, at);
+    let view = now::build(&reading.dataset, &reading.calendar, reading.rule, at);
     let mut lines = Vec::new();
     for (label, value, detail) in facts_of(&view, reading, at) {
         push_fact(&mut lines, &label, &value, &detail, stacked);
@@ -124,6 +124,25 @@ fn facts_of(view: &NowView, reading: &Reading, at: f64) -> Vec<(String, String, 
             format!("on the {}{paused}", nursing.side),
         ));
     }
+    // The running totals fit on one line each, so they carry no second line
+    // even in the tall narrow column: a detail under each would push the
+    // widget past the height a sidebar has to spare.
+    let window = crate::render::now::window_label(view);
+    rows.push((
+        format!("Last {}h", crate::domain::now::RECENT_HOURS as i64),
+        crate::render::now::intake(&view.recent, reading.units),
+        String::new(),
+    ));
+    rows.push((
+        format!("Fed {window}"),
+        crate::render::now::intake(&view.today, reading.units),
+        String::new(),
+    ));
+    rows.push((
+        format!("Slept {window}"),
+        crate::render::now::slept(&view.today),
+        String::new(),
+    ));
     rows
 }
 

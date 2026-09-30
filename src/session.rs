@@ -72,6 +72,22 @@ impl Context {
         flag.unwrap_or(self.config.days).clamp(1, 400)
     }
 
+    /// Re-reads the settings, keeping everything the invocation decided.
+    ///
+    /// Setup writes to the configuration file and then has to act on what it
+    /// wrote, and a `Context` holds the settings by value.
+    pub fn reload(&self) -> Result<Self> {
+        Ok(Self {
+            config: crate::config::load(&self.config_path)?,
+            config_path: self.config_path.clone(),
+            credentials_path: self.credentials_path.clone(),
+            theme: self.theme,
+            verbose: self.verbose,
+            child_override: self.child_override.clone(),
+            offline: self.offline.clone(),
+        })
+    }
+
     /// What is on disk and in the environment, combined.
     pub fn credentials(&self) -> Result<Resolved> {
         let stored = credentials::load(&self.credentials_path)?;

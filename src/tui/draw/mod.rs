@@ -189,6 +189,11 @@ mod frames {
         Calendar::new("America/New_York").expect("a real timezone")
     }
 
+    /// Days from 6am, which is what setup asks a family with an older baby.
+    fn rule() -> crate::domain::today::DayRule {
+        crate::domain::today::DayRule::discrete(6.0, None)
+    }
+
     fn populated() -> Dataset {
         let mut data = dataset();
         data.feeds = vec![bottle(AFTERNOON - 3_600.0, 90.0)];
@@ -199,7 +204,8 @@ mod frames {
 
     fn loaded() -> App {
         let mut app = App::new();
-        app.facts.replace(populated(), calendar(), Units::Ml);
+        app.facts
+            .replace(populated(), calendar(), Units::Ml, rule());
         app
     }
 
@@ -239,8 +245,32 @@ mod frames {
     #[test]
     fn a_volume_follows_the_unit_the_reader_chose() {
         let mut app = App::new();
-        app.facts.replace(populated(), calendar(), Units::Oz);
+        app.facts
+            .replace(populated(), calendar(), Units::Oz, rule());
         assert!(screen(&app, 100, 24).contains("3.0 oz"));
+    }
+
+    #[test]
+    fn the_widget_carries_the_running_totals_the_now_command_shows() {
+        let drawn = screen(&loaded(), 100, 24);
+        for fact in ["Last 3h", "Fed today", "Slept today"] {
+            assert!(drawn.contains(fact), "`{fact}` missing: {drawn}");
+        }
+        assert!(drawn.contains("90 ml · 1 feed"), "{drawn}");
+    }
+
+    #[test]
+    fn a_rolling_day_is_labelled_as_one_rather_than_called_today() {
+        let mut app = App::new();
+        app.facts.replace(
+            populated(),
+            calendar(),
+            Units::Ml,
+            crate::domain::today::DayRule::continuous(),
+        );
+        let drawn = screen(&app, 100, 24);
+        assert!(drawn.contains("Fed in 24h"), "{drawn}");
+        assert!(!drawn.contains("Fed today"), "{drawn}");
     }
 
     #[test]
@@ -248,7 +278,7 @@ mod frames {
         let mut data = populated();
         data.fetched_at = AFTERNOON - 600.0;
         let mut app = App::new();
-        app.facts.replace(data, calendar(), Units::Ml);
+        app.facts.replace(data, calendar(), Units::Ml, rule());
         assert!(screen(&app, 100, 24).contains("as of 10m ago"));
     }
 

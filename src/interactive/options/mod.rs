@@ -109,7 +109,7 @@ pub async fn edit(
             return Ok(());
         }
         let binding = &bindings[index - 1];
-        apply_binding(theme, globals, draft, binding).await?;
+        Box::pin(apply_binding(theme, globals, draft, binding)).await?;
     }
 }
 

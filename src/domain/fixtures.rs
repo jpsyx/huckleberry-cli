@@ -62,6 +62,18 @@ pub fn bottle(start: f64, amount: f64) -> FeedEvent {
     }
 }
 
+pub fn nursing(start: f64, left: f64, right: f64) -> FeedEvent {
+    FeedEvent::Nursing {
+        at: None,
+        id: format!("feed-{start}"),
+        start,
+        left_seconds: left,
+        right_seconds: right,
+        last_side: Some("right".to_owned()),
+        notes: None,
+    }
+}
+
 pub fn diaper(start: f64, wet: bool, dirty: bool) -> DiaperEvent {
     DiaperEvent {
         at: None,

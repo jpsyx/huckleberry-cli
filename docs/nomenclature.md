@@ -51,6 +51,21 @@ either, say which.
 | **a tracker** | One kind of thing Huckleberry records. Sleep, feeding, diapers, pumping, milestones. |
 | **as of** | How stale what is on screen is. Every screen carries one. |
 
+## Days, nights and windows
+
+| Term | Means |
+| --- | --- |
+| **today** | Whatever this family counts as one, which is a setting and not a calendar day. Never assume midnight. |
+| **the day rule** | How a family counts a day: the mode, and the hours it turns on. `DayRule` in `src/domain/today.rs`. |
+| **continuous** | A day mode: a rolling twenty-four hours ending now. Screens say `in 24h`, never `today`. |
+| **discrete** | A day mode: from `day_start` each morning to now. |
+| **day start** | The hour a discrete day begins at. Anything earlier belongs to the day before. |
+| **night start** | The hour night begins at. The night ends where the day begins. |
+| **the window** (of a screen) | The stretch `today` resolved to on this screen, as of now. `Window` in `src/domain/today.rs`. Not to be confused with **the read window**, which is how many days back a read covers. |
+| **totals** | What a window adds up to: millilitres, nursing seconds, milk feeds, meals, sleep. |
+| **the last 3h** | The fixed recent window on the `now` screen, which is a feeding interval rather than a day. |
+| **setup** | The first-use gate: an account, then the settings with no default. `src/setup/`. See [`setup.md`](setup.md). |
+
 ## The rules these words serve
 
 - [`tui.md`](tui.md) is the design brief for the shell: one hand, in the dark,

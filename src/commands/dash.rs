@@ -39,7 +39,8 @@ pub async fn run(context: &Context, days: Option<u32>, refresh: Option<u32>) -> 
 
     context.narrate("Reading from Huckleberry...");
     let (dataset, calendar) = super::load(context, Some(window)).await?;
-    let mut state = State::new(dataset, calendar, window as usize);
+    let mut state =
+        State::new(dataset, calendar, window as usize).with_rule(context.config.day_rule());
 
     // `ratatui::init` also installs a panic hook that restores the terminal,
     // so a panic leaves a usable shell behind rather than a raw-mode mess.
@@ -100,13 +101,14 @@ async fn reread(context: &Context, state: &mut State, window: u32) {
 /// One read, with no narration: the dashboard has a status bar for that.
 async fn pull(context: &Context, window: u32) -> Result<(crate::domain::types::Dataset, Calendar)> {
     if let Some(path) = &context.offline {
-        let dataset = crate::dataset::read_snapshot(path)?;
+        let mut dataset = crate::dataset::read_snapshot(path)?;
+        context.config.day_rule().apply_to(&mut dataset.child);
         let calendar = Calendar::new(&dataset.timezone)?;
         return Ok((dataset, calendar));
     }
     let client: Huckleberry = context.client()?;
     let cid = super::which_child(context, &client).await?;
-    let dataset = crate::dataset::pull(
+    let mut dataset = crate::dataset::pull(
         &client,
         &cid,
         None,
@@ -115,6 +117,9 @@ async fn pull(context: &Context, window: u32) -> Result<(crate::domain::types::D
         now_seconds(),
     )
     .await?;
+    // The re-read has to keep the family's own night, or the screen would
+    // quietly revert to the profile's after the first refresh.
+    context.config.day_rule().apply_to(&mut dataset.child);
     super::persist_session(context, &client).await?;
     let calendar = Calendar::new(&dataset.timezone)?;
     Ok((dataset, calendar))
