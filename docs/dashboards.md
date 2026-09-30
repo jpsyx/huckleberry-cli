@@ -77,10 +77,10 @@ Sleep               currently sleeping for 30m
                     (previous sleep finished 2h 10m ago · slept for 1h 20m)
 Tonight             nothing finished yet
 Sleep in last 4h    1h 20m total · 1 sleep 2h 10m ago
-Total sleep today   11h 18m
+Sleep today         11h 18m total
 Fed in last 4h      146 ml total · 2 feeds
                     fed 36m ago and 3h 4m ago
-Total fed today     430 ml · 6 feeds · since 6:00 am
+Fed today           430 ml total · 6 feeds · since 6:00 am
 
 as of 2m ago
 ```
@@ -104,8 +104,10 @@ the one that gets misread, so "tonight" and "last night" stay distinct.
 **The recent totals say "total".** `350 ml · 5 feeds` reads as 350 ml each
 about as easily as it reads as 350 altogether, and one of those is four hundred
 per cent of the truth. The word goes on the quantity rather than on the count,
-because the count was never the ambiguous half. The day rows do not need it:
-they already carry `Total` in the label.
+because the count was never the ambiguous half. The day rows take it too, and
+in exchange their labels dropped the word: `Fed today`, not `Total fed today`,
+because a row that says "total" twice reads as though it answered a different
+question from the one above it.
 
 **Each recent total carries the times behind it.** `3 feeds` does not say
 whether they were spread through the window or all at once, which is the next

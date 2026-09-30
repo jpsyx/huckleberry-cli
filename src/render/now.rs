@@ -352,7 +352,7 @@ fn totals_rows(view: &NowView, units: Units, now: f64) -> Vec<Row> {
         &recent_sleep(view, now),
     )];
     rows.extend(times_under("slept", &view.recent_sleep_ends, now));
-    rows.push(fact(sleep_today, &slept(&view.today)));
+    rows.push(fact(sleep_today, &as_total(slept(&view.today))));
     rows.push(fact(
         &format!("Fed in last {hours}h"),
         &with_lone_time(
@@ -362,7 +362,7 @@ fn totals_rows(view: &NowView, units: Units, now: f64) -> Vec<Row> {
         ),
     ));
     rows.extend(times_under("fed", &view.recent_feed_starts, now));
-    rows.push(fact(fed_today, &today_intake_line(view, units)));
+    rows.push(fact(fed_today, &as_total(today_intake_line(view, units))));
     rows
 }
 
@@ -384,6 +384,15 @@ fn recent_sleep(view: &NowView, now: f64) -> String {
     with_lone_time(total, ends, now)
 }
 
+/// What an empty window says, in one place because [`as_total`] has to
+/// recognise it: "nothing logged total" is not a sentence, and in a discrete
+/// day the phrase carries a `· since` after it that a naive split would put
+/// the word in the middle of.
+///
+/// Not "0 ml" or "0m": a zero is a claim about the baby, and this is a claim
+/// about the record.
+const NOTHING: &str = "nothing logged";
+
 /// Marks the quantity as the whole window's, not one feed's or one sleep's.
 ///
 /// "350 ml · 5 feeds" reads as 350 ml each about as easily as it reads as 350
@@ -391,12 +400,15 @@ fn recent_sleep(view: &NowView, now: f64) -> String {
 /// word goes on the quantity rather than on the count, because the count was
 /// never the ambiguous half.
 ///
-/// Only the recent rows get it. The day rows already carry "Total" in their
-/// label, and a window with nothing in it has no total to qualify.
+/// Every window takes it, recent and day alike. A window with nothing in it
+/// does not, because it has no total to qualify.
 fn as_total(value: String) -> String {
+    if value.starts_with(NOTHING) {
+        return value;
+    }
     match value.split_once(" · ") {
         Some((quantity, rest)) => format!("{quantity} total · {rest}"),
-        None => value,
+        None => format!("{value} total"),
     }
 }
 
@@ -474,7 +486,7 @@ pub fn as_of(dataset: &Dataset, now: f64) -> String {
 
 fn feed_line(view: &NowView, calendar: &Calendar, units: Units, now: f64) -> String {
     let Some(last) = &view.last_feed else {
-        return "nothing logged".to_owned();
+        return NOTHING.to_owned();
     };
     let what = match &last.feed {
         FeedEvent::Bottle {
@@ -513,7 +525,7 @@ fn feed_line(view: &NowView, calendar: &Calendar, units: Units, now: f64) -> Str
 
 fn diaper_line(view: &NowView, calendar: &Calendar, now: f64) -> String {
     let Some(last) = &view.last_diaper else {
-        return "nothing logged".to_owned();
+        return NOTHING.to_owned();
     };
     format!(
         "{} · {} · {}",
@@ -579,7 +591,10 @@ fn sleep_rows(view: &NowView, dataset: &Dataset, now: f64) -> Vec<Row> {
 pub const fn total_labels(view: &NowView) -> (&'static str, &'static str) {
     match view.today_window.mode {
         DayMode::Continuous => ("Fed in last 24h", "Sleep in last 24h"),
-        DayMode::Discrete => ("Total fed today", "Total sleep today"),
+        // Not "Total fed today": the value says "total" now, and a row saying
+        // it twice reads as though it answered a different question from the
+        // one above it.
+        DayMode::Discrete => ("Fed today", "Sleep today"),
     }
 }
 
@@ -608,7 +623,7 @@ pub fn intake(totals: &Totals, units: Units) -> String {
     if parts.is_empty() {
         // Not "0 ml": that is a claim about the baby, and this is a claim
         // about the record.
-        return "nothing logged".to_owned();
+        return NOTHING.to_owned();
     }
     parts.join(" · ")
 }
@@ -635,7 +650,7 @@ pub fn slept(totals: &Totals) -> String {
     if totals.sleep_seconds > 0.0 {
         return format_duration(totals.sleep_seconds);
     }
-    "nothing logged".to_owned()
+    NOTHING.to_owned()
 }
 
 /// `1 feed`, `6 feeds`.
@@ -670,7 +685,7 @@ fn stretch_line(view: &NowView, calendar: &Calendar) -> String {
         return if stretch.tonight {
             "nothing finished yet".to_owned()
         } else {
-            "nothing logged".to_owned()
+            NOTHING.to_owned()
         };
     };
     let qualifier = if stretch.tonight { " so far" } else { "" };
@@ -758,13 +773,50 @@ mod tests {
     fn the_word_total_goes_nowhere_it_is_not_needed() {
         let text = joined(&a_newborns_day(), AFTERNOON);
         for line in text.lines() {
-            if line.starts_with("Total fed today") || line.starts_with("Total sleep today") {
-                assert!(!line.contains(" total"), "{line}");
-            }
             if line.contains("nothing logged") {
                 assert!(!line.contains(" total"), "{line}");
             }
         }
+    }
+
+    /// The day figures are as easily misread as the recent ones.
+    #[test]
+    fn the_day_totals_say_total_too() {
+        let mut data = across_a_day_start();
+        data.sleep = vec![sleep(AFTERNOON - 10_800.0, 7_200.0)];
+        let text = with_rule(
+            &data,
+            crate::domain::today::DayRule::continuous(6.0, 19.5),
+            AFTERNOON,
+        );
+        let line = |label: &str| {
+            text.lines()
+                .find(|line| line.starts_with(label))
+                .unwrap_or_else(|| panic!("no {label} row: {text}"))
+                .to_owned()
+        };
+        assert!(line("Fed in last 24h").contains(" total ·"), "{text}");
+        assert!(line("Sleep in last 24h").contains(" total"), "{text}");
+    }
+
+    /// The label names the window and the value says it is a total, so a
+    /// discrete day stops saying "Total" twice over.
+    #[test]
+    fn a_discrete_day_is_labelled_by_the_day_not_by_the_word_total() {
+        let text = joined(&a_newborns_day(), AFTERNOON);
+        assert!(text.contains("Fed today"), "{text}");
+        assert!(text.contains("Sleep today"), "{text}");
+        assert!(!text.contains("Total fed today"), "{text}");
+        assert!(!text.contains("Total sleep today"), "{text}");
+    }
+
+    /// "nothing logged total" is not a sentence, and in a discrete day the
+    /// phrase carries a `· since` after it that a naive split would break.
+    #[test]
+    fn a_window_with_nothing_in_it_never_gains_a_total() {
+        let text = joined(&dataset(), AFTERNOON);
+        assert!(text.contains("nothing logged"), "{text}");
+        assert!(!text.contains("nothing logged total"), "{text}");
     }
 
     #[test]
@@ -802,9 +854,9 @@ mod tests {
         assert!(at("Last fed") < at("Diaper"), "{text}");
         assert!(at("Diaper") < at("Sleep "), "{text}");
         assert!(at("Last night's sleep") < at("Sleep in last 4h"), "{text}");
-        assert!(at("Sleep in last 4h") < at("Total sleep today"), "{text}");
-        assert!(at("Total sleep today") < at("Fed in last 4h"), "{text}");
-        assert!(at("Fed in last 4h") < at("Total fed today"), "{text}");
+        assert!(at("Sleep in last 4h") < at("Sleep today"), "{text}");
+        assert!(at("Sleep today") < at("Fed in last 4h"), "{text}");
+        assert!(at("Fed in last 4h") < at("Fed today"), "{text}");
     }
 
     #[test]
@@ -849,7 +901,7 @@ mod tests {
             .expect("a recent sleep row");
         let day = lines
             .iter()
-            .position(|line| line.starts_with("Total sleep today"))
+            .position(|line| line.starts_with("Sleep today"))
             .expect("a day sleep row");
         assert_eq!(recent + 1, day, "{text}");
     }
@@ -1240,8 +1292,8 @@ mod tests {
         let mut data = across_a_day_start();
         data.sleep = vec![sleep(AFTERNOON - 10_800.0, 7_200.0)];
         let text = joined(&data, AFTERNOON);
-        assert!(text.contains("Total fed today"), "{text}");
-        assert!(text.contains("Total sleep today"), "{text}");
+        assert!(text.contains("Fed today"), "{text}");
+        assert!(text.contains("Sleep today"), "{text}");
         assert!(text.contains("2h 0m"), "{text}");
     }
 
@@ -1254,7 +1306,7 @@ mod tests {
             crate::domain::today::DayRule::discrete(6.0, 19.5),
             AFTERNOON,
         );
-        assert!(text.contains("150 ml · 2 feeds"), "{text}");
+        assert!(text.contains("150 ml total · 2 feeds"), "{text}");
         assert!(
             text.contains("since 6:00 am"),
             "the window says where it began: {text}"
@@ -1271,7 +1323,7 @@ mod tests {
         );
         assert!(text.contains("Fed in last 24h"), "{text}");
         assert!(text.contains("Sleep in last 24h"), "{text}");
-        assert!(text.contains("350 ml · 4 feeds"), "{text}");
+        assert!(text.contains("350 ml total · 4 feeds"), "{text}");
         assert!(
             !text.contains("since"),
             "a rolling window has no hour to have begun at: {text}"
@@ -1289,7 +1341,7 @@ mod tests {
             THREE_AM,
         );
         assert!(
-            text.contains("Total fed today") && text.contains("80 ml"),
+            text.contains("Fed today") && text.contains("80 ml"),
             "a 2am feed is still part of the day that began at 6am yesterday: {text}"
         );
     }
@@ -1346,7 +1398,7 @@ mod tests {
     #[test]
     fn a_window_with_nothing_in_it_says_so_rather_than_printing_a_zero() {
         let text = joined(&dataset(), AFTERNOON);
-        for label in ["Fed in last 4h", "Total fed today", "Total sleep today"] {
+        for label in ["Fed in last 4h", "Fed today", "Sleep today"] {
             let line = text
                 .lines()
                 .find(|line| line.starts_with(label))
@@ -1365,7 +1417,7 @@ mod tests {
         let text = joined(&data, AFTERNOON);
         let line = text
             .lines()
-            .find(|line| line.starts_with("Total sleep today"))
+            .find(|line| line.starts_with("Sleep today"))
             .unwrap_or_default();
         assert!(line.contains("1h 0m"), "{text}");
     }

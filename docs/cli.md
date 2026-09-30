@@ -447,7 +447,7 @@ replaces the night on Huckleberry's own profile.
 `day_mode` is a separate question, about the running totals on `now` and in the
 shell's Now widget only: `continuous` is a rolling twenty-four hours, labelled
 `Fed in last 24h` and `Sleep in last 24h`; `discrete` runs from `day_start` and
-is labelled `Total fed today` and `Total sleep today`.
+is labelled `Fed today` and `Sleep today`.
 
 Setup offers `continuous` to a baby twelve weeks old or under and `discrete`
 to an older one, reading the age off the profile once. Either is one keystroke,
