@@ -864,3 +864,36 @@ shell too.
 
 **Revisit when.** A prompt turns up where `q` is neither a letter nor a
 shortcut, and somebody expects it to quit.
+
+## Input is queued, and the panel draws the last frame
+
+**Decision.** `Exchange` in `src/tui/job.rs` keeps input that arrives before a
+question is ready for it, and the flow panel draws the last frame rather than
+the one awaiting an answer.
+
+**Why.** Both were bugs, and both came from the same shape: a command runs on
+its own task, so between answering a keystroke and the command's next frame
+there is a moment when nothing is waiting for input and nothing is pending to
+draw.
+
+Turning input away in that moment lost characters. Typing at ordinary speed
+was enough; a dictation tool pasting a phrase was worse, because the whole
+burst arrived inside one window. `6:30am` came out as `63a`.
+
+Drawing the pending frame in that moment drew nothing, once per character,
+which is what the flicker was.
+
+**Consequences.** Bracketed paste is enabled on the shell's screen, so a paste
+is one event rather than one per character: easier to keep together than to put
+back together, and a pasted newline can be dropped rather than read as Enter
+submitting an answer halfway through. `host::Input` carries either, and each
+hosted loop says what it does with a paste: text appends it, a listing types it
+into the search box, a menu has nowhere to put it.
+
+`Exchange` is pure, so both rules are asserted rather than observed. That
+mattered here: the tests were written against the old behavior first and failed
+exactly the way the bug did, which is the only reason there is evidence the
+diagnosis was right.
+
+**Revisit when.** A hosted loop wants to know that input is waiting before it
+draws, to skip frames under a fast burst. Nothing needs that yet.

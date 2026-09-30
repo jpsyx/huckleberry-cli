@@ -33,7 +33,10 @@ fn hosted(label: &str, items: &[MenuItem], default: usize, theme: Theme) -> Resu
     let (width, height) = crate::prompt::host::size();
     loop {
         let lines = render(label, items, &state, width, height, theme);
-        let key = crate::prompt::host::frame(lines)?;
+        let crate::prompt::host::Input::Key(key) = crate::prompt::host::frame(lines)? else {
+            // A menu has nothing to paste into.
+            continue;
+        };
         match state.apply(key, items.len(), usize::from(height).saturating_sub(2)) {
             SelectionAction::Stay => {}
             SelectionAction::Submit(index) => return Ok(index),

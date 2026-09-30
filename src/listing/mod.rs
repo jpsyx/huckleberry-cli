@@ -212,9 +212,25 @@ impl<'a> Listing<'a> {
             let line = body.iter().position(|line| line.row == Some(state.cursor));
             state.top = state::scrolled(state.top, line.unwrap_or(0), height, body.len());
 
-            let key = crate::prompt::host::frame(rendered(
-                &head, &body, &state, self.verb, height, theme,
-            ))?;
+            let drawn = rendered(&head, &body, &state, self.verb, height, theme);
+            let key = match crate::prompt::host::frame(drawn)? {
+                crate::prompt::host::Input::Key(key) => key,
+                crate::prompt::host::Input::Pasted(text) => {
+                    for character in text.chars().filter(|character| !character.is_control()) {
+                        let typed = crossterm::event::KeyEvent::new(
+                            crossterm::event::KeyCode::Char(character),
+                            crossterm::event::KeyModifiers::NONE,
+                        );
+                        state::apply(
+                            &mut state,
+                            state::key_for(typed),
+                            filtered.len(),
+                            height / 2,
+                        );
+                    }
+                    continue;
+                }
+            };
             if key.kind != KeyEventKind::Press {
                 continue;
             }

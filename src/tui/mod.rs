@@ -28,6 +28,7 @@ use shell::Shell;
 
 use crate::cli::Cli;
 use crate::interactive::session::SessionOptions;
+use crate::prompt::host::Input;
 use crate::theme::Theme;
 use job::{Job, Landing};
 
@@ -86,20 +87,24 @@ async fn navigate(
         } else {
             shell::TICK
         };
-        let Some(key) = shell.next_key(wait)? else {
-            // A tick with no key. The clocks move on, so draw again.
+        let Some(input) = shell.next_input(wait)? else {
+            // A tick with nothing typed. The clocks move on, so draw again.
             continue;
         };
         // One key never reaches a command, however deep it is in a question.
-        if keys::forces_quit(key) {
+        if matches!(input, Input::Key(key) if keys::forces_quit(key)) {
             return Ok(());
         }
         if let Some(running) = job.as_mut() {
-            if running.asking() {
-                running.answer(key);
-            }
+            // Never turned away: a question that has not arrived yet will
+            // still want this.
+            running.feed(input);
             continue;
         }
+        let Input::Key(key) = input else {
+            // Nothing outside a command has anywhere to paste into.
+            continue;
+        };
         if app.dashboard.is_some() && dashboard_key(app, key, globals, theme, &mut reading) {
             continue;
         }
