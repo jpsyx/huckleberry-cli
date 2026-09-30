@@ -203,7 +203,28 @@ wanted.
 A command runs on its own task and the loop keeps drawing the whole time, so
 the clocks tick and the widgets refresh while a question is on the screen.
 
-### 18. There is one implementation of every question
+### 18. Nothing typed is ever dropped, and the screen never blinks
+
+A command runs on its own task, so there is a window after every keystroke,
+while it works out what to draw next, when nothing is waiting for input.
+**Anything typed in that window is kept until the question that wants it turns
+up.** Without that, typing faster than the command answers loses characters,
+and a dictated phrase arrives in pieces: `6:30am` came out as `63a`.
+
+For the same reason a paste arrives whole rather than as one key per character.
+Bracketed paste is on, so a dictation tool's burst is one event to keep
+together rather than a dozen to put back together, and a pasted newline is
+dropped rather than read as Enter submitting the answer halfway through.
+
+**And what is drawn is the last frame, not the pending one.** Answering leaves
+nothing waiting until the command sends its next frame; drawing the pending one
+meant drawing nothing for that moment, once per character, which reads as a
+flicker under the hand.
+
+Both live in `Exchange` in `src/tui/job.rs`, which is pure and is the only
+place either rule is kept.
+
+### 19. There is one implementation of every question
 
 The questions in the panel are the same questions the command line asks. Not
 a second set written for the shell: literally the same code, drawing through

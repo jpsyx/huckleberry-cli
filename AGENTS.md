@@ -111,10 +111,10 @@ Before writing code:
 - Determine which other files in `docs/` are relevant to read.
 - Determine which available skills are relevant. Run
   `npx skills list` to see what this project has installed.
-- Determine which tests, if any, need to be written to test the requested
-  functionality.
+- Determine which tests, if any, need to be written: for a feature, the ones
+  that describe the behavior; for a bug, the one that reproduces it.
 
-**Implement functionality using red/green TDD by default:**
+**Write every change, feature or fix, using red/green TDD by default:**
 
 1. **Red**: write a failing test that describes the desired behavior, and run
    it to confirm it fails for the expected reason before writing any
@@ -122,6 +122,17 @@ Before writing code:
 2. **Green**: write the minimum implementation needed to make the test pass,
    and run the test to confirm it passes.
 3. **Refactor**: clean up the implementation while keeping the tests green.
+
+**A bug fix is red/green too, and it is where the rule matters most.** The
+moment a bug is diagnosed, write the test that reproduces it and watch it fail
+for that reason before touching the fix. Diagnosing is not a licence to skip
+ahead: a diagnosis is a hypothesis, and a test that fails the way you predicted
+is what turns it into a fact. A fix that lands without one leaves nothing
+behind to stop the bug coming back, and no evidence it was ever the cause.
+
+If the buggy behavior is buried in something impure and awkward to reach, that
+is a reason to pull the decision out into a pure function and test that, not a
+reason to skip the test.
 
 As a rule, do not write implementation code before there is a failing test for
 it. You may skip TDD only when writing a test adds no real value, for example:

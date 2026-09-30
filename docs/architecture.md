@@ -111,7 +111,7 @@ owns the terminal:
 | `tui/draw/mod.rs` | the frame, and where the widgets go in it. |
 | `tui/draw/menu.rs` | the Menu view: the main panel. |
 | `tui/draw/now.rs` | the Now widget: what `h now` says, permanently. |
-| `tui/job.rs` | one command running inside the shell, and everything it has said. Its window is pure. |
+| `tui/job.rs` | one command running inside the shell, and everything it has said. `Exchange` and the panel window are pure. |
 | `tui/draw/flow.rs` | the flow panel: a command, drawn where the menu was. |
 | `tui/shell.rs` | the alternate screen, and the event loop's keyboard. |
 
@@ -154,6 +154,12 @@ Output goes the same way. `render::print` and `render::note` are the only two
 places this tool writes, and both hand their lines to a host when one is
 installed. Everything that used to `println!` or `eprintln!` now goes through
 them.
+
+`Exchange` in `tui/job.rs` holds the two rules that make typing into a hosted
+question feel like typing: input that arrives before a question wants it is
+queued rather than dropped, and the panel draws the last frame rather than the
+pending one so it never blanks between a keystroke and its redraw. Both are
+pure and tested; both were bugs first.
 
 The dashboard is not an exception. `dashboard::draw::draw_in` takes an area
 rather than the whole frame, so the shell draws it in the panel from the

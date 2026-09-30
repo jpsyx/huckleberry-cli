@@ -31,10 +31,19 @@ pub enum Request {
     Show(Vec<String>),
 }
 
+/// What somebody did to answer a frame.
+#[derive(Debug, Clone)]
+pub enum Input {
+    /// One keystroke.
+    Key(KeyEvent),
+    /// Text pasted in one go.
+    Pasted(String),
+}
+
 /// What the host sends back.
 pub enum Reply {
-    /// The keystroke a [`Request::Frame`] waited for.
-    Key(KeyEvent),
+    /// What a [`Request::Frame`] waited for.
+    Input(Input),
     /// A [`Request::Show`] has been taken.
     Shown,
 }
@@ -121,10 +130,10 @@ fn send(request: Request) -> Result<Reply> {
     }
 }
 
-/// Draws one frame through the host and waits for a keystroke.
-pub fn frame(lines: Vec<String>) -> Result<KeyEvent> {
+/// Draws one frame through the host and waits for an answer.
+pub fn frame(lines: Vec<String>) -> Result<Input> {
     match send(Request::Frame(lines))? {
-        Reply::Key(key) => Ok(key),
+        Reply::Input(input) => Ok(input),
         Reply::Shown => Err(Cancelled.into()),
     }
 }
@@ -193,16 +202,19 @@ mod hosting {
             "{lines:?}"
         );
         reply
-            .send(Reply::Key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE)))
+            .send(Reply::Input(Input::Key(KeyEvent::new(
+                KeyCode::Down,
+                KeyModifiers::NONE,
+            ))))
             .expect("the menu is listening");
 
         // It redraws with the cursor moved, and Enter takes that row.
         let (_, reply) = channel.requests.recv().expect("a second frame");
         reply
-            .send(Reply::Key(KeyEvent::new(
+            .send(Reply::Input(Input::Key(KeyEvent::new(
                 KeyCode::Enter,
                 KeyModifiers::NONE,
-            )))
+            ))))
             .expect("the menu is listening");
 
         assert_eq!(asking.join().expect("the menu ends").expect("a row"), 1);

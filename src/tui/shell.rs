@@ -24,6 +24,7 @@ use core::time::Duration;
 
 use super::keys::{Motion, motion_for};
 use super::state::App;
+use crate::prompt::host::Input;
 
 /// How long the loop waits for a keystroke before drawing again.
 ///
@@ -81,16 +82,24 @@ impl Shell {
     /// Waits a tick for a keystroke. Nothing (a timeout, a resize, anything
     /// else) means "draw again", which is what keeps the clocks moving.
     pub fn next_motion(&mut self) -> Result<Option<Motion>> {
-        Ok(self.next_key(TICK)?.map(motion_for))
+        Ok(match self.next_input(TICK)? {
+            Some(Input::Key(key)) => Some(motion_for(key)),
+            _ => None,
+        })
     }
 
-    /// The same wait, with the key itself, for passing to a running command.
-    pub fn next_key(&mut self, wait: Duration) -> Result<Option<crossterm::event::KeyEvent>> {
+    /// The same wait, with whatever arrived, for passing to a running command.
+    ///
+    /// A paste comes back whole rather than as one key per character, because
+    /// bracketed paste is on: dictation and clipboard tools deliver a burst,
+    /// and a burst is easier to keep together than to put back together.
+    pub fn next_input(&mut self, wait: Duration) -> Result<Option<Input>> {
         if !crossterm::event::poll(wait).context("waiting for a keystroke")? {
             return Ok(None);
         }
         match crossterm::event::read().context("reading a keystroke")? {
-            crossterm::event::Event::Key(key) => Ok(Some(key)),
+            crossterm::event::Event::Key(key) => Ok(Some(Input::Key(key))),
+            crossterm::event::Event::Paste(text) => Ok(Some(Input::Pasted(text))),
             _ => Ok(None),
         }
     }
@@ -128,15 +137,25 @@ fn open_screen() -> Result<Screen> {
 /// Raw mode and the alternate screen, on stderr.
 fn take_screen() -> Result<()> {
     terminal::enable_raw_mode().context("enabling keyboard input")?;
-    execute!(stderr(), terminal::EnterAlternateScreen, cursor::Hide)
-        .context("opening the full-screen menu")
+    execute!(
+        stderr(),
+        terminal::EnterAlternateScreen,
+        crossterm::event::EnableBracketedPaste,
+        cursor::Hide
+    )
+    .context("opening the full-screen menu")
 }
 
 /// The inverse, in the order that leaves a usable shell behind: raw mode first,
 /// because it has the wider effect.
 fn release_screen() -> Result<()> {
     let raw = terminal::disable_raw_mode();
-    let screen = execute!(stderr(), terminal::LeaveAlternateScreen, cursor::Show);
+    let screen = execute!(
+        stderr(),
+        crossterm::event::DisableBracketedPaste,
+        terminal::LeaveAlternateScreen,
+        cursor::Show
+    );
     raw.context("restoring terminal input")?;
     screen.context("restoring the terminal")
 }

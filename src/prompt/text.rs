@@ -31,11 +31,13 @@ fn hosted(question: &Question<'_>, theme: Theme, secret: bool) -> Result<String>
             lines.push(theme.muted(help));
         }
         lines.push(theme.value(&typed_line(question, &typed, secret)));
-        let key = crate::prompt::host::frame(lines)?;
-        match typing(key, &mut typed) {
-            Typing::Stay => {}
-            Typing::Done => return Ok(typed),
-            Typing::Cancel => return Err(Cancelled.into()),
+        match crate::prompt::host::frame(lines)? {
+            crate::prompt::host::Input::Pasted(text) => paste(&mut typed, &text),
+            crate::prompt::host::Input::Key(key) => match typing(key, &mut typed) {
+                Typing::Stay => {}
+                Typing::Done => return Ok(typed),
+                Typing::Cancel => return Err(Cancelled.into()),
+            },
         }
     }
 }
@@ -52,6 +54,15 @@ fn typed_line(question: &Question<'_>, typed: &str, secret: bool) -> String {
         typed.to_owned()
     };
     format!("{prefix}{visible}")
+}
+
+/// What a paste adds to what has been typed.
+///
+/// Control characters are left out rather than obeyed: a pasted newline would
+/// otherwise read as Enter and submit the answer halfway through, which is how
+/// a dictated phrase loses everything after its first line.
+fn paste(typed: &mut String, text: &str) {
+    typed.extend(text.chars().filter(|character| !character.is_control()));
 }
 
 /// What one key does to what has been typed.
@@ -182,5 +193,28 @@ mod tests {
         );
         assert!(line.ends_with("END"));
         assert!(ratatui::text::Line::raw(line).width() <= 18);
+    }
+}
+
+#[cfg(test)]
+mod pasting {
+    use super::*;
+
+    /// A dictated phrase arrives as one paste, and must land whole.
+    #[test]
+    fn a_paste_lands_whole_and_after_whatever_was_already_typed() {
+        let mut typed = "at ".to_owned();
+        paste(&mut typed, "30 minutes ago");
+        assert_eq!(typed, "at 30 minutes ago");
+    }
+
+    /// A pasted newline would otherwise read as Enter and submit the answer
+    /// halfway through, which is how a two-line dictation loses its second
+    /// line.
+    #[test]
+    fn control_characters_in_a_paste_are_left_out_rather_than_obeyed() {
+        let mut typed = String::new();
+        paste(&mut typed, "30 minutes\nago\t");
+        assert_eq!(typed, "30 minutesago");
     }
 }
