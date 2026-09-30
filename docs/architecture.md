@@ -155,12 +155,12 @@ places this tool writes, and both hand their lines to a host when one is
 installed. Everything that used to `println!` or `eprintln!` now goes through
 them.
 
-`dash` is the exception: it is a second full-screen program, and a terminal has
-one alternate screen to give, so the shell suspends for that one command.
-`Shell::suspend` and `Shell::resume` exist for it alone. Resuming builds a new
-`Terminal` rather than calling `Terminal::clear`, because clearing asks the
-terminal where its cursor is and waits on stdin for the reply, which is the
-same stdin the menu reads its keys from.
+The dashboard is not an exception. `dashboard::draw::draw_in` takes an area
+rather than the whole frame, so the shell draws it in the panel from the
+reading it already holds. Inside the shell it is a view rather than a job:
+`App::dashboard` holds the state, Back closes it, and a refresh replaces its
+dataset along with the widgets'. `h dash` still opens it on its own, where it
+owns the terminal as before.
 
 Drawing on stderr rather than stdout is what keeps `h > entries.txt` filling the
 file with what the commands printed. The menu is the conversation; the commands

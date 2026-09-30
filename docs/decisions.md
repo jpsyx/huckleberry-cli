@@ -803,3 +803,35 @@ The prompts lay themselves out to the panel rather than the terminal, through
 hosted questions. A diaper is four questions in a row where it could be one
 screen, and that is a panel worth writing; it would be an addition to this
 design rather than a change of it.
+
+## The dashboard is drawn in the panel, so nothing takes the screen
+
+**Decision.** `h dash` inside the shell is a view drawn in the panel where the
+menu is, from the reading the shell already has. Nothing suspends the shell any
+more, and `Shell::suspend` is what the shell does when it ends.
+
+**Why.** It was left as the one exception because it is a second full-screen
+program and a terminal has one alternate screen to give. But "everything runs
+inside the shell except one thing" is a rule somebody has to remember, and the
+exception was the command most likely to be opened and left open.
+
+Drawing it in the panel turned out to cost one parameter: the dashboard already
+splits a frame into a tab bar, a body and a status line, so taking an area
+instead of the whole frame was the change. Everything else it needs, the shell
+already had.
+
+**Consequences.** It reads no data of its own. `r` refreshes it along with the
+widgets, which also means it can never disagree with the drawer above it about
+how stale it is. It stays a command in the catalog, because `h dash` is one, and
+the shell answers that row with a view instead of a job; the test that walks the
+menu asserts it is still reached.
+
+Its own status bar drops its key hints inside the panel, because the shell's
+footer names the keys and they are not the same keys: `q` does not leave in
+there.
+
+The Now tab and the Now drawer now say the same things twice while it is open.
+That is worth fixing and is not fixed here.
+
+**Revisit when.** The shell's own widgets cover enough that the dashboard is
+redundant rather than convenient.

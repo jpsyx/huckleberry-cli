@@ -95,29 +95,15 @@ impl Shell {
         }
     }
 
-    /// Gives the terminal back so a command can ask its questions and print
-    /// its receipt where the parent can scroll back to them.
-    pub fn suspend(&mut self) -> Result<()> {
+    /// Gives the terminal back.
+    ///
+    /// Nothing steps aside any more: every command runs in the panel where the
+    /// menu was. This is how the shell ends, and [`Self::leave`] is its only
+    /// caller.
+    fn suspend(&mut self) -> Result<()> {
         if self.showing {
             self.showing = false;
             release_screen()?;
-        }
-        Ok(())
-    }
-
-    /// Takes the screen again, redrawing all of it: whatever the command
-    /// printed is still on the ordinary screen underneath.
-    ///
-    /// The terminal is rebuilt rather than cleared. A new one starts with an
-    /// empty buffer, so its first draw paints every cell of the blank screen
-    /// that was just entered; `Terminal::clear` would instead ask the terminal
-    /// where its cursor is and wait on stdin for the answer, which is the same
-    /// stdin the menu reads its keys from.
-    pub fn resume(&mut self) -> Result<()> {
-        if !self.showing {
-            take_screen()?;
-            self.screen = open_screen()?;
-            self.showing = true;
         }
         Ok(())
     }

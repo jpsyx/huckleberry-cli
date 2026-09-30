@@ -11,7 +11,7 @@ grows two implementations.
 | Term | Means |
 | --- | --- |
 | **the shell** | The full-screen app `h` opens with no command, and keeps open. `src/tui/`. Not the dashboard. |
-| **the dashboard** | The separate full-screen program `h dash` opens: five tabs over the same data, and a program you run rather than one you leave running. `src/dashboard/`. |
+| **the dashboard** | Five tabs over the same data. `src/dashboard/`. It is both a program of its own (`h dash`) and a view inside the shell; say which when it could be either. |
 | **a one-shot command** | Anything that prints and exits: `h now`, `h summary`, `h log`. |
 | **a listing** | The searchable, scrollable list behind `h log`, `h edit` and `h delete`. `src/listing/`. |
 
@@ -30,7 +30,8 @@ either, say which.
 | **the host** | Whatever is drawing a prompt and feeding it keys. The shell installs itself as one while a job runs; with none installed, prompts own the terminal. `src/prompt/host.rs`. |
 | **a frame** (of a prompt) | One pass of a hosted loop: the lines to draw, and the key that answers them. Not to be confused with a ratatui frame. |
 | **the Now widget**, **the View Latest widget**, **the Now drawer** | The same thing, interchangeably: the full-width strip along the bottom that permanently shows what `h now` prints. `src/tui/draw/now.rs`. It shows exactly what the command prints and nothing else, so changing one means changing both; see [`tui.md`](tui.md). |
-| **the drawer** | Where a widget sits: a full-width strip along the bottom of the shell, under the main panel. |
+| **the drawer** | Where a widget sits: a full-width strip across the top of the shell, above the main panel. |
+| **the Dashboard view** | `h dash` drawn in the shell's panel, from the reading the shell already has. Back closes it. It is a view rather than a job: nothing about it runs as a command. |
 | **the header** | The top line: the tool, the child, and the breadcrumb. |
 | **the footer** | The bottom line: what is happening, what is wrong, and the keys. |
 | **the breadcrumb** | `Home › Log a feed`, on the right of the header. |

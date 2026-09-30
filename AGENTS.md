@@ -36,8 +36,8 @@
   `src/prompt/host.rs` so there is one implementation of every prompt rather
   than one for the terminal and one for the shell. Output goes through
   `render::print` and `render::note`, which are the only two places this tool
-  writes, so a host can take them. `dash` is the single exception and is on its
-  way out.
+  writes, so a host can take them. **There are no exceptions**: the dashboard
+  is drawn in the panel too, from the reading the shell already has.
 - **The family's day (`day_start`, `day_end`, `day_mode`) governs arithmetic,
   never timestamps.** Anything that aggregates uses it: `summary`, `trends`,
   `stripes`, the running totals. Anything that reports an individual entry uses

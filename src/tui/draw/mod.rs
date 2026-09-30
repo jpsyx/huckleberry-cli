@@ -5,10 +5,9 @@
 //! because a screen somebody glances at with a baby on one arm is read by
 //! position long before it is read by word.
 //!
-//! The middle holds the [`menu`] view above the [`now`] drawer. The Menu view
-//! is the main panel and takes everything left over; the Now drawer is a
-//! full-width strip along the bottom, close to the keys and to the hand, where
-//! a glance goes without leaving the row being navigated.
+//! The middle holds the [`now`] drawer above the [`menu`] view. The drawer is
+//! a full-width strip across the top, where the eye lands first; the Menu view
+//! is the main panel and takes everything left over beneath it.
 //!
 //! Colours come from [`crate::theme`] through [`crate::dashboard::draw::tone`],
 //! so this screen and every other one in the tool agree on what a heading
@@ -85,28 +84,41 @@ pub fn draw_with(frame: &mut Frame, app: &App, job: Option<&crate::tui::job::Job
 
     frame.render_widget(header(app, areas[0].width), areas[0]);
     let (rows, facts) = split(areas[1], app);
-    match job {
-        Some(job) => flow::draw(frame, rows, job),
-        None => menu::draw(frame, rows, app),
+    match (job, app.dashboard.as_ref()) {
+        (Some(job), _) => flow::draw(frame, rows, job),
+        (None, Some(dashboard)) => {
+            let outline = block("Dashboard");
+            let inner = outline.inner(rows);
+            frame.render_widget(outline, rows);
+            let units = app
+                .facts
+                .reading()
+                .map_or(crate::cli::Units::Ml, |reading| reading.units);
+            crate::dashboard::draw::draw_in(frame, inner, dashboard, units, at);
+        }
+        (None, None) => menu::draw(frame, rows, app),
     }
     frame.render_widget(now::widget(&app.facts, at).block(block("Now")), facts);
     frame.render_widget(footer(app, job.is_some()), areas[2]);
 }
 
-/// What the menu gets, and where the drawer sits under it.
+/// Where the Now drawer sits, and what the menu gets under it.
 ///
-/// The drawer is only as tall as it has something to say, and gives way to the
-/// menu on a short terminal rather than the other way round.
+/// The drawer is on top, where the eye lands first and the facts are read
+/// without looking past anything else. It is only as tall as it has something
+/// to say, and gives way to the menu on a short terminal rather than the other
+/// way round: the menu is the part being operated, and a drawer short of its
+/// last line is still readable where a menu with no rows is not.
 fn split(body: Rect, app: &App) -> (Rect, Rect) {
     let room = body.height.saturating_sub(MENU_FLOOR);
     let areas = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Min(3),
             Constraint::Length(now::height(&app.facts).min(room)),
+            Constraint::Min(3),
         ])
         .split(body);
-    (areas[0], areas[1])
+    (areas[1], areas[0])
 }
 
 /// The name of the tool and the child on the left, and where you are on the
@@ -187,6 +199,10 @@ fn block(title: &str) -> Block<'static> {
 /// The keys a command's own flow answers to, which are its own.
 const FLOW_HINTS: &str = "the command has the keys · ctrl-q quit";
 
+/// The keys the dashboard answers to while it is the thing in the panel.
+const DASH_HINTS: &str =
+    "1-5 screens · tab moves · j/k scroll · r refresh · ← h back · ctrl-q quit";
+
 fn footer(app: &App, running: bool) -> Paragraph<'static> {
     let note = if app.facts.refreshing {
         Some(("reading…".to_owned(), Tone::Info))
@@ -203,7 +219,13 @@ fn footer(app: &App, running: bool) -> Paragraph<'static> {
         )),
         None => spans.push(Span::raw(" ")),
     }
-    let hints = if running { FLOW_HINTS } else { HINTS };
+    let hints = if running {
+        FLOW_HINTS
+    } else if app.dashboard.is_some() {
+        DASH_HINTS
+    } else {
+        HINTS
+    };
     spans.push(Span::styled(hints, Style::default().fg(tone(Tone::Muted))));
     Paragraph::new(Line::from(spans))
 }
@@ -390,9 +412,9 @@ mod frames {
         assert!(drawn.contains("press r"), "{drawn}");
     }
 
-    /// The layout rule: the menu on top, the drawer along the bottom.
+    /// The layout rule: the drawer across the top, the menu beneath it.
     #[test]
-    fn the_drawer_is_a_full_width_strip_under_the_menu() {
+    fn the_drawer_is_a_full_width_strip_above_the_menu() {
         let drawn = screen(&loaded(), 100, 30);
         let menu_row = drawn
             .lines()
@@ -403,8 +425,8 @@ mod frames {
             .position(|line| line.contains(" Now "))
             .expect("a drawer");
         assert!(
-            menu_row < drawer_row,
-            "the drawer sits under the menu: {drawn}"
+            drawer_row < menu_row,
+            "the drawer sits above the menu: {drawn}"
         );
         let width = drawn
             .lines()
@@ -426,9 +448,9 @@ mod frames {
             facts.height
         );
         assert_eq!(
-            rows.y + rows.height,
-            facts.y,
-            "and the drawer is beneath it"
+            facts.y + facts.height,
+            rows.y,
+            "and the menu is beneath the drawer"
         );
     }
 
