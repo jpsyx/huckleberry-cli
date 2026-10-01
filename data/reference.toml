@@ -118,7 +118,7 @@ unit = "seconds"
   max_age_days = 121
   low = 28800.0    # 8 hours
   high = 72000.0   # 20 hours
-  label = "typical sleep at this age: 8 to 20 hours in 24"
+  label = "typical sleep at this age: 8 to 20 hours a day"
   source = "NHS Best Start in Life, your baby's sleep patterns (8 to 18 hours, either perfectly normal); Galland et al., Sleep Med Rev 2012;16(3):213, table 2, 0-2 months (9.3 to 20.0)"
 
   # From four months the AASM does make a recommendation, so these say

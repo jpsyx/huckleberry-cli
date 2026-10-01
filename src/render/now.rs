@@ -1463,7 +1463,7 @@ mod tests {
             "{text}"
         );
         assert!(
-            text.contains("typical sleep at this age: 8 to 20 hours in 24"),
+            text.contains("typical sleep at this age: 8 to 20 hours a day"),
             "{text}"
         );
     }

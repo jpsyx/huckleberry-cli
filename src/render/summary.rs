@@ -519,7 +519,7 @@ mod tests {
 
         let sleep = drawn
             .lines()
-            .find(|line| line.contains("hours in 24"))
+            .find(|line| line.contains("hours a day"))
             .expect("the sleep band");
         assert!(sleep.starts_with(&sequence(Tone::Attention)), "{sleep:?}");
         assert!(sleep.contains("under that"), "{sleep:?}");
