@@ -29,6 +29,13 @@ pub enum Tone {
     Selected,
     /// Secondary text: hints, units, anything the eye may skip.
     Muted,
+    /// Fainter than [`Self::Muted`], for the far edge of a dial.
+    ///
+    /// The only role with two steps of quiet. A dial shows the values either
+    /// side of the one chosen so it reads as a wheel rather than a number,
+    /// and those neighbours need to recede twice over: the near ones are
+    /// context, the far ones are only the hint of more.
+    Faint,
     /// Something finished and worked.
     Success,
     /// Something worked but deserves a second look.
@@ -69,12 +76,13 @@ pub enum Tone {
 impl Tone {
     /// Every role, so something reading a painted line back can find which
     /// one painted it.
-    pub const ALL: [Self; 18] = [
+    pub const ALL: [Self; 19] = [
         Self::Heading,
         Self::Accent,
         Self::Value,
         Self::Selected,
         Self::Muted,
+        Self::Faint,
         Self::Success,
         Self::Warning,
         Self::Error,
@@ -103,6 +111,7 @@ impl Tone {
             Self::Heading => "1;95",
             Self::Value => "97",
             Self::Muted => "90",
+            Self::Faint => "2;90",
             Self::Error => "91",
             Self::Prompt => "1;96",
             // Bold on top of the bright white the other rows already use, so
@@ -144,7 +153,10 @@ impl Tone {
     #[must_use]
     pub const fn ansi_index(self) -> u8 {
         match self {
-            Self::Muted => 8,
+            // The same grey as Muted: the palette has one, and the second
+            // step of quiet is carried by the dim attribute in `sgr`, which a
+            // colour index cannot express.
+            Self::Muted | Self::Faint => 8,
             Self::Error => 9,
             // Green means the same thing to a renderer that paints with
             // colour values; the two roles differ in what they are *for*, and

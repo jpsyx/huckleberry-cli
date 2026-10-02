@@ -112,6 +112,12 @@ after its other questions. Enter accepts `now`. Nursing starts ask when they
 started; sleep and nursing pause, resume and stop actions, plus nursing side
 switches, also ask when. Cancel and status do not record an event and need no time.
 
+**In the shell every When? prompt is a dial rather than a field**: three
+turning columns for the hour, the minute and the half of the day, described in
+[`tui.md`](tui.md). It answers in the same words somebody would have typed, so
+everything below here applies to both. What follows is the typed form, which
+is what a bare terminal gets.
+
 Every **When?** prompt, including history and ongoing-timer edits, shows
 `E.g. '1:23 pm' or '123pm' or '32 min ago' are all valid` beneath the question
 in the muted hint colour. The helper remains readable as plain text when

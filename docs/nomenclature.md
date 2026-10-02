@@ -29,6 +29,9 @@ either, say which.
 | **a job** | One command running inside the shell, and everything it has said so far. `src/tui/job.rs`. |
 | **the host** | Whatever is drawing a prompt and feeding it keys. The shell installs itself as one while a job runs; with none installed, prompts own the terminal. `src/prompt/host.rs`. |
 | **a frame** (of a prompt) | One pass of a hosted loop: the lines to draw, and the key that answers them. Not to be confused with a ratatui frame. |
+| **a step** (of a prompt) | A frame drawn without waiting for anybody: one picture of an animation. The host takes it and says whether a key is already waiting, which is how a held key cuts an animation short. |
+| **the time dial** | The three turning columns that answer every "when" in the shell: hour, minute, and the half of the day. `src/prompt/dial/`. One component, used by every time question; never called a picker. |
+| **a column** (of the dial) | One of its three wheels. The one the keys are turning is lit and underlined. |
 | **the Now widget**, **the View Latest widget**, **the Now drawer** | The same thing, interchangeably: the full-width strip along the bottom that permanently shows what `h now` prints. `src/tui/draw/now.rs`. It shows exactly what the command prints and nothing else, so changing one means changing both; see [`tui.md`](tui.md). |
 | **the drawer** | Where a widget sits: a full-width strip across the top of the shell, above the main panel. |
 | **the Dashboard view** | `h dash` drawn in the shell's panel, from the reading the shell already has. Back closes it. It is a view rather than a job: nothing about it runs as a command. |

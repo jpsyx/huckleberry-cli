@@ -1,4 +1,5 @@
 //! Shared prompts: finite choices are menus, free values use a text editor.
+pub mod dial;
 pub mod host;
 mod question;
 mod secret;
@@ -53,8 +54,32 @@ pub fn ask(question: &Question<'_>, theme: Theme) -> Result<String> {
     }
 }
 
-/// Asks an optional value with a visible Skip entry.
+/// What an empty optional field means, said on the field itself.
+///
+/// An empty box gives no clue that leaving it empty is allowed, and the menu
+/// this replaced said so in a row of its own.
+const SKIP_HINT: &str = "Enter to skip";
+
+/// Asks an optional value.
+///
+/// In the shell, a question with nothing to choose between is shown as the
+/// field itself: a menu whose two rows read "Skip" and "Enter text" is a menu
+/// with nothing to choose, and at 3am it is one keypress in the way of the
+/// answer. Leaving the field empty is the skip, which is what an empty answer
+/// means everywhere else in this tool.
+///
+/// On a bare terminal the menu stays, because there the rows are also how
+/// somebody discovers that skipping is an option at all.
 pub fn ask_optional(question: &Question<'_>, theme: Theme) -> Result<Option<String>> {
+    if host::hosted() && question.choices.is_empty() {
+        let asked = if question.help.is_some() {
+            *question
+        } else {
+            question.with_help(SKIP_HINT)
+        };
+        let typed = text::read(&asked, theme, false)?;
+        return Ok((!typed.trim().is_empty()).then(|| typed.trim().to_owned()));
+    }
     if !available() {
         return Ok(None);
     }

@@ -70,6 +70,18 @@ impl Calendar {
         self.zoned(at).date()
     }
 
+    /// What the clock on the wall said at that instant.
+    ///
+    /// The inverse of [`Self::at`] for a known day, and what a dial starts
+    /// standing on: an instant is the truth, but the hour and minute are what
+    /// somebody turns.
+    #[must_use]
+    pub fn time_of_day(&self, at: f64) -> crate::domain::clock::TimeOfDay {
+        let zoned = self.zoned(at);
+        crate::domain::clock::TimeOfDay::new(zoned.hour(), zoned.minute())
+            .unwrap_or(crate::domain::clock::TimeOfDay { hour: 0, minute: 0 })
+    }
+
     /// Local midnight to local midnight, in seconds.
     ///
     /// On a day the clocks change this span is 23 or 25 hours, which is
@@ -212,6 +224,20 @@ pub fn split_hour(hour_fraction: f64) -> (i8, i8) {
 #[cfg(test)]
 mod days {
     use super::*;
+
+    /// The hour and minute a dial starts standing on.
+    #[test]
+    fn an_instant_reads_back_as_the_clock_on_the_wall() {
+        let calendar = Calendar::new("America/New_York").expect("a real timezone");
+        let afternoon = calendar.at("2025-09-22".parse().expect("a date"), 13, 44);
+        let time = calendar.time_of_day(afternoon);
+        assert_eq!((time.hour, time.minute), (13, 44));
+        let round_trip = calendar.at(calendar.day_of(afternoon), time.hour, time.minute);
+        assert!(
+            (round_trip - afternoon).abs() < f64::EPSILON,
+            "and goes back to the instant it came from"
+        );
+    }
 
     fn new_york() -> Calendar {
         Calendar::new("America/New_York").expect("a real timezone")

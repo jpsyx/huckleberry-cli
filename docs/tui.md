@@ -244,6 +244,73 @@ question can never word itself one way in one place and another way in the
 other. It is the same rule as the Now drawer, applied to input instead of
 output.
 
+### 20. A time is turned, not typed
+
+Every "when" in the shell is answered on the **time dial**: three columns,
+hour, minute and the half of the day, each showing the two values either side
+of the one chosen so it reads as a wheel rather than a number.
+
+```
+When?
+
+  11 : 42
+  12 : 43   am
+   1 : 44   pm
+   2 : 45
+   3 : 46
+  ──
+  ←/→ h/l dial · ↑/↓ j/k turn · shift ±1 min · Enter · Esc
+```
+
+The reasoning is the north star. A parent at 3am has one hand free and is not
+going to type `1:44 pm`, and every character typed is a character that can be
+typed wrong. Turning a wheel cannot produce a time that does not exist.
+
+- **`←`/`→` and `h`/`l` move between the columns, and the ends hold.** This is
+  the one place in this tool where `h` is not back: a dial is a row of columns
+  and there is nowhere else for those keys to point. `Esc` is how somebody
+  leaves, and the hint line says so.
+- **`↑`/`↓` and `j`/`k` turn the column under the cursor**, five minutes at a
+  time, with shift for one. Five, because a feed at 1:40 and one at 1:42 are
+  the same feed, and a dial needing twelve presses to cross an hour is a dial
+  somebody types around instead.
+- **Every column cycles.** Past 59 comes 00, past 12 comes 1, and the values
+  above and below are always drawn, so no column ever looks like it has run
+  out.
+- **The half of the day is a toggle and never moves on its own.** Turning the
+  hour past twelve does not flip it. A dial that quietly changes the morning
+  to the afternoon is a dial that logs a feed twelve hours out.
+- **A turn is animated.** Five minutes is drawn as five minutes going past, so
+  the turn can be seen to travel and in which direction. A key held down cuts
+  the animation short rather than queueing behind it: whoever is holding it is
+  already ahead of the screen.
+- **Two steps of quiet.** The near neighbours are muted and the far ones
+  fainter still, so the column recedes like a wheel turning away. The column
+  being turned is lit, and underlined as well, because colour is never the
+  only carrier.
+
+It is one component, `src/prompt/dial/`, used by every time question there is.
+A fix to it is a fix to all of them.
+
+**Typing stays on a bare terminal.** There a keyboard is already under both
+hands, and `32 min ago` is quicker than any number of key presses: the dial
+cannot say that, and relative answers are most of what gets typed. The dial
+answers in the same words somebody would have typed, so every parser and every
+date rule beneath it is untouched either way.
+
+Two places deliberately do not use it. Setup's day-start and day-end questions
+are a short menu of sensible hours, which already needs no typing and should
+not offer 3:47am. And the one question that offers to keep a start that was
+never recorded has no time to begin a dial at, and Enter on a dial cannot mean
+"leave it unrecorded".
+
+### 21. An optional field is a field, not a menu
+
+A question with nothing to choose between is shown as the field itself. The
+menu this replaced had two rows, `Skip` and `Enter text`, which is a menu with
+nothing to choose: at 3am it is one keypress in the way of the answer. Leaving
+the field empty is the skip, and the field says so.
+
 ### The dashboard drops its Now tab in here
 
 The shell's Now drawer is already on the screen above it, so the dashboard's
