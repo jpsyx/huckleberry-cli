@@ -54,6 +54,15 @@ pub struct Exchange {
 }
 
 impl Exchange {
+    /// Whether somebody has pressed something that nothing has taken yet.
+    ///
+    /// An animation asks before drawing its next frame: a held key would
+    /// otherwise stack up turns behind an animation that is still running.
+    #[must_use]
+    pub fn interrupted(&self) -> bool {
+        !self.queued.is_empty()
+    }
+
     /// Takes on the lines a question wants drawn.
     pub fn show(&mut self, lines: Vec<String>) {
         self.shown = lines;
@@ -145,8 +154,7 @@ impl Job {
     #[cfg(test)]
     #[must_use]
     pub fn idle(title: &str, output: &[String]) -> Self {
-        let channel = host::install();
-        host::remove();
+        let channel = host::detached();
         Self {
             title: title.to_owned(),
             // A handle over a task that has nothing to do: this exists to
@@ -212,6 +220,12 @@ impl Job {
                 Ok((Request::Frame(lines), reply)) => {
                     self.exchange.show(lines);
                     self.reply = Some(reply);
+                }
+                Ok((Request::Step(lines), reply)) => {
+                    self.exchange.show(lines);
+                    let _ = reply.send(Reply::Stepped {
+                        interrupted: self.exchange.interrupted(),
+                    });
                 }
                 Err(TryRecvError::Empty | TryRecvError::Disconnected) => return,
             }

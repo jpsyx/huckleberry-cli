@@ -27,6 +27,9 @@ use super::Cancelled;
 pub enum Request {
     /// Draw these lines and send back the next keystroke.
     Frame(Vec<String>),
+    /// Draw these lines and carry on without waiting: one frame of an
+    /// animation, which is a picture rather than a question.
+    Step(Vec<String>),
     /// Show these lines as output, and carry on without waiting.
     Show(Vec<String>),
 }
@@ -46,6 +49,15 @@ pub enum Reply {
     Input(Input),
     /// A [`Request::Show`] has been taken.
     Shown,
+    /// A [`Request::Step`] has been drawn.
+    Stepped {
+        /// Whether somebody has already pressed something.
+        ///
+        /// An animation holding a key down would otherwise queue a second
+        /// behind the first and run minutes late. Told that input is waiting,
+        /// the loop drops the rest of the animation and goes to the answer.
+        interrupted: bool,
+    },
 }
 
 /// One side of the conversation, held by whoever is hosting.
@@ -74,6 +86,18 @@ pub fn install() -> Channel {
     if let Ok(mut slot) = slot().lock() {
         *slot = Some(Host { requests });
     }
+    Channel { requests: incoming }
+}
+
+/// A channel wired to nothing, for a job that never asks anything.
+///
+/// Installing a real host and taking it away again would reach into the
+/// global slot and disconnect whatever was already using it, which in a test
+/// run is some other test's live conversation.
+#[cfg(test)]
+#[must_use]
+pub fn detached() -> Channel {
+    let (_unused, incoming) = sync_channel(1);
     Channel { requests: incoming }
 }
 
@@ -134,7 +158,19 @@ fn send(request: Request) -> Result<Reply> {
 pub fn frame(lines: Vec<String>) -> Result<Input> {
     match send(Request::Frame(lines))? {
         Reply::Input(input) => Ok(input),
-        Reply::Shown => Err(Cancelled.into()),
+        Reply::Shown | Reply::Stepped { .. } => Err(Cancelled.into()),
+    }
+}
+
+/// Draws one frame of an animation and carries straight on.
+///
+/// Answers whether to stop animating: either somebody has pressed something
+/// and is waiting, or the host has gone and there is nothing to draw on.
+#[must_use]
+pub fn step(lines: Vec<String>) -> bool {
+    match send(Request::Step(lines)) {
+        Ok(Reply::Stepped { interrupted }) => interrupted,
+        _ => true,
     }
 }
 
@@ -151,6 +187,17 @@ pub fn show_line(line: &str) {
     show(vec![line.to_owned()]);
 }
 
+/// Hosted tests share one global slot, so they run one at a time: a second
+/// test installing a host while the first is using it would answer the wrong
+/// questions. Every test that installs a host takes this first.
+#[cfg(test)]
+pub(crate) fn one_at_a_time() -> std::sync::MutexGuard<'static, ()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 #[cfg(test)]
 mod hosting {
     //! The host is a single global slot, so these run one at a time: a second
@@ -161,14 +208,6 @@ mod hosting {
     use crate::prompt::select::MenuItem;
     use crate::theme::Theme;
     use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-    use std::sync::{Mutex, MutexGuard};
-
-    fn one_at_a_time() -> MutexGuard<'static, ()> {
-        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-        LOCK.get_or_init(|| Mutex::new(()))
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-    }
 
     fn items() -> Vec<MenuItem> {
         ["First", "Second"]

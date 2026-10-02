@@ -16,19 +16,29 @@ const TIME_HELP: &str = "E.g. '1:23 pm' or '123pm' or '32 min ago' are all valid
 /// Reads a required manual-sleep start, preserving the date of relative answers.
 pub fn read_manual_start(context: &Context, given: Option<&str>) -> Result<f64> {
     let question = create_time_question("When did it begin?", "--start <TIME>");
-    read(context, given, &question, |text, interactive| {
-        parse_instant(context, text, interactive, clock::most_recent)
-    })
+    read(
+        context,
+        given,
+        &question,
+        Some(now_seconds()),
+        |text, interactive| parse_instant(context, text, interactive, clock::most_recent),
+    )
 }
 
 /// Reads a required manual end; only clock-only answers roll forward after the start.
 pub fn read_manual_end(context: &Context, given: Option<&str>, started: f64) -> Result<f64> {
     let question = create_time_question("When did it end?", "--end <TIME>");
-    read(context, given, &question, |text, interactive| {
-        parse_instant(context, text, interactive, |time, _, calendar| {
-            clock::first_after(time, started, calendar)
-        })
-    })
+    read(
+        context,
+        given,
+        &question,
+        Some(now_seconds()),
+        |text, interactive| {
+            parse_instant(context, text, interactive, |time, _, calendar| {
+                clock::first_after(time, started, calendar)
+            })
+        },
+    )
 }
 
 /// Builds every time question with the same examples and muted helper style.
@@ -56,9 +66,13 @@ pub fn read_at(context: &Context, given: Option<&str>) -> Result<f64> {
 fn read_instant(context: &Context, given: Option<&str>, label: &str, flag: &str) -> Result<f64> {
     let question = create_time_question(label, flag).with_default("now");
     let given = given.or_else(|| (!std::io::stdin().is_terminal()).then_some("now"));
-    read(context, given, &question, |text, interactive| {
-        parse_instant(context, text, interactive, clock::most_recent)
-    })
+    read(
+        context,
+        given,
+        &question,
+        Some(now_seconds()),
+        |text, interactive| parse_instant(context, text, interactive, clock::most_recent),
+    )
 }
 
 /// Reads a history time, preserving the original instant when its default is kept.
@@ -126,19 +140,25 @@ fn read_existing(
     let calendar = context.calendar()?;
     let shown = calendar.zoned(current).strftime(DATED_FORMAT).to_string();
     let question = create_time_question(label, flag).with_default(&shown);
-    read(context, given, &question, |text, interactive| {
-        if text.trim() == shown || text.trim().eq_ignore_ascii_case("keep") {
-            return Ok(Some(current));
-        }
-        if let Some(dated) = parse_dated(text.trim()) {
-            let zoned = dated.in_tz(calendar.name())?;
-            return Ok(Some(
-                zoned.timestamp().as_second() as f64
-                    + f64::from(zoned.timestamp().subsec_nanosecond()) / 1e9,
-            ));
-        }
-        parse_instant(context, text, interactive, resolve_clock)
-    })
+    read(
+        context,
+        given,
+        &question,
+        Some(current),
+        |text, interactive| {
+            if text.trim() == shown || text.trim().eq_ignore_ascii_case("keep") {
+                return Ok(Some(current));
+            }
+            if let Some(dated) = parse_dated(text.trim()) {
+                let zoned = dated.in_tz(calendar.name())?;
+                return Ok(Some(
+                    zoned.timestamp().as_second() as f64
+                        + f64::from(zoned.timestamp().subsec_nanosecond()) / 1e9,
+                ));
+            }
+            parse_instant(context, text, interactive, resolve_clock)
+        },
+    )
 }
 
 /// How a date and time are shown and read back: `2025-01-01 7:00 AM`.
@@ -176,7 +196,9 @@ pub fn read_edit_start(
     );
     let label = format!("New start time? Current: {current}");
     let question = create_time_question(&label, "--set start=<TIME>").with_default("keep");
-    read(context, given, &question, |text, interactive| {
+    // No dial here: there is no start to begin one at, and Enter on a dial
+    // cannot mean "leave it unrecorded" the way the typed default does.
+    read(context, given, &question, None, |text, interactive| {
         if text.trim().eq_ignore_ascii_case("keep") {
             return Ok(Some(None));
         }
@@ -204,22 +226,45 @@ fn parse_instant(
 }
 
 /// Supplied values fail immediately; prompted values can be corrected before writing.
+///
+/// `dial_from` is where the dial starts when the shell is asking: the instant
+/// being corrected, or now. `None` means this question has no time to start
+/// from and must be typed, which is true of the one that offers to keep a
+/// start that was never recorded.
 fn read<T>(
     context: &Context,
     given: Option<&str>,
     question: &Question<'_>,
+    dial_from: Option<f64>,
     parse: impl Fn(&str, bool) -> Result<Option<T>>,
 ) -> Result<T> {
     if let Some(text) = given {
         return parse(text, false)?.ok_or_else(|| anyhow!(unreadable_message(text)));
     }
     loop {
-        let answer = super::ask(question, context.theme)?;
+        let answer = ask_time(context, question, dial_from)?;
         match parse(&answer, true)? {
             Some(value) => return Ok(value),
             None => context.warn(&unreadable_message(&answer)),
         }
     }
+}
+
+/// Asks a time: by turning the dial in the shell, by typing anywhere else.
+///
+/// The dial answers in the same words somebody would have typed, so every
+/// parser, every date rule and every error below here is untouched by it. It
+/// is an easier way to say "1:44 pm", not a second meaning for it.
+///
+/// Typing stays on a bare terminal, where a keyboard is already under both
+/// hands and where `32 min ago` is quicker than any number of key presses.
+/// The dial cannot say that, which is the other half of why.
+fn ask_time(context: &Context, question: &Question<'_>, dial_from: Option<f64>) -> Result<String> {
+    let Some(at) = dial_from.filter(|_| crate::prompt::host::hosted()) else {
+        return super::ask(question, context.theme);
+    };
+    let initial = context.calendar()?.time_of_day(at);
+    Ok(crate::prompt::dial::ask(question.label, initial, context.theme)?.label())
 }
 
 /// Interprets a clock time, resolving ambiguity only when the user typed it interactively.

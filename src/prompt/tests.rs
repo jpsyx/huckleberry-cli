@@ -220,3 +220,99 @@ fn the_unanswerable_failure_names_the_flag() {
         "no name to greet: pass --name <NAME> (stdin is not a terminal, so I cannot ask)"
     );
 }
+
+#[cfg(test)]
+mod optional_in_the_shell {
+    //! An optional free-text question in the shell shows the field itself.
+    use crate::prompt::host::{self, Input, Reply, Request};
+    use crate::prompt::{Question, ask_optional};
+    use crate::theme::Theme;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+    use std::sync::mpsc::SyncSender;
+    use std::time::Duration;
+
+    /// A frame, or a failure. Never a hang: a question that draws nothing is
+    /// the bug these tests are looking for, and a suite that stops dead says
+    /// far less about it than one that fails.
+    fn frame(channel: &host::Channel) -> (Vec<String>, SyncSender<Reply>) {
+        let (request, reply) = channel
+            .requests
+            .recv_timeout(Duration::from_secs(5))
+            .expect("a frame within five seconds");
+        match request {
+            Request::Frame(lines) => (lines, reply),
+            Request::Step(lines) => panic!("an animation rather than a frame: {lines:?}"),
+            Request::Show(lines) => panic!("output rather than a frame: {lines:?}"),
+        }
+    }
+
+    fn press(code: KeyCode) -> Reply {
+        Reply::Input(Input::Key(KeyEvent::new(code, KeyModifiers::NONE)))
+    }
+
+    fn notes() -> Question<'static> {
+        Question::new("notes", "Anything to note?", "--notes <TEXT>").optional()
+    }
+
+    /// Two rows reading "Skip" and "Enter text" are a menu with nothing to
+    /// choose between. At 3am that is one keypress in the way of the answer.
+    #[test]
+    fn the_field_is_shown_rather_than_a_menu_of_skip_and_enter_text() {
+        let _serial = host::one_at_a_time();
+        let channel = host::install();
+        let asking = std::thread::spawn(|| ask_optional(&notes(), Theme::dark(false)));
+
+        let (lines, reply) = frame(&channel);
+        assert!(
+            lines.iter().any(|line| line.contains("Anything to note?")),
+            "{lines:?}"
+        );
+        assert!(!lines.iter().any(|line| line.contains("Skip")), "{lines:?}");
+        assert!(
+            !lines.iter().any(|line| line.contains("Enter text")),
+            "{lines:?}"
+        );
+        reply.send(press(KeyCode::Enter)).expect("listening");
+        assert_eq!(asking.join().expect("ends").expect("an answer"), None);
+        host::remove();
+    }
+
+    /// Nothing typed is the skip, which is what an empty answer means
+    /// everywhere else in this tool.
+    #[test]
+    fn what_was_typed_comes_back_and_nothing_typed_is_a_skip() {
+        let _serial = host::one_at_a_time();
+        let channel = host::install();
+        let asking = std::thread::spawn(|| ask_optional(&notes(), Theme::dark(false)));
+
+        for code in [KeyCode::Char('h'), KeyCode::Char('i'), KeyCode::Enter] {
+            let (_, reply) = frame(&channel);
+            reply.send(press(code)).expect("listening");
+        }
+        assert_eq!(
+            asking.join().expect("ends").expect("an answer"),
+            Some("hi".to_owned())
+        );
+        host::remove();
+    }
+
+    /// The field says so, because an empty box gives no clue that leaving it
+    /// empty is allowed.
+    #[test]
+    fn the_field_says_that_leaving_it_empty_skips() {
+        let _serial = host::one_at_a_time();
+        let channel = host::install();
+        let asking = std::thread::spawn(|| ask_optional(&notes(), Theme::dark(false)));
+
+        let (lines, reply) = frame(&channel);
+        assert!(
+            lines
+                .iter()
+                .any(|line| line.to_lowercase().contains("skip")),
+            "{lines:?}"
+        );
+        reply.send(press(KeyCode::Enter)).expect("listening");
+        asking.join().expect("ends").expect("an answer");
+        host::remove();
+    }
+}
