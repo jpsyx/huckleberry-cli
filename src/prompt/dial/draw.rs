@@ -13,6 +13,9 @@ const REACH: isize = 2;
 /// How far the dial sits from the edge.
 const INDENT: usize = 2;
 
+/// What sits between the last column and a row's label.
+const BEFORE_LABEL: &str = "  ";
+
 /// What the keys do, said once under the dial.
 const HINTS: &str = "←/→ h/l column · ↑/↓ j/k turn · shift leaps · Enter · Esc";
 
@@ -55,6 +58,13 @@ fn row(dial: &Dial, offset: isize, theme: Theme) -> String {
         }
         let cell = format!("{:>1$}", shown(wheel, offset), wheel.width());
         line.push_str(&theme.paint(tone(dial.column == index), &cell));
+    }
+    // After the columns rather than before them, so pointing a row out never
+    // shifts the dial sideways.
+    if dial.is_landmark(offset)
+        && let Some(landmark) = &dial.landmark
+    {
+        line.push_str(&theme.paint(Tone::Accent, &format!("{BEFORE_LABEL}{}", landmark.label)));
     }
     line
 }
@@ -124,6 +134,44 @@ mod tests {
             .filter(|line| line.contains(" : "))
             .cloned()
             .collect()
+    }
+
+    fn marked_clock() -> Dial {
+        clock().marking("[now]", vec!["1".into(), "44".into(), "pm".into()])
+    }
+
+    /// Only the row that is actually that time, so the label never points at
+    /// a row nobody would call now.
+    #[test]
+    fn the_landmark_row_is_labelled_and_no_other_row_is() {
+        let lines = plain(&marked_clock());
+        let marked: Vec<&String> = lines.iter().filter(|line| line.contains("[now]")).collect();
+        assert_eq!(marked.len(), 1, "{lines:?}");
+        assert!(marked[0].contains("44"), "{:?}", marked[0]);
+        assert!(marked[0].contains("pm"), "{:?}", marked[0]);
+    }
+
+    #[test]
+    fn the_label_sits_after_the_last_column_rather_than_shifting_them() {
+        let lines = plain(&marked_clock());
+        let marked = lines
+            .iter()
+            .find(|line| line.contains("[now]"))
+            .expect("a marked row");
+        assert!(marked.find("pm") < marked.find("[now]"), "{marked:?}");
+        let plain_rows = rows_of(&plain(&clock()));
+        let marked_rows = rows_of(&lines);
+        for (bare, labelled) in plain_rows.iter().zip(&marked_rows) {
+            assert!(
+                labelled.starts_with(bare.trim_end()),
+                "the columns did not move: {bare:?} against {labelled:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_dial_with_nothing_to_point_out_labels_nothing() {
+        assert!(!plain(&clock()).iter().any(|line| line.contains("[now]")));
     }
 
     #[test]

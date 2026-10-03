@@ -256,12 +256,20 @@ When?
 
   11 : 42
   12 : 43   am
-   1 : 44   pm
+   1 : 44   pm  [now]
    2 : 45
    3 : 46
   ──
   ←/→ h/l column · ↑/↓ j/k turn · shift leaps · Enter · Esc
 ```
+
+The `[now]` beside a row means that row **is** the current time: every column
+reads it, not just the one being turned. It is there when a time dial opens,
+because a time dial opens on now, and it goes the moment anything moves it.
+Nothing else is ever marked. A row showing the right minute under the wrong
+hour is not a time anybody meant, and calling it "now" would be worse than
+saying nothing at all, so a mark that is almost always absent is the point
+rather than a shortcoming.
 
 ```
 How much?

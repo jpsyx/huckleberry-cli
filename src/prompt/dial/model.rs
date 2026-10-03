@@ -4,6 +4,20 @@ use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 
 use super::wheel::Wheel;
 
+/// A row worth pointing out, and what to call it.
+///
+/// Every column has to read the landmark's value for the row to be it. A
+/// dial is a row of columns that turn separately, so a row showing the right
+/// minute under the wrong hour is not the time anybody meant, and labelling
+/// it would be worse than labelling nothing.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Landmark {
+    /// What each column reads when the row is the one to mark.
+    pub values: Vec<String>,
+    /// What to write beside it.
+    pub label: String,
+}
+
 /// Where a dial is standing.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Dial {
@@ -11,6 +25,8 @@ pub struct Dial {
     pub wheels: Vec<Wheel>,
     /// Which one the keys are turning.
     pub column: usize,
+    /// A row to point out, if there is one.
+    pub landmark: Option<Landmark>,
 }
 
 /// What a key did.
@@ -31,7 +47,47 @@ impl Dial {
     /// A dial of these wheels, standing on the first column.
     #[must_use]
     pub const fn new(wheels: Vec<Wheel>) -> Self {
-        Self { wheels, column: 0 }
+        Self {
+            wheels,
+            column: 0,
+            landmark: None,
+        }
+    }
+
+    /// The same dial, with a row worth pointing out.
+    #[must_use]
+    pub fn marking(mut self, label: &str, values: Vec<String>) -> Self {
+        self.landmark = Some(Landmark {
+            values,
+            label: label.to_owned(),
+        });
+        self
+    }
+
+    /// Whether the row `offset` places from the middle is the landmark.
+    ///
+    /// A column of two does not scroll, so it is matched on what it is
+    /// standing on rather than on what that row would show: the value drawn
+    /// beside the chosen one is the alternative on offer, not a step along a
+    /// wheel.
+    #[must_use]
+    pub fn is_landmark(&self, offset: isize) -> bool {
+        let Some(landmark) = &self.landmark else {
+            return false;
+        };
+        landmark.values.len() == self.wheels.len()
+            && self
+                .wheels
+                .iter()
+                .zip(&landmark.values)
+                .all(|(wheel, wanted)| {
+                    let showing = if wheel.count() <= 2 {
+                        wheel.value()
+                    } else {
+                        wheel.at(offset)
+                    };
+                    showing == wanted
+                })
     }
 
     /// What the column at `index` is standing on.
@@ -164,6 +220,63 @@ mod tests {
 
     fn shifted(code: KeyCode) -> KeyEvent {
         KeyEvent::new(code, KeyModifiers::SHIFT)
+    }
+
+    fn marked() -> Dial {
+        Dial::new(vec![numbers(12, 1), numbers(60, 5), two()])
+            .marking("[now]", vec!["0".into(), "0".into(), "am".into()])
+    }
+
+    fn two() -> Wheel {
+        Wheel::new(vec!["am".into(), "pm".into()], 0, 1, "   ")
+    }
+
+    /// Every column, or it is not that row. A row showing the right minute
+    /// under the wrong hour is not the time anybody meant.
+    #[test]
+    fn a_row_is_the_landmark_only_when_every_column_reads_it() {
+        let dial = marked();
+        assert!(dial.is_landmark(0), "it opened standing on it");
+        for offset in [-2, -1, 1, 2] {
+            assert!(!dial.is_landmark(offset), "offset {offset}");
+        }
+    }
+
+    #[test]
+    fn turning_any_column_takes_the_landmark_off_every_row() {
+        let mut dial = marked();
+        dial.apply(press(KeyCode::Down));
+        for offset in -2..=2 {
+            assert!(!dial.is_landmark(offset), "offset {offset}");
+        }
+    }
+
+    #[test]
+    fn turning_back_again_brings_the_landmark_back() {
+        let mut dial = marked();
+        dial.apply(press(KeyCode::Down));
+        dial.apply(press(KeyCode::Up));
+        assert!(dial.is_landmark(0));
+    }
+
+    /// A column of two does not scroll, so it is matched on what it holds.
+    #[test]
+    fn a_column_of_two_is_matched_on_what_it_is_standing_on() {
+        let mut dial = marked();
+        dial.column = 2;
+        dial.apply(press(KeyCode::Down));
+        assert!(
+            !dial.is_landmark(0),
+            "the half of the day moved, so this is no longer that time"
+        );
+    }
+
+    #[test]
+    fn a_dial_with_nothing_to_point_out_marks_no_row() {
+        let dial = Dial::new(vec![numbers(12, 1)]);
+        for offset in -2..=2 {
+            assert!(!dial.is_landmark(offset));
+        }
     }
 
     #[test]

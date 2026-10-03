@@ -263,8 +263,12 @@ fn ask_time(context: &Context, question: &Question<'_>, dial_from: Option<f64>) 
     let Some(at) = dial_from.filter(|_| crate::prompt::host::hosted()) else {
         return super::ask(question, context.theme);
     };
-    let initial = context.calendar()?.time_of_day(at);
-    Ok(crate::prompt::dial::time::ask(question.label, initial, context.theme)?.label())
+    let calendar = context.calendar()?;
+    // The dial points out the row that is the current time, so it needs to
+    // know what that is as well as where to start.
+    let initial = calendar.time_of_day(at);
+    let now = calendar.time_of_day(now_seconds());
+    Ok(crate::prompt::dial::time::ask(question.label, initial, now, context.theme)?.label())
 }
 
 /// Interprets a clock time, resolving ambiguity only when the user typed it interactively.
