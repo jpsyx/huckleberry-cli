@@ -4,12 +4,13 @@ use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 
 use super::wheel::Wheel;
 
-/// A row worth pointing out, and what to call it.
+/// A value worth pointing out, and what to call it.
 ///
-/// Every column has to read the landmark's value for the row to be it. A
-/// dial is a row of columns that turn separately, so a row showing the right
-/// minute under the wrong hour is not the time anybody meant, and labelling
-/// it would be worse than labelling nothing.
+/// One value per column, and the mark goes on the row where **the column
+/// being turned** is showing its own. A dial is a row of columns that turn
+/// separately, so there is usually no row that reads the whole landmark; the
+/// question the mark answers is "where do I turn this back to", and that is
+/// a question about one column at a time.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Landmark {
     /// What each column reads when the row is the one to mark.
@@ -69,30 +70,25 @@ impl Dial {
         self
     }
 
-    /// Whether the row `offset` places from the middle is the landmark.
+    /// Whether the row `offset` places from the middle carries the mark.
     ///
-    /// A column of two does not scroll, so it is matched on what it is
-    /// standing on rather than on what that row would show: the value drawn
-    /// beside the chosen one is the alternative on offer, not a step along a
-    /// wheel.
+    /// Asked of the column being turned and no other, so the mark moves with
+    /// the cursor and points at the row that puts this column back. Matched
+    /// on what that column actually draws on that row, so a column of two is
+    /// marked where its other value is drawn rather than where a wheel of
+    /// sixty would have put it.
     #[must_use]
     pub fn is_landmark(&self, offset: isize) -> bool {
         let Some(landmark) = &self.landmark else {
             return false;
         };
-        landmark.values.len() == self.wheels.len()
-            && self
-                .wheels
-                .iter()
-                .zip(&landmark.values)
-                .all(|(wheel, wanted)| {
-                    let showing = if wheel.count() <= 2 {
-                        wheel.value()
-                    } else {
-                        wheel.at(offset)
-                    };
-                    showing == wanted
-                })
+        let (Some(wheel), Some(wanted)) = (
+            self.wheels.get(self.column),
+            landmark.values.get(self.column),
+        ) else {
+            return false;
+        };
+        !wanted.is_empty() && wheel.shown_at(offset) == wanted
     }
 
     /// What the column at `index` is standing on.
@@ -317,10 +313,11 @@ mod tests {
         Wheel::new(vec!["am".into(), "pm".into()], 0, 1, "   ")
     }
 
-    /// Every column, or it is not that row. A row showing the right minute
-    /// under the wrong hour is not the time anybody meant.
+    /// The mark follows the column being turned, and says where that
+    /// column's present value sits. That is the row to turn back to, which
+    /// is the only question the mark is there to answer.
     #[test]
-    fn a_row_is_the_landmark_only_when_every_column_reads_it() {
+    fn the_mark_sits_on_the_present_value_of_the_column_being_turned() {
         let dial = marked();
         assert!(dial.is_landmark(0), "it opened standing on it");
         for offset in [-2, -1, 1, 2] {
@@ -329,32 +326,51 @@ mod tests {
     }
 
     #[test]
-    fn turning_any_column_takes_the_landmark_off_every_row() {
+    fn turning_away_moves_the_mark_to_the_row_that_value_is_now_on() {
         let mut dial = marked();
         dial.apply(press(KeyCode::Down));
+        assert!(dial.is_landmark(-1), "one row back up");
+        assert!(!dial.is_landmark(0));
+        dial.apply(press(KeyCode::Down));
+        assert!(dial.is_landmark(-2), "two rows back up");
+    }
+
+    /// Out of sight is unmarked: the mark never points off the screen.
+    #[test]
+    fn nothing_is_marked_once_that_value_has_scrolled_out_of_sight() {
+        let mut dial = marked();
+        for _ in 0..3 {
+            dial.apply(press(KeyCode::Down));
+        }
         for offset in -2..=2 {
             assert!(!dial.is_landmark(offset), "offset {offset}");
         }
     }
 
+    /// Moving between columns moves the mark, because it is about whichever
+    /// column the keys are turning.
     #[test]
-    fn turning_back_again_brings_the_landmark_back() {
+    fn the_mark_follows_the_cursor_between_columns() {
         let mut dial = marked();
         dial.apply(press(KeyCode::Down));
-        dial.apply(press(KeyCode::Up));
-        assert!(dial.is_landmark(0));
+        assert!(dial.is_landmark(-1), "the hour is one row off");
+        dial.apply(press(KeyCode::Right));
+        assert!(
+            dial.is_landmark(0),
+            "the minutes never moved, so theirs is the middle row"
+        );
     }
 
-    /// A column of two does not scroll, so it is matched on what it holds.
+    /// A column of two shows the other value directly above, so that is
+    /// where its mark goes once it has been toggled.
     #[test]
-    fn a_column_of_two_is_matched_on_what_it_is_standing_on() {
+    fn a_column_of_two_is_marked_where_it_is_drawn() {
         let mut dial = marked();
         dial.column = 2;
+        assert!(dial.is_landmark(0));
         dial.apply(press(KeyCode::Down));
-        assert!(
-            !dial.is_landmark(0),
-            "the half of the day moved, so this is no longer that time"
-        );
+        assert!(dial.is_landmark(-1), "the row the other one is drawn on");
+        assert!(!dial.is_landmark(0));
     }
 
     #[test]
