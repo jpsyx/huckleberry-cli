@@ -12,5 +12,6 @@
 pub mod draw;
 pub mod model;
 mod terminal;
-
-pub use terminal::ask;
+pub mod time;
+pub mod volume;
+pub mod wheel;

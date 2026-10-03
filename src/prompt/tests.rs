@@ -296,6 +296,46 @@ mod optional_in_the_shell {
         host::remove();
     }
 
+    /// The boundary, checked where it is decided rather than through a host:
+    /// a question with something to choose between still builds a menu, Skip
+    /// row and all. There the rows are the answers and skipping is one of
+    /// them, rather than an empty field nobody can see.
+    #[test]
+    fn a_question_with_choices_still_builds_a_menu_with_a_skip_row() {
+        const CHOICES: [crate::prompt::Choice<'static>; 2] = [
+            crate::prompt::Choice {
+                value: "yellow",
+                hint: "Yellow",
+            },
+            crate::prompt::Choice {
+                value: "green",
+                hint: "Green",
+            },
+        ];
+        let question = Question::new("colour", "What colour?", "--color <COLOUR>")
+            .with_choices(&CHOICES)
+            .optional();
+        let menu = crate::prompt::select::question_menu(&question);
+        let labels: Vec<&str> = menu.items.iter().map(|item| item.label.as_str()).collect();
+        assert!(labels.contains(&"Skip"), "{labels:?}");
+        assert!(
+            labels.iter().any(|label| label.contains("Yellow")),
+            "{labels:?}"
+        );
+    }
+
+    /// And a question with nothing to choose between is not a menu at all.
+    #[test]
+    fn a_free_text_question_is_the_only_one_that_skips_the_menu() {
+        let menu = crate::prompt::select::question_menu(&notes());
+        let labels: Vec<&str> = menu.items.iter().map(|item| item.label.as_str()).collect();
+        assert_eq!(
+            labels,
+            ["Skip", "Enter text"],
+            "the menu it would have built, which the shell now never shows"
+        );
+    }
+
     /// The field says so, because an empty box gives no clue that leaving it
     /// empty is allowed.
     #[test]
