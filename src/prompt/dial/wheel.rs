@@ -93,6 +93,16 @@ impl Wheel {
             .unwrap_or(1)
     }
 
+    /// Stands it on a label, if it has one. Answers whether it moved.
+    pub fn stand_on(&mut self, label: &str) -> bool {
+        let Some(found) = self.labels.iter().position(|value| value == label) else {
+            return false;
+        };
+        let moved = found != self.index;
+        self.index = found;
+        moved
+    }
+
     /// Turns it, wrapping at both ends.
     pub fn turn(&mut self, steps: isize) {
         let standing = isize::try_from(self.index).unwrap_or_default();

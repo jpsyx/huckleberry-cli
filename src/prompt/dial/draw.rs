@@ -16,8 +16,11 @@ const INDENT: usize = 2;
 /// What sits between the last column and a row's label.
 const BEFORE_LABEL: &str = "  ";
 
-/// What the keys do, said once under the dial.
-const HINTS: &str = "←/→ h/l column · ↑/↓ j/k turn · shift leaps · Enter · Esc";
+/// How to move, said once under the dial.
+const MOVING: &str = "←/→ h/l column · ↑/↓ j/k turn · shift leaps";
+
+/// How to leave, on a line of its own so neither has to be cut to fit.
+const LEAVING: &str = "Enter set · Esc back";
 
 /// The dial, ready to draw.
 ///
@@ -32,7 +35,14 @@ pub fn render(label: &str, dial: &Dial, width: u16, theme: Theme) -> Vec<String>
     lines.extend((-REACH..=REACH).map(|offset| row(dial, offset, theme)));
     lines.push(theme.paint(Tone::Selected, &marker(dial)));
     lines.push(String::new());
-    lines.push(theme.muted(&fit(HINTS)));
+    lines.push(theme.muted(&fit(MOVING)));
+    // The key is offered only where there is somewhere to jump to, and it is
+    // named after the mark it lands on so the two read as one idea.
+    let leaving = dial.landmark.as_ref().map_or_else(
+        || LEAVING.to_owned(),
+        |landmark| format!("n {} · {LEAVING}", landmark.label),
+    );
+    lines.push(theme.muted(&fit(&leaving)));
     lines
 }
 
@@ -144,7 +154,7 @@ mod tests {
     /// a row nobody would call now.
     #[test]
     fn the_landmark_row_is_labelled_and_no_other_row_is() {
-        let lines = plain(&marked_clock());
+        let lines = rows_of(&plain(&marked_clock()));
         let marked: Vec<&String> = lines.iter().filter(|line| line.contains("[now]")).collect();
         assert_eq!(marked.len(), 1, "{lines:?}");
         assert!(marked[0].contains("44"), "{:?}", marked[0]);
@@ -266,11 +276,19 @@ mod tests {
 
     #[test]
     fn the_keys_are_said_under_the_dial() {
-        let lines = plain(&clock());
-        let hint = lines.last().expect("a hint line");
+        let said = plain(&clock()).join("\n");
         for key in ["h/l", "j/k", "Enter", "Esc"] {
-            assert!(hint.contains(key), "{hint}");
+            assert!(said.contains(key), "{said}");
         }
+    }
+
+    /// Offered only where there is somewhere to jump to, and named after the
+    /// mark it lands on.
+    #[test]
+    fn the_jump_key_is_offered_only_when_there_is_a_landmark() {
+        let said = plain(&marked_clock()).join("\n");
+        assert!(said.contains("n [now]"), "{said}");
+        assert!(!plain(&clock()).join("\n").contains("n ["), "{said}");
     }
 
     /// Two columns, different widths: the general case the clock does not

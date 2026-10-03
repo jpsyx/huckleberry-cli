@@ -120,6 +120,17 @@ mod tests {
         }
     }
 
+    /// Turning back by hand is a column at a time; one key is the way back.
+    #[test]
+    fn pressing_n_puts_the_dial_back_on_now() {
+        let now = at(13, 44);
+        let mut dial = dial_for(at(9, 15), now);
+        assert_eq!(read(&dial), at(9, 15));
+        dial.apply(KeyEvent::new(KeyCode::Char('n'), KeyModifiers::NONE));
+        assert_eq!(read(&dial), now, "every column at once");
+        assert!(dial.is_landmark(0), "and it says so");
+    }
+
     /// And stops saying so the moment the dial is not that time any more.
     #[test]
     fn nothing_is_pointed_out_once_the_dial_has_been_turned() {
