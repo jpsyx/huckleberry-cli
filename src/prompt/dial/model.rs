@@ -37,6 +37,11 @@ pub enum DialAction {
     /// This column moved, so there is something to animate and perhaps
     /// something for the caller to put right.
     Turned(usize),
+    /// Every column went back to the landmark at once.
+    ///
+    /// Not a turn: no single column moved, so there is nothing to settle
+    /// against, and nothing travelled a path worth watching on the way.
+    Jumped,
     /// Take what it is standing on.
     Submit,
     /// Leave without it.
@@ -124,9 +129,38 @@ impl Dial {
                 self.column = (self.column + 1).min(self.wheels.len().saturating_sub(1));
                 DialAction::Stay
             }
+            // `n` for now, which is the only landmark any dial has. If one
+            // ever gets another kind, the key belongs in the landmark rather
+            // than here.
+            KeyCode::Char('n' | 'N') => self.jump(),
             KeyCode::Down | KeyCode::Char('j' | 'J') => self.turn(1, leaping(key)),
             KeyCode::Up | KeyCode::Char('k' | 'K') => self.turn(-1, leaping(key)),
             _ => DialAction::Stay,
+        }
+    }
+
+    /// Puts every column back on the landmark.
+    ///
+    /// One key, because turning back by hand is a column at a time and the
+    /// dial is most often wanted exactly where it opened.
+    fn jump(&mut self) -> DialAction {
+        let Some(landmark) = self.landmark.clone() else {
+            return DialAction::Stay;
+        };
+        if landmark.values.len() != self.wheels.len() {
+            return DialAction::Stay;
+        }
+        let moved = self
+            .wheels
+            .iter_mut()
+            .zip(&landmark.values)
+            .fold(false, |moved, (wheel, wanted)| {
+                wheel.stand_on(wanted) || moved
+            });
+        if moved {
+            DialAction::Jumped
+        } else {
+            DialAction::Stay
         }
     }
 
@@ -220,6 +254,58 @@ mod tests {
 
     fn shifted(code: KeyCode) -> KeyEvent {
         KeyEvent::new(code, KeyModifiers::SHIFT)
+    }
+
+    /// The dial opens on now and gets turned away from it. Turning back by
+    /// hand is a column at a time; one key is the way back.
+    #[test]
+    fn pressing_n_puts_every_column_back_on_the_landmark() {
+        let mut dial = marked();
+        dial.column = 1;
+        for _ in 0..7 {
+            dial.apply(press(KeyCode::Down));
+        }
+        dial.column = 0;
+        dial.apply(press(KeyCode::Down));
+        assert!(!dial.is_landmark(0), "well away from it now");
+
+        assert_eq!(dial.apply(press(KeyCode::Char('n'))), DialAction::Jumped);
+        assert!(dial.is_landmark(0), "and back on it in one key");
+    }
+
+    #[test]
+    fn pressing_n_puts_a_column_of_two_back_as_well() {
+        let mut dial = marked();
+        dial.column = 2;
+        dial.apply(press(KeyCode::Down));
+        assert!(!dial.is_landmark(0));
+        dial.apply(press(KeyCode::Char('n')));
+        assert!(dial.is_landmark(0));
+    }
+
+    /// A jump is a reset rather than a turn, and says so: the loops animate
+    /// a turn and redraw a jump. See the loop's own test for that half.
+    #[test]
+    fn a_jump_is_reported_as_one_rather_than_as_a_turn() {
+        let mut dial = marked();
+        dial.column = 1;
+        for _ in 0..9 {
+            dial.apply(press(KeyCode::Down));
+        }
+        assert_eq!(dial.apply(press(KeyCode::Char('n'))), DialAction::Jumped);
+    }
+
+    #[test]
+    fn n_on_a_dial_with_nowhere_to_jump_does_nothing() {
+        let mut dial = dial();
+        assert_eq!(dial.apply(press(KeyCode::Char('n'))), DialAction::Stay);
+    }
+
+    /// Already there is not a move, so the screen has no reason to redraw.
+    #[test]
+    fn n_when_it_is_already_on_the_landmark_is_not_a_move() {
+        let mut dial = marked();
+        assert_eq!(dial.apply(press(KeyCode::Char('n'))), DialAction::Stay);
     }
 
     fn marked() -> Dial {

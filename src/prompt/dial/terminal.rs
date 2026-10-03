@@ -64,7 +64,9 @@ fn hosted(
         };
         let before = dial.clone();
         match dial.apply(key) {
-            DialAction::Stay => {}
+            // A jump is a reset: the next frame shows where it landed, and
+            // there is neither a column to settle nor a path to animate.
+            DialAction::Stay | DialAction::Jumped => {}
             DialAction::Submit => return Ok(dial),
             DialAction::Cancel => return Err(Cancelled.into()),
             DialAction::Turned(column) => {
@@ -100,7 +102,9 @@ fn owned(
         };
         let before = dial.clone();
         match dial.apply(key) {
-            DialAction::Stay => {}
+            // A jump is a reset: the next frame shows where it landed, and
+            // there is neither a column to settle nor a path to animate.
+            DialAction::Stay | DialAction::Jumped => {}
             DialAction::Submit => {
                 redraw(&mut output, &[], drawn)?;
                 execute!(output, cursor::Show)?;
@@ -177,6 +181,11 @@ mod hosted_dial {
             5,
             "",
         )])
+    }
+
+    /// The same, with forty-four worth pointing out.
+    fn marked_minutes() -> Dial {
+        minutes().marking("[now]", vec!["44".into()])
     }
 
     /// What the middle row of whatever was drawn is showing.
@@ -288,6 +297,52 @@ mod hosted_dial {
             panic!("it stops animating and asks again");
         };
         assert_eq!(middle(&lines), "49", "without losing where it landed");
+        reply
+            .send(press(KeyCode::Enter, KeyModifiers::NONE))
+            .expect("listening");
+        asking.join().expect("ends").expect("a dial");
+        host::remove();
+    }
+
+    /// A jump is a reset: it redraws where it landed rather than travelling
+    /// there, because nothing about a reset is worth watching.
+    #[test]
+    fn jumping_back_to_the_landmark_draws_no_animation() {
+        let _serial = host::one_at_a_time();
+        let channel = host::install();
+        let asking = std::thread::spawn(|| {
+            ask(
+                "How many?",
+                marked_minutes(),
+                crate::theme::Theme::dark(false),
+                |_, _| {},
+            )
+        });
+
+        // Well away from it, by a leap that does animate.
+        let (_, reply) = next(&channel);
+        reply
+            .send(press(KeyCode::Down, KeyModifiers::SHIFT))
+            .expect("listening");
+        let reply = loop {
+            match next(&channel) {
+                (Request::Step(_), reply) => {
+                    reply
+                        .send(Reply::Stepped { interrupted: false })
+                        .expect("listening");
+                }
+                (_, reply) => break reply,
+            }
+        };
+
+        reply
+            .send(press(KeyCode::Char('n'), KeyModifiers::NONE))
+            .expect("listening");
+        let (request, reply) = next(&channel);
+        let Request::Frame(lines) = request else {
+            panic!("a jump redraws rather than animating");
+        };
+        assert_eq!(middle(&lines), "44  [now]", "and lands back on it, marked");
         reply
             .send(press(KeyCode::Enter, KeyModifiers::NONE))
             .expect("listening");

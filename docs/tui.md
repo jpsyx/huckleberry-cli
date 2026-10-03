@@ -260,7 +260,8 @@ When?
    2 : 45
    3 : 46
   ──
-  ←/→ h/l column · ↑/↓ j/k turn · shift leaps · Enter · Esc
+  ←/→ h/l column · ↑/↓ j/k turn · shift leaps
+  n [now] · Enter set · Esc back
 ```
 
 The `[now]` beside a row means that row **is** the current time: every column
@@ -270,6 +271,13 @@ Nothing else is ever marked. A row showing the right minute under the wrong
 hour is not a time anybody meant, and calling it "now" would be worse than
 saying nothing at all, so a mark that is almost always absent is the point
 rather than a shortcoming.
+
+**`n` puts every column back on it at once.** Turning back by hand is a column
+at a time, and the dial is most often wanted exactly where it opened: somebody
+turns it to check what time something was, then wants now again. The key is
+offered only where there is a mark to land on, and it is named after that mark
+so the two read as one idea. A jump redraws rather than animating, because
+nothing about a reset is worth watching travel.
 
 ```
 How much?
