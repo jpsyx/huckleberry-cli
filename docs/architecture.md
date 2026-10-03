@@ -60,7 +60,7 @@ src/
 ├── dataset.rs       pulling one child into one value, and the snapshot format
 ├── edit.rs          what an edit is: which row, which fields, what they hold
 ├── prompt/mod.rs        asking for a value that was left out
-├── prompt/dial/     the time dial: three turning columns, no typing
+├── prompt/dial/     dials: turning columns for times and volumes
 ├── prompt/time.rs   shared clock-time and relative-event questions
 ├── theme.rs         semantic colours
 ├── setup/           first use: an account, and the settings with no default

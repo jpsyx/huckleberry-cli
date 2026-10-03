@@ -264,7 +264,7 @@ fn ask_time(context: &Context, question: &Question<'_>, dial_from: Option<f64>) 
         return super::ask(question, context.theme);
     };
     let initial = context.calendar()?.time_of_day(at);
-    Ok(crate::prompt::dial::ask(question.label, initial, context.theme)?.label())
+    Ok(crate::prompt::dial::time::ask(question.label, initial, context.theme)?.label())
 }
 
 /// Interprets a clock time, resolving ambiguity only when the user typed it interactively.

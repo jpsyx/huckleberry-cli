@@ -23,6 +23,13 @@ enum Answer {
     Start(f64),
     /// The instant a sleep now ends at.
     Stop(f64),
+    /// An amount and the units it is in, which are one answer.
+    Volume {
+        /// The amount, as it is stored.
+        amount: String,
+        /// The units it is in.
+        units: String,
+    },
 }
 
 /// Collects only deliberate changes, starting on Done and keeping every other field.
@@ -40,7 +47,15 @@ pub async fn collect(
     let time_key = if live { "start" } else { "at" };
     let mut field_names = vec![time_key];
     if let Some(draft) = draft {
-        field_names.extend(draft.fields());
+        // The units travel with the amount on a dial, so they are not a field
+        // of their own to pick. `--set units=oz` still names one.
+        field_names.extend(
+            draft
+                .fields()
+                .iter()
+                .copied()
+                .filter(|field| !folded_into_amount(draft, field)),
+        );
     }
     let original = started;
     let mut started = started;
@@ -71,6 +86,14 @@ pub async fn collect(
             Some(Answer::Stop(instant)) => {
                 stopped = Some(instant);
                 set_stop(&mut changes, draft, started, instant);
+            }
+            Some(Answer::Volume { amount, units }) => {
+                if let Some(mut checked) = draft.cloned() {
+                    checked.set("amount", &amount)?;
+                    checked.set("units", &units)?;
+                }
+                fields::update_change(&mut changes, "amount", Some(&amount));
+                fields::update_change(&mut changes, "units", Some(&units));
             }
         }
     }
@@ -218,6 +241,11 @@ fn stop_of(draft: Option<&Draft>, started: f64) -> f64 {
     }
 }
 
+/// Whether a field is answered by another question rather than on its own.
+fn folded_into_amount(draft: &Draft, field: &str) -> bool {
+    field == "units" && matches!(draft, Draft::Bottle(_)) && prompt::host::hosted()
+}
+
 /// Asks for one field. Times are asked outright: their default already keeps.
 async fn read(
     context: &Context,
@@ -232,6 +260,23 @@ async fn read(
         } else {
             prompt::time::read_edit_start(context, None, Some(started))?.unwrap_or(started)
         })));
+    }
+    // A volume is one question. The units column travels with the amount, so
+    // there is no second field to pick and no second answer to keep in step.
+    if field == "amount"
+        && prompt::host::hosted()
+        && let Some(Draft::Bottle(bottle)) = shown
+    {
+        let (units, amount) = prompt::dial::volume::ask(
+            "How much?",
+            bottle.units,
+            Some(bottle.amount),
+            context.theme,
+        )?;
+        return Ok(Some(Answer::Volume {
+            amount: format::amount_in(amount, units),
+            units: units.as_str().to_owned(),
+        }));
     }
     if is_stop(draft, field) {
         let stopped =

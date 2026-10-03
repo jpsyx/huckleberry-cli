@@ -244,11 +244,12 @@ question can never word itself one way in one place and another way in the
 other. It is the same rule as the Now drawer, applied to input instead of
 output.
 
-### 20. A time is turned, not typed
+### 20. A value is turned, not typed
 
-Every "when" in the shell is answered on the **time dial**: three columns,
-hour, minute and the half of the day, each showing the two values either side
-of the one chosen so it reads as a wheel rather than a number.
+Times and volumes in the shell are answered on a **dial**: a row of columns,
+each showing the two values either side of the one chosen so it reads as a
+wheel rather than a number. A time has three columns, hour, minute and the
+half of the day; a volume has two, the amount and its units.
 
 ```
 When?
@@ -259,7 +260,18 @@ When?
    2 : 45
    3 : 46
   ──
-  ←/→ h/l dial · ↑/↓ j/k turn · shift ±1 min · Enter · Esc
+  ←/→ h/l column · ↑/↓ j/k turn · shift leaps · Enter · Esc
+```
+
+```
+How much?
+
+   1.50
+   1.75   ml
+   2.00   oz
+   2.25
+   2.50
+  ─────
 ```
 
 The reasoning is the north star. A parent at 3am has one hand free and is not
@@ -270,10 +282,12 @@ typed wrong. Turning a wheel cannot produce a time that does not exist.
   the one place in this tool where `h` is not back: a dial is a row of columns
   and there is nowhere else for those keys to point. `Esc` is how somebody
   leaves, and the hint line says so.
-- **`↑`/`↓` and `j`/`k` turn the column under the cursor**, five minutes at a
-  time, with shift for one. Five, because a feed at 1:40 and one at 1:42 are
-  the same feed, and a dial needing twelve presses to cross an hour is a dial
-  somebody types around instead.
+- **`↑`/`↓` and `j`/`k` turn the column under the cursor one notch**, and
+  shift leaps. The small step is the plain one, because the small step is the
+  correction somebody came to make; the leap is what you reach for when it is
+  further off. What a notch and a leap are is the column's own business:
+  minutes turn one and leap five, millilitres turn one and leap five, ounces
+  turn a quarter and leap a whole one, which is four of them.
 - **Every column cycles.** Past 59 comes 00, past 12 comes 1, and the values
   above and below are always drawn, so no column ever looks like it has run
   out.
@@ -289,8 +303,18 @@ typed wrong. Turning a wheel cannot produce a time that does not exist.
   being turned is lit, and underlined as well, because colour is never the
   only carrier.
 
-It is one component, `src/prompt/dial/`, used by every time question there is.
-A fix to it is a fix to all of them.
+It is one component, `src/prompt/dial/`. `wheel.rs` is a column, `model.rs` is
+a row of them and what keys do, `draw.rs` turns that into lines, and `time.rs`
+and `volume.rs` are the two things we currently count. Adding a third is a
+list of labels and two numbers, and a fix to the dial is a fix to all of them.
+
+**A volume is one question, not two.** The units were never a separate thing
+to decide: "how much" is a single answer with a number and a unit in it, and
+asking twice made somebody confirm a choice they had already made. Turning the
+units column changes the wording rather than the quantity, so sixty
+millilitres becomes two ounces and the amount wheel is rebuilt underneath it,
+standing on whichever notch is nearest. `--set units=oz` still names the field
+on the command line, where there is no dial to carry it.
 
 **Typing stays on a bare terminal.** There a keyboard is already under both
 hands, and `32 min ago` is quicker than any number of key presses: the dial
@@ -298,11 +322,12 @@ cannot say that, and relative answers are most of what gets typed. The dial
 answers in the same words somebody would have typed, so every parser and every
 date rule beneath it is untouched either way.
 
-Two places deliberately do not use it. Setup's day-start and day-end questions
-are a short menu of sensible hours, which already needs no typing and should
-not offer 3:47am. And the one question that offers to keep a start that was
-never recorded has no time to begin a dial at, and Enter on a dial cannot mean
-"leave it unrecorded".
+Three places deliberately do not use it. Setup's day-start and day-end
+questions are a short menu of sensible hours, which already needs no typing
+and should not offer 3:47am. The one question that offers to keep a start that
+was never recorded has no time to begin a dial at, and Enter on a dial cannot
+mean "leave it unrecorded". And growth's weights and lengths are typed, since
+they come off a scale with a precision a wheel would have to round away.
 
 ### 21. An optional field is a field, not a menu
 

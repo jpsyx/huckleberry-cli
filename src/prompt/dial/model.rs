@@ -1,73 +1,16 @@
-//! The three dials, and what keys do to them. No terminal, no clock.
+//! A row of wheels, and what keys do to them. No terminal, no clock.
 
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 
-use crate::domain::clock::TimeOfDay;
+use super::wheel::Wheel;
 
-/// How far one press moves the minutes.
-///
-/// Five, because a feed logged at 1:40 and one logged at 1:42 are the same
-/// feed, and a dial that needs twelve presses to cross an hour is a dial
-/// somebody types around instead.
-pub const MINUTE_STEP: i16 = 5;
-
-/// Which dial the keys are turning.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Column {
-    /// Hours, 1 to 12.
-    Hour,
-    /// Minutes, 0 to 59.
-    Minute,
-    /// Morning or afternoon.
-    Meridiem,
-}
-
-impl Column {
-    /// Every column, left to right, which is also the order they are drawn.
-    pub const ALL: [Self; 3] = [Self::Hour, Self::Minute, Self::Meridiem];
-}
-
-/// Morning or afternoon.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Meridiem {
-    /// Before noon.
-    Am,
-    /// After it.
-    Pm,
-}
-
-impl Meridiem {
-    /// The other one. This dial has no third state, so turning it either way
-    /// does the same thing.
-    #[must_use]
-    pub const fn flipped(self) -> Self {
-        match self {
-            Self::Am => Self::Pm,
-            Self::Pm => Self::Am,
-        }
-    }
-
-    /// How it reads: `am`, `pm`.
-    #[must_use]
-    pub const fn label(self) -> &'static str {
-        match self {
-            Self::Am => "am",
-            Self::Pm => "pm",
-        }
-    }
-}
-
-/// Where the three dials are standing.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Where a dial is standing.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Dial {
-    /// The hour as it is shown, 1 to 12.
-    pub hour: i16,
-    /// The minute, 0 to 59.
-    pub minute: i16,
-    /// Which half of the day.
-    pub meridiem: Meridiem,
-    /// Which dial the keys are turning.
-    pub column: Column,
+    /// The columns, left to right.
+    pub wheels: Vec<Wheel>,
+    /// Which one the keys are turning.
+    pub column: usize,
 }
 
 /// What a key did.
@@ -75,62 +18,31 @@ pub struct Dial {
 pub enum DialAction {
     /// Redraw and wait.
     Stay,
-    /// A dial moved, so there is something to animate.
-    Turned,
-    /// Take this time.
+    /// This column moved, so there is something to animate and perhaps
+    /// something for the caller to put right.
+    Turned(usize),
+    /// Take what it is standing on.
     Submit,
-    /// Leave without one.
+    /// Leave without it.
     Cancel,
 }
 
 impl Dial {
-    /// The dial standing at a time, with the hour under the cursor.
+    /// A dial of these wheels, standing on the first column.
     #[must_use]
-    pub fn new(time: TimeOfDay) -> Self {
-        let (hour, meridiem) = match i16::from(time.hour) {
-            0 => (12, Meridiem::Am),
-            12 => (12, Meridiem::Pm),
-            hour if hour > 12 => (hour - 12, Meridiem::Pm),
-            hour => (hour, Meridiem::Am),
-        };
-        Self {
-            hour,
-            minute: i16::from(time.minute),
-            meridiem,
-            column: Column::Hour,
-        }
+    pub const fn new(wheels: Vec<Wheel>) -> Self {
+        Self { wheels, column: 0 }
     }
 
-    /// The time it is standing at.
+    /// What the column at `index` is standing on.
     #[must_use]
-    pub fn time(&self) -> TimeOfDay {
-        let hour = match (self.hour, self.meridiem) {
-            (12, Meridiem::Am) => 0,
-            (12, Meridiem::Pm) => 12,
-            (hour, Meridiem::Pm) => hour + 12,
-            (hour, Meridiem::Am) => hour,
-        };
-        TimeOfDay {
-            hour: i8::try_from(hour).unwrap_or(0),
-            minute: i8::try_from(self.minute).unwrap_or(0),
-        }
-    }
-
-    /// The hour `offset` places along the dial, wrapping past twelve.
-    #[must_use]
-    pub const fn hour_at(&self, offset: i16) -> i16 {
-        wrapped(self.hour - 1 + offset, 12) + 1
-    }
-
-    /// The minute `offset` places along the dial, wrapping past fifty-nine.
-    #[must_use]
-    pub const fn minute_at(&self, offset: i16) -> i16 {
-        wrapped(self.minute + offset, 60)
+    pub fn value(&self, index: usize) -> &str {
+        self.wheels.get(index).map_or("", |wheel| wheel.value())
     }
 
     /// Applies one key.
     ///
-    /// `h` and `l` move between the dials here rather than meaning back and
+    /// `h` and `l` move between the columns here rather than meaning back and
     /// forward, which is the one place in this tool they do. A dial is a row
     /// of columns and there is nowhere else for those keys to point; Esc is
     /// how somebody leaves, and the hint line says so.
@@ -149,44 +61,36 @@ impl Dial {
             KeyCode::Esc => DialAction::Cancel,
             KeyCode::Enter => DialAction::Submit,
             KeyCode::Left | KeyCode::Char('h' | 'H') => {
-                self.step_column(-1);
+                self.column = self.column.saturating_sub(1);
                 DialAction::Stay
             }
             KeyCode::Right | KeyCode::Char('l' | 'L') => {
-                self.step_column(1);
+                self.column = (self.column + 1).min(self.wheels.len().saturating_sub(1));
                 DialAction::Stay
             }
-            KeyCode::Down | KeyCode::Char('j' | 'J') => self.turn(1, by_one(key)),
-            KeyCode::Up | KeyCode::Char('k' | 'K') => self.turn(-1, by_one(key)),
+            KeyCode::Down | KeyCode::Char('j' | 'J') => self.turn(1, leaping(key)),
+            KeyCode::Up | KeyCode::Char('k' | 'K') => self.turn(-1, leaping(key)),
             _ => DialAction::Stay,
         }
     }
 
-    /// Turns the dial under the cursor one notch in `direction`.
-    const fn turn(&mut self, direction: i16, by_one: bool) -> DialAction {
-        match self.column {
-            Column::Hour => self.hour = self.hour_at(direction),
-            Column::Minute => {
-                let step = if by_one { 1 } else { MINUTE_STEP };
-                self.minute = self.minute_at(direction * step);
-            }
-            // Never on its own, and never a third state: whichever way it is
-            // turned, there is only the other one to reach.
-            Column::Meridiem => self.meridiem = self.meridiem.flipped(),
-        }
-        DialAction::Turned
-    }
-
-    /// Moves the cursor along the row, holding at either end.
-    fn step_column(&mut self, delta: isize) {
-        let index = Column::ALL
-            .iter()
-            .position(|column| *column == self.column)
-            .unwrap_or_default();
-        let moved = index
-            .saturating_add_signed(delta)
-            .min(Column::ALL.len() - 1);
-        self.column = Column::ALL[moved];
+    /// Turns the column under the cursor.
+    ///
+    /// One position plainly, and whatever that wheel calls a leap with shift:
+    /// five minutes, five millilitres, a whole ounce. The plain turn is the
+    /// small one, because the small one is the correction somebody came to
+    /// make.
+    fn turn(&mut self, direction: isize, leaping: bool) -> DialAction {
+        let Some(wheel) = self.wheels.get_mut(self.column) else {
+            return DialAction::Stay;
+        };
+        let step = if leaping {
+            isize::try_from(wheel.leap()).unwrap_or(1)
+        } else {
+            1
+        };
+        wheel.turn(direction * step);
+        DialAction::Turned(self.column)
     }
 
     /// The dials passed through on the way here from `before`.
@@ -194,52 +98,64 @@ impl Dial {
     /// Excludes both ends: these are the frames an animation draws, and the
     /// one it lands on is drawn by the loop that was going to draw it anyway.
     #[must_use]
-    pub fn passed_through(self, before: Self) -> Vec<Self> {
-        if self.hour != before.hour || self.meridiem != before.meridiem {
+    pub fn passed_through(&self, before: &Self) -> Vec<Self> {
+        let Some((column, wheel)) = self.wheels.iter().enumerate().find(|(index, wheel)| {
+            before
+                .wheels
+                .get(*index)
+                .is_some_and(|was| was.index() != wheel.index() || was.count() != wheel.count())
+        }) else {
+            return Vec::new();
+        };
+        let Some(was) = before.wheels.get(column) else {
+            return Vec::new();
+        };
+        // A wheel that was rebuilt under the value has no path to walk: the
+        // positions either side of it are not the ones it passed.
+        if was.count() != wheel.count() {
             return Vec::new();
         }
-        let travelled = shortest_way(before.minute, self.minute);
+        let travelled = wheel.shortest_way(was.index());
         if travelled.abs() <= 1 {
             return Vec::new();
         }
         let direction = travelled.signum();
         (1..travelled.abs())
-            .map(|step| Self {
-                minute: before.minute_at(direction * step),
-                ..self
+            .map(|step| {
+                let mut passing = self.clone();
+                if let Some(turning) = passing.wheels.get_mut(column) {
+                    *turning = was.clone();
+                    turning.turn(direction * step);
+                }
+                passing
             })
             .collect()
     }
 }
 
-/// Whether this key asks for the small step.
+/// Whether this key asks for the big step.
 ///
 /// Shift and an uppercase letter are the same press: a terminal may report
 /// either, depending on how it was built.
-const fn by_one(key: KeyEvent) -> bool {
+const fn leaping(key: KeyEvent) -> bool {
     key.modifiers.contains(KeyModifiers::SHIFT) || matches!(key.code, KeyCode::Char('J' | 'K'))
-}
-
-/// How far it is from one minute to another, the short way round.
-///
-/// Signed, so crossing the hour reads as five minutes forward rather than
-/// fifty-five back, which is what it looked like to the parent turning it.
-const fn shortest_way(from: i16, to: i16) -> i16 {
-    let forward = wrapped(to - from, 60);
-    if forward > 30 { forward - 60 } else { forward }
-}
-
-/// `value` brought back inside `0..modulus`, for negatives too.
-const fn wrapped(value: i16, modulus: i16) -> i16 {
-    ((value % modulus) + modulus) % modulus
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn at(hour: i8, minute: i8) -> Dial {
-        Dial::new(TimeOfDay::new(hour, minute).expect("a time"))
+    fn numbers(count: usize, leap: usize) -> Wheel {
+        Wheel::new(
+            (0..count).map(|value| value.to_string()).collect(),
+            0,
+            leap,
+            "",
+        )
+    }
+
+    fn dial() -> Dial {
+        Dial::new(vec![numbers(12, 1), numbers(60, 5)])
     }
 
     fn press(code: KeyCode) -> KeyEvent {
@@ -251,145 +167,64 @@ mod tests {
     }
 
     #[test]
-    fn a_time_becomes_a_twelve_hour_dial_and_comes_back_unchanged() {
-        for hour in 0..24 {
-            for minute in [0, 7, 59] {
-                let time = TimeOfDay::new(hour, minute).expect("a time");
-                assert_eq!(Dial::new(time).time(), time, "{hour}:{minute}");
-            }
-        }
-    }
-
-    #[test]
-    fn midnight_and_noon_are_both_twelve_on_the_dial() {
-        assert_eq!(at(0, 0).hour, 12);
-        assert_eq!(at(0, 0).meridiem, Meridiem::Am);
-        assert_eq!(at(12, 0).hour, 12);
-        assert_eq!(at(12, 0).meridiem, Meridiem::Pm);
-    }
-
-    #[test]
-    fn the_hour_cycles_so_there_is_always_one_above_and_below() {
-        let dial = at(12, 0);
-        assert_eq!(dial.hour_at(1), 1, "after twelve comes one");
-        assert_eq!(dial.hour_at(2), 2);
-        assert_eq!(at(1, 0).hour_at(-1), 12, "and before one comes twelve");
-    }
-
-    #[test]
-    fn the_minute_cycles_the_same_way() {
-        let dial = at(1, 59);
-        assert_eq!(dial.minute_at(1), 0);
-        assert_eq!(dial.minute_at(2), 1);
-        assert_eq!(at(1, 0).minute_at(-1), 59);
-    }
-
-    #[test]
-    fn left_and_right_move_between_the_three_dials() {
-        let mut dial = at(1, 0);
-        assert_eq!(dial.column, Column::Hour);
+    fn left_and_right_move_between_the_columns_and_the_ends_hold() {
+        let mut dial = dial();
         for key in [KeyCode::Right, KeyCode::Char('l')] {
-            dial.column = Column::Hour;
+            dial.column = 0;
             dial.apply(press(key));
-            assert_eq!(dial.column, Column::Minute, "{key:?}");
+            assert_eq!(dial.column, 1, "{key:?}");
         }
         dial.apply(press(KeyCode::Right));
-        assert_eq!(dial.column, Column::Meridiem);
+        assert_eq!(dial.column, 1, "and holds at the end");
         for key in [KeyCode::Left, KeyCode::Char('h')] {
-            dial.column = Column::Meridiem;
+            dial.column = 1;
             dial.apply(press(key));
-            assert_eq!(dial.column, Column::Minute, "{key:?}");
+            assert_eq!(dial.column, 0, "{key:?}");
         }
-    }
-
-    /// The ends hold rather than wrap: a dial that jumps from the hour to the
-    /// meridiem when you overshoot is one you have to look at to use.
-    #[test]
-    fn the_outer_dials_hold_rather_than_wrapping_round() {
-        let mut dial = at(1, 0);
         dial.apply(press(KeyCode::Left));
-        assert_eq!(dial.column, Column::Hour);
-        dial.column = Column::Meridiem;
-        dial.apply(press(KeyCode::Right));
-        assert_eq!(dial.column, Column::Meridiem);
+        assert_eq!(dial.column, 0, "and holds at that end too");
     }
 
+    /// The small step is the plain one: the correction somebody came to make
+    /// is usually a nudge, and the big jump is the one worth reaching for.
     #[test]
-    fn the_hour_turns_one_at_a_time_in_both_directions() {
-        let mut dial = at(3, 0);
+    fn a_plain_turn_moves_one_and_a_shifted_turn_leaps() {
+        let mut dial = dial();
+        dial.column = 1;
         dial.apply(press(KeyCode::Down));
-        assert_eq!(dial.hour, 4);
-        dial.apply(press(KeyCode::Char('j')));
-        assert_eq!(dial.hour, 5);
-        dial.apply(press(KeyCode::Up));
-        assert_eq!(dial.hour, 4);
-        dial.apply(press(KeyCode::Char('k')));
-        assert_eq!(dial.hour, 3);
-    }
-
-    #[test]
-    fn the_minute_turns_five_at_a_time() {
-        let mut dial = at(1, 44);
-        dial.column = Column::Minute;
-        dial.apply(press(KeyCode::Down));
-        assert_eq!(dial.minute, 49);
-        dial.apply(press(KeyCode::Up));
-        assert_eq!(dial.minute, 44);
-    }
-
-    #[test]
-    fn the_minute_turns_one_at_a_time_with_shift() {
-        let mut dial = at(1, 44);
-        dial.column = Column::Minute;
+        assert_eq!(dial.value(1), "1");
         dial.apply(shifted(KeyCode::Down));
-        assert_eq!(dial.minute, 45);
+        assert_eq!(dial.value(1), "6");
         dial.apply(shifted(KeyCode::Up));
-        assert_eq!(dial.minute, 44);
-        dial.apply(KeyEvent::new(KeyCode::Char('J'), KeyModifiers::SHIFT));
-        assert_eq!(dial.minute, 45, "shift+j is the same key");
-        dial.apply(KeyEvent::new(KeyCode::Char('K'), KeyModifiers::SHIFT));
-        assert_eq!(dial.minute, 44);
-    }
-
-    #[test]
-    fn the_minute_wraps_past_the_hour_without_moving_it() {
-        let mut dial = at(1, 57);
-        dial.column = Column::Minute;
-        dial.apply(press(KeyCode::Down));
-        assert_eq!(
-            (dial.minute, dial.hour),
-            (2, 1),
-            "the hour is a separate dial"
-        );
-    }
-
-    /// Either direction does the same thing, and it never moves on its own.
-    #[test]
-    fn the_meridiem_is_a_toggle_whichever_way_it_is_turned() {
-        let mut dial = at(1, 0);
-        dial.column = Column::Meridiem;
-        assert_eq!(dial.meridiem, Meridiem::Am);
-        dial.apply(press(KeyCode::Down));
-        assert_eq!(dial.meridiem, Meridiem::Pm);
-        dial.apply(press(KeyCode::Down));
-        assert_eq!(dial.meridiem, Meridiem::Am);
+        assert_eq!(dial.value(1), "1");
         dial.apply(press(KeyCode::Up));
-        assert_eq!(dial.meridiem, Meridiem::Pm);
+        assert_eq!(dial.value(1), "0");
     }
 
     #[test]
-    fn turning_the_hour_past_twelve_never_touches_the_meridiem() {
-        let mut dial = at(11, 0);
-        assert_eq!(dial.meridiem, Meridiem::Am);
-        for _ in 0..3 {
+    fn an_uppercase_letter_leaps_the_same_way_shift_does() {
+        let mut dial = dial();
+        dial.column = 1;
+        dial.apply(KeyEvent::new(KeyCode::Char('J'), KeyModifiers::SHIFT));
+        assert_eq!(dial.value(1), "5");
+        dial.apply(KeyEvent::new(KeyCode::Char('K'), KeyModifiers::SHIFT));
+        assert_eq!(dial.value(1), "0");
+    }
+
+    #[test]
+    fn turning_one_column_never_touches_another() {
+        let mut dial = dial();
+        dial.column = 1;
+        for _ in 0..70 {
             dial.apply(press(KeyCode::Down));
         }
-        assert_eq!((dial.hour, dial.meridiem), (2, Meridiem::Am));
+        assert_eq!(dial.value(0), "0", "the hours did not follow the minutes");
+        assert_eq!(dial.value(1), "10", "which wrapped on their own");
     }
 
     #[test]
-    fn enter_takes_the_time_and_escape_leaves_without_one() {
-        let mut dial = at(1, 0);
+    fn enter_takes_it_and_escape_leaves_without_it() {
+        let mut dial = dial();
         assert_eq!(dial.apply(press(KeyCode::Enter)), DialAction::Submit);
         assert_eq!(dial.apply(press(KeyCode::Esc)), DialAction::Cancel);
         assert_eq!(
@@ -399,64 +234,66 @@ mod tests {
     }
 
     #[test]
-    fn turning_a_dial_says_so_and_pressing_nothing_useful_does_not() {
-        let mut dial = at(1, 0);
-        assert_eq!(dial.apply(press(KeyCode::Down)), DialAction::Turned);
+    fn a_turn_says_which_column_moved_and_a_dead_key_says_nothing() {
+        let mut dial = dial();
+        dial.column = 1;
+        assert_eq!(dial.apply(press(KeyCode::Down)), DialAction::Turned(1));
         assert_eq!(dial.apply(press(KeyCode::Char('z'))), DialAction::Stay);
-        assert_eq!(dial.apply(press(KeyCode::Right)), DialAction::Stay);
+        assert_eq!(dial.apply(press(KeyCode::Left)), DialAction::Stay);
     }
 
-    /// A five-minute turn passes four minutes on the way, so it can be seen
-    /// to travel rather than appearing to jump.
+    /// A leap is drawn as the places it crossed, so it can be seen to travel
+    /// and in which direction.
     #[test]
-    fn a_five_minute_turn_passes_through_the_minutes_between() {
+    fn a_leap_passes_through_everything_between() {
         let before = {
-            let mut dial = at(1, 44);
-            dial.column = Column::Minute;
+            let mut dial = dial();
+            dial.column = 1;
             dial
         };
-        let mut after = before;
-        after.apply(press(KeyCode::Down));
-        let minutes: Vec<i16> = after
-            .passed_through(before)
+        let mut after = before.clone();
+        after.apply(shifted(KeyCode::Down));
+        let seen: Vec<String> = after
+            .passed_through(&before)
             .iter()
-            .map(|dial| dial.minute)
+            .map(|dial| dial.value(1).to_owned())
             .collect();
-        assert_eq!(minutes, vec![45, 46, 47, 48]);
+        assert_eq!(seen, ["1", "2", "3", "4"]);
     }
 
     #[test]
-    fn a_turn_going_the_other_way_passes_through_them_backwards() {
+    fn a_leap_the_other_way_passes_through_them_backwards_and_wraps() {
         let before = {
-            let mut dial = at(1, 2);
-            dial.column = Column::Minute;
+            let mut dial = dial();
+            dial.column = 1;
             dial
         };
-        let mut after = before;
-        after.apply(press(KeyCode::Up));
-        let minutes: Vec<i16> = after
-            .passed_through(before)
+        let mut after = before.clone();
+        after.apply(shifted(KeyCode::Up));
+        let seen: Vec<String> = after
+            .passed_through(&before)
             .iter()
-            .map(|dial| dial.minute)
+            .map(|dial| dial.value(1).to_owned())
             .collect();
-        assert_eq!(minutes, vec![1, 0, 59, 58], "and wraps while it does it");
+        assert_eq!(seen, ["59", "58", "57", "56"]);
     }
 
-    /// One step has nothing in between, so there is nothing to animate.
     #[test]
     fn a_single_step_passes_through_nothing() {
-        let before = at(3, 0);
-        let mut after = before;
+        let before = dial();
+        let mut after = before.clone();
         after.apply(press(KeyCode::Down));
-        assert!(after.passed_through(before).is_empty());
+        assert!(after.passed_through(&before).is_empty());
+    }
 
-        let before = {
-            let mut dial = at(1, 44);
-            dial.column = Column::Minute;
-            dial
-        };
-        let mut after = before;
-        after.apply(shifted(KeyCode::Down));
-        assert!(after.passed_through(before).is_empty());
+    /// A column rebuilt under the value did not travel: the positions either
+    /// side of it are not the ones it passed.
+    #[test]
+    fn a_rebuilt_column_has_no_path_to_animate() {
+        let before = dial();
+        let mut after = before.clone();
+        after.wheels[1] = numbers(8, 4);
+        after.wheels[1].turn(3);
+        assert!(after.passed_through(&before).is_empty());
     }
 }

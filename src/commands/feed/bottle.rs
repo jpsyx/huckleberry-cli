@@ -26,14 +26,7 @@ pub(super) async fn bottle(
     // The `units` setting is the default, not the answer: somebody who mostly
     // records in ounces still gives the odd bottle in millilitres.
     let configured = Units::from_setting(&context.config.units);
-    let units = match units {
-        Some(given) => given,
-        None => ask_for_units(context, configured)?,
-    };
-    let amount = match amount {
-        Some(given) => given,
-        None => ask_for_amount(context, client, cid, units).await?,
-    };
+    let (units, amount) = resolve_volume(context, client, cid, configured, units, amount).await?;
     if amount.partial_cmp(&0.0) != Some(core::cmp::Ordering::Greater) {
         bail!("a bottle needs an amount greater than zero, not {amount}");
     }
@@ -94,6 +87,66 @@ fn ask_for_units(context: &Context, configured: Units) -> Result<Units> {
     Ok(Units::from_setting(&prompt::ask(&question, context.theme)?))
 }
 
+/// How much, and in what.
+///
+/// One question in the shell. The units were never a separate thing to
+/// decide: "how much" is a single answer with a number and a unit in it, and
+/// asking twice made somebody confirm a choice they had already made. The
+/// dial carries both columns, and turning the units changes the wording
+/// rather than the quantity.
+///
+/// Two questions everywhere else, and whenever a flag already answered one of
+/// them, because a flag that is also asked is a flag that was ignored.
+async fn resolve_volume(
+    context: &Context,
+    client: &Huckleberry,
+    cid: &str,
+    configured: Units,
+    given_units: Option<Units>,
+    given_amount: Option<f64>,
+) -> Result<(Units, f64)> {
+    if let (Some(units), Some(amount)) = (given_units, given_amount) {
+        return Ok((units, amount));
+    }
+    let last = last_bottle(client, cid).await;
+    if given_units.is_none() && given_amount.is_none() && prompt::host::hosted() {
+        let offered = offered_amount(last.0, last.1.as_ref(), configured);
+        return prompt::dial::volume::ask("How much?", configured, offered, context.theme);
+    }
+    let units = match given_units {
+        Some(given) => given,
+        None => ask_for_units(context, configured)?,
+    };
+    let amount = match given_amount {
+        Some(given) => given,
+        None => ask_for_amount(context, &last, units)?,
+    };
+    Ok((units, amount))
+}
+
+/// What was in the last bottle, and the units somebody recorded it in.
+async fn last_bottle(
+    client: &Huckleberry,
+    cid: &str,
+) -> (
+    Option<f64>,
+    Option<huckleberry_api::models::feed::VolumeUnits>,
+) {
+    let prefs = client
+        .feed_document(cid)
+        .await
+        .ok()
+        .flatten()
+        .and_then(|document| document.prefs);
+    (
+        prefs
+            .as_ref()
+            .and_then(|prefs| prefs.bottle_amount)
+            .map(huckleberry_api::models::common::Number::as_f64),
+        prefs.and_then(|prefs| prefs.bottle_units),
+    )
+}
+
 /// The last bottle's amount, in the units this one is being recorded in.
 ///
 /// The app stores that amount in whatever units it was recorded in, so
@@ -113,27 +166,16 @@ pub fn offered_amount(
 
 /// Offers the last bottle's amount as the default, which is almost always the
 /// right answer and saves the typing that matters at 3am.
-async fn ask_for_amount(
+fn ask_for_amount(
     context: &Context,
-    client: &Huckleberry,
-    cid: &str,
+    last: &(
+        Option<f64>,
+        Option<huckleberry_api::models::feed::VolumeUnits>,
+    ),
     units: Units,
 ) -> Result<f64> {
-    let prefs = client
-        .feed_document(cid)
-        .await
-        .ok()
-        .flatten()
-        .and_then(|document| document.prefs);
-    let last = offered_amount(
-        prefs
-            .as_ref()
-            .and_then(|prefs| prefs.bottle_amount)
-            .map(huckleberry_api::models::common::Number::as_f64),
-        prefs.as_ref().and_then(|prefs| prefs.bottle_units.as_ref()),
-        units,
-    )
-    .map(|amount| format::amount_in(amount, units));
+    let last = offered_amount(last.0, last.1.as_ref(), units)
+        .map(|amount| format::amount_in(amount, units));
 
     let label = format!("How much, in {}?", units.as_str());
     let mut question = Question::new("amount", &label, "--amount <NUMBER>");
