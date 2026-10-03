@@ -270,6 +270,10 @@ the hour to the minutes moves the mark to wherever the current minute sits,
 and it disappears when that value has scrolled out of sight rather than
 pointing off the screen.
 
+The mark recedes with the row it has moved to, muted one row out and fainter
+two: left bright on a row whose numbers have gone quiet it would read as the
+loudest thing on the screen while being the least important thing on it.
+
 It is about one column, not the whole row. With the hour turned one on from
 1:44 pm, the marked row reads `1 : 43 am [now]`, which is not a time anybody
 would call now: the `1` is what the mark is about, because the hour is what

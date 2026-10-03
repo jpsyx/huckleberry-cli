@@ -74,7 +74,15 @@ fn row(dial: &Dial, offset: isize, theme: Theme) -> String {
     if dial.is_landmark(offset)
         && let Some(landmark) = &dial.landmark
     {
-        line.push_str(&theme.paint(Tone::Accent, &format!("{BEFORE_LABEL}{}", landmark.label)));
+        // It recedes with the row it has moved to. Left bright on a row whose
+        // numbers have gone quiet, the mark reads as the loudest thing on the
+        // screen while being the least important thing on it.
+        let shade = match offset {
+            0 => Tone::Accent,
+            -1 | 1 => Tone::Muted,
+            _ => Tone::Faint,
+        };
+        line.push_str(&theme.paint(shade, &format!("{BEFORE_LABEL}{}", landmark.label)));
     }
     line
 }
@@ -146,6 +154,47 @@ mod tests {
         assert_eq!(marked.len(), 1, "{lines:?}");
         assert!(marked[0].contains("44"), "{:?}", marked[0]);
         assert!(marked[0].contains("pm"), "{:?}", marked[0]);
+    }
+
+    /// The mark recedes with the row it is on. Left bright on a row whose
+    /// numbers have gone quiet, it reads as the loudest thing on a screen
+    /// where it is the least important.
+    #[test]
+    fn the_mark_dims_with_whatever_row_it_has_moved_to() {
+        let lit = |offset: isize| {
+            let mut dial = marked_clock();
+            // Turn the hour away so the mark sits `offset` rows from the
+            // middle, where the current hour is still drawn.
+            for _ in 0..offset.unsigned_abs() {
+                dial.apply(crossterm::event::KeyEvent::new(
+                    if offset < 0 {
+                        crossterm::event::KeyCode::Up
+                    } else {
+                        crossterm::event::KeyCode::Down
+                    },
+                    crossterm::event::KeyModifiers::NONE,
+                ));
+            }
+            render("When?", &dial, 60, Theme::dark(true))
+                .into_iter()
+                .find(|line| line.contains("[now]"))
+                .unwrap_or_else(|| panic!("no marked row at {offset}"))
+        };
+        assert_eq!(painting(&lit(0)), Tone::Accent.sgr(), "on its own row");
+        assert_eq!(painting(&lit(1)), Tone::Muted.sgr(), "one row away");
+        assert_eq!(painting(&lit(2)), Tone::Faint.sgr(), "two rows away");
+    }
+
+    /// The escape code in force where the mark is written, which is not the
+    /// same question as which codes appear somewhere on that line.
+    fn painting(line: &str) -> String {
+        let upto = &line[..line.find("[now]").expect("a mark")];
+        let escape = upto.rfind('\u{1b}').expect("a code before it");
+        upto[escape + 2..]
+            .split('m')
+            .next()
+            .expect("a code body")
+            .to_owned()
     }
 
     #[test]
