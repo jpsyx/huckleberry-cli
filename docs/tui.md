@@ -305,7 +305,7 @@ When?
    0h   00m ago  [now]
    1h   01m
    2h   02m
-  ───
+        ───
 
 ←/→ h/l column · ↑/↓ j/k turn · shift leaps
 tab clock · n [now] · Enter set · Esc back

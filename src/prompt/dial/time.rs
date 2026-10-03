@@ -346,6 +346,7 @@ mod tests {
     #[test]
     fn the_hours_stop_at_nothing_ago_rather_than_coming_round() {
         let mut dial = relative_dial(0, 1439);
+        dial.column = HOURS_AGO;
         dial.apply(up());
         assert_eq!(dial.value(HOURS_AGO), "0h");
         assert_eq!(read_relative(&dial), 0);
@@ -441,6 +442,7 @@ mod tests {
     #[test]
     fn the_two_columns_add_up_to_the_answer() {
         let mut dial = relative_dial(0, 600);
+        dial.column = HOURS_AGO;
         dial.apply(down());
         dial.apply(down());
         dial.column = MINUTES_AGO;
@@ -467,6 +469,7 @@ mod tests {
     fn the_dial_cannot_reach_back_past_a_start_already_fixed() {
         let furthest = 90;
         let mut dial = relative_dial(0, furthest);
+        dial.column = HOURS_AGO;
         let mut settle = settling(furthest);
 
         // The hours reach one and no further.
@@ -477,12 +480,7 @@ mod tests {
         assert_eq!(dial.wheels[HOURS_AGO].count(), 2, "nought and one");
 
         // And at one hour, only thirty minutes are left to give.
-        dial.apply(down());
-        settle(&mut dial, HOURS_AGO);
-        while dial.value(HOURS_AGO) != "1h" {
-            dial.apply(down());
-            settle(&mut dial, HOURS_AGO);
-        }
+        assert_eq!(dial.value(HOURS_AGO), "1h");
         assert_eq!(dial.wheels[MINUTES_AGO].count(), 31, "nought to thirty");
         dial.column = MINUTES_AGO;
         for _ in 0..90 {
@@ -500,6 +498,7 @@ mod tests {
     fn the_minutes_get_their_range_back_when_the_hours_come_down() {
         let furthest = 90;
         let mut dial = relative_dial(60, furthest);
+        dial.column = HOURS_AGO;
         let mut settle = settling(furthest);
         assert_eq!(dial.wheels[MINUTES_AGO].count(), 31);
         dial.apply(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
