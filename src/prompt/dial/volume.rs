@@ -17,13 +17,19 @@ const AMOUNT: usize = 0;
 const UNITS: usize = 1;
 
 /// The largest bottle the dial offers, in millilitres.
-const MOST_ML: i32 = 400;
+///
+/// The same bottle as [`MOST_OZ_NOTCHES`], to the nearest millilitre, so that
+/// turning the units near the top of the wheel does not quietly cap the
+/// amount. A test holds the two together.
+const MOST_ML: i32 = 710;
 
 /// How much one notch of the ounce wheel is.
 const OZ_NOTCH: f64 = 0.25;
 
 /// The largest bottle the dial offers, in notches of an ounce.
-const MOST_OZ_NOTCHES: i32 = 64;
+///
+/// Ninety-six quarters, which is twenty-four ounces.
+const MOST_OZ_NOTCHES: i32 = 96;
 
 /// What the dial starts on when nothing has been recorded yet.
 const UNKNOWN_ML: f64 = 60.0;
@@ -127,6 +133,24 @@ mod tests {
 
     fn dial_at(units: Units, amount: f64) -> Dial {
         Dial::new(vec![amounts(units, amount), units_wheel(units)])
+    }
+
+    /// The two wheels end at the same bottle, so switching units near the top
+    /// does not quietly cap the amount.
+    #[test]
+    fn both_wheels_reach_the_same_largest_bottle() {
+        let most_oz = f64::from(MOST_OZ_NOTCHES) * OZ_NOTCH;
+        let same_in_ml = format::convert(most_oz, Units::Oz, Units::Ml);
+        assert!(
+            (f64::from(MOST_ML) - same_in_ml).abs() <= 1.0,
+            "{MOST_ML} ml against {most_oz} oz, which is {same_in_ml} ml"
+        );
+    }
+
+    #[test]
+    fn the_dial_reaches_a_twenty_four_ounce_bottle() {
+        let wheel = amounts(Units::Oz, 100.0);
+        assert_eq!(wheel.value(), "24.00", "the top of the wheel");
     }
 
     #[test]
