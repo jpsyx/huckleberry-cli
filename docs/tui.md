@@ -311,6 +311,12 @@ When?
 tab clock · n [now] · Enter set · Esc back
 ```
 
+It opens on the minutes rather than the hours, because most corrections are
+minutes: the thing was twenty minutes ago, not two hours. The column somebody
+came to turn is already under the cursor, and the hours are one key to the
+left when they are wanted. The clock still opens on the hour, which is where
+reading one starts.
+
 Both columns start at nought, which is now, and the mark says so. The word
 `ago` sits on the answering row, because two numbers with a letter each say
 which numbers they are and not what they mean. Minutes turn one and leap five,

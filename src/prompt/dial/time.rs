@@ -177,6 +177,10 @@ fn relative_dial(minutes: i64, furthest: i64) -> Dial {
         hours_wheel(furthest, hours),
         minutes_wheel(allowed(hours, furthest), minutes % 60),
     ])
+    // Most corrections are minutes: the thing was twenty minutes ago, not
+    // two hours. The column somebody came to turn is already under the
+    // cursor, and the hours are one key to the left when they are wanted.
+    .opening_on(MINUTES_AGO)
     .marking(NOW, vec![hour_label(0), minute_label(0)])
     .reading(AGO)
     .switching_to("clock")
@@ -400,6 +404,21 @@ mod tests {
                 .any(|line| line.contains(" : ") && line.contains("ago")),
             "{drawn:?}"
         );
+    }
+
+    /// Most corrections are minutes: the thing was twenty minutes ago, not
+    /// two hours. The column somebody came to turn is already under the
+    /// cursor, and the hours are one key to the left when they are wanted.
+    #[test]
+    fn the_relative_dial_opens_on_the_minutes() {
+        assert_eq!(relative_dial(0, 1439).column, MINUTES_AGO);
+        assert_eq!(relative_dial(66, 1439).column, MINUTES_AGO);
+    }
+
+    /// The clock still opens on the hour, which is where reading one starts.
+    #[test]
+    fn the_clock_dial_still_opens_on_the_hour() {
+        assert_eq!(clock_dial(at(13, 44), at(13, 44)).column, HOUR);
     }
 
     /// Nothing ago is now, and the dial says so without being asked.

@@ -80,6 +80,16 @@ impl Dial {
         self
     }
 
+    /// The same dial, opened with the cursor on a given column.
+    ///
+    /// Clamped to the columns there are, so a dial can name the one it wants
+    /// without knowing how many it ended up with.
+    #[must_use]
+    pub fn opening_on(mut self, column: usize) -> Self {
+        self.column = column.min(self.wheels.len().saturating_sub(1));
+        self
+    }
+
     /// The same dial, with another way of saying the same thing behind Tab.
     ///
     /// `hint` names what Tab leads to, so the key is advertised by its
