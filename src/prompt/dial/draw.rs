@@ -38,10 +38,15 @@ pub fn render(label: &str, dial: &Dial, width: u16, theme: Theme) -> Vec<String>
     lines.push(theme.muted(&fit(MOVING)));
     // The key is offered only where there is somewhere to jump to, and it is
     // named after the mark it lands on so the two read as one idea.
-    let leaving = dial.landmark.as_ref().map_or_else(
+    let mut leaving = dial.landmark.as_ref().map_or_else(
         || LEAVING.to_owned(),
         |landmark| format!("n {} · {LEAVING}", landmark.label),
     );
+    // Named by where it leads rather than by itself: "tab" alone says a key
+    // exists without saying what pressing it would get you.
+    if let Some(switch) = &dial.switch {
+        leaving = format!("tab {switch} · {leaving}");
+    }
     lines.push(theme.muted(&fit(&leaving)));
     lines
 }
@@ -68,6 +73,11 @@ fn row(dial: &Dial, offset: isize, theme: Theme) -> String {
         }
         let cell = format!("{:>1$}", wheel.shown_at(offset), wheel.width());
         line.push_str(&theme.paint(tone(dial.column == index), &cell));
+    }
+    if offset == 0
+        && let Some(trailing) = &dial.trailing
+    {
+        line.push_str(&theme.paint(tone(false), &format!(" {trailing}")));
     }
     // After the columns rather than before them, so pointing a row out never
     // shifts the dial sideways.

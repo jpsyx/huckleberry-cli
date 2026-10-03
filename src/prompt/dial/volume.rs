@@ -42,7 +42,13 @@ const UNKNOWN_ML: f64 = 60.0;
 pub fn ask(label: &str, units: Units, amount: Option<f64>, theme: Theme) -> Result<(Units, f64)> {
     let start = amount.unwrap_or_else(|| format::convert(UNKNOWN_ML, Units::Ml, units));
     let dial = Dial::new(vec![amounts(units, start), units_wheel(units)]);
-    let turned = super::terminal::ask(label, dial, theme, settle)?;
+    // A volume has one way of being said, so Tab does nothing and the only
+    // way out is the answer.
+    let super::terminal::Outcome::Submitted(turned) =
+        super::terminal::ask(label, dial, theme, &mut settle)?
+    else {
+        unreachable!("a volume dial offers nothing to switch to")
+    };
     Ok(read(&turned))
 }
 

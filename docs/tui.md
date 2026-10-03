@@ -291,6 +291,53 @@ redraws rather than animating, because nothing about a reset is worth watching
 travel.
 
 ```
+
+**A time has two ways of being said, and Tab moves between them.** A dial
+opens on how long ago, because that is how somebody says it out loud: twenty
+minutes, not 1:24. Tab gets the clock for the times that are easier said that
+way.
+
+```
+When?
+
+        58m
+        59m
+   0h   00m ago  [now]
+   1h   01m
+   2h   02m
+  ───
+
+←/→ h/l column · ↑/↓ j/k turn · shift leaps
+tab clock · n [now] · Enter set · Esc back
+```
+
+Both columns start at nought, which is now, and the mark says so. The word
+`ago` sits on the answering row, because two numbers with a letter each say
+which numbers they are and not what they mean. Minutes turn one and leap five,
+as they do on the clock, and they still come round, because the hour above
+them carries it.
+
+**The hours hold at nought rather than coming round.** Nothing is less than no
+hours ago, and a column that came round would log yesterday on one press of
+the wrong key. Nothing is drawn above it either, so the end of the column
+looks like one rather than like a value that failed to load. Whatever is on the dial comes
+across when Tab is pressed, so switching never costs the answer somebody has
+already turned: an hour and six minutes ago becomes 12:38 pm and back again.
+
+**A correction opens on the clock instead.** Editing an entry starts from what
+is recorded, and a relative dial there would have Enter quietly move the entry
+to now. Logging something that just happened opens on how long ago; changing
+something already written down opens on the time it says.
+
+**Where a start is already fixed, the dial cannot reach back past it.** A
+sleep's end may not land before its beginning, so the hours column stops at
+the hour that start falls in and the minutes column is rebuilt to just the
+minutes still left in it: bounded to ninety minutes, the dial offers `0h` and
+`1h`, and at `1h` the minutes run `00m` to `30m` and no further. Refusing
+afterwards would be a worse answer to the same problem, because it makes
+somebody undo a turn they were never meant to be able to make.
+
+```
 How much?
 
    1.50

@@ -20,7 +20,7 @@ pub fn read_manual_start(context: &Context, given: Option<&str>) -> Result<f64> 
         context,
         given,
         &question,
-        Some(now_seconds()),
+        Opening::JustNow { not_before: None },
         |text, interactive| parse_instant(context, text, interactive, clock::most_recent),
     )
 }
@@ -32,7 +32,9 @@ pub fn read_manual_end(context: &Context, given: Option<&str>, started: f64) -> 
         context,
         given,
         &question,
-        Some(now_seconds()),
+        Opening::JustNow {
+            not_before: Some(started),
+        },
         |text, interactive| {
             parse_instant(context, text, interactive, |time, _, calendar| {
                 clock::first_after(time, started, calendar)
@@ -70,7 +72,7 @@ fn read_instant(context: &Context, given: Option<&str>, label: &str, flag: &str)
         context,
         given,
         &question,
-        Some(now_seconds()),
+        Opening::JustNow { not_before: None },
         |text, interactive| parse_instant(context, text, interactive, clock::most_recent),
     )
 }
@@ -84,6 +86,7 @@ pub fn read_edit_at(context: &Context, given: Option<&str>, current: f64) -> Res
         current,
         "When?",
         "--set at=<TIME>",
+        None,
         move |time, _, calendar| calendar.at(calendar.day_of(current), time.hour, time.minute),
     )?;
     if started.to_bits() != current.to_bits()
@@ -116,6 +119,9 @@ pub fn read_edit_stop(
         current,
         "When did it end?",
         "--set duration=<MINUTES>",
+        // A sleep that ends before it begins is not a duration anybody can
+        // store, so the relative dial is not allowed to reach back that far.
+        Some(started),
         move |time, _, calendar| clock::first_after(time, started, calendar),
     )?;
     if stopped <= started {
@@ -135,6 +141,7 @@ fn read_existing(
     current: f64,
     label: &str,
     flag: &str,
+    not_before: Option<f64>,
     resolve_clock: impl Fn(TimeOfDay, f64, &Calendar) -> f64 + Copy,
 ) -> Result<f64> {
     let calendar = context.calendar()?;
@@ -144,7 +151,10 @@ fn read_existing(
         context,
         given,
         &question,
-        Some(current),
+        Opening::Recorded {
+            at: current,
+            not_before,
+        },
         |text, interactive| {
             if text.trim() == shown || text.trim().eq_ignore_ascii_case("keep") {
                 return Ok(Some(current));
@@ -185,6 +195,7 @@ pub fn read_edit_start(
             original,
             "When?",
             "--set start=<TIME>",
+            None,
             clock::most_recent,
         )?;
         return Ok((changed.to_bits() != original.to_bits()).then_some(changed));
@@ -198,12 +209,18 @@ pub fn read_edit_start(
     let question = create_time_question(&label, "--set start=<TIME>").with_default("keep");
     // No dial here: there is no start to begin one at, and Enter on a dial
     // cannot mean "leave it unrecorded" the way the typed default does.
-    read(context, given, &question, None, |text, interactive| {
-        if text.trim().eq_ignore_ascii_case("keep") {
-            return Ok(Some(None));
-        }
-        Ok(parse_instant(context, text, interactive, clock::most_recent)?.map(Some))
-    })
+    read(
+        context,
+        given,
+        &question,
+        Opening::Typed,
+        |text, interactive| {
+            if text.trim().eq_ignore_ascii_case("keep") {
+                return Ok(Some(None));
+            }
+            Ok(parse_instant(context, text, interactive, clock::most_recent)?.map(Some))
+        },
+    )
 }
 
 /// Parses all activity times; callers supply only the date rule for clock-only answers.
@@ -225,24 +242,42 @@ fn parse_instant(
         .map(|time| resolve_clock(time, now_seconds(), &calendar)))
 }
 
+/// Where a question's dial opens, and what it may answer.
+#[derive(Debug, Clone, Copy)]
+enum Opening {
+    /// Something that just happened. The dial opens on how long ago, because
+    /// that is how somebody says it out loud: twenty minutes, not 1:24.
+    JustNow {
+        /// The earliest the answer may be, where something already fixes one.
+        not_before: Option<f64>,
+    },
+    /// An instant already recorded. The dial opens on the clock, standing on
+    /// it: a correction starts from what is there, where a relative dial
+    /// would have Enter quietly move the entry to now.
+    Recorded {
+        /// What is recorded.
+        at: f64,
+        /// The earliest the answer may be, where something already fixes one.
+        not_before: Option<f64>,
+    },
+    /// No dial. The one question that offers to keep a start never recorded
+    /// has no instant to open on, and Enter on a dial cannot mean "leave it".
+    Typed,
+}
+
 /// Supplied values fail immediately; prompted values can be corrected before writing.
-///
-/// `dial_from` is where the dial starts when the shell is asking: the instant
-/// being corrected, or now. `None` means this question has no time to start
-/// from and must be typed, which is true of the one that offers to keep a
-/// start that was never recorded.
 fn read<T>(
     context: &Context,
     given: Option<&str>,
     question: &Question<'_>,
-    dial_from: Option<f64>,
+    opening: Opening,
     parse: impl Fn(&str, bool) -> Result<Option<T>>,
 ) -> Result<T> {
     if let Some(text) = given {
         return parse(text, false)?.ok_or_else(|| anyhow!(unreadable_message(text)));
     }
     loop {
-        let answer = ask_time(context, question, dial_from)?;
+        let answer = ask_time(context, question, opening)?;
         match parse(&answer, true)? {
             Some(value) => return Ok(value),
             None => context.warn(&unreadable_message(&answer)),
@@ -259,16 +294,32 @@ fn read<T>(
 /// Typing stays on a bare terminal, where a keyboard is already under both
 /// hands and where `32 min ago` is quicker than any number of key presses.
 /// The dial cannot say that, which is the other half of why.
-fn ask_time(context: &Context, question: &Question<'_>, dial_from: Option<f64>) -> Result<String> {
-    let Some(at) = dial_from.filter(|_| crate::prompt::host::hosted()) else {
+fn ask_time(context: &Context, question: &Question<'_>, opening: Opening) -> Result<String> {
+    use crate::prompt::dial::time::{Mode, Opening as Dialled};
+    let now = now_seconds();
+    let dialled = match opening {
+        Opening::Typed => None,
+        Opening::JustNow { not_before } => Some(Dialled {
+            at: now,
+            mode: Mode::Relative,
+            not_before,
+        }),
+        Opening::Recorded { at, not_before } => Some(Dialled {
+            at,
+            mode: Mode::Absolute,
+            not_before,
+        }),
+    };
+    let Some(dialled) = dialled.filter(|_| crate::prompt::host::hosted()) else {
         return super::ask(question, context.theme);
     };
-    let calendar = context.calendar()?;
-    // The dial points out the row that is the current time, so it needs to
-    // know what that is as well as where to start.
-    let initial = calendar.time_of_day(at);
-    let now = calendar.time_of_day(now_seconds());
-    Ok(crate::prompt::dial::time::ask(question.label, initial, now, context.theme)?.label())
+    crate::prompt::dial::time::ask(
+        question.label,
+        &context.calendar()?,
+        now,
+        dialled,
+        context.theme,
+    )
 }
 
 /// Interprets a clock time, resolving ambiguity only when the user typed it interactively.

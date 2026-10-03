@@ -28,6 +28,15 @@ pub struct Dial {
     pub column: usize,
     /// A row to point out, if there is one.
     pub landmark: Option<Landmark>,
+    /// What Tab switches to, for a dial that has another way of saying the
+    /// same thing. `None` means Tab does nothing.
+    pub switch: Option<String>,
+    /// A word after the columns on the row that is the answer.
+    ///
+    /// Two numbers with a letter each is not a sentence: "1h 06m" says which
+    /// numbers they are and not what they mean. Drawn on the middle row
+    /// alone, because that is the row the word is true of.
+    pub trailing: Option<String>,
 }
 
 /// What a key did.
@@ -43,6 +52,8 @@ pub enum DialAction {
     /// Not a turn: no single column moved, so there is nothing to settle
     /// against, and nothing travelled a path worth watching on the way.
     Jumped,
+    /// Say it the other way instead. The dial itself is replaced.
+    Switched,
     /// Take what it is standing on.
     Submit,
     /// Leave without it.
@@ -57,7 +68,26 @@ impl Dial {
             wheels,
             column: 0,
             landmark: None,
+            switch: None,
+            trailing: None,
         }
+    }
+
+    /// The same dial, with a word after its columns on the answering row.
+    #[must_use]
+    pub fn reading(mut self, trailing: &str) -> Self {
+        self.trailing = Some(trailing.to_owned());
+        self
+    }
+
+    /// The same dial, with another way of saying the same thing behind Tab.
+    ///
+    /// `hint` names what Tab leads to, so the key is advertised by its
+    /// destination rather than by itself.
+    #[must_use]
+    pub fn switching_to(mut self, hint: &str) -> Self {
+        self.switch = Some(hint.to_owned());
+        self
     }
 
     /// The same dial, with a row worth pointing out.
@@ -128,6 +158,7 @@ impl Dial {
             // `n` for now, which is the only landmark any dial has. If one
             // ever gets another kind, the key belongs in the landmark rather
             // than here.
+            KeyCode::Tab | KeyCode::BackTab if self.switch.is_some() => DialAction::Switched,
             KeyCode::Char('n' | 'N') => self.jump(),
             KeyCode::Down | KeyCode::Char('j' | 'J') => self.turn(1, leaping(key)),
             KeyCode::Up | KeyCode::Char('k' | 'K') => self.turn(-1, leaping(key)),

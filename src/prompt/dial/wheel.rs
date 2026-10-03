@@ -19,6 +19,11 @@ pub struct Wheel {
     leap: usize,
     /// What is drawn before this column.
     gap: &'static str,
+    /// Whether it comes round at the ends.
+    ///
+    /// Most columns do: an hour of the day has no first or last one. Some
+    /// have a real end, and nothing is less than no hours ago.
+    cycles: bool,
 }
 
 impl Wheel {
@@ -37,7 +42,18 @@ impl Wheel {
             index,
             leap: leap.max(1),
             gap,
+            cycles: true,
         }
+    }
+
+    /// The same wheel, stopping at its ends rather than coming round.
+    ///
+    /// It draws nothing past them either, so the end of the column looks
+    /// like one rather than like a value that failed to load.
+    #[must_use]
+    pub const fn holding(mut self) -> Self {
+        self.cycles = false;
+        self
     }
 
     /// What it reads `offset` places along, wrapping at both ends.
@@ -47,9 +63,12 @@ impl Wheel {
     pub fn at(&self, offset: isize) -> &str {
         let standing = isize::try_from(self.index).unwrap_or_default();
         let count = isize::try_from(self.labels.len()).unwrap_or(1);
-        let wrapped = (standing + offset).rem_euclid(count);
+        let wanted = standing + offset;
+        if !self.cycles && (wanted < 0 || wanted >= count) {
+            return "";
+        }
         self.labels
-            .get(usize::try_from(wrapped).unwrap_or_default())
+            .get(usize::try_from(wanted.rem_euclid(count)).unwrap_or_default())
             .map_or("", String::as_str)
     }
 
@@ -61,10 +80,12 @@ impl Wheel {
     /// blur rather than as a choice between two things.
     #[must_use]
     pub fn shown_at(&self, offset: isize) -> &str {
-        if self.count() <= 2 && offset != 0 && offset != -1 {
-            return "";
+        match self.count() {
+            // Nothing to choose between: it is a fact rather than a wheel.
+            1 if offset != 0 => "",
+            2 if offset != 0 && offset != -1 => "",
+            _ => self.at(offset),
         }
-        self.at(offset)
     }
 
     /// What is chosen.
@@ -121,7 +142,13 @@ impl Wheel {
     pub fn turn(&mut self, steps: isize) {
         let standing = isize::try_from(self.index).unwrap_or_default();
         let count = isize::try_from(self.labels.len()).unwrap_or(1);
-        self.index = usize::try_from((standing + steps).rem_euclid(count)).unwrap_or_default();
+        let wanted = standing + steps;
+        let landed = if self.cycles {
+            wanted.rem_euclid(count)
+        } else {
+            wanted.clamp(0, count - 1)
+        };
+        self.index = usize::try_from(landed).unwrap_or_default();
     }
 
     /// Stands it at the label nearest `wanted`, by whatever `distance` says
@@ -153,6 +180,9 @@ impl Wheel {
         let count = isize::try_from(self.labels.len()).unwrap_or(1);
         let standing = isize::try_from(self.index).unwrap_or_default();
         let was = isize::try_from(from).unwrap_or_default();
+        if !self.cycles {
+            return standing - was;
+        }
         let forward = (standing - was).rem_euclid(count);
         if forward > count / 2 {
             forward - count
@@ -173,6 +203,37 @@ mod tests {
             leap,
             "",
         )
+    }
+
+    /// Some columns have a real end. Nothing is less than no hours ago, and
+    /// a wheel that turns from nought to twenty-three on one press is a
+    /// wheel that logs yesterday by accident.
+    #[test]
+    fn a_holding_wheel_stops_at_its_ends_rather_than_coming_round() {
+        let mut wheel = numbers(24, 1).holding();
+        wheel.turn(-1);
+        assert_eq!(wheel.value(), "0", "there is nothing above nought");
+        wheel.turn(5);
+        assert_eq!(wheel.value(), "5");
+        wheel.turn(100);
+        assert_eq!(wheel.value(), "23", "and nothing below the last one");
+    }
+
+    /// And shows nothing past them, so the end of the column looks like one.
+    #[test]
+    fn a_holding_wheel_draws_nothing_past_its_ends() {
+        let wheel = numbers(24, 1).holding();
+        assert_eq!(wheel.shown_at(0), "0");
+        assert_eq!(wheel.shown_at(1), "1");
+        assert_eq!(wheel.shown_at(-1), "", "nothing above it");
+        assert_eq!(wheel.shown_at(-2), "");
+    }
+
+    #[test]
+    fn a_wheel_that_was_not_told_to_hold_still_comes_round() {
+        let mut wheel = numbers(60, 5);
+        wheel.turn(-1);
+        assert_eq!(wheel.value(), "59");
     }
 
     #[test]

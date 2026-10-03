@@ -23,6 +23,15 @@ use crate::theme::Theme;
 /// intervening minutes are drawn at all.
 const FRAME: Duration = Duration::from_millis(35);
 
+/// How turning a dial ended.
+#[derive(Debug)]
+pub enum Outcome {
+    /// Somebody took this dial's answer.
+    Submitted(Dial),
+    /// Somebody asked to say it another way, with the dial as they left it.
+    Switched(Dial),
+}
+
 /// Turns a dial until somebody takes a time off it.
 ///
 /// # Errors
@@ -33,8 +42,8 @@ pub fn ask(
     label: &str,
     dial: Dial,
     theme: Theme,
-    settle: impl FnMut(&mut Dial, usize),
-) -> Result<Dial> {
+    settle: &mut dyn FnMut(&mut Dial, usize),
+) -> Result<Outcome> {
     if host::hosted() {
         return hosted(label, dial, theme, settle);
     }
@@ -54,8 +63,8 @@ fn hosted(
     label: &str,
     mut dial: Dial,
     theme: Theme,
-    mut settle: impl FnMut(&mut Dial, usize),
-) -> Result<Dial> {
+    settle: &mut dyn FnMut(&mut Dial, usize),
+) -> Result<Outcome> {
     loop {
         let (width, _) = host::size();
         let host::Input::Key(key) = host::frame(draw::render(label, &dial, width, theme))? else {
@@ -67,7 +76,8 @@ fn hosted(
             // A jump is a reset: the next frame shows where it landed, and
             // there is neither a column to settle nor a path to animate.
             DialAction::Stay | DialAction::Jumped => {}
-            DialAction::Submit => return Ok(dial),
+            DialAction::Submit => return Ok(Outcome::Submitted(dial)),
+            DialAction::Switched => return Ok(Outcome::Switched(dial)),
             DialAction::Cancel => return Err(Cancelled.into()),
             DialAction::Turned(column) => {
                 settle(&mut dial, column);
@@ -87,8 +97,8 @@ fn owned(
     label: &str,
     mut dial: Dial,
     theme: Theme,
-    mut settle: impl FnMut(&mut Dial, usize),
-) -> Result<Dial> {
+    settle: &mut dyn FnMut(&mut Dial, usize),
+) -> Result<Outcome> {
     let mut output = stderr();
     let mut drawn = 0;
     execute!(output, cursor::Hide)?;
@@ -108,7 +118,12 @@ fn owned(
             DialAction::Submit => {
                 redraw(&mut output, &[], drawn)?;
                 execute!(output, cursor::Show)?;
-                return Ok(dial);
+                return Ok(Outcome::Submitted(dial));
+            }
+            DialAction::Switched => {
+                redraw(&mut output, &[], drawn)?;
+                execute!(output, cursor::Show)?;
+                return Ok(Outcome::Switched(dial));
             }
             DialAction::Cancel => {
                 redraw(&mut output, &[], drawn)?;
@@ -199,13 +214,13 @@ mod hosted_dial {
             .to_owned()
     }
 
-    fn turning() -> std::thread::JoinHandle<Result<Dial>> {
+    fn turning() -> std::thread::JoinHandle<Result<Outcome>> {
         std::thread::spawn(|| {
             ask(
                 "How many?",
                 minutes(),
                 crate::theme::Theme::dark(false),
-                |_, _| {},
+                &mut |_: &mut Dial, _: usize| {},
             )
         })
     }
@@ -244,7 +259,9 @@ mod hosted_dial {
         reply
             .send(press(KeyCode::Enter, KeyModifiers::NONE))
             .expect("listening");
-        let dial = asking.join().expect("ends").expect("a dial");
+        let Outcome::Submitted(dial) = asking.join().expect("ends").expect("a dial") else {
+            panic!("Enter submits");
+        };
         assert_eq!(dial.value(0), "49");
         host::remove();
     }
@@ -315,7 +332,7 @@ mod hosted_dial {
                 "How many?",
                 marked_minutes(),
                 crate::theme::Theme::dark(false),
-                |_, _| {},
+                &mut |_: &mut Dial, _: usize| {},
             )
         });
 
