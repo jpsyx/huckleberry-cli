@@ -66,7 +66,7 @@ fn row(dial: &Dial, offset: isize, theme: Theme) -> String {
         if index > 0 {
             line.push_str(&theme.paint(between, wheel.gap()));
         }
-        let cell = format!("{:>1$}", shown(wheel, offset), wheel.width());
+        let cell = format!("{:>1$}", wheel.shown_at(offset), wheel.width());
         line.push_str(&theme.paint(tone(dial.column == index), &cell));
     }
     // After the columns rather than before them, so pointing a row out never
@@ -77,19 +77,6 @@ fn row(dial: &Dial, offset: isize, theme: Theme) -> String {
         line.push_str(&theme.paint(Tone::Accent, &format!("{BEFORE_LABEL}{}", landmark.label)));
     }
     line
-}
-
-/// What a column shows `offset` places along.
-///
-/// A wheel of two has nothing to spin: the one not chosen sits directly above
-/// the one that is, and the rest of the column stays empty. Drawn as a wheel
-/// it would repeat itself every other row, which reads as a blur rather than
-/// as a choice between two things.
-fn shown(wheel: &Wheel, offset: isize) -> &str {
-    if wheel.count() <= 2 && offset != 0 && offset != -1 {
-        return "";
-    }
-    wheel.at(offset)
 }
 
 /// The rule under whichever column the keys are turning.

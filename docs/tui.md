@@ -264,20 +264,27 @@ When?
   n [now] · Enter set · Esc back
 ```
 
-The `[now]` beside a row means that row **is** the current time: every column
-reads it, not just the one being turned. It is there when a time dial opens,
-because a time dial opens on now, and it goes the moment anything moves it.
-Nothing else is ever marked. A row showing the right minute under the wrong
-hour is not a time anybody meant, and calling it "now" would be worse than
-saying nothing at all, so a mark that is almost always absent is the point
-rather than a shortcoming.
+The `[now]` marks the row where **the column being turned** is showing its
+present value: the row to turn back to. It follows the cursor, so moving from
+the hour to the minutes moves the mark to wherever the current minute sits,
+and it disappears when that value has scrolled out of sight rather than
+pointing off the screen.
 
-**`n` puts every column back on it at once.** Turning back by hand is a column
-at a time, and the dial is most often wanted exactly where it opened: somebody
-turns it to check what time something was, then wants now again. The key is
-offered only where there is a mark to land on, and it is named after that mark
-so the two read as one idea. A jump redraws rather than animating, because
-nothing about a reset is worth watching travel.
+It is about one column, not the whole row. With the hour turned one on from
+1:44 pm, the marked row reads `1 : 43 am [now]`, which is not a time anybody
+would call now: the `1` is what the mark is about, because the hour is what
+is being turned, and the rest of that row is wherever the other columns
+happen to be sitting. The alternative was to mark only a row that is the
+current time in every column, which is almost never any row once a dial has
+been touched, and a mark that is never there answers nothing.
+
+**`n` puts every column back on now at once**, not just the one being turned.
+Following the mark by hand is a column at a time, and the dial is most often
+wanted exactly where it opened: somebody turns it to check what time something
+was, then wants now again. The key is offered only where there is a mark to
+land on, and it is named after that mark so the two read as one idea. A jump
+redraws rather than animating, because nothing about a reset is worth watching
+travel.
 
 ```
 How much?

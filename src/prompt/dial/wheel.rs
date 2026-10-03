@@ -53,6 +53,20 @@ impl Wheel {
             .map_or("", String::as_str)
     }
 
+    /// What it shows `offset` places along, which may be nothing.
+    ///
+    /// A wheel of two has nothing to spin: the one not chosen sits directly
+    /// above the one that is, and the rest of the column stays empty. Drawn
+    /// as a wheel it would repeat itself every other row, which reads as a
+    /// blur rather than as a choice between two things.
+    #[must_use]
+    pub fn shown_at(&self, offset: isize) -> &str {
+        if self.count() <= 2 && offset != 0 && offset != -1 {
+            return "";
+        }
+        self.at(offset)
+    }
+
     /// What is chosen.
     #[must_use]
     pub fn value(&self) -> &str {

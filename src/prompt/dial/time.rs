@@ -131,15 +131,30 @@ mod tests {
         assert!(dial.is_landmark(0), "and it says so");
     }
 
-    /// And stops saying so the moment the dial is not that time any more.
+    /// Turn away and the mark stays on the hour you left, which is the row
+    /// to turn back to.
     #[test]
-    fn nothing_is_pointed_out_once_the_dial_has_been_turned() {
+    fn turning_away_leaves_the_mark_on_the_row_that_puts_it_back() {
         let now = at(13, 44);
         let mut dial = dial_for(now, now);
         dial.apply(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
-        for offset in -2..=2 {
-            assert!(!dial.is_landmark(offset), "offset {offset}");
-        }
+        assert_eq!(read(&dial), at(14, 44), "two in the afternoon now");
+        assert!(dial.is_landmark(-1), "and one is the row above");
+        assert!(!dial.is_landmark(0));
+    }
+
+    /// The mark is about the column being turned, so it moves with the
+    /// cursor rather than staying on the hour.
+    #[test]
+    fn the_mark_moves_to_the_minutes_when_the_minutes_are_being_turned() {
+        let now = at(13, 44);
+        let mut dial = dial_for(at(14, 44), now);
+        assert!(dial.is_landmark(-1), "the hour it came from");
+        dial.column = MINUTE;
+        assert!(
+            dial.is_landmark(0),
+            "the minutes never moved, so theirs is the middle row"
+        );
     }
 
     #[test]
