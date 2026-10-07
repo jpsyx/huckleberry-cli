@@ -300,11 +300,11 @@ way.
 ```
 When?
 
-        58m
-        59m
+        02m
+        01m
    0h   00m ago  [now]
-   1h   01m
-   2h   02m
+   1h   59m
+   2h   58m
         ───
 
 ←/→ h/l column · ↑/↓ j/k turn · shift leaps
@@ -319,9 +319,10 @@ reading one starts.
 
 Both columns start at nought, which is now, and the mark says so. The word
 `ago` sits on the answering row, because two numbers with a letter each say
-which numbers they are and not what they mean. Minutes turn one and leap five,
-as they do on the clock, and they still come round, because the hour above
-them carries it.
+which numbers they are and not what they mean. Relative minutes increase
+upward: `↑`/`k` takes `00m` to `01m`, and `↓`/`j` takes it to `59m`.
+Minutes turn one and leap five with Shift, and they still come round within
+the selected hour. The clock's minute column keeps its existing order.
 
 **The hours hold at nought rather than coming round.** Nothing is less than no
 hours ago, and a column that came round would log yesterday on one press of

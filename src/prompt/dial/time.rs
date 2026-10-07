@@ -214,10 +214,11 @@ fn hours_wheel(furthest: i64, standing: i64) -> Wheel {
     .holding()
 }
 
+/// Relative minutes increase upward, so up from zero means one minute ago.
 fn minutes_wheel(most: i64, standing: i64) -> Wheel {
     Wheel::new(
-        (0..=most).map(minute_label).collect(),
-        usize::try_from(standing.min(most)).unwrap_or_default(),
+        (0..=most).rev().map(minute_label).collect(),
+        usize::try_from(most - standing.min(most)).unwrap_or_default(),
         MINUTE_LEAP,
         "   ",
     )
@@ -333,8 +334,8 @@ mod tests {
         KeyEvent::new(KeyCode::Down, KeyModifiers::NONE)
     }
 
-    fn leap_down() -> KeyEvent {
-        KeyEvent::new(KeyCode::Down, KeyModifiers::SHIFT)
+    fn leap_up() -> KeyEvent {
+        KeyEvent::new(KeyCode::Up, KeyModifiers::SHIFT)
     }
 
     fn up() -> KeyEvent {
@@ -364,8 +365,27 @@ mod tests {
     fn the_minutes_still_come_round() {
         let mut dial = relative_dial(0, 1439);
         dial.column = MINUTES_AGO;
-        dial.apply(up());
+        dial.apply(down());
         assert_eq!(dial.value(MINUTES_AGO), "59m");
+        dial.apply(up());
+        assert_eq!(read_relative(&dial), 0);
+    }
+
+    #[test]
+    fn relative_minutes_are_drawn_increasing_upward() {
+        let drawn = super::super::draw::render(
+            "When?",
+            &relative_dial(0, 1439),
+            60,
+            crate::theme::Theme::dark(false),
+        );
+        let rows = ["02m", "01m", "00m", "59m", "58m"].map(|label| {
+            drawn
+                .iter()
+                .position(|line| line.contains(label))
+                .expect("a visible minute")
+        });
+        assert!(rows.windows(2).all(|pair| pair[0] < pair[1]), "{drawn:?}");
     }
 
     /// Two numbers and a letter each is not a sentence. The word says which
@@ -447,7 +467,7 @@ mod tests {
         dial.apply(down());
         dial.column = MINUTES_AGO;
         for _ in 0..7 {
-            dial.apply(down());
+            dial.apply(up());
         }
         assert_eq!(read_relative(&dial), 2 * 60 + 7);
         assert_eq!(said(read_relative(&dial)), "127 min ago");
@@ -457,10 +477,54 @@ mod tests {
     fn the_minutes_turn_one_and_leap_five() {
         let mut dial = relative_dial(0, 600);
         dial.column = MINUTES_AGO;
-        dial.apply(down());
+        dial.apply(up());
         assert_eq!(dial.value(MINUTES_AGO), "01m");
-        dial.apply(leap_down());
+        dial.apply(leap_up());
         assert_eq!(dial.value(MINUTES_AGO), "06m");
+        dial.apply(KeyEvent::new(KeyCode::Down, KeyModifiers::SHIFT));
+        assert_eq!(read_relative(&dial), 1);
+        dial.apply(down());
+        assert_eq!(read_relative(&dial), 0);
+    }
+
+    #[test]
+    fn relative_minute_letters_increase_upward_and_decrease_downward() {
+        let mut dial = relative_dial(0, 1439);
+        for (letter, minutes) in [('k', 1), ('K', 6), ('J', 1), ('j', 0)] {
+            dial.apply(KeyEvent::new(KeyCode::Char(letter), KeyModifiers::NONE));
+            assert_eq!(read_relative(&dial), minutes, "key {letter}");
+        }
+    }
+
+    #[test]
+    fn rebuilt_relative_minutes_keep_the_value_and_increase_upward() {
+        let mut dial = relative_dial(45, 90);
+        let mut settle = settling(90);
+        dial.column = HOURS_AGO;
+        dial.apply(down());
+        settle(&mut dial, HOURS_AGO);
+        assert_eq!(read_relative(&dial), 90, "clamped to the fixed start");
+        dial.column = MINUTES_AGO;
+        dial.apply(up());
+        assert_eq!(read_relative(&dial), 60, "wraps after thirty minutes");
+        dial.apply(up());
+        assert_eq!(read_relative(&dial), 61);
+        dial.column = HOURS_AGO;
+        dial.apply(up());
+        settle(&mut dial, HOURS_AGO);
+        assert_eq!(read_relative(&dial), 1, "keeps the minute when rebuilt");
+        dial.column = MINUTES_AGO;
+        dial.apply(up());
+        assert_eq!(read_relative(&dial), 2);
+    }
+
+    #[test]
+    fn a_relative_time_survives_opening_the_dial() {
+        for furthest in [0, 1, 30, 90, 1439] {
+            for minutes in 0..=furthest {
+                assert_eq!(read_relative(&relative_dial(minutes, furthest)), minutes);
+            }
+        }
     }
 
     /// A sleep that ends before it begins is not a duration anybody can
