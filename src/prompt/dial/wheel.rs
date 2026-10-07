@@ -74,16 +74,16 @@ impl Wheel {
 
     /// What it shows `offset` places along, which may be nothing.
     ///
-    /// A wheel of two has nothing to spin: the one not chosen sits directly
-    /// above the one that is, and the rest of the column stays empty. Drawn
-    /// as a wheel it would repeat itself every other row, which reads as a
-    /// blur rather than as a choice between two things.
+    /// A cycling wheel of two is a toggle: the one not chosen sits directly
+    /// above the one that is, rather than repeating every other row. A
+    /// holding wheel keeps each neighbour in its direction of travel, even
+    /// with only two values, so increasing still points the same way.
     #[must_use]
     pub fn shown_at(&self, offset: isize) -> &str {
         match self.count() {
             // Nothing to choose between: it is a fact rather than a wheel.
             1 if offset != 0 => "",
-            2 if offset != 0 && offset != -1 => "",
+            2 if self.cycles && offset != 0 && offset != -1 => "",
             _ => self.at(offset),
         }
     }

@@ -300,11 +300,11 @@ way.
 ```
 When?
 
-        02m
-        01m
+   2h   02m
+   1h   01m
    0h   00m ago  [now]
-   1h   59m
-   2h   58m
+        59m
+        58m
         ───
 
 ←/→ h/l column · ↑/↓ j/k turn · shift leaps
@@ -319,15 +319,18 @@ reading one starts.
 
 Both columns start at nought, which is now, and the mark says so. The word
 `ago` sits on the answering row, because two numbers with a letter each say
-which numbers they are and not what they mean. Relative minutes increase
-upward: `↑`/`k` takes `00m` to `01m`, and `↓`/`j` takes it to `59m`.
+which numbers they are and not what they mean. Both relative columns increase
+upward: `↑`/`k` takes `0h` to `1h` or `00m` to `01m`. `↓`/`j` decreases
+the selected column, with minutes wrapping from `00m` to `59m`.
 Minutes turn one and leap five with Shift, and they still come round within
-the selected hour. The clock's minute column keeps its existing order.
+the selected hour. Hours move one per press, including with Shift. The clock
+keeps its existing order.
 
 **The hours hold at nought rather than coming round.** Nothing is less than no
 hours ago, and a column that came round would log yesterday on one press of
-the wrong key. Nothing is drawn above it either, so the end of the column
-looks like one rather than like a value that failed to load. Whatever is on the dial comes
+the wrong key. Nothing is drawn below it either, so the end of the column
+looks like one rather than like a value that failed to load. Even when only
+`0h` and `1h` are allowed, `1h` stays above `0h`. Whatever is on the dial comes
 across when Tab is pressed, so switching never costs the answer somebody has
 already turned: an hour and six minutes ago becomes 12:38 pm and back again.
 

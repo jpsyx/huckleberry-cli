@@ -199,15 +199,15 @@ fn minute_label(minutes: i64) -> String {
     format!("{minutes:02}m")
 }
 
-/// The hours column holds at nought rather than coming round.
+/// Relative hours increase upward and hold at nought rather than coming round.
 ///
 /// Nothing is less than no hours ago, and a column that came round would log
 /// yesterday on one press of the wrong key. The minutes still come round,
 /// because the hour above them carries it.
 fn hours_wheel(furthest: i64, standing: i64) -> Wheel {
     Wheel::new(
-        (0..=furthest / 60).map(hour_label).collect(),
-        usize::try_from(standing).unwrap_or_default(),
+        (0..=furthest / 60).rev().map(hour_label).collect(),
+        usize::try_from(furthest / 60 - standing).unwrap_or_default(),
         1,
         "",
     )
@@ -348,16 +348,56 @@ mod tests {
     fn the_hours_stop_at_nothing_ago_rather_than_coming_round() {
         let mut dial = relative_dial(0, 1439);
         dial.column = HOURS_AGO;
-        dial.apply(up());
+        dial.apply(down());
         assert_eq!(dial.value(HOURS_AGO), "0h");
         assert_eq!(read_relative(&dial), 0);
     }
 
     #[test]
-    fn nothing_is_drawn_above_nothing_ago() {
+    fn relative_hours_increase_above_zero_with_nothing_below_it() {
         let dial = relative_dial(0, 1439);
+        assert_eq!(dial.wheels[HOURS_AGO].shown_at(-2), "2h");
+        assert_eq!(dial.wheels[HOURS_AGO].shown_at(-1), "1h");
+        assert_eq!(dial.wheels[HOURS_AGO].shown_at(1), "");
+        assert_eq!(dial.wheels[HOURS_AGO].shown_at(2), "");
+    }
+
+    #[test]
+    fn relative_hours_increase_upward_and_decrease_downward() {
+        let mut dial = relative_dial(0, 1439);
+        dial.column = HOURS_AGO;
+        for (key, minutes) in [
+            (up(), 60),
+            (leap_up(), 120),
+            (down(), 60),
+            (KeyEvent::new(KeyCode::Down, KeyModifiers::SHIFT), 0),
+        ] {
+            dial.apply(key);
+            assert_eq!(read_relative(&dial), minutes, "key {key:?}");
+        }
+        for (letter, minutes) in [('k', 60), ('K', 120), ('J', 60), ('j', 0)] {
+            dial.apply(KeyEvent::new(KeyCode::Char(letter), KeyModifiers::NONE));
+            assert_eq!(read_relative(&dial), minutes, "key {letter}");
+        }
+    }
+
+    #[test]
+    fn relative_hours_hold_at_the_maximum_with_nothing_above_it() {
+        let mut dial = relative_dial(1380, 1439);
+        dial.column = HOURS_AGO;
+        dial.apply(up());
+        assert_eq!(read_relative(&dial), 1380);
         assert_eq!(dial.wheels[HOURS_AGO].shown_at(-1), "");
-        assert_eq!(dial.wheels[HOURS_AGO].shown_at(1), "1h", "but below it is");
+        assert_eq!(dial.wheels[HOURS_AGO].shown_at(1), "22h");
+    }
+
+    #[test]
+    fn a_two_hour_range_shows_zero_below_one() {
+        let mut dial = relative_dial(60, 90);
+        dial.column = HOURS_AGO;
+        assert_eq!(dial.wheels[HOURS_AGO].shown_at(1), "0h");
+        assert!(dial.is_landmark(1), "now is one turn down");
+        assert_eq!(dial.wheels[HOURS_AGO].shown_at(-1), "");
     }
 
     /// The minutes still come round, because the hour above them carries it.
@@ -463,8 +503,8 @@ mod tests {
     fn the_two_columns_add_up_to_the_answer() {
         let mut dial = relative_dial(0, 600);
         dial.column = HOURS_AGO;
-        dial.apply(down());
-        dial.apply(down());
+        dial.apply(up());
+        dial.apply(up());
         dial.column = MINUTES_AGO;
         for _ in 0..7 {
             dial.apply(up());
@@ -501,7 +541,7 @@ mod tests {
         let mut dial = relative_dial(45, 90);
         let mut settle = settling(90);
         dial.column = HOURS_AGO;
-        dial.apply(down());
+        dial.apply(up());
         settle(&mut dial, HOURS_AGO);
         assert_eq!(read_relative(&dial), 90, "clamped to the fixed start");
         dial.column = MINUTES_AGO;
@@ -510,7 +550,7 @@ mod tests {
         dial.apply(up());
         assert_eq!(read_relative(&dial), 61);
         dial.column = HOURS_AGO;
-        dial.apply(up());
+        dial.apply(down());
         settle(&mut dial, HOURS_AGO);
         assert_eq!(read_relative(&dial), 1, "keeps the minute when rebuilt");
         dial.column = MINUTES_AGO;
@@ -538,7 +578,7 @@ mod tests {
 
         // The hours reach one and no further.
         for _ in 0..5 {
-            dial.apply(down());
+            dial.apply(up());
             settle(&mut dial, HOURS_AGO);
         }
         assert_eq!(dial.wheels[HOURS_AGO].count(), 2, "nought and one");
@@ -565,7 +605,7 @@ mod tests {
         dial.column = HOURS_AGO;
         let mut settle = settling(furthest);
         assert_eq!(dial.wheels[MINUTES_AGO].count(), 31);
-        dial.apply(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
+        dial.apply(down());
         settle(&mut dial, HOURS_AGO);
         assert_eq!(dial.value(HOURS_AGO), "0h");
         assert_eq!(dial.wheels[MINUTES_AGO].count(), 60, "all of them again");
