@@ -54,7 +54,7 @@ pub fn render(
         }
     }
     lines.push(theme.muted(&clipped(
-        "↑/↓ j/k move · 1-9 highlight · Enter selects · ← h back",
+        "↑/↓ j/k w/s move · 1-9 highlight · Enter selects · ← h/a back",
         width,
     )));
     lines

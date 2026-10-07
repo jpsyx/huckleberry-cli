@@ -352,11 +352,11 @@ current sleep again to retry. Scripts must supply `--set start=<TIME>`.
 
 | Key | Does |
 | --- | --- |
-| `j`/`h`, `k`/`p`, `↑`, `↓` (either case) | move |
-| `PgUp`, `PgDn`, `Ctrl-U`, `Ctrl-D` | move ten |
+| `↓`/`j`/`s`, `↑`/`k`/`w` (either case) | move |
+| `u`, `PgUp`, `PgDn`, `Ctrl-U`, `Ctrl-F` | move a half screen |
 | `g`, `G`, `Home`, `End` | first, last |
 | `Enter` | edit this one |
-| `q`, `Esc`, `Ctrl-C` | leave, changing nothing |
+| `←`/`h`/`a`, `q`, `Esc`, `Ctrl-C`, `Ctrl-D` | leave, changing nothing |
 
 Every list built from the stream (`log`, `edit`, `delete`) shows the clock time
 of each entry, and for anything from the last six hours how long ago it was,
@@ -554,8 +554,8 @@ h --offline snapshot.json dash
 
 Write commands refuse `--offline` rather than pretending.
 
-Fixed-choice prompts are numbered menus: `↓`/`j` move down and `↑`/`k` move up;
-`←`/`h` backs out, which in a question means not answering it, the same as
+Fixed-choice prompts are numbered menus: `↓`/`j`/`s` move down and `↑`/`k`/`w` move up;
+`←`/`h`/`a` backs out, which in a question means not answering it, the same as
 Escape; 1-9 highlight the corresponding item in every menu without accepting it.
 Enter accepts the highlighted item. Zero and numbers beyond the menu's length
 are ignored; items 10 and later remain reachable with arrows or letter keys.
@@ -584,9 +584,9 @@ With no command, `h` opens a full-screen shell when stdin and stderr are
 terminals, and keeps it open. It draws on stderr, so redirecting stdout still
 captures what the commands print. Its design rules are in [`tui.md`](tui.md).
 
-Every direction has an arrow and a letter that mean the same thing: `↓`/`j` and
-`↑`/`k` move, `→`/`l` and `Enter` open the highlighted row, and `←`/`h` goes
-back. `1`-`9` put the cursor on a row without opening it, `g` and `G` reach the
+Every direction has arrow, hjkl and WASD keys that mean the same thing:
+`↓`/`j`/`s` and `↑`/`k`/`w` move, `→`/`l`/`d` and `Enter` open the highlighted
+row, and `←`/`h`/`a` goes back. `1`-`9` put the cursor on a row without opening it, `g` and `G` reach the
 first and last rows, and `r` refreshes every widget without moving the cursor.
 
 **No menu row leaves the shell**, and Back at Home does nothing, so a reflex
@@ -641,9 +641,12 @@ are clipped to its width. Completing Edit's field
 picker without changing any fields reports that the entry is unchanged. Menu
 output remains on stderr even when command results are redirected to a file.
 
-`j` and `k` are the only letters that move, in the shell and in every prompt
-and list it opens. `h` and the left arrow mean back everywhere: out of a
-submenu, out of a list, and out of a question without answering it.
+WASD aliases hjkl throughout navigation, in either case: `w` up, `s` down,
+`a` left/back and `d` right/open. Dials use `a`/`d` for columns and `w`/`s`
+for turns; Shift+W/S leap just like Shift+K/J. Fixed-choice prompts and lists
+still require Enter to choose, so `l`/`d` do nothing there. List paging uses PageDown
+or Ctrl-F instead of bare `d`. Search filters and text fields accept the letters
+normally.
 
 History edits ask which fields to change, each shown with the value it would be
 saved with; Done keeps every field as listed. Keep

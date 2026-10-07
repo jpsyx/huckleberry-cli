@@ -285,13 +285,17 @@ mod optional_in_the_shell {
         let channel = host::install();
         let asking = std::thread::spawn(|| ask_optional(&notes(), Theme::dark(false)));
 
-        for code in [KeyCode::Char('h'), KeyCode::Char('i'), KeyCode::Enter] {
+        for code in "wasd WASD"
+            .chars()
+            .map(KeyCode::Char)
+            .chain([KeyCode::Enter])
+        {
             let (_, reply) = frame(&channel);
             reply.send(press(code)).expect("listening");
         }
         assert_eq!(
             asking.join().expect("ends").expect("an answer"),
-            Some("hi".to_owned())
+            Some("wasd WASD".to_owned())
         );
         host::remove();
     }

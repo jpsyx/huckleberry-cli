@@ -24,21 +24,22 @@ Everything else on this page follows from that one line.
 These are the ones that get argued about, so they are written down and, where
 they can be, asserted in `tests/tui_shell.rs`.
 
-### 1. Every direction has an arrow and a letter, and they mean the same thing
+### 1. Arrows, hjkl and WASD mean the same directions
 
-| Direction | Arrow | Letter |
-| --- | --- | --- |
-| down | `↓` | `j` |
-| up | `↑` | `k` |
-| back | `←` | `h` |
-| forward, open | `→` | `l` |
+| Direction | Arrow | Vim | WASD |
+| --- | --- | --- | --- |
+| down | `↓` | `j` | `s` |
+| up | `↑` | `k` | `w` |
+| back | `←` | `h` | `a` |
+| forward, open | `→` | `l` | `d` |
 
-The hand that is free is not always the one near the arrows, so neither set is
-the real one. `Enter` and `Space` also open, because a thumb finds the space bar
-without looking.
+The hand that is free is not always the one near the arrows, so all three sets
+work throughout navigation, in either case. `Enter` and `Space` also open,
+because a thumb finds the space bar without looking.
 
-`h` means **back** here. It is the vim direction, and in a tree of menus back
-is what left means.
+`h` and `a` mean **back** here: in a tree of menus, back is what left means.
+Text fields and search filters still accept these keys as letters. Shifted
+`W`/`S` leap on dials just like shifted `K`/`J`.
 
 ### 2. `q` leaves, and `Ctrl-Q` leaves from anywhere
 
@@ -63,7 +64,7 @@ top level there is nothing left to cancel, so it is the session. The reflex
 chord never destroys more than it looks like it will, and somebody who holds it
 down walks out rather than losing the screen in one press.
 
-Back at the top level does nothing at all: `h` and `Esc` are navigation keys,
+Back at the top level does nothing at all: `h`, `a` and `Esc` are navigation keys,
 and a session that ends because a thumb went left one row too far is a session
 that has to be reopened in the dark.
 
@@ -168,15 +169,15 @@ widget beside it, and **widget** and **panel** mean the same thing.
 │  8. Delete                                                             │
 │  9. More                                                             › │
 └────────────────────────────────────────────────────────────────────────┘
- ↑/↓ j/k move · ← h back · → l open · Enter select · r refresh · q quit
+ ↑/↓ j/k w/s · ← h/a back · → l/d open · Enter select · r refresh · q quit
 ```
 
 | Key | Does |
 | --- | --- |
-| `↓`, `j`, `Ctrl-N` | down one row |
-| `↑`, `k`, `Ctrl-P` | up one row |
-| `→`, `l`, `Enter`, `Space` | open the row under the cursor |
-| `←`, `h`, `Esc`, `Backspace` | back, and nothing at the top level |
+| `↓`, `j`, `s`, `Ctrl-N` | down one row |
+| `↑`, `k`, `w`, `Ctrl-P` | up one row |
+| `→`, `l`, `d`, `Enter`, `Space` | open the row under the cursor |
+| `←`, `h`, `a`, `Esc`, `Backspace` | back, and nothing at the top level |
 | `1`–`9` | put the cursor on that row |
 | `g`, `Home` / `G`, `End` | first row, last row |
 | `r` | refresh every widget |
@@ -260,7 +261,7 @@ When?
    2 : 45
    3 : 46
   ──
-  ←/→ h/l column · ↑/↓ j/k turn · shift leaps
+  ←/→ h/l a/d column · ↑/↓ j/k w/s turn · shift leaps
   n [now] · Enter set · Esc back
 ```
 
@@ -307,7 +308,7 @@ When?
         58m
         ───
 
-←/→ h/l column · ↑/↓ j/k turn · shift leaps
+←/→ h/l a/d column · ↑/↓ j/k w/s turn · shift leaps
 tab clock · n [now] · Enter set · Esc back
 ```
 
@@ -320,7 +321,7 @@ reading one starts.
 Both columns start at nought, which is now, and the mark says so. The word
 `ago` sits on the answering row, because two numbers with a letter each say
 which numbers they are and not what they mean. Both relative columns increase
-upward: `↑`/`k` takes `0h` to `1h` or `00m` to `01m`. `↓`/`j` decreases
+upward: `↑`/`k`/`w` takes `0h` to `1h` or `00m` to `01m`. `↓`/`j`/`s` decreases
 the selected column, with minutes wrapping from `00m` to `59m`.
 Minutes turn one and leap five with Shift, and they still come round within
 the selected hour. Hours move one per press, including with Shift. The clock
@@ -362,11 +363,10 @@ The reasoning is the north star. A parent at 3am has one hand free and is not
 going to type `1:44 pm`, and every character typed is a character that can be
 typed wrong. Turning a wheel cannot produce a time that does not exist.
 
-- **`←`/`→` and `h`/`l` move between the columns, and the ends hold.** This is
-  the one place in this tool where `h` is not back: a dial is a row of columns
-  and there is nowhere else for those keys to point. `Esc` is how somebody
+- **`←`/`→`, `h`/`l` and `a`/`d` move between columns, and the ends hold.**
+  A dial is a row of columns, so `h` and `a` move left within the control. `Esc` is how somebody
   leaves, and the hint line says so.
-- **`↑`/`↓` and `j`/`k` turn the column under the cursor one notch**, and
+- **`↑`/`↓`, `k`/`j` and `w`/`s` turn the column under the cursor one notch**, and
   shift leaps. The small step is the plain one, because the small step is the
   correction somebody came to make; the leap is what you reach for when it is
   further off. What a notch and a leap are is the column's own business:
@@ -533,17 +533,13 @@ both follow. If the two ever have to differ, that is a decision for
 
 ## One key map, everywhere
 
-**`j` and `k` are the only letters that move.** In the shell, in every prompt
-it opens, and in every list. `h` and the left arrow mean back: out of a
-submenu, out of a list, and out of a question without answering it, which is
-what Escape does.
+**WASD aliases hjkl wherever those letters navigate.** `j`/`s` move down,
+`k`/`w` move up, `h`/`a` move left or back, and `l`/`d` move right or open.
+Both cases work. Fixed-choice prompts and lists still require Enter to choose;
+their right keys do nothing. Lists use PageDown or Ctrl-F to page forward, keeping `d`
+consistent with `l`. Search filters and text fields treat letters as text.
 
-That was not always true. The prompts predate the shell and read `h` as down
-and `p` as up, so the same letter moved the cursor in a question and walked out
-of the menu behind it. A letter that means two things is a letter nobody can
-press without looking, which is the one thing this screen is built not to
-require.
-
-The dashboard is the only screen here with a left and a right, and there `h`
-and `l` are them, on every tab. Its Log tab used to read `h` as down so a long
-list could be scrolled with it; `j` and `k` do that now, as everywhere else.
+Dials use left and right to select a column; shifted up and down leap.
+The standalone dashboard uses left and right to switch tabs and up and down
+to scroll. Inside the shell, left/back closes the Dashboard view, and Tab,
+right or Shift-Tab navigate its tabs. WASD follows these same boundaries.

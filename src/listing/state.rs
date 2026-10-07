@@ -51,8 +51,8 @@ pub const fn key_for(key: KeyEvent) -> Key {
     }
     match key.code {
         KeyCode::Enter => Key::Enter,
-        // Back, which for a list is out of it. `h` joins them below, where it
-        // is still a letter while the filter has focus.
+        // Back, which for a list is out of it. `h` and `a` join them below,
+        // where they are still letters while the filter has focus.
         KeyCode::Esc | KeyCode::Left => Key::Escape,
         KeyCode::Backspace => Key::Backspace,
         KeyCode::Up => Key::Up,
@@ -122,9 +122,9 @@ pub fn moved(cursor: usize, rows: usize, page: usize, key: Key) -> usize {
     }
     let last = rows - 1;
     match key {
-        Key::Down | Key::Char('j' | 'J') => (cursor + 1).min(last),
-        Key::Up | Key::Char('k' | 'K') => cursor.saturating_sub(1),
-        Key::PageDown | Key::Char('d') => (cursor + page.max(1)).min(last),
+        Key::Down | Key::Char('j' | 'J' | 's' | 'S') => (cursor + 1).min(last),
+        Key::Up | Key::Char('k' | 'K' | 'w' | 'W') => cursor.saturating_sub(1),
+        Key::PageDown => (cursor + page.max(1)).min(last),
         Key::PageUp | Key::Char('u') => cursor.saturating_sub(page.max(1)),
         Key::Char('G') => last,
         Key::Char('g') => 0,
@@ -154,7 +154,7 @@ pub fn apply(state: &mut State, key: Key, rows: usize, page: usize) -> Flow {
         return typing(state, key, rows, page);
     }
     match key {
-        Key::Quit | Key::Escape | Key::Char('q' | 'h' | 'H') => Flow::Quit,
+        Key::Quit | Key::Escape | Key::Char('q' | 'h' | 'H' | 'a' | 'A') => Flow::Quit,
         Key::Enter => Flow::Choose,
         Key::Char('/') => {
             state.searching = true;
@@ -238,7 +238,7 @@ mod tests {
     fn the_ends_and_the_half_screens_are_one_keystroke_away() {
         assert_eq!(moved(0, 40, 10, press('G')), 39);
         assert_eq!(moved(39, 40, 10, press('g')), 0);
-        assert_eq!(moved(0, 40, 10, press('d')), 10);
+        assert_eq!(moved(0, 40, 10, control('f')), 10);
         assert_eq!(moved(20, 40, 10, press('u')), 10);
         assert_eq!(moved(0, 40, 10, Key::PageDown), 10);
     }

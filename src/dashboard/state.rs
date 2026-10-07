@@ -97,20 +97,29 @@ pub enum Action {
 ///
 /// `q`, `Esc` and `Ctrl-C` all leave: a full-screen program that traps a
 /// person's terminal because they guessed the wrong key is a bad program.
+/// WASD aliases preserve existing control chords.
 #[must_use]
 pub fn action_for(key: KeyEvent) -> Action {
-    if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
-        return Action::Quit;
+    if key.modifiers.contains(KeyModifiers::CONTROL) {
+        match key.code {
+            KeyCode::Char('c') => return Action::Quit,
+            KeyCode::Char('w' | 'W' | 'a' | 'A' | 's' | 'S' | 'd' | 'D') => {
+                return Action::Ignore;
+            }
+            _ => {}
+        }
     }
     match key.code {
         KeyCode::Char('q' | 'Q') | KeyCode::Esc => Action::Quit,
         KeyCode::Char('r' | 'R') => Action::Refresh,
-        KeyCode::Tab | KeyCode::Right | KeyCode::Char('l' | 'L') => Action::Show(Tab::Now.next()),
-        KeyCode::BackTab | KeyCode::Left | KeyCode::Char('h' | 'H') => {
+        KeyCode::Tab | KeyCode::Right | KeyCode::Char('l' | 'L' | 'd' | 'D') => {
+            Action::Show(Tab::Now.next())
+        }
+        KeyCode::BackTab | KeyCode::Left | KeyCode::Char('h' | 'H' | 'a' | 'A') => {
             Action::Show(Tab::Now.previous())
         }
-        KeyCode::Down | KeyCode::Char('j' | 'J') => Action::ScrollDown,
-        KeyCode::Up | KeyCode::Char('k' | 'K') => Action::ScrollUp,
+        KeyCode::Down | KeyCode::Char('j' | 'J' | 's' | 'S') => Action::ScrollDown,
+        KeyCode::Up | KeyCode::Char('k' | 'K' | 'w' | 'W') => Action::ScrollUp,
         KeyCode::Char(digit @ '1'..='9') => {
             Tab::from_digit(digit).map_or(Action::Ignore, Action::Show)
         }
@@ -124,7 +133,7 @@ pub fn action_for(key: KeyEvent) -> Action {
 /// so a long list could be scrolled with it, but the dashboard is the one
 /// screen here with a left and a right, and a letter that means left on four
 /// tabs and down on the fifth is a letter nobody can press without looking.
-/// `j` and `k` scroll, everywhere.
+/// `j`/`s` and `k`/`w` scroll, everywhere; `a`/`d` match `h`/`l`.
 #[must_use]
 pub fn action_for_tab(key: KeyEvent, _tab: Tab) -> Action {
     action_for(key)
@@ -249,8 +258,10 @@ impl State {
     /// Works out which tab a movement key meant.
     fn move_to(&mut self, key: KeyEvent) {
         self.tab = match key.code {
-            KeyCode::Tab | KeyCode::Right | KeyCode::Char('l' | 'L') => self.next_tab(),
-            KeyCode::BackTab | KeyCode::Left | KeyCode::Char('h' | 'H') => self.previous_tab(),
+            KeyCode::Tab | KeyCode::Right | KeyCode::Char('l' | 'L' | 'd' | 'D') => self.next_tab(),
+            KeyCode::BackTab | KeyCode::Left | KeyCode::Char('h' | 'H' | 'a' | 'A') => {
+                self.previous_tab()
+            }
             KeyCode::Char(digit) => self.tab_from_digit(digit).unwrap_or(self.tab),
             _ => self.tab,
         };
@@ -481,6 +492,68 @@ mod panels {
         assert_eq!(state.tab, Tab::Log, "back from the first is the last");
         state.apply(press('l'));
         assert_eq!(state.tab, Tab::Sleep, "and on from the last is the first");
+    }
+
+    #[test]
+    fn w_and_s_scroll_on_every_dashboard_tab() {
+        for in_panel in [false, true] {
+            for tab in Tab::ALL {
+                for (letter, expected) in [('s', 3), ('S', 3), ('w', 1), ('W', 1)] {
+                    let mut state = state();
+                    state.in_panel = in_panel;
+                    state.tab = tab;
+                    state.scroll = 2;
+                    assert!(state.apply(press(letter)));
+                    assert_eq!(state.tab, tab);
+                    assert_eq!(state.scroll, expected, "{letter} on {tab:?}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn control_wasd_does_not_navigate_the_dashboard() {
+        for in_panel in [false, true] {
+            for letter in "wasdWASD".chars() {
+                let mut state = state();
+                state.in_panel = in_panel;
+                state.tab = Tab::Feeding;
+                state.scroll = 2;
+                assert!(state.apply(KeyEvent::new(KeyCode::Char(letter), KeyModifiers::CONTROL)));
+                assert_eq!(state.tab, Tab::Feeding, "ctrl-{letter}");
+                assert_eq!(state.scroll, 2, "ctrl-{letter}");
+            }
+        }
+    }
+
+    #[test]
+    fn a_and_d_move_relative_to_the_current_dashboard_tab() {
+        for (in_panel, tab, previous, following) in [
+            (false, Tab::Now, Tab::Log, Tab::Sleep),
+            (false, Tab::Sleep, Tab::Now, Tab::Feeding),
+            (false, Tab::Feeding, Tab::Sleep, Tab::Diapers),
+            (false, Tab::Diapers, Tab::Feeding, Tab::Log),
+            (false, Tab::Log, Tab::Diapers, Tab::Now),
+            (true, Tab::Sleep, Tab::Log, Tab::Feeding),
+            (true, Tab::Feeding, Tab::Sleep, Tab::Diapers),
+            (true, Tab::Diapers, Tab::Feeding, Tab::Log),
+            (true, Tab::Log, Tab::Diapers, Tab::Sleep),
+        ] {
+            for (letter, expected) in [
+                ('a', previous),
+                ('A', previous),
+                ('d', following),
+                ('D', following),
+            ] {
+                let mut state = state();
+                state.in_panel = in_panel;
+                state.tab = tab;
+                state.scroll = 2;
+                assert!(state.apply(press(letter)));
+                assert_eq!(state.tab, expected, "{letter} on {tab:?}");
+                assert_eq!(state.scroll, 0, "changing tabs resets scrolling");
+            }
+        }
     }
 
     #[test]

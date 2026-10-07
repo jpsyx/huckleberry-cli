@@ -90,8 +90,8 @@ fn digit_releases_repeats_and_control_chords_do_not_move() {
 
 #[test]
 fn menu_keys_select_only_on_enter() {
-    for down in ['j', 'J'] {
-        for up in ['k', 'K'] {
+    for down in ['j', 'J', 's', 'S'] {
+        for up in ['k', 'K', 'w', 'W'] {
             let mut state = Selection::new(3, 0);
             assert_eq!(
                 state.apply(key(KeyCode::Char(down)), 3, 2),
@@ -108,14 +108,15 @@ fn menu_keys_select_only_on_enter() {
     }
 }
 
-/// `j` and `k` are the only letters that move. `h` is for going back, and a
-/// letter that moves the cursor in one place and leaves in another is a letter
-/// nobody can press without looking.
+/// Horizontal keys never move the highlight or submit a menu answer.
 #[test]
-fn only_j_and_k_move_a_menu() {
-    for letter in ['h', 'H', 'p', 'P', 'l', 'L'] {
+fn horizontal_keys_never_move_or_submit_a_menu() {
+    for letter in ['h', 'H', 'a', 'A', 'p', 'P', 'l', 'L', 'd', 'D'] {
         let mut state = Selection::new(3, 1);
-        state.apply(key(KeyCode::Char(letter)), 3, 2);
+        assert_ne!(
+            state.apply(key(KeyCode::Char(letter)), 3, 2),
+            SelectionAction::Submit(1)
+        );
         assert_eq!(
             state.cursor, 1,
             "`{letter}` is not a movement key and must not move the cursor"
@@ -124,8 +125,12 @@ fn only_j_and_k_move_a_menu() {
 }
 
 #[test]
-fn h_and_the_left_arrow_back_out_of_a_menu_as_escape_does() {
-    for code in [KeyCode::Char('h'), KeyCode::Char('H'), KeyCode::Left] {
+fn h_a_and_the_left_arrow_back_out_of_a_menu_as_escape_does() {
+    for code in ['h', 'H', 'a', 'A']
+        .map(KeyCode::Char)
+        .into_iter()
+        .chain([KeyCode::Left])
+    {
         let mut state = Selection::new(3, 1);
         assert_eq!(
             state.apply(key(code), 3, 2),
@@ -135,17 +140,21 @@ fn h_and_the_left_arrow_back_out_of_a_menu_as_escape_does() {
     }
 }
 
-/// `j` and `k` only, in a list too, and `h` leaves it.
+/// Navigation has the same aliases in lists as in menus.
 #[test]
-fn only_j_and_k_move_a_listing_and_h_backs_out_of_it() {
+fn listings_support_vim_and_wasd_movement_and_back() {
     use app::listing::state::{Flow, State, apply, key_for};
 
-    for letter in ['h', 'H', 'p', 'P'] {
+    for letter in ['h', 'H', 'a', 'A', 'p', 'P', 'l', 'L', 'd', 'D'] {
         let mut state = State::new(String::new());
         apply(&mut state, key_for(key(KeyCode::Char(letter))), 5, 2);
         assert_eq!(state.cursor, 0, "`{letter}` must not move the cursor");
     }
-    for code in [KeyCode::Char('h'), KeyCode::Char('H'), KeyCode::Left] {
+    for code in ['h', 'H', 'a', 'A']
+        .map(KeyCode::Char)
+        .into_iter()
+        .chain([KeyCode::Left])
+    {
         let mut state = State::new(String::new());
         assert_eq!(
             apply(&mut state, key_for(key(code)), 5, 2),
@@ -153,22 +162,37 @@ fn only_j_and_k_move_a_listing_and_h_backs_out_of_it() {
             "{code:?} leaves the list, as Escape does"
         );
     }
-    let mut state = State::new(String::new());
-    apply(&mut state, key_for(key(KeyCode::Char('j'))), 5, 2);
-    assert_eq!(state.cursor, 1, "and `j` still moves");
+    for (letter, cursor) in [
+        ('j', 2),
+        ('J', 2),
+        ('s', 2),
+        ('S', 2),
+        ('k', 0),
+        ('K', 0),
+        ('w', 0),
+        ('W', 0),
+    ] {
+        let mut state = State::new(String::new());
+        state.cursor = 1;
+        assert_eq!(
+            apply(&mut state, key_for(key(KeyCode::Char(letter))), 5, 2),
+            Flow::Stay
+        );
+        assert_eq!(state.cursor, cursor, "{letter}");
+    }
 }
 
 /// A list being searched is typing, so every letter is text there.
 #[test]
-fn h_is_a_letter_while_a_listing_is_being_searched() {
+fn navigation_letters_are_text_while_a_listing_is_being_searched() {
     use app::listing::state::{State, apply, key_for};
 
     let mut state = State::new(String::new());
     state.searching = true;
-    for letter in "hush".chars() {
+    for letter in "hush wasd WASD".chars() {
         apply(&mut state, key_for(key(KeyCode::Char(letter))), 5, 2);
     }
-    assert_eq!(state.query, "hush");
+    assert_eq!(state.query, "hush wasd WASD");
 }
 
 #[test]

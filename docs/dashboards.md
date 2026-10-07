@@ -273,10 +273,10 @@ count up, and re-reading on the `refresh` setting.
 | Key | Does |
 | --- | --- |
 | `q`, `Esc`, `Ctrl-C` | leave |
-| `Tab`, `→`, `l` | next screen |
-| `Shift-Tab`, `←`, `h` | previous screen |
+| `Tab`, `→`, `l`, `d` | next screen |
+| `Shift-Tab`, `←`, `h`, `a` | previous screen |
 | `1`–`5` | go straight to a screen |
-| `j`, `k`, `↑`, `↓` | scroll the log |
+| `j`, `k`, `w`, `s`, `↑`, `↓` | scroll the log |
 | `r` | re-read now |
 
 Three keys leave, because a full-screen program that traps somebody's terminal
@@ -315,17 +315,17 @@ Sun 27 Sep
   10:32 pm (40m ago)    Diaper   pee · big
   7:47 pm (3h 25m ago)  Diaper   mixed · little pee · medium poop (brown, loose) · rash noted
   5:21 pm               Pumping  59 ml (L 30 ml, R 30 ml)
-j/k or ↑/↓ move · / searches · enter opens one · q leaves
+↑/↓ j/k w/s move · / searches · enter opens one · h/a or q leaves
 ```
 
 | Key | Does |
 | --- | --- |
-| `j`, `k`, `↑`, `↓`, `Ctrl-J`, `Ctrl-K` | move |
-| `u`, `d`, `PgUp`, `PgDn` | move a half screen |
+| `j`, `k`, `w`, `s`, `↑`, `↓`, `Ctrl-J`, `Ctrl-K` | move |
+| `u`, `PgUp`, `PgDn`, `Ctrl-F` | move a half screen |
 | `g`, `G`, `Home`, `End` | first, last |
 | `/` | search: type and the list narrows |
 | `Enter` | open what is under the cursor |
-| `q`, `Esc`, `Ctrl-C` | leave |
+| `←`, `h`, `a`, `q`, `Esc`, `Ctrl-C` | leave |
 
 The search matches every whitespace-separated word against the whole row — its
 cells, its heading and its note — so `diaper mixed` narrows rather than widens.
@@ -383,9 +383,12 @@ Daily sleep and night-sleep totals, their averages, and stripe-chart totals use
 hours and minutes (for example `2h 30m`). Nursing side durations use the same
 units as their total. JSON still exposes numeric seconds for calculations.
 
-Interactive lists number every visible row and accept `j` for down and `k` for
-up, in either case, as well as the arrows. `h` and the left arrow leave the
+Interactive lists number every visible row and accept `j`/`s` for down and `k`/`w` for
+up, in either case, as well as the arrows. `h`/`a` and the left arrow leave the
 list, as Escape does. Search treats every letter as text.
 
-The dashboard is the one screen here with a left and a right, so `h` and `l`
-move between tabs, on every tab including the Log; `j` and `k` scroll.
+The dashboard is the one screen here with a left and a right, so `h`/`a` and `l`/`d`
+move between tabs, on every tab including the Log; `j`/`s` and `k`/`w` scroll.
+Inside the shell, left/back closes the Dashboard view; Shift-Tab still selects
+the previous tab. Lists reserve `d` to match `l` (no action), with PageDown or
+Ctrl-F paging forward instead.

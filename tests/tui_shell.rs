@@ -31,12 +31,12 @@ fn highlight(app: &mut App, label: &str) {
 }
 
 #[test]
-fn every_direction_has_an_arrow_and_a_letter_that_agree() {
+fn every_direction_has_arrow_vim_and_wasd_keys_that_agree() {
     for (arrow, letters, motion) in [
-        (KeyCode::Down, ['j', 'J'], Motion::Next),
-        (KeyCode::Up, ['k', 'K'], Motion::Previous),
-        (KeyCode::Right, ['l', 'L'], Motion::Open),
-        (KeyCode::Left, ['h', 'H'], Motion::Back),
+        (KeyCode::Down, ['j', 'J', 's', 'S'], Motion::Next),
+        (KeyCode::Up, ['k', 'K', 'w', 'W'], Motion::Previous),
+        (KeyCode::Right, ['l', 'L', 'd', 'D'], Motion::Open),
+        (KeyCode::Left, ['h', 'H', 'a', 'A'], Motion::Back),
     ] {
         assert_eq!(motion_for(key(arrow)), motion, "{arrow:?}");
         for letter in letters {

@@ -139,10 +139,9 @@ impl Dial {
 
     /// Applies one key.
     ///
-    /// `h` and `l` move between the columns here rather than meaning back and
-    /// forward, which is the one place in this tool they do. A dial is a row
-    /// of columns and there is nowhere else for those keys to point; Esc is
-    /// how somebody leaves, and the hint line says so.
+    /// `h`/`a` and `l`/`d` move between the columns here rather than meaning
+    /// back and forward. A dial is a row of columns; Esc is how somebody
+    /// leaves, and the hint line says so.
     pub fn apply(&mut self, key: KeyEvent) -> DialAction {
         if key.kind != KeyEventKind::Press {
             return DialAction::Stay;
@@ -157,11 +156,11 @@ impl Dial {
         match key.code {
             KeyCode::Esc => DialAction::Cancel,
             KeyCode::Enter => DialAction::Submit,
-            KeyCode::Left | KeyCode::Char('h' | 'H') => {
+            KeyCode::Left | KeyCode::Char('h' | 'H' | 'a' | 'A') => {
                 self.column = self.column.saturating_sub(1);
                 DialAction::Stay
             }
-            KeyCode::Right | KeyCode::Char('l' | 'L') => {
+            KeyCode::Right | KeyCode::Char('l' | 'L' | 'd' | 'D') => {
                 self.column = (self.column + 1).min(self.wheels.len().saturating_sub(1));
                 DialAction::Stay
             }
@@ -170,8 +169,8 @@ impl Dial {
             // than here.
             KeyCode::Tab | KeyCode::BackTab if self.switch.is_some() => DialAction::Switched,
             KeyCode::Char('n' | 'N') => self.jump(),
-            KeyCode::Down | KeyCode::Char('j' | 'J') => self.turn(1, leaping(key)),
-            KeyCode::Up | KeyCode::Char('k' | 'K') => self.turn(-1, leaping(key)),
+            KeyCode::Down | KeyCode::Char('j' | 'J' | 's' | 'S') => self.turn(1, leaping(key)),
+            KeyCode::Up | KeyCode::Char('k' | 'K' | 'w' | 'W') => self.turn(-1, leaping(key)),
             _ => DialAction::Stay,
         }
     }
@@ -265,7 +264,8 @@ impl Dial {
 /// Shift and an uppercase letter are the same press: a terminal may report
 /// either, depending on how it was built.
 const fn leaping(key: KeyEvent) -> bool {
-    key.modifiers.contains(KeyModifiers::SHIFT) || matches!(key.code, KeyCode::Char('J' | 'K'))
+    key.modifiers.contains(KeyModifiers::SHIFT)
+        || matches!(key.code, KeyCode::Char('J' | 'K' | 'S' | 'W'))
 }
 
 #[cfg(test)]
@@ -425,14 +425,24 @@ mod tests {
     #[test]
     fn left_and_right_move_between_the_columns_and_the_ends_hold() {
         let mut dial = dial();
-        for key in [KeyCode::Right, KeyCode::Char('l')] {
+        for key in [
+            KeyCode::Right,
+            KeyCode::Char('l'),
+            KeyCode::Char('d'),
+            KeyCode::Char('D'),
+        ] {
             dial.column = 0;
             dial.apply(press(key));
             assert_eq!(dial.column, 1, "{key:?}");
         }
         dial.apply(press(KeyCode::Right));
         assert_eq!(dial.column, 1, "and holds at the end");
-        for key in [KeyCode::Left, KeyCode::Char('h')] {
+        for key in [
+            KeyCode::Left,
+            KeyCode::Char('h'),
+            KeyCode::Char('a'),
+            KeyCode::Char('A'),
+        ] {
             dial.column = 1;
             dial.apply(press(key));
             assert_eq!(dial.column, 0, "{key:?}");
@@ -455,6 +465,29 @@ mod tests {
         assert_eq!(dial.value(1), "1");
         dial.apply(press(KeyCode::Up));
         assert_eq!(dial.value(1), "0");
+    }
+
+    #[test]
+    fn wasd_turns_and_leaps_match_the_arrow_directions() {
+        for (letter, modifiers, expected) in [
+            ('s', KeyModifiers::NONE, "1"),
+            ('w', KeyModifiers::NONE, "59"),
+            ('s', KeyModifiers::SHIFT, "5"),
+            ('w', KeyModifiers::SHIFT, "55"),
+            ('S', KeyModifiers::NONE, "5"),
+            ('W', KeyModifiers::NONE, "55"),
+            ('S', KeyModifiers::SHIFT, "5"),
+            ('W', KeyModifiers::SHIFT, "55"),
+        ] {
+            let mut dial = dial();
+            dial.column = 1;
+            assert_eq!(
+                dial.apply(KeyEvent::new(KeyCode::Char(letter), modifiers)),
+                DialAction::Turned(1)
+            );
+            assert_eq!(dial.value(1), expected, "{letter}, {modifiers:?}");
+            assert_eq!(dial.value(0), "0", "the other column stays put");
+        }
     }
 
     #[test]

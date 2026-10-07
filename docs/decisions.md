@@ -898,30 +898,36 @@ diagnosis was right.
 **Revisit when.** A hosted loop wants to know that input is waiting before it
 draws, to skip frames under a fast burst. Nothing needs that yet.
 
-## `j` and `k` are the only letters that move
+## Arrows, hjkl and WASD share a direction map
 
-**Decision.** In every menu, list and screen in this tool, `j` is down and `k`
-is up and no other letter moves a cursor. `h` and the left arrow mean back:
-out of a submenu, out of a list, and out of a question without answering it.
-`l` and the right arrow mean forward where there is one.
+**Decision.** Wherever hjkl navigates, WASD has the same meaning, in either
+case: `j`/`s` down, `k`/`w` up, `h`/`a` left or back, and `l`/`d` right or
+forward. In fixed-choice prompts and listings, Enter still chooses and right
+does nothing. In the shell's menu, right opens the highlighted row.
 
 **Why.** The prompts predate the shell and read `h` as down and `p` as up, so
 the same letter moved the cursor inside a question and walked out of the menu
 behind it. Two meanings for one letter is a letter nobody can press without
 looking, which is the one thing this tool's screens exist not to require. It
 was carried as a known rough edge for several changes; it is not one now.
+WASD brings the same map to the other side of the keyboard, so either free
+hand can navigate without reaching for the arrows.
 
 **Consequences.** `p` and `P` no longer move anything. Ctrl-J, Ctrl-K, Ctrl-N
 and Ctrl-P still do, because they are chords rather than letters and they keep
 working while a search filter has focus, where every letter is text.
 
-The dashboard's Log tab used to read `h` as down so a long list could be
-scrolled with it. It does not any more: the dashboard is the only screen here
-with a left and a right, `h` and `l` are them on every tab, and `j` and `k`
-scroll. `action_for_tab` no longer varies by tab, which is the point of it.
+Listings no longer use bare `d` for paging, because that would make a right
+key move down. PageDown and Ctrl-F still page forward. Search and text input
+keep letters as text; control chords retain their existing behavior.
 
-**Revisit when.** A screen turns up with a left and a right that is not the
-dashboard, and `h` has to mean one of them there rather than back.
+The standalone dashboard uses left and right for tabs, and up and down for
+scrolling, including on Log. Inside the shell, left/back closes the Dashboard
+view; Shift-Tab selects the previous tab. Dials use left and right for columns
+and up and down for turns, with Shift+W/S leaping like Shift+K/J.
+
+**Revisit when.** A new control needs directional input: extend the same map
+at that control's input boundary so text fields continue to receive letters.
 
 ## A running sleep takes two lines, and says when the last one finished
 

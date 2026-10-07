@@ -172,7 +172,7 @@ fn choose(context: &Context, entries: &[Entry], calendar: &Calendar) -> Result<O
     }))
     .today(|heading| heading == today)
     .empty("nothing logged in this window")
-    .verb("j/k or ↑/↓ move · / searches · enter edits · q leaves")
+    .verb("↑/↓ j/k w/s move · / searches · enter edits · h/a or q leaves")
     .choose(context.output_theme())?;
 
     Ok(chosen)

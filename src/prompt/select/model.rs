@@ -53,20 +53,20 @@ impl Selection {
             };
         }
         match key.code {
-            // Back, and in a question that means not answering it. `h` is the
-            // same key as the left arrow everywhere in this tool, and a letter
+            // Back, and in a question that means not answering it. `h` and `a`
+            // mean the same as the left arrow in menus and lists, and a letter
             // that moves the cursor in one place and leaves in another is a
             // letter nobody can press without looking.
-            KeyCode::Esc | KeyCode::Left | KeyCode::Char('h' | 'H') => {
+            KeyCode::Esc | KeyCode::Left | KeyCode::Char('h' | 'H' | 'a' | 'A') => {
                 return SelectionAction::Cancel;
             }
             KeyCode::Enter if count > 0 => {
                 return SelectionAction::Submit(self.cursor.min(count - 1));
             }
-            KeyCode::Down | KeyCode::Char('j' | 'J') => {
+            KeyCode::Down | KeyCode::Char('j' | 'J' | 's' | 'S') => {
                 self.cursor = self.cursor.saturating_add(1).min(count.saturating_sub(1));
             }
-            KeyCode::Up | KeyCode::Char('k' | 'K') => {
+            KeyCode::Up | KeyCode::Char('k' | 'K' | 'w' | 'W') => {
                 self.cursor = self.cursor.saturating_sub(1);
             }
             KeyCode::Char(digit @ '1'..='9') => {

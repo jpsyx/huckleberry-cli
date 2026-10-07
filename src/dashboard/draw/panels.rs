@@ -344,7 +344,7 @@ pub(super) fn draw_log(frame: &mut Frame, area: Rect, state: &State, units: Unit
         .collect();
 
     let title = format!(
-        "Log ({} of {}, j/k h/p to scroll)",
+        "Log ({} of {}, ↑/↓ j/k w/s to scroll)",
         top + lines.len(),
         entries.len()
     );

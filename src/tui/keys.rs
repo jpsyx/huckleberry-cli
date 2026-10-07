@@ -1,8 +1,8 @@
 //! The one-handed key map, and nothing else.
 //!
-//! Every motion has an arrow and a letter that mean exactly the same thing,
+//! Every motion has arrow, vim and WASD keys that mean exactly the same thing,
 //! because the hand that is free at 3am is not always the one near the arrows.
-//! Up and down are `k` and `j`; left and right are `h` and `l`. See
+//! Up and down are `k`/`w` and `j`/`s`; left and right are `h`/`a` and `l`/`d`. See
 //! [`docs/tui.md`](../../docs/tui.md) for why that mapping is fixed.
 
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
@@ -67,12 +67,15 @@ pub fn motion_for(key: KeyEvent) -> Motion {
         };
     }
     match key.code {
-        KeyCode::Down | KeyCode::Char('j' | 'J') => Motion::Next,
-        KeyCode::Up | KeyCode::Char('k' | 'K') => Motion::Previous,
-        KeyCode::Right | KeyCode::Char('l' | 'L' | ' ') | KeyCode::Enter => Motion::Open,
-        KeyCode::Left | KeyCode::Char('h' | 'H') | KeyCode::Esc | KeyCode::Backspace => {
-            Motion::Back
+        KeyCode::Down | KeyCode::Char('j' | 'J' | 's' | 'S') => Motion::Next,
+        KeyCode::Up | KeyCode::Char('k' | 'K' | 'w' | 'W') => Motion::Previous,
+        KeyCode::Right | KeyCode::Char('l' | 'L' | 'd' | 'D' | ' ') | KeyCode::Enter => {
+            Motion::Open
         }
+        KeyCode::Left
+        | KeyCode::Char('h' | 'H' | 'a' | 'A')
+        | KeyCode::Esc
+        | KeyCode::Backspace => Motion::Back,
         KeyCode::Char('q' | 'Q') => Motion::Quit,
         KeyCode::Char('r' | 'R') => Motion::Refresh,
         KeyCode::Home | KeyCode::Char('g') => Motion::First,

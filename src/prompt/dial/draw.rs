@@ -17,7 +17,7 @@ const INDENT: usize = 2;
 const BEFORE_LABEL: &str = "  ";
 
 /// How to move, said once under the dial.
-const MOVING: &str = "←/→ h/l column · ↑/↓ j/k turn · shift leaps";
+const MOVING: &str = "←/→ h/l a/d column · ↑/↓ j/k w/s turn · shift leaps";
 
 /// How to leave, on a line of its own so neither has to be cut to fit.
 const LEAVING: &str = "Enter set · Esc back";

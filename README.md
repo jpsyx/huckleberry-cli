@@ -10,7 +10,7 @@ pumping, health, milestones, and see your baby's most recent data instantly.
 The CLI UX has been optimized for single-hand usage in the middle of the night when you are
 sitting down, baby on your lap, bottle-feeding in one hand, and you only have one
 hand to type. Just run `h` and then navigate the interactive menu
-with up/down arrows and press Enter to make your selections.
+with the arrow keys, hjkl, or WASD and press Enter to make your selections.
 
 **Huge** props goes to [Woyken](https://github.com/Woyken) for having built the [py-huckleberry-api](https://github.com/Woyken/py-huckleberry-api)
 in the first place (see [Credit](#credit)). This repo is a direct port of his repo into Rust. All ported API code is in `crates/huckleberry-api`.
