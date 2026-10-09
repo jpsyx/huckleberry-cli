@@ -178,6 +178,17 @@ impl DayRule {
         )
     }
 
+    /// When night begins within the named family day, including inverted hours.
+    #[must_use]
+    pub fn night_start(&self, calendar: &Calendar, day: Date) -> f64 {
+        let night = calendar.at_hour_fraction(day, self.day_end_hour);
+        if night < self.day_bounds(calendar, day).0 {
+            calendar.at_hour_fraction(calendar.offset_day(day, 1), self.day_end_hour)
+        } else {
+            night
+        }
+    }
+
     /// Which day an instant belongs to.
     ///
     /// Under a day starting at 6am, a 4am feed belongs to the day before,

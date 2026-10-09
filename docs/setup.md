@@ -185,3 +185,11 @@ In `config.toml` beside every other setting, as
 as a person says them, so `06:00` is confirmed as `6:00 am` and a mis-picked pm
 is visible at once. A bare `6` is refused rather than guessed at: it is two
 different times, and this is a setting read at 3am.
+
+## Changing hours during a shell session
+
+Settings are reopened for every command. Summary rebuilds its daily rows and
+feeding day/night splits each time it opens. After a settings command, the shell
+also reapplies the current day rule to retained Now/dashboard history before its
+background fetch, so a slow or failed fetch does not leave old boundaries in use.
+Derived totals are calculated from that history with the current rule.

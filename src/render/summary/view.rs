@@ -25,6 +25,7 @@ pub struct State {
     /// Index of the selected numeric column; the day column cannot be selected.
     pub selected: usize,
     scroll: usize,
+    first_column: usize,
     limit: usize,
     page: usize,
 }
@@ -94,7 +95,8 @@ impl View<'_> {
             lines.resize(height, String::new());
             return lines.into_iter().map(|line| clip(&line, width)).collect();
         }
-        let range = visible_columns(state.selected, self.units, width);
+        let range = visible_columns(state.first_column, state.selected, self.units, width);
+        state.first_column = range.start;
         let head_height = if height < 12 { 2 } else { 3 };
         let chart_height = (size.1 / 3)
             .clamp(4, 9)
@@ -138,7 +140,7 @@ impl View<'_> {
         }
         vec![
             theme.heading(&format!(
-                "Summary · {} · column {}/{} · today partial",
+                "Summary · {} · column {}/{} · ~ partial",
                 self.dataset.child.name,
                 selected + 1,
                 COLUMNS.len()
@@ -169,7 +171,7 @@ impl View<'_> {
                     };
                     *cell = theme.paint(tone, cell);
                 }
-                let day = super::format::pad(&super::format::day_short(row.day), 11);
+                let day = super::format::pad(&super::day_label(row), 11);
                 let day = theme.paint(
                     if row.partial {
                         Tone::Today
@@ -212,9 +214,9 @@ fn hints(state: &State, width: usize) -> [String; 2] {
     ]
 }
 
-/// The largest contiguous set ending at or after the selection that fits beside day.
-fn visible_columns(selected: usize, units: Units, width: usize) -> Range<usize> {
-    let mut start = 0;
+/// Keep the viewport anchored until selection passes an edge or resizing hides it.
+fn visible_columns(first: usize, selected: usize, units: Units, width: usize) -> Range<usize> {
+    let mut start = first.min(selected);
     while start < selected && table_width(start..selected + 1, units) > width {
         start += 1;
     }

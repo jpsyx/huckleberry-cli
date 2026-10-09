@@ -43,7 +43,7 @@ impl Column {
             Units::Oz => "oz",
         };
         match (self.kind, self.label) {
-            (Kind::Volume, "avg milk") => format!("{unit}/feed"),
+            (Kind::Volume, "avg milk") => format!("milk {unit}/feed"),
             (Kind::Volume, label) => format!("{label} {unit}"),
             (_, label) => label.to_owned(),
         }
@@ -116,15 +116,27 @@ pub const COLUMNS: &[Column] = &[
     Column::new("feed", "breast", Kind::Volume, |row| {
         recorded(row.breast_milk_ml)
     }),
+    Column::new("feed", "nursed", Kind::Duration, |row| {
+        recorded(row.nursing_seconds)
+    }),
+    Column::new("feed", "daytime milk", Kind::Volume, |row| {
+        recorded(row.day_milk_ml)
+    }),
+    Column::new("feed", "night milk", Kind::Volume, |row| {
+        recorded(row.night_milk_ml)
+    }),
+    Column::new("feed", "daytime nursed", Kind::Duration, |row| {
+        recorded(row.day_nursing_seconds)
+    }),
+    Column::new("feed", "night nursed", Kind::Duration, |row| {
+        recorded(row.night_nursing_seconds)
+    }),
     Column::new(
         "feed",
         "avg milk",
         Kind::Volume,
         DaySummary::average_milk_ml,
     ),
-    Column::new("feed", "nursed", Kind::Duration, |row| {
-        recorded(row.nursing_seconds)
-    }),
     Column::new(
         "feed",
         "nurse/feed",
@@ -140,14 +152,8 @@ pub const COLUMNS: &[Column] = &[
     Column::new("sleep", "longest", Kind::Duration, |row| {
         recorded(row.longest_sleep_seconds)
     }),
-    Column::new("sleep", "avg nap", Kind::Duration, |row| {
-        row.average_nap_seconds
-    }),
-    Column::new("diaper", "wet", Kind::Count, |row| {
-        recorded(row.wet_count as f64)
-    }),
-    Column::new("diaper", "dirty", Kind::Count, |row| {
-        recorded(row.dirty_count as f64)
+    Column::new("sleep", "avg sleep", Kind::Duration, |row| {
+        row.average_sleep_seconds
     }),
     Column::new("wake time", "wake time", Kind::Duration, |row| {
         row.wake_seconds
@@ -160,6 +166,12 @@ pub const COLUMNS: &[Column] = &[
     }),
     Column::new("wake time", "longest", Kind::Duration, |row| {
         row.longest_wake_seconds
+    }),
+    Column::new("diaper", "wet", Kind::Count, |row| {
+        recorded(row.wet_count as f64)
+    }),
+    Column::new("diaper", "dirty", Kind::Count, |row| {
+        recorded(row.dirty_count as f64)
     }),
 ];
 

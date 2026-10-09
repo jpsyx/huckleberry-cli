@@ -21,7 +21,7 @@ use super::types::{Dataset, FeedEvent};
 pub struct DaySummary {
     /// Which day.
     pub day: Date,
-    /// Whether the day is still going, which is why it is left out of averages.
+    /// Whether the day is unfinished or incompletely covered, so it cannot enter averages.
     pub partial: bool,
     /// Milk feeds: bottles and nursing sessions. Meals are counted separately.
     pub feed_count: usize,
@@ -35,6 +35,14 @@ pub struct DaySummary {
     pub solids_count: usize,
     /// Millilitres taken by bottle.
     pub total_ml: f64,
+    /// Milk from feeds starting in the configured daytime.
+    pub day_milk_ml: f64,
+    /// Milk from feeds starting in the configured night.
+    pub night_milk_ml: f64,
+    /// Nursing duration from sessions starting in daytime.
+    pub day_nursing_seconds: f64,
+    /// Nursing duration from sessions starting at night.
+    pub night_nursing_seconds: f64,
     /// Of which formula.
     pub formula_ml: f64,
     /// Of which expressed milk.
@@ -67,6 +75,8 @@ pub struct DaySummary {
     pub sleep_count: usize,
     /// The longest of them.
     pub longest_sleep_seconds: f64,
+    /// Mean full duration of all completed sleeps starting on this day.
+    pub average_sleep_seconds: Option<f64>,
     /// Mean duration of completed sleeps starting in daytime on this day.
     pub average_nap_seconds: Option<f64>,
     /// Elapsed day time minus recorded sleep, absent without sleep records.
@@ -115,6 +125,10 @@ impl DaySummary {
             nursing_count: 0,
             solids_count: 0,
             total_ml: 0.0,
+            day_milk_ml: 0.0,
+            night_milk_ml: 0.0,
+            day_nursing_seconds: 0.0,
+            night_nursing_seconds: 0.0,
             formula_ml: 0.0,
             breast_milk_ml: 0.0,
             nursing_seconds: 0.0,
@@ -132,6 +146,7 @@ impl DaySummary {
             sleep_count: 0,
             longest_sleep_seconds: 0.0,
             average_nap_seconds: None,
+            average_sleep_seconds: None,
             wake_seconds: None,
             night_wake_seconds: None,
             average_wake_seconds: None,
@@ -141,6 +156,27 @@ impl DaySummary {
             milestone_count: 0,
             has_data: false,
         }
+    }
+}
+
+/// Start of the oldest requested complete family day, using local date arithmetic.
+#[must_use]
+pub fn history_start(calendar: &Calendar, rule: DayRule, now: f64, complete_days: u32) -> f64 {
+    let today = rule.day_of(calendar, now);
+    let oldest = calendar.offset_day(today, -i32::try_from(complete_days).unwrap_or(i32::MAX));
+    rule.day_bounds(calendar, oldest).0
+}
+
+/// Marks rows outside known snapshot coverage as partial, excluding their means.
+pub fn exclude_incomplete(
+    rows: &mut [DaySummary],
+    calendar: &Calendar,
+    rule: DayRule,
+    coverage: (f64, f64),
+) {
+    for row in rows {
+        let (start, end) = rule.day_bounds(calendar, row.day);
+        row.partial |= start < coverage.0 || end > coverage.1;
     }
 }
 
@@ -171,7 +207,13 @@ pub fn build(
         let Some(slot) = index(rule.day_of(calendar, feed.start())) else {
             continue;
         };
-        add_feed(&mut rows[slot], feed);
+        let row = &mut rows[slot];
+        add_feed(row, feed);
+        split_feed(
+            row,
+            feed,
+            feed.start() < rule.night_start(calendar, row.day),
+        );
         if feed.is_milk() {
             feed_starts[slot].push(feed.start());
         }
@@ -264,6 +306,26 @@ fn add_feed(row: &mut DaySummary, feed: &FeedEvent) {
             row.right_seconds += right_seconds;
         }
         FeedEvent::Solids { .. } => row.solids_count += 1,
+    }
+}
+
+/// Feeding is attributed by its start, matching the daily totals and counts.
+fn split_feed(row: &mut DaySummary, feed: &FeedEvent, is_daytime: bool) {
+    let (milk, nursing) = if is_daytime {
+        (&mut row.day_milk_ml, &mut row.day_nursing_seconds)
+    } else {
+        (&mut row.night_milk_ml, &mut row.night_nursing_seconds)
+    };
+    match feed {
+        FeedEvent::Bottle { amount_ml, .. } => *milk += amount_ml.unwrap_or(0.0),
+        FeedEvent::Nursing {
+            left_seconds,
+            right_seconds,
+            ..
+        } => {
+            *nursing += left_seconds + right_seconds;
+        }
+        FeedEvent::Solids { .. } => {}
     }
 }
 
@@ -532,5 +594,30 @@ mod tests {
         data.feeds = vec![bottle(AFTERNOON - 30.0 * 86_400.0, 90.0)];
         let rows = build(&data, &calendar(), rule(), AFTERNOON, 3);
         assert!(rows.iter().all(|row| row.feed_count == 0));
+    }
+    #[test]
+    fn summary_history_starts_at_a_complete_family_day_across_dst() {
+        let calendar = calendar();
+        let now = calendar.at("2025-11-03".parse().unwrap(), 4, 0);
+        let start = history_start(&calendar, DayRule::discrete(6.0, 19.5), now, 7);
+        assert!((start - calendar.at("2025-10-26".parse().unwrap(), 6, 0)).abs() < 1.0);
+        assert!((now - start - (8.0 * 86400.0 - 3600.0)).abs() < 1.0);
+    }
+    #[test]
+    fn a_truncated_snapshot_day_is_excluded_from_complete_day_averages() {
+        let calendar = calendar();
+        let mut rows = build(&dataset(), &calendar, rule(), AFTERNOON, 8);
+        exclude_incomplete(
+            &mut rows,
+            &calendar,
+            rule(),
+            (AFTERNOON - 7.0 * 86400.0, AFTERNOON),
+        );
+        assert!(rows[0].partial);
+        assert!(
+            rows[7].partial,
+            "the snapshot starts mid-day on the oldest row"
+        );
+        assert!(rows[1..7].iter().all(|row| !row.partial));
     }
 }

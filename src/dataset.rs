@@ -48,6 +48,39 @@ pub async fn pull(
     now: f64,
 ) -> Result<Dataset> {
     let window = Window::new(now as i64 - i64::from(days) * 86_400, now as i64);
+    let mut dataset = read_window(client, cid, nickname, days, timezone, window, window).await?;
+    dataset.fetched_at = now;
+    Ok(dataset)
+}
+
+/// Reads an explicit window, allowing summaries to begin at a family-day boundary.
+pub async fn pull_window(
+    client: &Huckleberry,
+    cid: &str,
+    nickname: Option<&str>,
+    days: u32,
+    timezone: &str,
+    window: Window,
+) -> Result<Dataset> {
+    let sleep_window = Window::new(i64::MIN, window.end);
+    let mut dataset =
+        read_window(client, cid, nickname, days, timezone, window, sleep_window).await?;
+    dataset
+        .sleep
+        .retain(|sleep| sleep.end() >= window.start as f64);
+    Ok(dataset)
+}
+
+/// The API filters sleeps by start, so summaries need earlier starts for carry-in coverage.
+async fn read_window(
+    client: &Huckleberry,
+    cid: &str,
+    nickname: Option<&str>,
+    days: u32,
+    timezone: &str,
+    window: Window,
+    sleep_window: Window,
+) -> Result<Dataset> {
     let mut notes = Vec::new();
 
     // Six independent reads. Awaiting them together turns a home connection's
@@ -55,7 +88,7 @@ pub async fn pull(
     let (profile, growth, sleep, feed, diaper, pump, milestones, sleep_live, feed_live) = tokio::join!(
         client.child(cid),
         client.latest_growth(cid),
-        client.sleep_intervals(cid, window),
+        client.sleep_intervals(cid, sleep_window),
         client.feed_intervals(cid, window),
         client.diaper_intervals(cid, window),
         client.pump_intervals(cid, window),
@@ -75,7 +108,7 @@ pub async fn pull(
     let feed_document = note_failure(&mut notes, "feed timer", feed_live).flatten();
 
     Ok(Dataset {
-        fetched_at: now,
+        fetched_at: window.end as f64,
         timezone: timezone.to_owned(),
         days: i64::from(days),
         child: normalize::child(cid, nickname, profile.as_ref()),

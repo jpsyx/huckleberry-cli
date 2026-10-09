@@ -221,6 +221,15 @@ pub async fn which_child(context: &Context, client: &Huckleberry) -> Result<Stri
 /// deliberately, and nothing under it touches the network. That is what makes
 /// the screens demonstrable without an account.
 pub async fn load(context: &Context, days: Option<u32>) -> Result<(Dataset, Calendar)> {
+    Box::pin(load_window(context, days, None)).await
+}
+
+/// Loads a requested history window without rounding its boundary to elapsed days.
+async fn load_window(
+    context: &Context,
+    days: Option<u32>,
+    window: Option<huckleberry_api::Window>,
+) -> Result<(Dataset, Calendar)> {
     if let Some(path) = &context.offline {
         context.detail(&format!("reading {}", path.display()));
         let mut dataset = crate::dataset::read_snapshot(path)?;
@@ -229,26 +238,7 @@ pub async fn load(context: &Context, days: Option<u32>) -> Result<(Dataset, Cale
         return Ok((dataset, calendar));
     }
 
-    let days = context.days(days);
-    let client = context.client()?;
-    let cid = which_child(context, &client).await?;
-    context.narrate(&format!("Reading {days} days from Huckleberry..."));
-
-    let nickname = nickname_for(&client, &cid).await;
-    let mut dataset = crate::dataset::pull(
-        &client,
-        &cid,
-        nickname.as_deref(),
-        days,
-        &context.config.timezone,
-        now_seconds(),
-    )
-    .await?;
-    // The family's own night replaces the profile's here, once, so every
-    // screen that asks the child about its night gets the same answer.
-    context.config.day_rule().apply_to(&mut dataset.child);
-    persist_session(context, &client).await?;
-
+    let dataset = load_live_window(context, context.days(days), window).await?;
     for note in &dataset.notes {
         context.detail(&format!(
             "{} was not read: {}",
@@ -257,6 +247,46 @@ pub async fn load(context: &Context, days: Option<u32>) -> Result<(Dataset, Cale
     }
     let calendar = Calendar::new(&dataset.timezone)?;
     Ok((dataset, calendar))
+}
+
+/// Reads live history and persists the session shared by both window policies.
+async fn load_live_window(
+    context: &Context,
+    days: u32,
+    window: Option<huckleberry_api::Window>,
+) -> Result<Dataset> {
+    let client = context.client()?;
+    let cid = which_child(context, &client).await?;
+    context.narrate(&format!("Reading {days} days from Huckleberry..."));
+
+    let nickname = nickname_for(&client, &cid).await;
+    let mut dataset = if let Some(window) = window {
+        crate::dataset::pull_window(
+            &client,
+            &cid,
+            nickname.as_deref(),
+            days,
+            &context.config.timezone,
+            window,
+        )
+        .await?
+    } else {
+        crate::dataset::pull(
+            &client,
+            &cid,
+            nickname.as_deref(),
+            days,
+            &context.config.timezone,
+            now_seconds(),
+        )
+        .await?
+    };
+    // The family's own night replaces the profile's here, once, so every
+    // screen that asks the child about its night gets the same answer.
+    context.config.day_rule().apply_to(&mut dataset.child);
+    persist_session(context, &client).await?;
+
+    Ok(dataset)
 }
 
 /// The account's own name for a child, when the account can be read.

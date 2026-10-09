@@ -181,18 +181,32 @@ right gate for opening it at all.
 
 `summary.rs` owns only the standalone terminal and hosted input loops. Both draw
 `render::summary::view::View`, whose state handles column cycling and vertical
-scrolling without I/O. The shared column catalog supplies headings, table cells,
-and graph values; `render::summary::chart` renders Ratatui's line chart into a
-buffer, then returns lines through the existing host protocol. No second screen
+scrolling without I/O. Its horizontal viewport retains its first column until the
+selection crosses an edge. The shared column catalog supplies headings, table cells,
+and graph values; `render::summary::chart` returns separated daily bars and a
+dotted seven-complete-day average through the existing host protocol. No second screen
 or host protocol is needed in the shell. Redirected output and JSON bypass the
 input loop.
 
 `domain::summaries::sleep` owns interval merging, precise family-day/night
-intersections, completed nap averages, and waking gaps. Paused sleep endpoints
+intersections, completed sleep/nap averages, and waking gaps. Paused sleep endpoints
 are retained by normalization as `LiveState::sleep_paused_at`, an optional field
 compatible with older snapshots. A missing paused endpoint leaves affected wake
 estimates unknown rather than counting that sleep as waking. Table and JSON
-consume the same daily aggregates.
+consume the same daily aggregates. Summary loads an explicit history window
+starting at the oldest complete family day, then builds those complete rows plus
+today. The API filters sleep by start time, so the summary sleep read includes
+all earlier starts and retains only intervals ending on or after the window
+start. This avoids an arbitrary maximum sleep length, at the cost of reading
+more sleep history. Other commands retain their own window semantics. Offline
+summary rows outside the snapshot's coverage are marked partial and excluded
+from averages. Feeding splits follow
+start times and the same day rule.
+
+After a shell command, the current day rule is reapplied to retained readings
+before the background fetch begins, so even a failed fetch cannot preserve old
+hours. Views calculate from raw history and the current rule; summary opens a
+fresh context and rebuilds its rows each time.
 
 ## Setup, and the settings with no default
 
@@ -362,6 +376,9 @@ possible without credentials.
 | `crossterm` | Reading a password without an echo, and the dashboard's backend. |
 | `tokio` | The async runtime the client needs. |
 | `huckleberry-api` | The client. The CLI holds no knowledge of Firestore. |
+
+Request-level summary tests reuse the API's `reqwest` dependency to point a client
+at a local Firestore stub; they require no account or network service.
 
 Adding to either set means saying here what the crate is for, in one line, in
 the same change. See [`rules/rust.md`](rules/rust.md).

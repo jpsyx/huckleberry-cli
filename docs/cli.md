@@ -100,15 +100,22 @@ open an entry from; piped, it is the same rows as plain text. See
 
 `summary` uses Tab/Shift-Tab or left/right (H/L, A/D) to cycle numeric columns.
 Up/down (J/K, W/S) scroll rows and explanatory notes; Esc or Q leaves. The day
-column stays visible and the selected metric's Ratatui graph stays below the
-table. The shell exposes the same view through Visualizations > Summary.
+column stays visible and the selected metric's bar chart stays below the
+table. Horizontal scrolling happens only when selection crosses a visible edge.
+The dotted line marks the previous seven complete days' average, excluding today
+and missing values. The shell exposes the same view through Visualizations > Summary.
+Summary defaults to seven complete family days plus today (eight rows); `--days N`
+means N complete days plus today.
 
-Summary JSON adds `average_milk_ml`, `average_nursing_seconds`,
+Summary JSON includes `day_milk_ml`, `night_milk_ml`, `day_nursing_seconds`,
+`night_nursing_seconds`, `average_sleep_seconds`, `average_milk_ml`, `average_nursing_seconds`,
 `average_nap_seconds`, `wake_seconds`, `night_wake_seconds`,
 `average_wake_seconds`, and `longest_wake_seconds`. Missing measurements or
 undefined averages are `null`; JSON volumes remain millilitres and durations
 remain seconds. Milk/feed counts only bottles with amounts; nurse/feed counts
-only nursing sessions. See [`dashboards.md`](dashboards.md) for nap and waking
+only nursing sessions. Average sleep includes completed day and night sleeps;
+`average_nap_seconds` retains its daytime-only meaning for compatibility.
+See [`dashboards.md`](dashboards.md) for feeding, sleep and waking
 boundaries and partial-day handling.
 
 `now` and `summary` take `--json`. `summary`, `stripes`, `trends`, `log` and

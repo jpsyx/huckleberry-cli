@@ -23,7 +23,7 @@ tokio = "1"
 
 [package]
 name = "huckleberry-cli"
-version = "0.43.1"
+version = "0.44.0"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -73,6 +73,8 @@ tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time", "si
 toml = { version = "1", features = ["preserve_order"] }
 
 [dev-dependencies]
+# Reuse the API's existing HTTP client for summary request tests against a local stub.
+reqwest = { version = "0.13", default-features = false }
 tokio = { workspace = true, features = ["rt", "macros"] }
 
 [lints]

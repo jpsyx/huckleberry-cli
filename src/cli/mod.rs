@@ -154,7 +154,7 @@ pub enum Command {
 
     /// One row per day: feeds, milk, sleep and diapers.
     Summary {
-        /// How many days to summarize.
+        /// Complete family days to summarize, plus today (default: configured days, normally 7).
         #[arg(short, long, value_name = "DAYS")]
         days: Option<u32>,
 

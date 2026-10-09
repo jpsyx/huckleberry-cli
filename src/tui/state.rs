@@ -188,6 +188,15 @@ impl App {
         self.facts.replace(dataset, calendar, units, rule);
     }
 
+    /// Applies changed hours to every retained reading before the network responds.
+    pub const fn apply_day_rule(&mut self, rule: crate::domain::today::DayRule) {
+        self.facts.apply_day_rule(rule);
+        if let Some(dashboard) = self.dashboard.as_mut() {
+            dashboard.rule = rule;
+            rule.apply_to(&mut dashboard.dataset.child);
+        }
+    }
+
     /// Closes the dashboard, which puts the menu back.
     ///
     /// Returns whether there was one, so a key that closes it is not also a

@@ -169,6 +169,9 @@ fn days(globals: &SessionOptions, theme: Theme) -> usize {
 
 /// Starts a read, and says on the screen that one is running.
 fn begin(app: &mut App, globals: &SessionOptions, theme: Theme) -> data::Reading {
+    if let Ok(context) = crate::interactive::session::load_context(globals, theme) {
+        app.apply_day_rule(context.config.day_rule());
+    }
     app.facts.start_reading();
     data::start(globals, theme)
 }

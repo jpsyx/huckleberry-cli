@@ -45,13 +45,13 @@ fn all_direction_aliases_cycle_every_metric_and_wrap_without_selecting_day() {
 fn shifted_tab_moves_back_and_release_events_do_not_move_twice() {
     let mut state = State::default();
     state.apply(KeyEvent::new(KeyCode::Tab, KeyModifiers::SHIFT));
-    assert_eq!(state.selected, 16);
+    assert_eq!(state.selected, COLUMNS.len() - 1);
     state.apply(KeyEvent::new_with_kind(
         KeyCode::Tab,
         KeyModifiers::NONE,
         KeyEventKind::Release,
     ));
-    assert_eq!(state.selected, 16);
+    assert_eq!(state.selected, COLUMNS.len() - 1);
     assert!(press(&mut state, KeyCode::Esc));
 }
 
@@ -141,7 +141,7 @@ fn scrolling_reaches_night_configuration_and_keeps_the_graph_and_keys() {
 }
 
 #[test]
-fn graph_has_chronological_points_in_display_units_and_breaks_at_missing_days() {
+fn graph_has_chronological_bars_in_display_units_and_missing_day_slots() {
     let calendar = Calendar::new("America/New_York").unwrap();
     let mut data = dataset();
     let ounce = huckleberry_api::models::feed::MILLILITRES_PER_OUNCE;
@@ -150,9 +150,13 @@ fn graph_has_chronological_points_in_display_units_and_breaks_at_missing_days() 
         bottle(AFTERNOON - 2.0 * 86400.0, 4.0 * ounce),
     ];
     let rows = summaries::build(&data, &calendar, DayRule::default(), AFTERNOON, 3);
-    let segments = chart::segments(&rows, &COLUMNS[4], Units::Oz);
-    assert_eq!(segments, vec![vec![(0.0, 4.0)], vec![(2.0, 2.0)]]);
-    let lines = chart::lines(&rows, &COLUMNS[4], Units::Oz, (80, 9), Theme::dark(false)).join("\n");
+    let column = COLUMNS
+        .iter()
+        .find(|column| column.heading(Units::Oz) == "milk oz/feed")
+        .unwrap();
+    let values = chart::values(&rows, column, Units::Oz);
+    assert_eq!(values, vec![Some(4.0), None, Some(2.0)]);
+    let lines = chart::lines(&rows, column, Units::Oz, (80, 9), Theme::dark(false)).join("\n");
     assert!(lines.contains("oz/feed"));
     assert!(
         lines.contains("Sep 20") && lines.contains("Sep 22"),
@@ -161,7 +165,7 @@ fn graph_has_chronological_points_in_display_units_and_breaks_at_missing_days() 
     assert!(
         lines
             .chars()
-            .any(|character| ('\u{2801}'..='\u{28ff}').contains(&character)),
+            .any(|character| ('▁'..='█').contains(&character)),
         "{lines}"
     );
 }
@@ -186,8 +190,57 @@ fn a_nine_line_shell_panel_keeps_one_data_row_and_a_graph_visible() {
     assert!(
         drawn
             .chars()
-            .any(|character| ('\u{2801}'..='\u{28ff}').contains(&character)),
+            .any(|character| ('▁'..='█').contains(&character)),
         "{drawn}"
     );
     assert!(drawn.contains("Esc/q back"), "{drawn}");
+}
+
+#[test]
+fn reversing_inside_the_visible_columns_keeps_the_window_in_place() {
+    let calendar = Calendar::new("America/New_York").unwrap();
+    let data = dataset();
+    let rows = summaries::build(&data, &calendar, DayRule::default(), AFTERNOON, 8);
+    let view = View {
+        rows: &rows,
+        dataset: &data,
+        calendar: &calendar,
+        units: Units::Ml,
+        now: AFTERNOON,
+    };
+    let mut state = State::default();
+    for _ in 0..8 {
+        let _ = view.lines(&mut state, (100, 24), Theme::dark(false));
+        press(&mut state, KeyCode::Right);
+    }
+    let before = view.lines(&mut state, (100, 24), Theme::dark(false));
+    press(&mut state, KeyCode::Left);
+    let after = view.lines(&mut state, (100, 24), Theme::dark(false));
+    assert_eq!(
+        before[1], after[1],
+        "reversing within the window must not scroll"
+    );
+    assert_eq!(before[3], after[3]);
+}
+
+#[test]
+fn summary_bars_are_separated_and_explain_the_complete_day_average() {
+    let calendar = Calendar::new("America/New_York").unwrap();
+    let mut data = dataset();
+    for day in 0..10 {
+        data.feeds.push(bottle(
+            AFTERNOON - f64::from(day) * 86400.0,
+            if day == 0 || day > 7 { 900.0 } else { 100.0 },
+        ));
+    }
+    let rows = summaries::build(&data, &calendar, DayRule::default(), AFTERNOON, 10);
+    let lines = chart::lines(&rows, &COLUMNS[1], Units::Ml, (100, 12), Theme::dark(false));
+    let drawn = lines.join("\n");
+    assert!(drawn.contains("7-day avg: 100.0"), "{drawn}");
+    assert!(drawn.contains("today excluded"), "{drawn}");
+    assert!(drawn.contains('·'), "the average must be dotted: {drawn}");
+    assert!(
+        lines.iter().any(|line| line.contains("█ █")),
+        "bars need gaps: {drawn}"
+    );
 }

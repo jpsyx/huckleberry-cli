@@ -81,6 +81,14 @@ impl Facts {
         self.refreshing = false;
     }
 
+    /// Reinterprets retained history immediately when the family changes its day.
+    pub const fn apply_day_rule(&mut self, rule: DayRule) {
+        if let Some(reading) = self.reading.as_mut() {
+            reading.rule = rule;
+            rule.apply_to(&mut reading.dataset.child);
+        }
+    }
+
     /// Records that a read failed, keeping the numbers already on screen.
     pub fn record_trouble(&mut self, problem: &str) {
         self.trouble = Some(problem.to_owned());

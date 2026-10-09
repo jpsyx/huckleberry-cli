@@ -38,10 +38,13 @@ pub async fn now(context: &Context, json: bool) -> Result<()> {
 
 /// The day table.
 pub async fn summary(context: &Context, days: Option<u32>, json: bool) -> Result<()> {
-    let (dataset, calendar) = super::load(context, days).await?;
     let at = now_seconds();
-    let window = context.days(days) as usize;
-    let rows = summaries::build(&dataset, &calendar, context.config.day_rule(), at, window);
+    let complete_days = context.days(days);
+    let rule = context.config.day_rule();
+    let start = summaries::history_start(&context.calendar()?, rule, at, complete_days);
+    let window = huckleberry_api::Window::new(start as i64, at as i64);
+    let (dataset, calendar) = Box::pin(super::load_window(context, days, Some(window))).await?;
+    let rows = summary_rows(context, &dataset, &calendar, at, complete_days);
 
     if json {
         crate::render::print(&[serde_json::to_string_pretty(&rows_as_json(&rows))?]);
@@ -68,6 +71,30 @@ pub async fn summary(context: &Context, days: Option<u32>, json: bool) -> Result
         at,
     ));
     Ok(())
+}
+
+/// Builds complete-day rows and accounts for a snapshot's finite history coverage.
+fn summary_rows(
+    context: &Context,
+    dataset: &crate::domain::types::Dataset,
+    calendar: &crate::domain::Calendar,
+    at: f64,
+    complete_days: u32,
+) -> Vec<summaries::DaySummary> {
+    let rule = context.config.day_rule();
+    let mut rows = summaries::build(dataset, calendar, rule, at, complete_days as usize + 1);
+    if context.offline.is_some() {
+        summaries::exclude_incomplete(
+            &mut rows,
+            calendar,
+            rule,
+            (
+                dataset.fetched_at - dataset.days as f64 * 86400.0,
+                dataset.fetched_at,
+            ),
+        );
+    }
+    rows
 }
 
 /// One number over time.
@@ -245,6 +272,10 @@ fn rows_as_json(rows: &[summaries::DaySummary]) -> serde_json::Value {
                     "nursing": row.nursing_count,
                     "solids": row.solids_count,
                     "milk_ml": row.total_ml,
+                    "day_milk_ml": row.day_milk_ml,
+                    "night_milk_ml": row.night_milk_ml,
+                    "day_nursing_seconds": row.day_nursing_seconds,
+                    "night_nursing_seconds": row.night_nursing_seconds,
                     "formula_ml": row.formula_ml,
                     "breast_milk_ml": row.breast_milk_ml,
                     "nursing_seconds": row.nursing_seconds,
@@ -264,6 +295,7 @@ fn rows_as_json(rows: &[summaries::DaySummary]) -> serde_json::Value {
                     "sleeps": row.sleep_count,
                     "longest_sleep_seconds": row.longest_sleep_seconds,
                     "average_nap_seconds": row.average_nap_seconds,
+                    "average_sleep_seconds": row.average_sleep_seconds,
                     "wake_seconds": row.wake_seconds,
                     "night_wake_seconds": row.night_wake_seconds,
                     "average_wake_seconds": row.average_wake_seconds,
@@ -526,5 +558,34 @@ mod tests {
         let json = summary_json(&data, AFTERNOON, 1);
         assert_eq!(json[0]["average_wake_seconds"], 7200.0);
         assert_eq!(json[0]["longest_wake_seconds"], 7200.0);
+    }
+    #[test]
+    fn summary_splits_feeding_at_the_configured_night_boundary() {
+        use crate::domain::fixtures::nursing;
+        let mut data = dataset();
+        data.feeds = vec![
+            bottle(at("2025-09-21", 7, 0), 120.0),
+            bottle(at("2025-09-21", 20, 0), 60.0),
+            bottle(at("2025-09-22", 6, 59), 30.0),
+            nursing(at("2025-09-21", 19, 59), 300.0, 300.0),
+            nursing(at("2025-09-21", 20, 0), 600.0, 300.0),
+        ];
+        let json = summary_json(&data, AFTERNOON, 2);
+        assert_eq!(json[1]["day_milk_ml"], 120.0);
+        assert_eq!(json[1]["night_milk_ml"], 90.0);
+        assert_eq!(json[1]["day_nursing_seconds"], 600.0);
+        assert_eq!(json[1]["night_nursing_seconds"], 900.0);
+    }
+
+    #[test]
+    fn summary_average_sleep_includes_completed_night_sleeps() {
+        use crate::domain::fixtures::sleep;
+        let mut data = dataset();
+        data.sleep = vec![
+            sleep(at("2025-09-21", 10, 0), 1800.0),
+            sleep(at("2025-09-21", 22, 0), 5400.0),
+        ];
+        let json = summary_json(&data, AFTERNOON, 2);
+        assert_eq!(json[1]["average_sleep_seconds"], 3600.0);
     }
 }

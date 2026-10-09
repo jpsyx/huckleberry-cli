@@ -166,10 +166,10 @@ A day table with four merged category headings above its numeric columns:
 
 | Category | Columns |
 | --- | --- |
-| feed | feeds, milk, formula, breast, milk/feed, nursed, nurse/feed |
-| sleep | sleep, night, longest, avg nap |
-| diaper | wet, dirty |
+| feed | feeds, milk, formula, breast, nursed, daytime milk, night milk, daytime nursed, night nursed, milk ml/feed (or milk oz/feed), nurse/feed |
+| sleep | sleep, night, longest, avg sleep |
 | wake time | wake time, night wake, avg wake, longest |
+| diaper | wet, dirty |
 
 Volume headings follow the configured `ml` or `oz` unit. Milk/feed includes
 formula and expressed breast milk, divided by the number of bottles with a
@@ -181,18 +181,36 @@ On a terminal, `summary` opens an interactive table. It runs through the prompt
 host in the shell, keeping the Now drawer in place. Tab and Shift-Tab, left/right,
 H/L, and A/D cycle every numeric column, wrapping at the ends. Day is fixed and
 cannot be selected. Selection has brackets as well as colour. Numeric columns
-shift into view on narrow screens while the day stays visible.
+shift into view only when the selection passes a visible edge. Reversing direction
+moves the selection within the existing window until it passes the opposite edge.
+This is the default behavior, with no scrolling-mode toggle.
 
-A Ratatui line graph below the table shows the selected metric across the entire
-requested window, oldest to newest. Durations use hours on its labelled axis;
-the table keeps hours and minutes. Missing values break the line instead of
-becoming zero or joining across an unrecorded day. A single value is a point.
+A bar chart below the table shows the selected metric across the entire requested
+window, oldest to newest, with a blank column between bars. Durations use hours;
+the table keeps hours and minutes. Missing values leave empty slots. The dotted
+horizontal line is the mean of that metric's recorded daily values in the most
+recent seven complete family days. Today never contributes, and older days never
+replace gaps. The legend shows the value and the number of usable days out of
+seven; no usable days means no average line. Shorter requested windows use the
+available complete days and say how many. The notes explain the dots even in
+panels too short for the legend. If the window cannot fit separated bars, the
+chart asks for a wider panel or fewer days instead of merging days together.
 Up/down, J/K, W/S, PageUp/PageDown, and Home/End scroll the rows and notes while
 the graph stays visible. Short panels omit the title to retain a data row.
 Esc or Q returns directly to the menu. Piped output stays a plain table;
 `--json` always prints numeric data and never opens an interactive screen.
 
 Each row covers `day_start` to the next `day_start` in the family's timezone.
+The default is today plus seven complete family days: eight rows and eight bar
+slots. `--days N` selects N complete days plus today. The live read starts at the
+oldest requested day's beginning, including across daylight saving changes.
+Sleep reads also retain records beginning earlier but ending on or after that
+boundary, so overnight carry-over and the first waking gap remain available.
+Rows marked `~` are partial: today, or days not fully covered by an offline
+snapshot's recorded read window. Older snapshots may lack the new eighth day's
+first hours; those rows remain visible but never enter averages. Export nine
+days (`h export --days 9`) to cover the default summary at the export time,
+including the extra hour at a fall daylight-saving transition.
 Today is partial and bold; completed-day averages continue to skip it and empty
 rows. Existing reference bands and the pediatrician note retain their meanings.
 No new reference ranges are attached to the new metrics.
@@ -200,8 +218,21 @@ No new reference ranges are attached to the new metrics.
 Sleep totals merge overlapping intervals and split them at both the day and
 night boundaries, using actual elapsed seconds through daylight saving changes.
 Completed sleep counts and the longest sleep belong to the day the sleep began.
-Average nap is the mean full duration of completed sleeps that began during the
-configured daytime; it excludes night starts and unfinished live sleeps.
+Average sleep is the mean full duration of completed sleeps that began on the
+row's family day, including both daytime and nighttime starts. Unfinished live
+sleeps do not contribute. The older `average_nap_seconds` JSON field remains
+available with its daytime-only meaning.
+
+Daytime/night milk and nursing assign each feed's amount or full nursing duration
+by its start time, matching the existing daily feeding totals. Daytime runs from
+`day_start` up to `day_end`; night starts at `day_end`. Inverted hours work too.
+The splits always add back to the daily totals.
+
+Summary rows are rebuilt on opening from the latest settings and raw history.
+After any shell command, retained Now/dashboard history receives the current day
+rule immediately, before the background refresh returns. Changing hours or mode
+therefore updates calculations even if that refresh fails; derived totals are not
+cached.
 
 Wake totals estimate elapsed time outside recorded sleep. They subtract sleep
 coverage from the elapsed family day, or from its elapsed night for night wake.

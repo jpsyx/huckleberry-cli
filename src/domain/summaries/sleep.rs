@@ -16,12 +16,7 @@ pub(super) fn fill(
     for row in rows {
         let (start, end) = rule.day_bounds(calendar, row.day);
         let end = end.min(now);
-        let night = calendar.at_hour_fraction(row.day, rule.day_end_hour);
-        let night = if night < start {
-            calendar.at_hour_fraction(calendar.offset_day(row.day, 1), rule.day_end_hour)
-        } else {
-            night
-        };
+        let night = rule.night_start(calendar, row.day);
         row.sleep_seconds = coverage(&intervals, start, end);
         row.night_sleep_seconds = coverage(&intervals, night, end);
         row.day_sleep_seconds = row.sleep_seconds - row.night_sleep_seconds;
@@ -43,6 +38,7 @@ fn completed_sleeps(
     now: f64,
 ) {
     let mut naps = Vec::new();
+    let mut sleeps = Vec::new();
     for sleep in &dataset.sleep {
         if sleep.duration <= 0.0
             || sleep.end() > now
@@ -51,6 +47,7 @@ fn completed_sleeps(
         {
             continue;
         }
+        sleeps.push(sleep.duration);
         row.sleep_count += 1;
         row.longest_sleep_seconds = row.longest_sleep_seconds.max(sleep.duration);
         if sleep.start < night_start {
@@ -58,6 +55,7 @@ fn completed_sleeps(
         }
     }
     row.average_nap_seconds = mean(&naps);
+    row.average_sleep_seconds = mean(&sleeps);
 }
 
 /// Merge overlapping records before taking their complement or the gaps.

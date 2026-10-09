@@ -121,9 +121,11 @@ Wed 23 Sep │██▼█◦███▼◦███ ▼◦  ▼█◦ ▼ █�
             █ asleep   ▼ feed   ◦ diaper   · night
 ````
 
-`h summary` opens a day table grouped into feed, sleep, diaper and wake time.
+`h summary` opens a day table grouped into feed, sleep, wake time and diaper.
 Tab/Shift-Tab or left/right (H/L, A/D) selects a numeric column and draws its
-line graph underneath. Up/down scrolls the rows and notes; Esc or Q leaves.
+bar chart underneath, with gaps between bars and a dotted average of the previous
+seven complete days (today excluded). The default shows eight days: those seven
+plus today. Horizontal scrolling moves only at the visible edges. Up/down scrolls the rows and notes; Esc or Q leaves.
 Milk/feed averages only bottles with recorded amounts, and nurse/feed averages
 only nursing sessions. The night note shows the configured hours and the commands
 that change them. The same view is in the shell under Visualizations > Summary.
@@ -134,7 +136,7 @@ h summary --days 30 --json > month.json
 ```
 
 Piped output stays a plain table. [Screen details](docs/dashboards.md#summary)
-explain the nap and wake calculations, missing values, and existing age-aware
+explain the sleep and wake calculations, missing values, and existing age-aware
 reference ranges.
 
 And `h dash` for all of it at once, full screen and live.

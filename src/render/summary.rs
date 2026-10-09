@@ -64,16 +64,20 @@ pub fn footer(
             .map(|line| theme.muted(&line)),
     );
     lines.push(theme.muted(
-        "Wake totals estimate time outside recorded sleep; gaps need two sleeps. Today is partial.",
+        "Wake totals estimate time outside recorded sleep; gaps need two sleeps. Rows marked ~ are partial (today or limited snapshot coverage).",
     ));
     lines.push(
         theme.muted(
-            "Averages: measured bottles only; nursing sessions only; naps start in daytime.",
+            "Averages: measured bottles only; nursing sessions only; sleep averages include completed day and night sleeps.",
         ),
     );
     lines.push(
         theme.muted("Wake gaps belong to the day waking began; unfinished gaps are excluded."),
     );
+    lines.push(theme.muted(
+        "Chart dots: mean of recorded values in the previous 7 complete days; today, incomplete snapshot days and missing values excluded.",
+    ));
+    lines.push(theme.muted("Feeding day/night splits follow each feed's start time."));
     lines.push(theme.muted(&crate::render::now::as_of(dataset, now)));
     let age = dataset
         .child
@@ -117,11 +121,20 @@ pub fn heading_row(units: Units) -> String {
     )
 }
 
+/// A day label that makes incomplete coverage visible without colour.
+fn day_label(row: &DaySummary) -> String {
+    format!(
+        "{}{}",
+        format::day_short(row.day),
+        if row.partial { "~" } else { " " }
+    )
+}
+
 /// One day's row, using the same columns as the interactive view.
 #[must_use]
 pub fn data_row(row: &DaySummary, units: Units) -> String {
     join_cells(
-        &format::day_short(row.day),
+        &day_label(row),
         &data_cells(row, units, 0..COLUMNS.len()),
         0..COLUMNS.len(),
     )
@@ -558,7 +571,7 @@ mod tests {
         for group in ["feed", "sleep", "diaper", "wake time"] {
             assert!(lines[0].contains(group), "{rendered}");
         }
-        for heading in ["ml/feed", "nurse/feed", "avg nap", "avg wake"] {
+        for heading in ["ml/feed", "nurse/feed", "avg sleep", "avg wake"] {
             assert!(lines[1].contains(heading), "{rendered}");
         }
         assert!(lines[2].contains("120"), "{rendered}");
