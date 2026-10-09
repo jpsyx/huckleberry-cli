@@ -454,3 +454,18 @@ move between tabs, on every tab including the Log; `j`/`s` and `k`/`w` scroll.
 Inside the shell, left/back closes the Dashboard view; Shift-Tab still selects
 the previous tab. Lists reserve `d` to match `l` (no action), with PageDown or
 Ctrl-F paging forward instead.
+
+## Mixed diapers and day boundaries
+
+A mixed diaper is stored as `both`. Normalization marks it wet and dirty, so
+Summary, its selected-column chart, Trends, and the dashboard Diapers tab count
+one wet and one dirty while the total remains one diaper. The dashboard wet
+sparkline uses that same wet count. Now and the Now drawer use both flags for
+running totals and show `wet + dirty` when the latest diaper is mixed. Logs
+show `mixed` with both recorded sizes; Stripes draws one tick for the event.
+
+Summary and Trends always group by `day_start`, including in continuous mode.
+With a 7am day start, a mixed diaper at 3:42am is one wet and one dirty on the
+previous day's row. The calendar-day log lists it on the date it happened.
+Continuous mode makes Now's totals cover the last 24 hours; it does not change
+Summary's daily boundaries. See [`setup.md`](setup.md).
