@@ -8,7 +8,7 @@ use huckleberry_api::client::now_seconds;
 
 use crate::cli::{LogKind, TrendMetric, Units};
 use crate::domain::{log, now, stripes, summaries};
-use crate::listing::Listing;
+use crate::listing::{Listing, ShowOutcome};
 use crate::prompt::{self, Choice, Question};
 use crate::render;
 use crate::render::format;
@@ -135,13 +135,17 @@ pub async fn log(
     .collect();
     let now = now_seconds();
     let today = format::day_short(calendar.day_of(now));
-    Listing::new(&dataset.child.name, "entries", &render::log::COLUMNS)
+    let outcome = Listing::new(&dataset.child.name, "entries", &render::log::COLUMNS)
         .rows(render::log::rows(&entries, &calendar, now, &|_| None))
         .today(|heading| heading == today)
         .empty("nothing logged in this window")
         .query(search)
         .verb("↑/↓ j/k w/s move · / searches · enter opens one · h/a or q leaves")
-        .show(context.output_theme())
+        .show_with_outcome(context.output_theme())?;
+    if outcome == ShowOutcome::Back && prompt::host::hosted() {
+        return Err(prompt::Cancelled.into());
+    }
+    Ok(())
 }
 
 /// Which volume unit to show, from the configuration.

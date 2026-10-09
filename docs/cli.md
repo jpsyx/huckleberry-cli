@@ -638,8 +638,10 @@ Every command starts immediately when selected, including logging, editing,
 deleting, settings/account changes, and exports. Required questions and
 command-specific confirmations remain in their normal flows; there is no Run,
 Options, Change options, or Session options menu item.
-After a read result (or leaving a full-screen view), Back is selected by default.
-This keeps static results visible without a separate Continue prompt. Trends
+Static read results stay visible with Back selected by default, without a
+separate Continue prompt. Leaving the View logs browser with Back returns
+directly to its parent menu; there is no second exit prompt. Empty log results
+and newly opened entry details stay visible until Back. Trends
 still asks for its required metric before displaying a chart. Failed views offer
 Back and an explicit Retry; they never retry automatically.
 Successful logging returns home; views return to their parent menu. Other static

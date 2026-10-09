@@ -72,6 +72,11 @@ Every submenu still ends in a Back row, so walking out of one is a row on the
 screen as well as a key. Home ends in nothing, because there is nothing at Home
 to walk out to.
 
+Leaving View logs with Escape, left, `h`, `a`, or `q` returns straight to the
+menu. That key is the whole navigation action; there is no "Anything else?"
+confirmation afterward. Empty results and entry details still remain visible
+until the reader leaves them.
+
 ### 3. Menus first, typing last
 
 A fixed set of answers is a menu. A number is a preset plus "something else". A
