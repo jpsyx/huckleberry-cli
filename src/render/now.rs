@@ -25,6 +25,11 @@ use crate::theme::{Theme, Tone};
 
 use super::format;
 
+mod layout;
+
+#[cfg(test)]
+mod layout_tests;
+
 /// One row of the screen: its text, and the role each piece is painted in.
 pub type Row = Vec<Piece>;
 
@@ -32,7 +37,7 @@ pub type Row = Vec<Piece>;
 ///
 /// The single source of what `now` says. Anything that shows these facts draws
 /// from here, so no second copy of the wording can drift from this one.
-/// `width` bounds table cells when known; long cells wrap within their row.
+/// `width` chooses three, two, or one column and bounds the wrapped content.
 #[must_use]
 pub fn screen(
     view: &NowView,
@@ -41,6 +46,20 @@ pub fn screen(
     units: Units,
     now: f64,
     width: Option<usize>,
+) -> Vec<Row> {
+    let ranges = ranges(view, &dataset.child, calendar, now);
+    let columns = layout::Columns::for_width(width, !ranges.is_empty());
+    let tables = totals_rows(view, units, now, columns.table_width());
+    columns.arrange(facts(view, dataset, calendar, units, now), tables, ranges)
+}
+
+/// Last events and freshness, kept together independently of the totals.
+fn facts(
+    view: &NowView,
+    dataset: &Dataset,
+    calendar: &Calendar,
+    units: Units,
+    now: f64,
 ) -> Vec<Row> {
     let mut rows = vec![
         vec![Piece::new(dataset.child.name.clone(), Tone::Heading)],
@@ -63,8 +82,6 @@ pub fn screen(
         ));
     }
 
-    rows.extend(totals_rows(view, units, now, width));
-
     rows.push(Row::new());
     rows.push(vec![Piece::new(as_of(dataset, now), Tone::Muted)]);
     for note in &dataset.notes {
@@ -79,8 +96,8 @@ pub fn screen(
 /// The screen as lines of text, ready for stdout.
 ///
 /// `width` is how many columns there are to draw in, when that is known. With
-/// room, the typical ranges for this baby's age go in a second column beside
-/// the facts; without it they follow underneath, saying the same things.
+/// room, facts, tables, and typical ranges occupy three columns. Medium widths
+/// put facts and ranges together on the left; narrow widths stack all three.
 #[must_use]
 pub fn lines(
     view: &NowView,
@@ -91,140 +108,14 @@ pub fn lines(
     now: f64,
     width: Option<usize>,
 ) -> Vec<String> {
-    laid_out(
-        view,
-        dataset,
-        calendar,
-        units,
-        now,
-        width,
-        WhenNarrow::Stack,
-    )
-    .into_iter()
-    .map(|row| {
-        row.into_iter()
-            .map(|piece| theme.paint(piece.tone, &piece.text))
-            .collect()
-    })
-    .collect()
-}
-
-/// How wide the ranges column has to be before it is worth having one.
-///
-/// A range sentence that wraps every other word is harder to read than one
-/// under the facts, so below this they go underneath.
-const RANGES_FLOOR: usize = 46;
-
-/// The gap between the two columns.
-const GUTTER: usize = 3;
-
-/// What to do with the ranges when there is no room beside the facts.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum WhenNarrow {
-    /// Put them underneath. What a command does: its output can be as long as
-    /// it likes, because nothing else is sharing the screen with it.
-    Stack,
-    /// Leave them out. What a panel does, because it cannot grow without
-    /// taking the room from whatever is beside it.
-    Drop,
-}
-
-/// The facts, and the ranges beside or under them.
-#[must_use]
-pub fn laid_out(
-    view: &NowView,
-    dataset: &Dataset,
-    calendar: &Calendar,
-    units: Units,
-    now: f64,
-    width: Option<usize>,
-    narrow: WhenNarrow,
-) -> Vec<Row> {
-    let facts = screen(view, dataset, calendar, units, now, width);
-    let ranges = ranges(view, &dataset.child, calendar, now);
-    if ranges.is_empty() {
-        return facts;
-    }
-    let left = facts.iter().map(plain_width).max().unwrap_or_default();
-    let room = width.unwrap_or(0).saturating_sub(left + GUTTER);
-    if room < RANGES_FLOOR {
-        return match narrow {
-            WhenNarrow::Stack => stacked(facts, ranges),
-            WhenNarrow::Drop => facts,
-        };
-    }
-    beside(&facts, &ranges, left, room)
-}
-
-/// The rule drawn down the gutter between the two columns.
-///
-/// Without it the ranges read as though each one belonged to the fact it
-/// happens to sit beside, which is the one thing they are not: the two columns
-/// are two lists that share a screen, not a table of pairs.
-const RULE: &str = "\u{2502}";
-
-/// The two columns, zipped, with the rule between them.
-///
-/// The rule is drawn on every row of the block rather than only where the
-/// right column has something to say, because a line that stops and starts
-/// again is read as a border that has gone wrong.
-fn beside(facts: &[Row], ranges: &[Row], left: usize, room: usize) -> Vec<Row> {
-    let wrapped: Vec<Row> = ranges.iter().flat_map(|row| wrap(row, room)).collect();
-    let height = facts.len().max(wrapped.len());
-    (0..height)
-        .map(|index| {
-            let mut row = facts.get(index).cloned().unwrap_or_default();
-            let pad = (left + 1).saturating_sub(plain_width(&row)).max(1);
-            row.push(Piece::new(" ".repeat(pad), Tone::Value));
-            row.push(Piece::new(RULE.to_owned(), Tone::Muted));
-            if let Some(right) = wrapped.get(index).filter(|right| !right.is_empty()) {
-                row.push(Piece::new(" ".to_owned(), Tone::Value));
-                row.extend(right.iter().cloned());
-            }
-            row
+    screen(view, dataset, calendar, units, now, width)
+        .into_iter()
+        .map(|row| {
+            row.into_iter()
+                .map(|piece| theme.paint(piece.tone, &piece.text))
+                .collect()
         })
         .collect()
-}
-
-/// The ranges under the facts, for a screen with no room beside them.
-fn stacked(mut facts: Vec<Row>, ranges: Vec<Row>) -> Vec<Row> {
-    facts.push(Row::new());
-    facts.extend(ranges);
-    facts
-}
-
-/// One row broken to a width, keeping every piece's tone.
-///
-/// A range sentence is one piece, so this only ever splits on spaces.
-fn wrap(row: &Row, width: usize) -> Vec<Row> {
-    if plain_width(row) <= width || row.len() != 1 {
-        return vec![row.clone()];
-    }
-    let piece = &row[0];
-    let mut rows = Vec::new();
-    let mut line = String::new();
-    for word in piece.text.split(' ') {
-        let candidate = if line.is_empty() {
-            word.to_owned()
-        } else {
-            format!("{line} {word}")
-        };
-        if candidate.chars().count() > width && !line.is_empty() {
-            rows.push(vec![Piece::new(std::mem::take(&mut line), piece.tone)]);
-            // Continued lines are indented, so a wrapped sentence still reads
-            // as one thing rather than as two.
-            line = format!("  {word}");
-        } else {
-            line = candidate;
-        }
-    }
-    rows.push(vec![Piece::new(line, piece.tone)]);
-    rows
-}
-
-/// How wide a row is once its colour is taken off.
-fn plain_width(row: &Row) -> usize {
-    row.iter().map(|piece| piece.text.chars().count()).sum()
 }
 
 /// The typical ranges for this baby's age, each judged against today.
@@ -355,7 +246,7 @@ fn totals_rows(view: &NowView, units: Units, now: f64, width: Option<usize>) -> 
         as_total(today_intake_line(view, units)),
         as_total(slept(&view.today)),
     ];
-    let mut rows = vec![Row::new()];
+    let mut rows = Vec::new();
     rows.extend(window_table(
         &format!("In last {hours}h"),
         &recent,
@@ -447,19 +338,7 @@ fn table_cell_lines(cells: &[String; 2], widths: [usize; 2], tone: Tone) -> Vec<
 
 /// Wrap long quantities at spaces without inserting indentation inside a cell.
 fn wrap_cell_words(text: &str, width: usize) -> Vec<String> {
-    let mut lines = vec![String::new()];
-    for word in text.split_whitespace() {
-        let line = lines.last_mut().expect("a cell always has a line");
-        if !line.is_empty() && line.chars().count() + 1 + word.chars().count() > width {
-            lines.push(word.to_owned());
-        } else {
-            if !line.is_empty() {
-                line.push(' ');
-            }
-            line.push_str(word);
-        }
-    }
-    lines
+    layout::wrap_words(text, width)
 }
 
 /// Keep borders quiet while each cell retains its semantic tone.
@@ -1003,7 +882,7 @@ mod tests {
     /// The columns are not rows: nothing on the right belongs to the line it
     /// happens to sit beside, and a rule is what says so.
     #[test]
-    fn a_rule_separates_the_two_columns() {
+    fn rules_separate_the_three_columns() {
         let text = wide(&a_newborns_day(), AFTERNOON);
         let columns: Vec<usize> = text
             .lines()
@@ -1591,7 +1470,7 @@ mod tests {
     /// this is a tool a frightened parent opens at 3am.
     #[test]
     fn a_day_still_going_is_never_called_short_only_reported() {
-        let text = wide(&a_newborns_day(), AFTERNOON);
+        let text = joined(&a_newborns_day(), AFTERNOON);
         assert!(
             !text.contains("under that"),
             "a partial day is never called short: {text}"
@@ -1610,7 +1489,7 @@ mod tests {
     fn nothing_yet_today_says_so_rather_than_counting_to_zero() {
         let mut data = a_newborns_day();
         data.sleep.clear();
-        let text = wide(&data, AFTERNOON);
+        let text = joined(&data, AFTERNOON);
         assert!(text.contains("(nothing yet today)"), "{text}");
         assert!(!text.contains("0s so far"), "{text}");
         assert!(!text.contains("(0 so far"), "{text}");
@@ -1639,7 +1518,7 @@ mod tests {
             Theme::dark(false),
             Units::Ml,
             AFTERNOON,
-            Some(170),
+            None,
         )
         .join("\n");
         assert!(text.contains("(today is over that)"), "{text}");
@@ -1649,7 +1528,7 @@ mod tests {
     /// ranges are rather than only in the manual.
     #[test]
     fn the_ranges_carry_the_note_that_a_pediatrician_outranks_them() {
-        let text = wide(&a_newborns_day(), AFTERNOON);
+        let text = joined(&a_newborns_day(), AFTERNOON);
         assert!(
             text.contains(
                 "typical ranges are not your baby: where your pediatrician disagrees, they are right"

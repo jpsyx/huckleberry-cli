@@ -526,8 +526,8 @@ It is a full-width strip across the **top**, above the Menu view:
 
 - It is where the eye lands first, and the facts are read without looking past
   anything else to find them.
-- Full width means the facts keep the shape they have everywhere else in this
-  tool, label and value on one line, rather than being folded to fit a column.
+- Full width lets the drawer choose three, two, or one column from the space
+  available. Facts and table cells wrap when needed.
 - The Menu view is still the main panel and takes everything left over beneath
   it. The drawer is only as tall as it has something to say, and gives way to
   the menu on a short terminal rather than the other way round: the menu is the
@@ -543,7 +543,12 @@ screen rather than a second screen about the same data.
 `render::now::screen` is the one function that decides what `now` says.
 `lines` paints its rows for stdout and the drawer draws the same rows as
 widgets, so the two cannot drift: there is no second copy of the wording to
-forget to update.
+forget to update. The same function chooses three columns at 144 content
+cells, two at 96, and a vertical stack below that. Three columns show Last
+facts, tables, and typical ranges; two put facts and ranges together on the
+left and tables on the right. The drawer recomputes this on resize, after
+reserving its borders and leading space. Narrow widths retain all sections;
+the existing height limit still protects the menu on short screens.
 
 **A request to change what the Now drawer shows is a request to change the
 output of `h now`, and the other way round.** Change `render::now::screen` and

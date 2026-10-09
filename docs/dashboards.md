@@ -77,6 +77,8 @@ Last sleep          currently sleeping for 30m
                     (previous sleep finished 2h 10m ago · slept for 1h 20m)
 Tonight             nothing finished yet
 
+as of 2m ago
+
 In last 4h
 ┌────────────────────────┬────────────────────────┐
 │ Feed                   │ Sleep                  │
@@ -91,8 +93,6 @@ Today
 ├────────────────────────────────────────┼───────────────┤
 │ 430 ml total · 6 feeds · since 6:00 am │ 11h 18m total │
 └────────────────────────────────────────┴───────────────┘
-
-as of 2m ago
 ```
 
 After the last-event facts and the night's sleep, totals are grouped by window.
@@ -125,20 +125,32 @@ measure from the end of each completed sleep, because that is when the baby
 woke. A sleep still running is described in the Last sleep fact above.
 The daily table keeps the existing total wording and has no event list.
 
-On a screen wide enough, the typical ranges for this baby's age go in a second
-column beside the facts, each judged against **today** rather than against the
-week the summary judges. Below that width they follow underneath instead, and
-in the shell's drawer, which cannot grow without taking room from the menu,
-they are simply left out. The ranges themselves live in
-[`data/reference.toml`](../data/reference.toml); see [`setup.md`](setup.md) for
-what a day means here.
+The screen has three sections: Last facts (including freshness), the stacked
+recent and daily tables, and typical ranges for the baby's age. Available
+**content width**, measured in terminal cells, determines their placement:
 
-**A rule runs down the gutter between the two columns**, and it is not
-decoration. The columns are two lists that share a screen, not a table of
-pairs: the range sitting beside "Last diaper" is about sleep as often as not, and
-without a divider the eye reads across. The rule is drawn on every row of the
-block rather than only where the right column has something to say, because a
-line that stops and starts again reads as a border that has gone wrong.
+| Width | Arrangement |
+| --- | --- |
+| 144 cells or more | Last facts left, tables middle, typical ranges right |
+| 96 to 143 cells | Last facts followed by typical ranges left, tables right |
+| Below 96 cells, or unknown width | Last facts, tables, then typical ranges stacked vertically |
+
+If no age-specific ranges are available, wide screens use two useful columns.
+Facts and ranges wrap within their columns; table cells wrap inside their
+borders. A muted vertical rule separates neighboring sections for the full
+height of the block, so a range beside a fact is not mistaken for its value.
+Long words wrap at Unicode grapheme boundaries, and column padding counts
+terminal cells rather than characters.
+
+The CLI measures the terminal when `h now` runs. The shell recalculates the
+layout on every frame, including after resize, using the drawer's inner width
+minus its leading padding. Both consume the same rows; narrow widths stack
+ranges instead of dropping them. On short screens the drawer still yields
+height to the menu, so its lower lines can be clipped.
+
+The ranges are judged against **today**, using the configured daily window.
+They live in [`data/reference.toml`](../data/reference.toml); see
+[`setup.md`](setup.md) for what a day means here.
 
 **Each range names its subject**: `typical sleep at this age`, `typical feed in
 the first weeks`, `typical diapers from day 3`. A label that opened with
