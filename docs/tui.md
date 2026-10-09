@@ -181,9 +181,9 @@ widget beside it, and **widget** and **panel** mean the same thing.
 │  3. Log sleep                                                        › │
 │  4. Log pumping                                                      › │
 │  5. Edit                                                               │
-│  6. Visualizations                                                   › │
-│  7. View logs                                                          │
-│  8. Other logging                                                    › │
+│  6. Summary                                                            │
+│  7. Visualizations                                                   › │
+│  8. View logs                                                          │
 │  9. Delete                                                             │
 │ 10. More                                                             › │
 └────────────────────────────────────────────────────────────────────────┘
@@ -464,9 +464,12 @@ along with the widgets and there is no second read.
 is a view rather than a command, so Back closes it and puts the menu back, and
 the footer names its keys while it is open.
 
+More contains Potty and Growth directly, followed by the account and utility
+options. There is no separate Other logging menu.
+
 ### Summary keeps its graph inside the flow panel
 
-Visualizations > Summary opens a browsable table through the prompt host. Its
+Home > Summary opens a browsable table through the prompt host. Its
 numeric columns have grouped headings; Day stays fixed. Tab/Shift-Tab and
 left/right (H/L, A/D, either case) cycle columns and update the separated bar chart
 below. The horizontal window moves only when selection crosses an edge. A dotted

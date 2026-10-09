@@ -129,7 +129,7 @@ plus today. Horizontal scrolling moves only at the visible edges. Up/down scroll
 Milk/feed averages only bottles with recorded amounts, and nurse/feed averages
 only nursing sessions. The night note shows the configured hours. The header
 includes the child's age; freshness stays at the bottom of the panel. The same
-view is in the shell under Visualizations > Summary.
+view is in the shell under Home > Summary.
 
 Wake totals estimate time outside recorded sleep; wake gaps require two sleeps.
 Rows marked `~` are partial, either today or days with limited snapshot coverage.

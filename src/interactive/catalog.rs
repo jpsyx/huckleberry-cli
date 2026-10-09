@@ -21,9 +21,7 @@ pub enum MenuId {
     Nursing,
     /// Read-only visualizations.
     Visualizations,
-    /// Less frequent recordings.
-    OtherLogging,
-    /// Account and utilities.
+    /// Less frequent recordings, account, and utilities.
     More,
     /// Food definitions.
     Foods,
@@ -37,14 +35,13 @@ pub enum MenuId {
 
 impl MenuId {
     /// Every menu, so a test can walk the whole tree without knowing it.
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 11] = [
         Self::Home,
         Self::Feed,
         Self::Sleep,
         Self::Pump,
         Self::Nursing,
         Self::Visualizations,
-        Self::OtherLogging,
         Self::More,
         Self::Foods,
         Self::Children,
@@ -63,7 +60,6 @@ pub const fn title(id: MenuId) -> &'static str {
         MenuId::Pump => "Log pumping",
         MenuId::Nursing => "Nursing",
         MenuId::Visualizations => "Visualizations",
-        MenuId::OtherLogging => "Other logging",
         MenuId::More => "More",
         MenuId::Foods => "Foods",
         MenuId::Children => "Children",
@@ -140,20 +136,18 @@ fn rows(id: MenuId) -> Vec<MenuEntry> {
             menu("Log sleep", MenuId::Sleep),
             menu("Log pumping", MenuId::Pump),
             command("Edit", "edit"),
+            command("Summary", "summary"),
             menu("Visualizations", MenuId::Visualizations),
             command("View logs", "log"),
-            menu("Other logging", MenuId::OtherLogging),
             command("Delete", "delete"),
             menu("More", MenuId::More),
         ],
         MenuId::Visualizations => vec![
             command("Dashboard", "dash"),
             command("Trends", "trends"),
-            command("Summary", "summary"),
             command("Sleep stripes", "stripes"),
             command("Current status", "now"),
         ],
-        MenuId::OtherLogging => vec![command("Potty", "potty"), command("Growth", "growth")],
         MenuId::More => more(),
         MenuId::Feed => vec![
             command("Bottle", "feed bottle"),
@@ -172,6 +166,8 @@ fn rows(id: MenuId) -> Vec<MenuEntry> {
 
 fn more() -> Vec<MenuEntry> {
     let mut entries = vec![
+        command("Potty", "potty"),
+        command("Growth", "growth"),
         menu("Foods", MenuId::Foods),
         menu("Children", MenuId::Children),
         menu("Account", MenuId::Account),

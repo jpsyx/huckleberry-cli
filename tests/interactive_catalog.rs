@@ -30,9 +30,9 @@ fn home_order_and_all_commands_are_reachable() {
             "Log sleep",
             "Log pumping",
             "Edit",
+            "Summary",
             "Visualizations",
             "View logs",
-            "Other logging",
             "Delete",
             "More"
         ]
@@ -108,4 +108,25 @@ fn draft_aliases_and_invalid_choices_use_real_clap_validation() {
     let mut diaper = CommandDraft::new(catalog::CommandPath(vec!["diaper".into()]));
     diaper.set("mode", vec!["nonsense".into()]);
     assert!(diaper.resolve(&SessionOptions::default()).is_err());
+}
+
+#[test]
+fn summary_runs_from_home_and_extra_logging_runs_from_more() {
+    for (menu, label, command) in [
+        (catalog::MenuId::Home, "Summary", "summary"),
+        (catalog::MenuId::More, "Potty", "potty"),
+        (catalog::MenuId::More, "Growth", "growth"),
+    ] {
+        let entries = catalog::entries(menu);
+        let entry = entries.iter().find(|entry| entry.label == label).unwrap();
+        assert_eq!(
+            entry.target,
+            catalog::MenuTarget::Command(catalog::CommandPath(vec![command.into()]))
+        );
+    }
+    assert!(
+        !catalog::entries(catalog::MenuId::Visualizations)
+            .iter()
+            .any(|entry| entry.label == "Summary")
+    );
 }

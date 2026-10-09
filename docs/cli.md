@@ -103,7 +103,7 @@ Up/down (J/K, W/S) scroll rows and explanatory notes; Esc or Q leaves. The day
 column stays visible and the selected metric's bar chart stays below the
 table. Horizontal scrolling happens only when selection crosses a visible edge.
 The dotted line marks the previous seven complete days' average, excluding today
-and missing values. The shell exposes the same view through Visualizations > Summary.
+and missing values. The shell exposes the same view through Home > Summary.
 Summary defaults to seven complete family days plus today (eight rows); `--days N`
 means N complete days plus today.
 
@@ -676,8 +676,9 @@ showing. Reads happen in the background: the rows still move while one is in
 flight, and a failure is reported on the foot of the screen without taking the
 numbers away.
 
-Home starts with diaper, feed, sleep, Edit,
-Visualizations, logs, other logging, Delete and More. `now` is not a
+Home starts with diaper, feed, sleep, pumping, Edit, Summary, Visualizations,
+logs, Delete and More. More includes Potty and Growth alongside account and
+utility actions. `now` is not a
 Home row, because the widget already shows it; it stays reachable under
 Visualizations as Current status. Read-only views run
 immediately when selected: latest/current status, Dashboard, Trends, Summary,
