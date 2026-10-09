@@ -44,6 +44,15 @@ pub use layout::{GUTTER, Line, MARKER, Piece};
 pub use model::{Column, Role, Row};
 pub use state::{Flow, Key, State};
 
+/// Whether a listing printed new content or was explicitly left by the reader.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ShowOutcome {
+    /// Static output or entry details still need time to be read.
+    Displayed,
+    /// The reader pressed Back while browsing the listing.
+    Back,
+}
+
 /// A listing, ready to show. Built with the setters, then [`Listing::show`] or
 /// [`Listing::choose`].
 pub struct Listing<'a> {
@@ -138,11 +147,22 @@ impl<'a> Listing<'a> {
     /// Enter opens what is under the cursor, which for a listing nobody is
     /// choosing from means printing what is known about it.
     pub fn show(&self, theme: Theme) -> Result<()> {
+        self.show_with_outcome(theme).map(|_| ())
+    }
+
+    /// Shows a listing while preserving whether the reader explicitly went back.
+    /// Static output and entry details remain distinguishable from navigation.
+    pub fn show_with_outcome(&self, theme: Theme) -> Result<ShowOutcome> {
+        let browsed = !self.rows.is_empty() && (crate::prompt::host::hosted() || browsable());
         let Some(chosen) = self.open(theme, false)? else {
-            return Ok(());
+            return Ok(if browsed {
+                ShowOutcome::Back
+            } else {
+                ShowOutcome::Displayed
+            });
         };
         let Some(row) = self.rows.iter().find(|row| row.key == chosen) else {
-            return Ok(());
+            return Ok(ShowOutcome::Displayed);
         };
         let width = row
             .detail
@@ -162,7 +182,7 @@ impl<'a> Listing<'a> {
                 })
                 .collect::<Vec<_>>(),
         );
-        Ok(())
+        Ok(ShowOutcome::Displayed)
     }
 
     /// Opens the listing for somebody to pick one row, and hands back its key.

@@ -117,6 +117,124 @@ mod tests {
     use clap::Parser;
 
     #[test]
+    fn backing_out_of_logs_returns_without_a_followup_prompt() {
+        use crossterm::event::KeyCode;
+        for key in [
+            KeyCode::Esc,
+            KeyCode::Left,
+            KeyCode::Char('h'),
+            KeyCode::Char('a'),
+            KeyCode::Char('q'),
+        ] {
+            let (frames, _) = log_journey(key, false);
+            assert_eq!(
+                frames.len(),
+                1,
+                "Back should close the log browser: {frames:?}"
+            );
+            assert!(frames[0].contains("Bottle"), "{frames:?}");
+        }
+    }
+
+    #[test]
+    fn logs_keep_new_details_and_empty_results_visible() {
+        use crossterm::event::KeyCode;
+        let (frames, output) = log_journey(KeyCode::Enter, false);
+        assert_eq!(frames.len(), 2, "{frames:?}");
+        assert!(frames[1].contains("Anything else?"), "{frames:?}");
+        assert!(output.contains("Formula"), "{output}");
+        let (frames, output) = log_journey(KeyCode::Esc, true);
+        assert_eq!(frames.len(), 1, "{frames:?}");
+        assert!(frames[0].contains("Anything else?"), "{frames:?}");
+        assert!(output.contains("nothing logged"), "{output}");
+    }
+
+    fn log_journey(first_key: crossterm::event::KeyCode, empty: bool) -> (Vec<String>, String) {
+        use crate::prompt::host;
+        let _serial = host::one_at_a_time();
+        let directory = std::env::temp_dir().join(format!("h-log-back-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).unwrap();
+        let globals = log_fixture(&directory, empty);
+        let channel = host::install();
+        let worker = std::thread::spawn(move || {
+            tokio::runtime::Runtime::new().unwrap().block_on(super::run(
+                &super::CommandPath(vec!["log".into()]),
+                &globals,
+                crate::theme::Theme::dark(false),
+            ))
+        });
+        let (frames, output) = drive_log(&channel, &worker, first_key);
+        host::remove();
+        let result = worker.join().unwrap();
+        std::fs::remove_dir_all(directory).unwrap();
+        assert!(
+            matches!(result, Ok(false)) || result.as_ref().is_err_and(crate::prompt::is_cancelled),
+            "{result:?}"
+        );
+        (frames, output)
+    }
+
+    fn drive_log(
+        channel: &crate::prompt::host::Channel,
+        worker: &std::thread::JoinHandle<anyhow::Result<bool>>,
+        first_key: crossterm::event::KeyCode,
+    ) -> (Vec<String>, String) {
+        use crate::prompt::host::{Input, Reply, Request};
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let mut frames = Vec::new();
+        let mut output = String::new();
+        while !worker.is_finished() {
+            let Ok((request, reply)) = channel
+                .requests
+                .recv_timeout(std::time::Duration::from_millis(100))
+            else {
+                continue;
+            };
+            let answer = match request {
+                Request::Frame(lines) => {
+                    let key = if frames.is_empty() {
+                        first_key
+                    } else {
+                        KeyCode::Esc
+                    };
+                    frames.push(lines.join("\n"));
+                    Reply::Input(Input::Key(KeyEvent::new(key, KeyModifiers::NONE)))
+                }
+                Request::Show(lines) => {
+                    output.push_str(&lines.join("\n"));
+                    Reply::Shown
+                }
+                Request::Step(_) => Reply::Stepped { interrupted: false },
+            };
+            reply.send(answer).unwrap();
+        }
+        (frames, output)
+    }
+
+    fn log_fixture(directory: &std::path::Path, empty: bool) -> super::SessionOptions {
+        let config = directory.join("config.toml");
+        std::fs::write(&config, "timezone = 'America/New_York'\n").unwrap();
+        let mut data = crate::domain::fixtures::dataset();
+        if !empty {
+            data.feeds.push(crate::domain::fixtures::bottle(
+                data.fetched_at - 600.0,
+                90.0,
+            ));
+        }
+        let snapshot = crate::dataset::Snapshot {
+            version: crate::dataset::SNAPSHOT_VERSION,
+            dataset: data,
+        };
+        let offline = directory.join("snapshot.json");
+        std::fs::write(&offline, serde_json::to_string(&snapshot).unwrap()).unwrap();
+        super::SessionOptions {
+            config: Some(config),
+            offline: Some(offline),
+            ..Default::default()
+        }
+    }
+
+    #[test]
     fn read_views_offer_retry() {
         for path in [
             "now",

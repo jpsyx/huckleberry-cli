@@ -396,6 +396,10 @@ its initial CLI flags. Every command in `interactive/operation` enters dispatch
 on selection, with no Run or options menu. A typed policy identifies read-only
 views, which offer Back after output and an explicit Retry only after failure.
 This follow-up menu holds static output on screen, replacing the separate pause.
+Listings expose whether they displayed new output or the reader explicitly
+went back. View logs propagates an explicit browser exit through the existing
+cancellation path, so the wrapper returns directly to navigation. Empty results
+and entry details keep the normal result hold.
 Writes and exports return through their ordinary completion flow; errors return
 to navigation after a pause and cannot automatically replay a write.
 Each execution opens a fresh Context and calls the same typed dispatch as an
