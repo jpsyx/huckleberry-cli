@@ -71,7 +71,7 @@ sign-in does. Backspace and Ctrl-U erase; Ctrl-C and Esc abandon.
 | Command | Shows |
 | --- | --- |
 | `now` | last feed, last diaper, asleep or awake, the night's longest stretch |
-| `summary` | one row per day: feeds, milk, sleep, diapers, and the typical ranges |
+| `summary` | interactive daily feed, sleep, diaper and wake table, with a selected-column graph; plain when piped |
 | `stripes` | a 24-hour chart of where sleep lands, one row per day |
 | `trends --metric <M>` | one number over time, as bars |
 | `log` | everything, newest first: browsable, and searchable with `/` |
@@ -97,6 +97,19 @@ meanings.
 types interactively. On a terminal it opens a list you can scroll, search and
 open an entry from; piped, it is the same rows as plain text. See
 [`dashboards.md`](dashboards.md) for the keys.
+
+`summary` uses Tab/Shift-Tab or left/right (H/L, A/D) to cycle numeric columns.
+Up/down (J/K, W/S) scroll rows and explanatory notes; Esc or Q leaves. The day
+column stays visible and the selected metric's Ratatui graph stays below the
+table. The shell exposes the same view through Visualizations > Summary.
+
+Summary JSON adds `average_milk_ml`, `average_nursing_seconds`,
+`average_nap_seconds`, `wake_seconds`, `night_wake_seconds`,
+`average_wake_seconds`, and `longest_wake_seconds`. Missing measurements or
+undefined averages are `null`; JSON volumes remain millilitres and durations
+remain seconds. Milk/feed counts only bottles with amounts; nurse/feed counts
+only nursing sessions. See [`dashboards.md`](dashboards.md) for nap and waking
+boundaries and partial-day handling.
 
 `now` and `summary` take `--json`. `summary`, `stripes`, `trends`, `log` and
 `export` take `--days`. `log` takes `--kind` and `--limit`.

@@ -448,6 +448,17 @@ along with the widgets and there is no second read.
 is a view rather than a command, so Back closes it and puts the menu back, and
 the footer names its keys while it is open.
 
+### Summary keeps its graph inside the flow panel
+
+Visualizations > Summary opens a browsable table through the prompt host. Its
+numeric columns have grouped headings; Day stays fixed. Tab/Shift-Tab and
+left/right (H/L, A/D, either case) cycle columns and update the Ratatui line graph
+below. Left is movement within this control, so Esc or Q closes it directly.
+Up/down (J/K, W/S) scroll the rows and notes, including configured night hours
+and the commands that change them. The selected heading has brackets as well as
+colour, and the keys remain visible on narrow and short panels. The Now drawer
+stays on screen throughout.
+
 ### Where the output goes
 
 The shell draws on **stderr**, not stdout, so `h > entries.txt` still fills the

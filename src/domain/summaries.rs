@@ -1,12 +1,14 @@
 //! One row per day: the numbers a pediatrician asks for.
 //!
 //! One asymmetry is worth knowing about, because it looks like a bug until you
-//! see why. Sleep **seconds** are split across midnight, so a sleep beginning
+//! see why. Sleep **seconds** are split across family-day boundaries, so a sleep beginning
 //! at 23:46 contributes to both days. Sleep **counts** and the longest stretch
 //! are attributed to the day the sleep began. Splitting the counts would turn
 //! one overnight into two sleeps; not splitting the seconds would quietly lose
 //! the small hours off every night, which for a newborn is most of the sleep
 //! there is.
+
+mod sleep;
 
 use jiff::civil::Date;
 
@@ -25,6 +27,8 @@ pub struct DaySummary {
     pub feed_count: usize,
     /// How many were bottles.
     pub bottle_count: usize,
+    /// Bottles with a recorded amount, the denominator of the milk average.
+    pub measured_bottle_count: usize,
     /// How many were nursing sessions.
     pub nursing_count: usize,
     /// How many were meals.
@@ -63,6 +67,16 @@ pub struct DaySummary {
     pub sleep_count: usize,
     /// The longest of them.
     pub longest_sleep_seconds: f64,
+    /// Mean duration of completed sleeps starting in daytime on this day.
+    pub average_nap_seconds: Option<f64>,
+    /// Elapsed day time minus recorded sleep, absent without sleep records.
+    pub wake_seconds: Option<f64>,
+    /// Elapsed night time minus recorded night sleep.
+    pub night_wake_seconds: Option<f64>,
+    /// Mean complete gap between sleeps, attributed to the day waking began.
+    pub average_wake_seconds: Option<f64>,
+    /// Longest complete gap between sleeps, attributed to the day waking began.
+    pub longest_wake_seconds: Option<f64>,
     /// Pumping sessions.
     pub pump_count: usize,
     /// Millilitres expressed.
@@ -79,12 +93,25 @@ pub struct DaySummary {
 }
 
 impl DaySummary {
+    /// Mean milk volume over bottles with amounts, including formula and breast milk.
+    #[must_use]
+    pub fn average_milk_ml(&self) -> Option<f64> {
+        (self.measured_bottle_count > 0).then(|| self.total_ml / self.measured_bottle_count as f64)
+    }
+
+    /// Mean nursing duration over nursing sessions only.
+    #[must_use]
+    pub fn average_nursing_seconds(&self) -> Option<f64> {
+        (self.nursing_count > 0).then(|| self.nursing_seconds / self.nursing_count as f64)
+    }
+
     const fn empty(day: Date, partial: bool) -> Self {
         Self {
             day,
             partial,
             feed_count: 0,
             bottle_count: 0,
+            measured_bottle_count: 0,
             nursing_count: 0,
             solids_count: 0,
             total_ml: 0.0,
@@ -104,6 +131,11 @@ impl DaySummary {
             day_sleep_seconds: 0.0,
             sleep_count: 0,
             longest_sleep_seconds: 0.0,
+            average_nap_seconds: None,
+            wake_seconds: None,
+            night_wake_seconds: None,
+            average_wake_seconds: None,
+            longest_wake_seconds: None,
             pump_count: 0,
             pumped_ml: 0.0,
             milestone_count: 0,
@@ -174,39 +206,7 @@ pub fn build(
         }
     }
 
-    for sleep in &dataset.sleep {
-        // Counts and the longest stretch belong to the day the sleep began.
-        if let Some(slot) = index(rule.day_of(calendar, sleep.start)) {
-            let row = &mut rows[slot];
-            row.sleep_count += 1;
-            row.longest_sleep_seconds = row.longest_sleep_seconds.max(sleep.duration);
-        }
-        // Seconds are apportioned to whichever days the sleep actually covered.
-        let mut elapsed = 0.0;
-        for (day, seconds) in rule.split_across_days(calendar, sleep.start, sleep.duration) {
-            let segment_start = sleep.start + elapsed;
-            elapsed += seconds;
-            let Some(slot) = index(day) else {
-                continue;
-            };
-            let row = &mut rows[slot];
-            row.sleep_seconds += seconds;
-            // Classified by the midpoint of each segment rather than of the
-            // whole sleep, so a sleep straddling the day's start divides.
-            let midpoint = segment_start + seconds / 2.0;
-            let position = super::now::night_position(
-                calendar,
-                midpoint,
-                dataset.child.night_start_hour,
-                dataset.child.morning_cutoff_hour,
-            );
-            if position.inside {
-                row.night_sleep_seconds += seconds;
-            } else {
-                row.day_sleep_seconds += seconds;
-            }
-        }
-    }
+    sleep::fill(&mut rows, dataset, calendar, rule, now);
 
     for session in &dataset.pumps {
         let Some(slot) = index(rule.day_of(calendar, session.start)) else {
@@ -223,7 +223,8 @@ pub fn build(
     }
 
     for row in &mut rows {
-        row.has_data = row.feed_count + row.solids_count + row.diaper_count + row.sleep_count > 0;
+        row.has_data = row.feed_count + row.solids_count + row.diaper_count + row.sleep_count > 0
+            || row.sleep_seconds > 0.0;
     }
     rows
 }
@@ -242,6 +243,7 @@ fn add_feed(row: &mut DaySummary, feed: &FeedEvent) {
             // volume: a row the parent forgot to fill in must not drag the
             // daily total down.
             if let Some(amount) = amount_ml {
+                row.measured_bottle_count += 1;
                 row.total_ml += amount;
                 if bottle_type.as_deref() == Some("Breast Milk") {
                     row.breast_milk_ml += amount;

@@ -121,20 +121,21 @@ Wed 23 Sep │██▼█◦███▼◦███ ▼◦  ▼█◦ ▼ █�
             █ asleep   ▼ feed   ◦ diaper   · night
 ````
 
-```console
-$ h summary
-day          feeds  milk ml  formula ml  breast ml  nursed  sleep  night  longest  wet  dirty
-Sun 27 Sep       8      373         223        150     56m   11.3    7.9   2h 36m    7      4
-Sat 26 Sep       9      443         299        144   1h 1m   13.1    9.9   2h 38m    8      3
+`h summary` opens a day table grouped into feed, sleep, diaper and wake time.
+Tab/Shift-Tab or left/right (H/L, A/D) selects a numeric column and draws its
+line graph underneath. Up/down scrolls the rows and notes; Esc or Q leaves.
+Milk/feed averages only bottles with recorded amounts, and nurse/feed averages
+only nursing sessions. The night note shows the configured hours and the commands
+that change them. The same view is in the shell under Visualizations > Summary.
 
-average over 6 complete days: 9.0 feeds · 441 ml milk · 13.8h sleep · 8.0 wet · 3.5 dirty
-Wren is 21 days old
-  typical in the first weeks: 8 or more feeds a day
-  typical at this age: 8 to 20 hours in 24
-  typical from day 3: 5 or more wet diapers a day
-
-  typical ranges are not your baby: where your pediatrician disagrees, they are right
+```sh
+h summary --days 7
+h summary --days 30 --json > month.json
 ```
+
+Piped output stays a plain table. [Screen details](docs/dashboards.md#summary)
+explain the nap and wake calculations, missing values, and existing age-aware
+reference ranges.
 
 And `h dash` for all of it at once, full screen and live.
 

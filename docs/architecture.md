@@ -69,6 +69,7 @@ src/
 │   ├── today.rs     what "today" means to this family, and what it adds up to
 │   └── reference.rs age-aware typical ranges, read from data/reference.toml
 │                     (researched and reviewed: see docs/research/)
+├── summary.rs       terminal/hosted input loops for the summary visualization
 ├── render/          domain values to lines of text
 ├── tui/             the always-on shell `h` opens with no command
 ├── dashboard/       the full-screen version of the same values
@@ -175,6 +176,23 @@ Drawing on stderr rather than stdout is what keeps `h > entries.txt` filling the
 file with what the commands printed. The menu is the conversation; the commands
 are the data. It is also why `prompt::available` (stdin and stderr) is still the
 right gate for opening it at all.
+
+## Interactive summary
+
+`summary.rs` owns only the standalone terminal and hosted input loops. Both draw
+`render::summary::view::View`, whose state handles column cycling and vertical
+scrolling without I/O. The shared column catalog supplies headings, table cells,
+and graph values; `render::summary::chart` renders Ratatui's line chart into a
+buffer, then returns lines through the existing host protocol. No second screen
+or host protocol is needed in the shell. Redirected output and JSON bypass the
+input loop.
+
+`domain::summaries::sleep` owns interval merging, precise family-day/night
+intersections, completed nap averages, and waking gaps. Paused sleep endpoints
+are retained by normalization as `LiveState::sleep_paused_at`, an optional field
+compatible with older snapshots. A missing paused endpoint leaves affected wake
+estimates unknown rather than counting that sleep as waking. Table and JSON
+consume the same daily aggregates.
 
 ## Setup, and the settings with no default
 

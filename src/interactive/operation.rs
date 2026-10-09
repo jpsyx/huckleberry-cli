@@ -176,3 +176,7 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "operation/summary_tests.rs"]
+mod summary_tests;

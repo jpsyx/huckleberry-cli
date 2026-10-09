@@ -124,6 +124,13 @@ chose.
 | `stripes` | each row runs from the previous `day_end` to this one, so a night lands whole on one row |
 | every screen with a night on it | `day_end` and `day_start` replace the profile's night, applied to the dataset once as it is read |
 
+Summary labels its night columns with an asterisk and prints the current night
+start, end, and timezone below the rows. The dim parenthetical names both
+commands: `h config set day_end HH:MM` changes night start, and
+`h config set day_start HH:MM` changes night end. The displayed times are the
+current values, to replace with the family's preferred hours. In the interactive
+view, scroll the rows and notes to reach this explanation on short panels.
+
 `child show` prints the night this tool uses, which is the configured one when
 there is one. That is deliberate: it is the night the screens are drawn with.
 

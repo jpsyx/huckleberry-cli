@@ -289,6 +289,8 @@ pub struct LiveState {
     pub sleep_start: Option<Seconds>,
     /// Whether that sleep is paused.
     pub sleep_paused: bool,
+    /// When the current sleep was paused, in seconds; absent in older snapshots.
+    pub sleep_paused_at: Option<Seconds>,
     /// Whether a nursing session is running.
     pub nursing_active: bool,
     /// When it started. The feed timer's value is already seconds.

@@ -162,41 +162,64 @@ the intervals collection yet, so history cannot know about it.
 
 ## `summary`
 
-The table a pediatrician asks for.
+A day table with four merged category headings above its numeric columns:
 
-```
-day          feeds  milk ml  formula ml  breast ml    nursed     sleep     night  longest  wet  dirty
-Sun 27 Sep       8      373         223        150       56m   11h 18m    7h 54m   2h 36m    7      4
-Sat 26 Sep       9      443         299        144     1h 1m    13h 6m    9h 54m   2h 38m    8      3
-…
+| Category | Columns |
+| --- | --- |
+| feed | feeds, milk, formula, breast, milk/feed, nursed, nurse/feed |
+| sleep | sleep, night, longest, avg nap |
+| diaper | wet, dirty |
+| wake time | wake time, night wake, avg wake, longest |
 
-average over 6 complete days: 9.0 feeds · 441 ml milk · 13h 48m sleep · 8.0 wet · 3.5 dirty
-Wren is 21 days old
-  typical in the first weeks: 8 or more feeds a day (this week is in that range)
-  typical at this age: 8 to 20 hours a day (this week is in that range)
-  typical from day 3: 5 or more wet diapers a day (this week is in that range)
+Volume headings follow the configured `ml` or `oz` unit. Milk/feed includes
+formula and expressed breast milk, divided by the number of bottles with a
+recorded amount. Unknown amounts are not zero measurements. Nurse/feed divides
+both sides' duration by nursing sessions only. Neither average uses all feeds.
+A missing denominator prints a dash and becomes `null` in JSON.
 
-  typical ranges are not your baby: where your pediatrician disagrees, they are right
-```
+On a terminal, `summary` opens an interactive table. It runs through the prompt
+host in the shell, keeping the Now drawer in place. Tab and Shift-Tab, left/right,
+H/L, and A/D cycle every numeric column, wrapping at the ends. Day is fixed and
+cannot be selected. Selection has brackets as well as colour. Numeric columns
+shift into view on narrow screens while the day stays visible.
 
-Today's row is bold bright white. In the block underneath, each figure and each
-band line is green when the week is inside the range and yellow when it is not,
-with milk grey because it has no range. It is not faint: this is the part
-somebody reads to find out whether anything is off, and faint made it the
-hardest thing on the screen to read. It is secondary by where it sits, not by
-being hard to see.
+A Ratatui line graph below the table shows the selected metric across the entire
+requested window, oldest to newest. Durations use hours on its labelled axis;
+the table keeps hours and minutes. Missing values break the line instead of
+becoming zero or joining across an unrecorded day. A single value is a point.
+Up/down, J/K, W/S, PageUp/PageDown, and Home/End scroll the rows and notes while
+the graph stays visible. Short panels omit the title to retain a data row.
+Esc or Q returns directly to the menu. Piped output stays a plain table;
+`--json` always prints numeric data and never opens an interactive screen.
 
-Each row is one of this family's days, `day_start` to `day_start`, not a
-calendar day. Under a day starting at 6am a 4am feed is counted on the row
-before, which is where the person who gave it will look for it. See
-[`setup.md`](setup.md).
+Each row covers `day_start` to the next `day_start` in the family's timezone.
+Today is partial and bold; completed-day averages continue to skip it and empty
+rows. Existing reference bands and the pediatrician note retain their meanings.
+No new reference ranges are attached to the new metrics.
 
-One asymmetry is worth knowing about. Sleep **seconds** are split at the hour
-the day starts, so a sleep across that boundary contributes to both rows. Sleep
-**counts** and the longest stretch belong to the day the sleep began. Splitting
-the counts would turn one sleep into two; not splitting the seconds would lose
-part of it off one row. Most nights now fall inside a single row rather than
-being divided at all, which is the point of counting days this way.
+Sleep totals merge overlapping intervals and split them at both the day and
+night boundaries, using actual elapsed seconds through daylight saving changes.
+Completed sleep counts and the longest sleep belong to the day the sleep began.
+Average nap is the mean full duration of completed sleeps that began during the
+configured daytime; it excludes night starts and unfinished live sleeps.
+
+Wake totals estimate elapsed time outside recorded sleep. They subtract sleep
+coverage from the elapsed family day, or from its elapsed night for night wake.
+They stop at now for today and remain absent without sleep records. A running
+sleep contributes up to now, a paused one up to its pause timestamp. Older
+snapshots that omit that timestamp leave affected wake estimates absent.
+These are estimates from the log, not independent measurements of waking.
+
+Average and longest wake use complete gaps from one sleep's end to the next
+sleep's start, after overlaps are merged. Both belong to the day waking began,
+even if the gap crosses a day boundary. The unfinished gap after the last sleep
+is excluded; so is any unknown gap before the first recorded sleep.
+
+The muted note below the rows names the configured night start and end, and the
+timezone. Its parenthetical shows `h config set day_end HH:MM` to change night
+start and `h config set day_start HH:MM` to change night end, using current values
+as editable examples. The same settings are reachable through the shell's Config
+menu. See [`setup.md`](setup.md).
 
 ## `stripes`
 

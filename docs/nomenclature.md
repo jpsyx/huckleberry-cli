@@ -12,7 +12,8 @@ grows two implementations.
 | --- | --- |
 | **the shell** | The full-screen app `h` opens with no command, and keeps open. `src/tui/`. Not the dashboard. |
 | **the dashboard** | Five tabs over the same data. `src/dashboard/`. It is both a program of its own (`h dash`) and a view inside the shell; say which when it could be either. |
-| **a one-shot command** | Anything that prints and exits: `h now`, `h summary`, `h log`. |
+| **a one-shot command** | A command that prints and exits, such as `h now`. Summary and log are browsable on a terminal and print when piped. |
+| **the Summary view** | The browsable day table and selected-column line graph, in the shell or through `h summary`. |
 | **a listing** | The searchable, scrollable list behind `h log`, `h edit` and `h delete`. `src/listing/`. |
 
 The shell and the dashboard are different programs. When a sentence could mean
@@ -73,6 +74,9 @@ either, say which.
 | **day start** | The hour a day begins at. Anything earlier belongs to the day before. Always configured. |
 | **day end** | The hour a day ends at, which is where night begins. Always configured. Was called **night start**, which is the same hour under a name that made it sound like a third setting. |
 | **the night** | The stretch from `day_end` to the next `day_start`. Not configured separately: it is what is left over. |
+| **a nap** (in summary) | A completed sleep starting in the configured daytime. Its full duration belongs to its start day. |
+| **a wake gap** | A complete span from one sleep ending to the next starting, assigned to the day waking began. |
+| **wake time** (in summary) | Estimated elapsed day time outside recorded sleep; night wake restricts it to the configured night. |
 | **a day row** | One row of `summary` or `trends`: `day_start` to `day_start`. |
 | **a calendar day** | Midnight to midnight, in the family's timezone. What `log`, `edit` and `delete` group under, and what a timestamp is always reported against. Never used for arithmetic. |
 | **a stripe row** | One row of `stripes`: the previous `day_end` to this one, so a night lands whole on it. |

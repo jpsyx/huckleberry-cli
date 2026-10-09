@@ -252,6 +252,7 @@ pub fn live(sleep: Option<&SleepDocument>, feed: Option<&FeedDocument>) -> LiveS
         sleep_active: sleep_timer.is_some(),
         sleep_start: sleep_timer.and_then(huckleberry_api::models::SleepTimer::started_at),
         sleep_paused: sleep_timer.is_some_and(|timer| timer.paused),
+        sleep_paused_at: sleep_timer.and_then(huckleberry_api::models::SleepTimer::paused_at),
         nursing_active: feed_timer.is_some(),
         nursing_start: feed_timer.and_then(|timer| {
             timer

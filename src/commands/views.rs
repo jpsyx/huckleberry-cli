@@ -47,6 +47,18 @@ pub async fn summary(context: &Context, days: Option<u32>, json: bool) -> Result
         crate::render::print(&[serde_json::to_string_pretty(&rows_as_json(&rows))?]);
         return Ok(());
     }
+    if crate::summary::interactive() {
+        return crate::summary::show(
+            &render::summary::view::View {
+                rows: &rows,
+                dataset: &dataset,
+                calendar: &calendar,
+                units: units(context),
+                now: at,
+            },
+            context.output_theme(),
+        );
+    }
     render::print(&render::summary::lines(
         &rows,
         &dataset,
@@ -232,6 +244,8 @@ fn rows_as_json(rows: &[summaries::DaySummary]) -> serde_json::Value {
                     "formula_ml": row.formula_ml,
                     "breast_milk_ml": row.breast_milk_ml,
                     "nursing_seconds": row.nursing_seconds,
+                    "average_milk_ml": row.average_milk_ml(),
+                    "average_nursing_seconds": row.average_nursing_seconds(),
                     "left_seconds": row.left_seconds,
                     "right_seconds": row.right_seconds,
                     "average_feed_gap_seconds": row.average_feed_gap_seconds,
@@ -245,6 +259,11 @@ fn rows_as_json(rows: &[summaries::DaySummary]) -> serde_json::Value {
                     "day_sleep_seconds": row.day_sleep_seconds,
                     "sleeps": row.sleep_count,
                     "longest_sleep_seconds": row.longest_sleep_seconds,
+                    "average_nap_seconds": row.average_nap_seconds,
+                    "wake_seconds": row.wake_seconds,
+                    "night_wake_seconds": row.night_wake_seconds,
+                    "average_wake_seconds": row.average_wake_seconds,
+                    "longest_wake_seconds": row.longest_wake_seconds,
                     "pumps": row.pump_count,
                     "pumped_ml": row.pumped_ml,
                     "milestones": row.milestone_count,
@@ -297,5 +316,211 @@ mod tests {
         assert_eq!(json.as_array().expect("an array").len(), 3);
         assert_eq!(json[0]["day"], serde_json::json!("2025-09-22"));
         assert_eq!(json[0]["milk_ml"], serde_json::json!(90.0));
+    }
+
+    fn summary_json(
+        data: &crate::domain::types::Dataset,
+        at: f64,
+        days: usize,
+    ) -> serde_json::Value {
+        let calendar = Calendar::new("America/New_York").unwrap();
+        rows_as_json(&summaries::build(
+            data,
+            &calendar,
+            DayRule::discrete(7.0, 20.0),
+            at,
+            days,
+        ))
+    }
+
+    fn at(date: &str, hour: i8, minute: i8) -> f64 {
+        Calendar::new("America/New_York")
+            .unwrap()
+            .at(date.parse().unwrap(), hour, minute)
+    }
+
+    #[test]
+    fn summary_averages_use_only_measured_bottles_and_nursing_sessions() {
+        use crate::domain::fixtures::nursing;
+        let mut data = dataset();
+        let mut breast = bottle(AFTERNOON - 7200.0, 60.0);
+        if let crate::domain::types::FeedEvent::Bottle { bottle_type, .. } = &mut breast {
+            *bottle_type = Some("Breast Milk".into());
+        }
+        data.feeds = vec![
+            bottle(AFTERNOON, 120.0),
+            breast,
+            nursing(AFTERNOON - 3600.0, 300.0, 300.0),
+            nursing(AFTERNOON - 1800.0, 600.0, 600.0),
+        ];
+        let json = summary_json(&data, AFTERNOON, 1);
+        assert_eq!(json[0]["average_milk_ml"], 90.0);
+        assert_eq!(json[0]["average_nursing_seconds"], 900.0);
+    }
+
+    #[test]
+    fn summary_missing_bottle_amounts_do_not_become_zero_measurements() {
+        let mut data = dataset();
+        let mut unknown = bottle(AFTERNOON, 0.0);
+        if let crate::domain::types::FeedEvent::Bottle { amount_ml, .. } = &mut unknown {
+            *amount_ml = None;
+        }
+        data.feeds = vec![unknown, bottle(AFTERNOON - 3600.0, 120.0)];
+        let json = summary_json(&data, AFTERNOON, 1);
+        assert_eq!(json[0]["bottles"], 2);
+        assert_eq!(json[0]["average_milk_ml"], 120.0);
+        assert!(json[0]["average_nursing_seconds"].is_null());
+    }
+
+    #[test]
+    fn summary_naps_exclude_night_sleeps_and_night_totals_split_at_day_end() {
+        use crate::domain::fixtures::sleep;
+        let mut data = dataset();
+        data.sleep = vec![
+            sleep(at("2025-09-21", 10, 0), 1800.0),
+            sleep(at("2025-09-21", 19, 30), 3600.0),
+            sleep(at("2025-09-21", 22, 0), 7200.0),
+        ];
+        let json = summary_json(&data, AFTERNOON, 2);
+        assert_eq!(json[1]["average_nap_seconds"], 2700.0);
+        assert_eq!(json[1]["night_sleep_seconds"], 9000.0);
+        assert_eq!(json[1]["day_sleep_seconds"], 3600.0);
+        assert_eq!(json[1]["wake_seconds"], 73800.0);
+        assert_eq!(json[1]["night_wake_seconds"], 30600.0);
+    }
+
+    #[test]
+    fn summary_wake_gaps_run_from_sleep_end_to_next_start() {
+        use crate::domain::fixtures::sleep;
+        let mut data = dataset();
+        data.sleep = vec![
+            sleep(at("2025-09-22", 12, 0), 3600.0),
+            sleep(at("2025-09-22", 8, 0), 3600.0),
+            sleep(at("2025-09-22", 10, 0), 1800.0),
+        ];
+        let json = summary_json(&data, AFTERNOON, 1);
+        assert_eq!(json[0]["average_wake_seconds"], 4500.0);
+        assert_eq!(json[0]["longest_wake_seconds"], 5400.0);
+        assert_eq!(json[0]["wake_seconds"], 16200.0);
+        assert!(
+            json[0]["night_wake_seconds"].is_null(),
+            "night has not started"
+        );
+    }
+
+    #[test]
+    fn summary_overlapping_sleep_does_not_double_count_or_make_negative_gaps() {
+        use crate::domain::fixtures::sleep;
+        let mut data = dataset();
+        data.sleep = vec![
+            sleep(at("2025-09-22", 8, 0), 7200.0),
+            sleep(at("2025-09-22", 9, 0), 7200.0),
+            sleep(at("2025-09-22", 12, 0), 3600.0),
+        ];
+        let json = summary_json(&data, AFTERNOON, 1);
+        assert_eq!(json[0]["sleep_seconds"], 14400.0);
+        assert_eq!(json[0]["wake_seconds"], 10800.0);
+        assert_eq!(json[0]["average_wake_seconds"], 3600.0);
+    }
+
+    #[test]
+    fn summary_dst_wake_totals_use_actual_elapsed_seconds() {
+        use crate::domain::fixtures::sleep;
+        let mut data = dataset();
+        data.sleep = vec![sleep(at("2025-11-01", 22, 0), 7200.0)];
+        let json = summary_json(&data, at("2025-11-02", 14, 0), 2);
+        assert_eq!(json[1]["wake_seconds"], 82800.0, "25h day minus 2h sleep");
+        assert_eq!(
+            json[1]["night_wake_seconds"], 36000.0,
+            "12h night minus 2h sleep"
+        );
+    }
+
+    #[test]
+    fn summary_empty_days_have_no_wake_estimates_or_averages() {
+        let json = summary_json(&dataset(), AFTERNOON, 1);
+        for field in [
+            "wake_seconds",
+            "night_wake_seconds",
+            "average_wake_seconds",
+            "longest_wake_seconds",
+            "average_nap_seconds",
+            "average_milk_ml",
+            "average_nursing_seconds",
+        ] {
+            assert!(json[0].get(field).is_some(), "missing {field}");
+            assert!(json[0][field].is_null(), "{field} should be absent");
+        }
+    }
+
+    #[test]
+    fn summary_live_sleep_is_not_mistaken_for_awake_time_or_a_finished_nap() {
+        let mut data = dataset();
+        data.live.sleep_active = true;
+        data.live.sleep_start = Some(at("2025-09-22", 12, 0));
+        let json = summary_json(&data, AFTERNOON, 1);
+        assert_eq!(json[0]["sleep_seconds"], 7200.0);
+        assert_eq!(json[0]["wake_seconds"], 18000.0);
+        assert!(json[0]["average_nap_seconds"].is_null());
+    }
+    #[test]
+    fn summary_paused_sleep_retains_elapsed_sleep_without_counting_the_pause() {
+        use crate::domain::fixtures::sleep;
+        let mut data = dataset();
+        data.sleep = vec![sleep(at("2025-09-22", 8, 0), 3600.0)];
+        let document = serde_json::from_value(serde_json::json!({"timer": {
+            "active": true, "paused": true, "uuid": "paused-sleep",
+            "timerStartTime": at("2025-09-22", 11, 0) * 1000.0,
+            "timerEndTime": at("2025-09-22", 13, 0) * 1000.0
+        }}))
+        .unwrap();
+        data.live = crate::domain::normalize::live(Some(&document), None);
+        assert!(data.live.sleep_active, "the fixture must retain its timer");
+        let json = summary_json(&data, AFTERNOON, 1);
+        assert_eq!(json[0]["sleep_seconds"], 10800.0);
+        assert_eq!(json[0]["wake_seconds"], 14400.0);
+        assert_eq!(json[0]["average_nap_seconds"], 3600.0);
+    }
+
+    #[test]
+    fn summary_old_paused_snapshot_does_not_turn_unknown_sleep_into_waking() {
+        use crate::domain::fixtures::sleep;
+        let mut data = dataset();
+        data.sleep = vec![sleep(at("2025-09-22", 8, 0), 3600.0)];
+        data.live = serde_json::from_value(serde_json::json!({
+            "sleep_active": true, "sleep_paused": true,
+            "sleep_start": at("2025-09-22", 11, 0)
+        }))
+        .unwrap();
+        let json = summary_json(&data, AFTERNOON, 1);
+        assert!(json[0]["wake_seconds"].is_null());
+    }
+    #[test]
+    fn summary_naps_follow_the_same_boundaries_as_daytime_sleep_for_inverted_hours() {
+        let mut data = dataset();
+        data.sleep = vec![crate::domain::fixtures::sleep(
+            at("2025-09-21", 22, 0),
+            3600.0,
+        )];
+        let calendar = Calendar::new("America/New_York").unwrap();
+        let rows = summaries::build(&data, &calendar, DayRule::discrete(20.0, 7.0), AFTERNOON, 1);
+        let json = rows_as_json(&rows);
+        assert_eq!(json[0]["day_sleep_seconds"], 3600.0);
+        assert_eq!(json[0]["average_nap_seconds"], 3600.0);
+    }
+    #[test]
+    fn summary_unknown_pause_cannot_start_an_invented_wake_gap() {
+        use crate::domain::fixtures::sleep;
+        let mut data = dataset();
+        data.sleep = vec![
+            sleep(at("2025-09-22", 8, 0), 3600.0),
+            sleep(at("2025-09-22", 12, 0), 3600.0),
+        ];
+        data.live.sleep_active = true;
+        data.live.sleep_paused = true;
+        data.live.sleep_start = Some(at("2025-09-22", 11, 0));
+        let json = summary_json(&data, AFTERNOON, 1);
+        assert_eq!(json[0]["average_wake_seconds"], 7200.0);
+        assert_eq!(json[0]["longest_wake_seconds"], 7200.0);
     }
 }

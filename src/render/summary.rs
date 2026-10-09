@@ -1,12 +1,8 @@
 //! The day table: one row per day, the numbers a pediatrician asks for.
 //!
-//! Plain columns, no box drawing. The table is meant to be read on a phone
-//! over SSH at 3am and to survive being pasted into a message, and a
-//! hand-aligned grid of box characters survives neither.
-//!
-//! Typical ranges appear as a grey line under the table, never as a colour on
-//! a row. Nothing here is ever painted red: a number outside a band is
-//! visibly outside it, and what to do about that is the reader's call.
+//! Category headings span their numeric columns; the same catalog drives plain
+//! output, interactive selection and the Ratatui graph. Typical ranges stay
+//! below the table, never as a verdict painted onto a day's row.
 
 use crate::cli::Units;
 use crate::domain::reference::{self, Metric, Standing};
@@ -17,74 +13,11 @@ use crate::theme::{Theme, Tone};
 
 use super::format;
 
-/// One column of the table.
-struct Column {
-    heading: &'static str,
-    width: usize,
-    value: fn(&DaySummary, Units) -> String,
-}
+mod chart;
+pub mod columns;
+pub mod view;
 
-const COLUMNS: &[Column] = &[
-    Column {
-        heading: "day",
-        width: 11,
-        value: |row, _| format::day_short(row.day),
-    },
-    Column {
-        heading: "feeds",
-        width: 5,
-        value: |row, _| format::count(row.feed_count),
-    },
-    Column {
-        heading: "milk",
-        width: 6,
-        value: |row, units| volume_or_dash(row.total_ml, units),
-    },
-    Column {
-        heading: "formula",
-        width: 7,
-        value: |row, units| volume_or_dash(row.formula_ml, units),
-    },
-    Column {
-        heading: "breast",
-        width: 6,
-        value: |row, units| volume_or_dash(row.breast_milk_ml, units),
-    },
-    Column {
-        heading: "nursed",
-        width: 8,
-        value: |row, _| format::duration(row.nursing_seconds),
-    },
-    Column {
-        heading: "sleep",
-        width: 8,
-        value: |row, _| format::duration(row.sleep_seconds),
-    },
-    Column {
-        heading: "night",
-        width: 8,
-        value: |row, _| format::duration(row.night_sleep_seconds),
-    },
-    Column {
-        heading: "longest",
-        width: 7,
-        value: |row, _| format::duration(row.longest_sleep_seconds),
-    },
-    Column {
-        heading: "wet",
-        width: 3,
-        value: |row, _| format::count(row.wet_count),
-    },
-    Column {
-        heading: "dirty",
-        width: 5,
-        value: |row, _| format::count(row.dirty_count),
-    },
-];
-
-fn volume_or_dash(millilitres: f64, units: Units) -> String {
-    format::volume_bare((millilitres > 0.0).then_some(millilitres), units)
-}
+use columns::{COLUMNS, data_cells, group_row, heading_cells, join_cells};
 
 /// The table, one line per row, ready for stdout.
 #[must_use]
@@ -96,7 +29,10 @@ pub fn lines(
     units: Units,
     now: f64,
 ) -> Vec<String> {
-    let mut lines = vec![theme.heading(&heading_row(units))];
+    let mut lines = vec![
+        theme.heading(&group_row(units, 0..COLUMNS.len())),
+        theme.heading(&heading_row(units)),
+    ];
     for row in rows {
         let text = data_row(row, units);
         // Today is the row somebody is looking for, so it is the brightest
@@ -107,7 +43,38 @@ pub fn lines(
             theme.value(&text)
         });
     }
-    lines.push(String::new());
+    lines.extend(footer(rows, dataset, calendar, theme, units, now));
+    lines
+}
+
+/// Notes and reference ranges shared by the plain and interactive views.
+#[must_use]
+pub fn footer(
+    rows: &[DaySummary],
+    dataset: &Dataset,
+    calendar: &Calendar,
+    theme: Theme,
+    units: Units,
+    now: f64,
+) -> Vec<String> {
+    let mut lines = vec![String::new()];
+    lines.extend(
+        night_note(dataset)
+            .into_iter()
+            .map(|line| theme.muted(&line)),
+    );
+    lines.push(theme.muted(
+        "Wake totals estimate time outside recorded sleep; gaps need two sleeps. Today is partial.",
+    ));
+    lines.push(
+        theme.muted(
+            "Averages: measured bottles only; nursing sessions only; naps start in daytime.",
+        ),
+    );
+    lines.push(
+        theme.muted("Wake gaps belong to the day waking began; unfinished gaps are excluded."),
+    );
+    lines.push(theme.muted(&crate::render::now::as_of(dataset, now)));
     let age = dataset
         .child
         .birthdate
@@ -118,51 +85,46 @@ pub fn lines(
     lines
 }
 
+fn night_note(dataset: &Dataset) -> Vec<String> {
+    let start = crate::domain::time::split_hour(dataset.child.night_start_hour);
+    let end = crate::domain::time::split_hour(dataset.child.morning_cutoff_hour);
+    let label = |(hour, minute)| crate::domain::clock::TimeOfDay { hour, minute }.label();
+    vec![
+        format!(
+            "* Night: {} to the next {} ({}).",
+            label(start),
+            label(end),
+            dataset.timezone
+        ),
+        format!(
+            "(Change night start: h config set day_end {:02}:{:02};",
+            start.0, start.1
+        ),
+        format!(
+            " change night end: h config set day_start {:02}:{:02}. Choose your preferred times.)",
+            end.0, end.1
+        ),
+    ]
+}
+
 /// The heading row, with the volume unit named in it.
 #[must_use]
 pub fn heading_row(units: Units) -> String {
-    let unit = match units {
-        Units::Ml => "ml",
-        Units::Oz => "oz",
-    };
-    COLUMNS
-        .iter()
-        .map(|column| {
-            let heading = match column.heading {
-                "milk" | "formula" | "breast" => format!("{} {unit}", column.heading),
-                other => other.to_owned(),
-            };
-            let width = column.width.max(heading.chars().count());
-            if column.heading == "day" {
-                format::pad(&heading, width)
-            } else {
-                format::pad_left(&heading, width)
-            }
-        })
-        .collect::<Vec<_>>()
-        .join("  ")
+    join_cells(
+        "day",
+        &heading_cells(units, 0..COLUMNS.len(), None),
+        0..COLUMNS.len(),
+    )
 }
 
-/// One day's row.
+/// One day's row, using the same columns as the interactive view.
 #[must_use]
 pub fn data_row(row: &DaySummary, units: Units) -> String {
-    COLUMNS
-        .iter()
-        .map(|column| {
-            let heading_width = match column.heading {
-                "milk" | "formula" | "breast" => column.heading.chars().count() + 3,
-                other => other.chars().count(),
-            };
-            let width = column.width.max(heading_width);
-            let value = (column.value)(row, units);
-            if column.heading == "day" {
-                format::pad(&value, width)
-            } else {
-                format::pad_left(&value, width)
-            }
-        })
-        .collect::<Vec<_>>()
-        .join("  ")
+    join_cells(
+        &format::day_short(row.day),
+        &data_cells(row, units, 0..COLUMNS.len()),
+        0..COLUMNS.len(),
+    )
 }
 
 /// One averaged figure, and the band it is judged against.
@@ -580,6 +542,43 @@ mod tests {
                 !painted.contains(&format!("\u{1b}[{alarming}m")),
                 "nothing about a baby's day is an error or a warning"
             );
+        }
+    }
+    #[test]
+    fn summary_has_grouped_headers_and_displays_type_specific_averages() {
+        use crate::domain::fixtures::nursing;
+        let mut data = dataset();
+        data.feeds = vec![
+            bottle(AFTERNOON, 90.0),
+            bottle(AFTERNOON - 3600.0, 150.0),
+            nursing(AFTERNOON - 1800.0, 600.0, 300.0),
+        ];
+        let rendered = table(&data, 1);
+        let lines: Vec<_> = rendered.lines().collect();
+        for group in ["feed", "sleep", "diaper", "wake time"] {
+            assert!(lines[0].contains(group), "{rendered}");
+        }
+        for heading in ["ml/feed", "nurse/feed", "avg nap", "avg wake"] {
+            assert!(lines[1].contains(heading), "{rendered}");
+        }
+        assert!(lines[2].contains("120"), "{rendered}");
+        assert!(lines[2].contains("15m"), "{rendered}");
+    }
+
+    #[test]
+    fn summary_night_note_uses_configured_hours_and_names_commands() {
+        let mut data = dataset();
+        data.child.night_start_hour = 19.5;
+        data.child.morning_cutoff_hour = 6.25;
+        let rendered = table(&data, 1);
+        for value in [
+            "7:30 pm",
+            "6:15 am",
+            "America/New_York",
+            "h config set day_end",
+            "h config set day_start",
+        ] {
+            assert!(rendered.contains(value), "{value} missing: {rendered}");
         }
     }
 }
