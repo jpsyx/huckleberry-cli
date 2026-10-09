@@ -50,10 +50,15 @@ pub fn screen(
     let ranges = ranges(view, &dataset.child, calendar, now);
     let columns = layout::Columns::for_width(width);
     let tables = totals_rows(view, units, now, columns.table_width());
-    columns.arrange(facts(view, dataset, calendar, units, now), tables, ranges)
+    columns.arrange(
+        facts(view, dataset, calendar, units, now),
+        tables,
+        ranges,
+        freshness(dataset, now),
+    )
 }
 
-/// Last events and freshness, kept together independently of the totals.
+/// Last events, kept together independently of the totals.
 fn facts(
     view: &NowView,
     dataset: &Dataset,
@@ -82,8 +87,12 @@ fn facts(
         ));
     }
 
-    rows.push(Row::new());
-    rows.push(vec![Piece::new(as_of(dataset, now), Tone::Muted)]);
+    rows
+}
+
+/// Freshness and read failures travel together so stale data stays explicit.
+fn freshness(dataset: &Dataset, now: f64) -> Vec<Row> {
+    let mut rows = vec![vec![Piece::new(as_of(dataset, now), Tone::Muted)]];
     for note in &dataset.notes {
         rows.push(vec![Piece::new(
             format!("  {} could not be read: {}", note.collection, note.problem),

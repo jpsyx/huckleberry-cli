@@ -555,7 +555,9 @@ widgets, so the two cannot drift: there is no second copy of the wording to
 forget to update. The same function chooses two columns at 96 content cells
 and a vertical stack below that. Two columns put Last facts and typical
 ranges together on the left and tables on the right, even on the widest
-screens. The drawer recomputes this on resize, after
+screens. The freshness line (`as of…`) and any read-failure notes sit at the
+bottom of the right column, below the tables. In a vertical stack they stay
+after the Last facts and before the tables. The drawer recomputes this on resize, after
 reserving its borders and leading space. Narrow widths retain all sections;
 the existing height limit still protects the menu on short screens.
 

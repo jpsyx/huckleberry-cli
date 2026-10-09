@@ -111,3 +111,30 @@ fn without_ranges_uses_two_useful_columns() {
     assert!(position(&rows, "Last fed").1 < position(&rows, "In last 4h").1);
     assert!(!rows.join("\n").contains("typical"));
 }
+
+#[test]
+fn freshness_sits_at_the_bottom_of_the_second_column() {
+    for width in [96, 120, 180, 240] {
+        for has_ranges in [false, true] {
+            let mut data = sample();
+            if !has_ranges {
+                data.child.birthdate = None;
+            }
+            let rows = rendered(&data, Some(width));
+            let freshness = position(&rows, "as of");
+            assert_eq!(freshness.1, position(&rows, "In last 4h").1);
+            assert_eq!(freshness.0, rows.len() - 1);
+            assert_eq!(rows.join("\n").matches("as of").count(), 1);
+        }
+    }
+}
+
+#[test]
+fn stacked_freshness_stays_between_facts_and_totals() {
+    for width in [None, Some(40), Some(95)] {
+        let rows = rendered(&sample(), width);
+        let freshness = position(&rows, "as of");
+        assert!(position(&rows, "Last sleep").0 < freshness.0);
+        assert!(freshness.0 < position(&rows, "In last 4h").0);
+    }
+}

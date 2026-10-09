@@ -37,19 +37,29 @@ impl Columns {
     }
 
     /// Reading order is facts, tables, ranges; two columns place ranges left.
-    pub(super) fn arrange(self, facts: Vec<Row>, tables: Vec<Row>, ranges: Vec<Row>) -> Vec<Row> {
+    pub(super) fn arrange(
+        self,
+        facts: Vec<Row>,
+        mut tables: Vec<Row>,
+        ranges: Vec<Row>,
+        freshness: Vec<Row>,
+    ) -> Vec<Row> {
         match self {
             Self::Stacked(width) => {
-                let rows = stack(stack(facts, tables), ranges);
+                let rows = stack(stack(stack(facts, freshness), tables), ranges);
                 match width {
                     Some(width) => wrap_rows(rows, width),
                     None => rows,
                 }
             }
-            Self::Two(widths) => beside(
-                &[wrap_rows(stack(facts, ranges), widths[0]), tables],
-                &widths,
-            ),
+            Self::Two(widths) => {
+                let left = wrap_rows(stack(facts, ranges), widths[0]);
+                let freshness = wrap_rows(freshness, widths[1]);
+                let footer_start = left.len().saturating_sub(freshness.len());
+                tables.resize(footer_start.max(tables.len() + 1), Row::new());
+                tables.extend(freshness);
+                beside(&[left, tables], &widths)
+            }
         }
     }
 }
