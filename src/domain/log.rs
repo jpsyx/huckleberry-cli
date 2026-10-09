@@ -125,12 +125,17 @@ pub fn build(dataset: &Dataset, volume: impl Fn(Option<f64>) -> String) -> Vec<E
     }
 
     for session in &dataset.pumps {
-        let mut description = format!(
-            "{} (L {}, R {})",
-            volume(session.total_ml),
-            volume(session.left_ml),
-            volume(session.right_ml)
-        );
+        let mut description =
+            if session.entry_mode == huckleberry_api::models::pump::PumpEntryMode::Total {
+                volume(session.total_ml)
+            } else {
+                format!(
+                    "{} (L {}, R {})",
+                    volume(session.total_ml),
+                    volume(session.left_ml),
+                    volume(session.right_ml)
+                )
+            };
         if let Some(seconds) = session.duration_seconds {
             description.push_str(" over ");
             description.push_str(&super::time::format_duration(seconds));
@@ -292,6 +297,7 @@ mod tests {
         data.pumps = vec![PumpEvent {
             at: None,
             id: "p1".to_owned(),
+            entry_mode: huckleberry_api::models::pump::PumpEntryMode::LeftRight,
             start: AFTERNOON - 900.0,
             left_ml: Some(60.0),
             right_ml: Some(40.0),

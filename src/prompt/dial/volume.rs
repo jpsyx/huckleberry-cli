@@ -40,16 +40,39 @@ const UNKNOWN_ML: f64 = 60.0;
 ///
 /// Cancelled when somebody backs out, and a failure when there is no screen.
 pub fn ask(label: &str, units: Units, amount: Option<f64>, theme: Theme) -> Result<(Units, f64)> {
+    ask_with_minimum(label, units, amount, theme, 1)
+}
+
+/// Shares the same dial with the zero-inclusive pump recording question.
+fn ask_with_minimum(
+    label: &str,
+    units: Units,
+    amount: Option<f64>,
+    theme: Theme,
+    minimum: i32,
+) -> Result<(Units, f64)> {
     let start = amount.unwrap_or_else(|| format::convert(UNKNOWN_ML, Units::Ml, units));
-    let dial = Dial::new(vec![amounts(units, start), units_wheel(units)]);
+    let dial = Dial::new(vec![amounts(units, start, minimum), units_wheel(units)]);
     // A volume has one way of being said, so Tab does nothing and the only
     // way out is the answer.
     let super::terminal::Outcome::Submitted(turned) =
-        super::terminal::ask(label, dial, theme, &mut settle)?
+        super::terminal::ask(label, dial, theme, &mut |dial, column| {
+            settle(dial, column, minimum);
+        })?
     else {
         unreachable!("a volume dial offers nothing to switch to")
     };
     Ok(read(&turned))
+}
+
+/// Asks for a volume that can include zero, as a pumping side can.
+pub fn ask_nonnegative(
+    label: &str,
+    units: Units,
+    amount: Option<f64>,
+    theme: Theme,
+) -> Result<(Units, f64)> {
+    ask_with_minimum(label, units, amount, theme, 0)
 }
 
 /// Keeps the amount meaning the same thing when the units change.
@@ -58,7 +81,7 @@ pub fn ask(label: &str, units: Units, amount: Option<f64>, theme: Theme) -> Resu
 /// millilitres becomes two ounces, not two millilitres. The new wheel stands
 /// on whichever of its notches is nearest, because an exact conversion is
 /// almost never one of them.
-fn settle(dial: &mut Dial, column: usize) {
+fn settle(dial: &mut Dial, column: usize, minimum: i32) {
     if column != UNITS {
         return;
     }
@@ -66,7 +89,7 @@ fn settle(dial: &mut Dial, column: usize) {
     let held: f64 = dial.value(AMOUNT).parse().unwrap_or_default();
     let wanted = format::convert(held, other(now), now);
     if let Some(wheel) = dial.wheels.get_mut(AMOUNT) {
-        *wheel = amounts(now, wanted);
+        *wheel = amounts(now, wanted, minimum);
     }
 }
 
@@ -74,11 +97,11 @@ fn settle(dial: &mut Dial, column: usize) {
 ///
 /// Millilitres are whole numbers and turn one at a time, leaping five.
 /// Ounces are quarters, and leap four of them, which is a whole ounce.
-fn amounts(units: Units, wanted: f64) -> Wheel {
+fn amounts(units: Units, wanted: f64, minimum: i32) -> Wheel {
     let (labels, leap): (Vec<String>, usize) = match units {
-        Units::Ml => ((1..=MOST_ML).map(|ml| ml.to_string()).collect(), 5),
+        Units::Ml => ((minimum..=MOST_ML).map(|ml| ml.to_string()).collect(), 5),
         Units::Oz => (
-            (1..=MOST_OZ_NOTCHES)
+            (minimum..=MOST_OZ_NOTCHES)
                 .map(|notch| format!("{:.2}", f64::from(notch) * OZ_NOTCH))
                 .collect(),
             4,
@@ -138,7 +161,7 @@ mod tests {
     }
 
     fn dial_at(units: Units, amount: f64) -> Dial {
-        Dial::new(vec![amounts(units, amount), units_wheel(units)])
+        Dial::new(vec![amounts(units, amount, 1), units_wheel(units)])
     }
 
     /// The two wheels end at the same bottle, so switching units near the top
@@ -155,7 +178,7 @@ mod tests {
 
     #[test]
     fn the_dial_reaches_a_twenty_four_ounce_bottle() {
-        let wheel = amounts(Units::Oz, 100.0);
+        let wheel = amounts(Units::Oz, 100.0, 1);
         assert_eq!(wheel.value(), "24.00", "the top of the wheel");
     }
 
@@ -198,7 +221,7 @@ mod tests {
             super::super::model::DialAction::Turned(column) => column,
             other => panic!("a turn, not {other:?}"),
         };
-        settle(&mut dial, column);
+        settle(&mut dial, column, 1);
         let (units, amount) = read(&dial);
         assert_eq!(units.as_str(), "oz");
         assert!(
@@ -215,7 +238,7 @@ mod tests {
             if let super::super::model::DialAction::Turned(column) =
                 dial.apply(press(KeyCode::Down))
             {
-                settle(&mut dial, column);
+                settle(&mut dial, column, 1);
             }
         }
         let (units, amount) = read(&dial);
@@ -237,7 +260,26 @@ mod tests {
 
     #[test]
     fn an_amount_is_never_zero_because_the_wheel_does_not_offer_one() {
-        assert_eq!(amounts(Units::Ml, 0.0).at(0), "1");
-        assert_eq!(amounts(Units::Oz, 0.0).at(0), "0.25");
+        assert_eq!(amounts(Units::Ml, 0.0, 1).at(0), "1");
+        assert_eq!(amounts(Units::Oz, 0.0, 1).at(0), "0.25");
+    }
+
+    #[test]
+    fn a_pumping_side_can_record_zero_without_typing() {
+        use crate::prompt::host::{self, Input, Reply};
+        let _serial = host::one_at_a_time();
+        for units in [Units::Ml, Units::Oz] {
+            let channel = host::install();
+            let asking = std::thread::spawn(move || {
+                ask_nonnegative("Left amount?", units, Some(0.0), Theme::dark(false))
+            });
+            let (_, reply) = channel.requests.recv().expect("a frame");
+            reply
+                .send(Reply::Input(Input::Key(press(KeyCode::Enter))))
+                .expect("listening");
+            let (_, amount) = asking.join().expect("ends").expect("a volume");
+            host::remove();
+            assert!(amount.abs() < f64::EPSILON, "zero became {amount}");
+        }
     }
 }

@@ -181,6 +181,7 @@ pub fn pumps(rows: &[Located<PumpInterval>]) -> Vec<PumpEvent> {
                 at: Some(located.at.clone()),
                 id: format!("pump-{position}-{}", row.start.as_i64()),
                 start: row.start.as_f64(),
+                entry_mode: row.entry_mode.clone(),
                 left_ml: row
                     .left_amount
                     .map(|amount| row.units.to_millilitres(amount.as_f64())),

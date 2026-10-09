@@ -3,8 +3,10 @@
 `crates/huckleberry-api` is a Rust port of
 [`py-huckleberry-api`](https://github.com/Woyken/py-huckleberry-api) by
 [Woyken](https://github.com/Woyken), MIT licensed, Copyright (c) 2025 Woyken.
-It covers everything the Python client covers, in the same shapes, and it is a
+It retains the upstream shapes for the operations listed below, and it is a
 package in its own right: nothing in it mentions this command-line tool.
+Pump logging and timer support are newly ported from upstream commit
+[`6d273804e993243e876d3d6fb109d8a4f0082750`](https://github.com/Woyken/py-huckleberry-api/tree/6d273804e993243e876d3d6fb109d8a4f0082750).
 
 **Everything in the next section is Woyken's research, not ours.** Huckleberry
 publishes no API and no documentation for one. That the app is a Firebase
@@ -42,6 +44,7 @@ every request still carries a signed-in user's token.
 | `diaper/{cid}/intervals` | diapers and potty trips, in one collection |
 | `health/{cid}` | the last growth, medication and temperature entries |
 | `health/{cid}/data` | health history. **`data`, not `intervals`** |
+| `pump/{cid}` | the pumping timer, and the last pumping session |
 | `pump/{cid}/intervals` | pumping sessions |
 | `milestones/{cid}/intervals` | the firsts |
 | `types/{cid}/custom` | the family's own solids foods |
@@ -57,13 +60,13 @@ which wants nothing but an HTTP client and a bearer token.
 Requests read a document or collection page, query history, patch or delete a
 document, or atomically commit related history and summary changes.
 
-## The four deliberate differences
+## Deliberate differences
 
-Everything else is a faithful port. These four are choices, not omissions.
+The following choices extend or adapt the supported upstream operations.
 
 ### 1. Listeners become polling
 
-`setup_sleep_listener` and its three siblings use Firestore's `Listen`, a
+`setup_sleep_listener` and its siblings use Firestore's `Listen`, a
 bidirectional gRPC stream with no REST equivalent. `ops::watch` replaces them
 with polling: read the document, hand it to the caller when it differs, wait,
 repeat.
@@ -138,7 +141,7 @@ back. A loose row is patched where it lives; a batched row is patched at the
 batch with every field path moved inside its own entry, so the mask never names
 a bare `data` and the row's neighbours survive the write. The typed edits
 (`update_diaper_entry`, `update_bottle_entry`, `update_nursing_entry`,
-`update_solids_entry`, `update_sleep_entry`) are that method with the fields of
+`update_solids_entry`, `update_sleep_entry`, `update_pump_entry`) are that method with the fields of
 one tracker filled in.
 
 The typed field edits leave `start` alone. An optional field left out is
@@ -174,8 +177,8 @@ existing schema; no new upstream operation was ported.
 
 `delete_history_row` removes the row (a `DELETE` for a row of its own, a masked
 `PATCH` for one key of a batch) and then repairs the tracker. Every tracker
-keeps a copy of its most recent entry on its own document — `prefs.lastDiaper`,
-`prefs.lastBottle`, `prefs.lastGrowthEntry` and the rest — which the app reads
+keeps a copy of its most recent entry on its own document: `prefs.lastDiaper`,
+`prefs.lastBottle`, `prefs.lastGrowthEntry`, `prefs.lastPump` and the rest, which the app reads
 instead of history. A summary that described the removed row is rewritten from
 whatever is now the newest row of that kind, or deleted when there is none
 left; a summary that is missing while history has one to fill it is written
@@ -220,6 +223,55 @@ These timestamp parameters extend this Rust port, using the original tracker
 schemas and operation semantics researched by Woyken in `py-huckleberry-api`.
 No new upstream operations or field names were ported.
 
+## Pumping sessions and timers
+
+The pump document, last-session preferences, timer and write operations are
+ported from Woyken's `py-huckleberry-api` at the commit linked above.
+`pump_document` reads typed live state; `latest_pump` reads `prefs.lastPump`,
+and `watch_pump` applies the same polling behavior as the other watchers.
+All optional model fields use the lenient decoding rule described above.
+
+`log_pump(cid, PumpEntry)` records a session starting now; `log_pump_at` takes
+an explicit start in Unix seconds. `PumpEntry` includes optional duration in
+seconds, units and notes. Amounts are either `PumpAmounts::Total(amount)` or
+`PumpAmounts::LeftRight { left, right }`, so a request cannot mix the two modes
+or leave a side unspecified. Total mode stores half in `leftAmount` and half
+in `rightAmount`. Both zeros and large finite amounts are valid; negative or
+nonfinite amounts/durations and unknown volume units are refused before writes.
+
+History IDs and start/end timezone offsets follow the event time. Synchronization
+timestamps describe the current write. A backdated session leaves a newer
+`lastPump` untouched; a first entry creates the tracker document if necessary.
+The typed edit and raw pump `update_history_row` path preserve unknown row fields
+and batch neighbors. Duration edits recompute or remove `end_offset`; edits,
+time corrections and deletes repair `prefs.lastPump` through the shared summary
+table. Optional duration and notes omitted from a typed edit are removed.
+
+`start_pump`, `pause_pump`, `resume_pump`, `cancel_pump` and `complete_pump`
+implement upstream timer semantics. Start, pause, resume and completion have
+`_at` variants. The start and pause endpoint are stored in **milliseconds** in
+`startTime` and `endTime`; model helpers return seconds. Start preserves the
+existing UUID, or creates one when none exists. A repeated start does not
+replace an active timer. Repeated pause/resume and inactive transitions write
+nothing. Completion returns `CompletedPump { start, duration }` when it saves
+a session, and accepts combined or side amounts with optional unit override.
+
+A paused completion ends at its stored pause time. Resume removes `endTime`
+and retains the original start, so the eventual duration includes the pause,
+as upstream does. Explicit times cannot be in the future or precede the start
+or an available pause endpoint. Once resumed, the schema carries no resume
+event boundary, so a subsequent backdated action can only be checked against
+the session start. Completion uses timer units or ml when no units are supplied.
+It does not change preference synchronization timestamps, matching upstream.
+Cancel and completion clear known transient timer fields using leaf masks,
+preserving unknown timer fields and all sibling tracker state.
+
+As with existing tracker logging, history and summary/timer writes are sequential,
+not one atomic commit. A refused history write leaves the timer active. If a
+later summary or timer write fails, the saved history can remain, and callers
+should reread before retrying completion. The separate time-correction operation
+continues to use an atomic conditional commit.
+
 ## Correcting an ongoing sleep
 
 `update_sleep_start(cid, session_id, started)` changes an existing active sleep's
@@ -254,6 +306,9 @@ The models drop the `Firebase` prefix, because the crate name is the namespace.
 | `HealthDataEntry` | `models::health::HealthEntry` |
 | `FirebaseGrowthData` | `models::health::GrowthEntry` |
 | `FirebasePumpIntervalData` | `models::pump::PumpInterval` |
+| `FirebasePumpDocumentData` | `models::pump::PumpDocument` |
+| `FirebasePumpTimerData` | `models::pump::PumpTimer` |
+| `FirebaseLastPumpData`, `FirebasePumpPrefs` | `models::pump::LastPump`, `models::pump::PumpPrefs` |
 | `FirebaseCustomFoodTypeDocument` | `models::solids::CustomFood` |
 | `FirebaseCuratedFoodDocument` | `models::solids::CuratedFood` |
 | `SolidsFoodReference` | `models::solids::FoodReference` |
@@ -272,6 +327,7 @@ The models drop the `Firebase` prefix, because the crate name is the namespace.
 | `list_health_entries` | `health_entries` |
 | `start_sleep` … `complete_sleep` | the same names |
 | `start_nursing` … `complete_nursing` | the same names |
+| `start_pump` … `complete_pump`, `log_pump` | the same names, plus `_at` event-time variants |
 | `log_bottle`, `log_diaper`, `log_potty`, `log_growth`, `log_solids` | the same names |
 | `list_solids_curated_foods` | `curated_foods` |
 | `list_solids_custom_foods` | `custom_foods` |
@@ -314,7 +370,9 @@ The pure parts (the value codec, masks, queries, every piece of timer
 arithmetic) are tested inline. The request shapes are tested from the other end
 of a socket: `tests/firestore_requests.rs` drives the real client against a
 stub Firestore on loopback and asserts the method, the URL, the query
-parameters and the decoded body of every write.
+parameters and the decoded body of every write. Pump requests are covered by
+`tests/pump_requests.rs`, including total/side amounts, DST offsets, timer
+transitions, summary repair, batched edits and write failures.
 
 That is not belt and braces. It is what caught the interval rows going out
 without their `mode` discriminator, which no unit test could have seen and

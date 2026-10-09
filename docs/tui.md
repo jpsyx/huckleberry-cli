@@ -179,12 +179,13 @@ widget beside it, and **widget** and **panel** mean the same thing.
 │▌ 1. Log a diaper                                                       │
 │  2. Log a feed                                                       › │
 │  3. Log sleep                                                        › │
-│  4. Edit                                                               │
-│  5. Visualizations                                                   › │
-│  6. View logs                                                          │
-│  7. Other logging                                                    › │
-│  8. Delete                                                             │
-│  9. More                                                             › │
+│  4. Log pumping                                                      › │
+│  5. Edit                                                               │
+│  6. Visualizations                                                   › │
+│  7. View logs                                                          │
+│  8. Other logging                                                    › │
+│  9. Delete                                                             │
+│ 10. More                                                             › │
 └────────────────────────────────────────────────────────────────────────┘
  ↑/↓ j/k w/s · ← h/a back · → l/d open · Enter select · r refresh · q quit
 ```
@@ -205,6 +206,14 @@ widget beside it, and **widget** and **panel** mean the same thing.
 A chevron (`›`) marks a row that opens another menu, so nothing is a surprise.
 The numbers are right-aligned as a column, so every label starts in the same
 place whether its row is 9 or 10.
+
+Log pumping opens with Log, followed by Start, Pause, Resume, Stop, Cancel and
+Status. Logging asks when first, then offers a total or separate left/right
+amounts using the shared volume dial. Pump amounts can be zero, including a
+side with no milk expressed. Duration is optional and uses presets before a
+custom number; notes are optional. Edit offers the recorded time, amount mode,
+volumes, duration and notes with the existing values already selected. View
+logs and Delete include these same pumping entries in the calendar-day stream.
 
 ## How it runs a command
 

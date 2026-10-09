@@ -11,7 +11,7 @@
 //! Nothing in `domain` reads the clock. Every function takes `now`, which is
 //! what makes the day-boundary and timezone cases testable.
 
-use huckleberry_api::RowRef;
+use huckleberry_api::{RowRef, models::pump::PumpEntryMode};
 use serde::{Deserialize, Serialize};
 
 /// A Unix timestamp in seconds.
@@ -229,6 +229,9 @@ pub struct PumpEvent {
     pub id: String,
     /// When it was.
     pub start: Seconds,
+    /// Whether amounts were recorded together or separately.
+    #[serde(default = "default_pump_mode")]
+    pub entry_mode: PumpEntryMode,
     /// Millilitres from the left.
     pub left_ml: Option<f64>,
     /// Millilitres from the right.
@@ -239,6 +242,11 @@ pub struct PumpEvent {
     pub duration_seconds: Option<f64>,
     /// Whatever the parent typed.
     pub notes: Option<String>,
+}
+
+/// Older snapshots exposed both sides, so retain that presentation by default.
+const fn default_pump_mode() -> PumpEntryMode {
+    PumpEntryMode::LeftRight
 }
 
 /// One milestone.

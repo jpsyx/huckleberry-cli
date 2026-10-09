@@ -6,6 +6,7 @@ use serde_json::{Value, json};
 
 pub(super) fn updates(draft: &Draft, key: &str) -> Result<Vec<FieldUpdate>> {
     let update = match draft {
+        Draft::Pump(pump) => return super::save_pump::updates(pump, key),
         Draft::Diaper(diaper) => diaper_value(diaper, key)?,
         Draft::Bottle(bottle) => match key {
             "amount" | "units" => {

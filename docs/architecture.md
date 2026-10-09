@@ -316,8 +316,9 @@ listed and asked as a start and a stop: the stop question is a time reader like
 any other, and what is stored is still the duration between the two. Every located row
 supports time corrections, including pumping and milestones. The edit picker
 also reads health history so growth, medication and temperature times can be
-corrected. These additional kinds retain their raw details rather than creating
-new detail forms. The API's history-time operation updates row identity and
+corrected. Pumping has a detail draft and form for total or separate side amounts,
+units, duration and notes. Milestones and health entries retain their raw details
+rather than creating new detail forms. The API's history-time operation updates row identity and
 last-entry summaries together; the receipt returns the resulting selector.
 
 The edit command also prepends the active sleep from the live state, under the
@@ -420,6 +421,13 @@ password key interpretation, and menu selection live in separate prompt files.
 
 Feed handlers are split into bottle, nursing, and solids modules under
 commands/feed; the module retains the command entry point and public helpers.
+
+`commands/pump` handles completed sessions and the pump timer through the same
+dispatch, prompt host and receipt paths. Its prompts reuse the time dial and a
+zero-capable volume dial; `cli/pump.rs` defines the scriptable arguments. Pump
+history preserves its total/left-right mode through normalization and snapshots,
+so a stored total is displayed without inventing side measurements. Older
+snapshots without the mode retain their previous left/right display.
 
 The interactive catalog groups every canonical clap command into a menu tree.
 Pending argument drafts resolve through clap without spawning a shell; passwords

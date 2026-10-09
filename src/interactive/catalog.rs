@@ -15,6 +15,8 @@ pub enum MenuId {
     Feed,
     /// Sleep timer actions.
     Sleep,
+    /// Pump recording and timer actions.
+    Pump,
     /// Nursing timer actions.
     Nursing,
     /// Read-only visualizations.
@@ -35,10 +37,11 @@ pub enum MenuId {
 
 impl MenuId {
     /// Every menu, so a test can walk the whole tree without knowing it.
-    pub const ALL: [Self; 11] = [
+    pub const ALL: [Self; 12] = [
         Self::Home,
         Self::Feed,
         Self::Sleep,
+        Self::Pump,
         Self::Nursing,
         Self::Visualizations,
         Self::OtherLogging,
@@ -57,6 +60,7 @@ pub const fn title(id: MenuId) -> &'static str {
         MenuId::Home => "What would you like to do?",
         MenuId::Feed => "Log a feed",
         MenuId::Sleep => "Log sleep",
+        MenuId::Pump => "Log pumping",
         MenuId::Nursing => "Nursing",
         MenuId::Visualizations => "Visualizations",
         MenuId::OtherLogging => "Other logging",
@@ -134,6 +138,7 @@ fn rows(id: MenuId) -> Vec<MenuEntry> {
             command("Log a diaper", "diaper"),
             menu("Log a feed", MenuId::Feed),
             menu("Log sleep", MenuId::Sleep),
+            menu("Log pumping", MenuId::Pump),
             command("Edit", "edit"),
             menu("Visualizations", MenuId::Visualizations),
             command("View logs", "log"),
@@ -156,6 +161,7 @@ fn rows(id: MenuId) -> Vec<MenuEntry> {
             command("Solids", "feed solids"),
         ],
         MenuId::Sleep => children("sleep"),
+        MenuId::Pump => children("pump"),
         MenuId::Nursing => children("feed nursing"),
         MenuId::Foods => children("foods"),
         MenuId::Children => children("child"),

@@ -55,6 +55,23 @@ impl Huckleberry {
         updates: &[FieldUpdate],
         operation: &str,
     ) -> Result<()> {
+        if at.tracker == crate::paths::PUMP {
+            let (started, updates) = self.pump_history_updates(cid, at, updates).await?;
+            self.write_history_updates(cid, at, &updates, operation)
+                .await?;
+            return self.repair_summaries(cid, &at.tracker, started).await;
+        }
+        self.write_history_updates(cid, at, updates, operation)
+            .await
+    }
+
+    async fn write_history_updates(
+        &self,
+        cid: &str,
+        at: &RowRef,
+        updates: &[FieldUpdate],
+        operation: &str,
+    ) -> Result<()> {
         let token = self.token().await?;
         self.firestore()
             .update(

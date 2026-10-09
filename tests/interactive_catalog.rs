@@ -28,6 +28,7 @@ fn home_order_and_all_commands_are_reachable() {
             "Log a diaper",
             "Log a feed",
             "Log sleep",
+            "Log pumping",
             "Edit",
             "Visualizations",
             "View logs",

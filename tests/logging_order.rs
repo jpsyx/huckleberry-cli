@@ -37,6 +37,7 @@ fn invalid_time_is_reported_before_missing_or_invalid_activity_details() {
         vec!["diaper"],
         vec!["potty"],
         vec!["growth"],
+        vec!["pump", "log", "--amount", "0"],
         vec!["feed", "bottle", "--amount", "0"],
     ] {
         let output = Command::new(env!("CARGO_BIN_EXE_huckleberry-cli"))

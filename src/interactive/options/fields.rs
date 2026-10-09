@@ -44,6 +44,7 @@ const NOT_SET: &str = "not set";
 #[must_use]
 pub fn current(draft: &Draft, field: &str) -> String {
     match draft {
+        Draft::Pump(pump) => pump.current(field),
         Draft::Diaper(diaper) => diaper_value(diaper, field),
         Draft::Bottle(bottle) => match field {
             "amount" => format!(

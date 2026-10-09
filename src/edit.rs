@@ -10,6 +10,10 @@
 //! Detail drafts are separate from time corrections, which apply to every row
 //! and preserve its raw fields through the API's history-time operation.
 
+mod pump;
+
+pub use pump::PumpDraft;
+
 use anyhow::{Result, bail};
 use huckleberry_api::RowRef;
 
@@ -136,6 +140,8 @@ pub enum Draft {
     Solids(SolidsDraft),
     /// A sleep.
     Sleep(SleepDraft),
+    /// A pumping session.
+    Pump(PumpDraft),
 }
 
 impl Draft {
@@ -149,6 +155,7 @@ impl Draft {
             Self::Nursing(_) => "nursing session",
             Self::Solids(_) => "meal",
             Self::Sleep(_) => "sleep",
+            Self::Pump(_) => "pumping session",
         }
     }
 
@@ -172,6 +179,9 @@ impl Draft {
             Self::Nursing(_) => &["left", "right", "notes"],
             Self::Solids(_) => &["foods", "amount", "reaction", "notes"],
             Self::Sleep(_) => &["duration", "notes"],
+            Self::Pump(_) => &[
+                "mode", "amount", "left", "right", "units", "duration", "notes",
+            ],
         }
     }
 
@@ -201,20 +211,32 @@ impl Draft {
             Self::Nursing(nursing) => set_on_nursing(nursing, &key, value),
             Self::Solids(meal) => set_on_solids(meal, &key, value),
             Self::Sleep(sleep) => set_on_sleep(sleep, &key, value),
+            Self::Pump(pump) => pump.set(&key, value),
         }
     }
 
-    /// Applies every `key=value` pair in turn.
+    /// Applies changes, interpreting explicit pump amounts in the requested units.
     ///
     /// # Errors
     ///
     /// As [`Draft::set`], and when a pair has no `=` in it.
     pub fn apply(&mut self, pairs: &[String]) -> Result<()> {
+        let pump = matches!(self, Self::Pump(_));
+        if pump
+            && let Some((_, units)) = pairs
+                .iter()
+                .filter_map(|pair| pair.split_once('='))
+                .rfind(|(key, _)| key.trim().eq_ignore_ascii_case("units"))
+        {
+            self.set("units", units)?;
+        }
         for pair in pairs {
             let Some((key, value)) = pair.split_once('=') else {
                 bail!("`{pair}` is not a change: they look like `--set color=yellow`");
             };
-            self.set(key, value)?;
+            if !pump || !key.trim().eq_ignore_ascii_case("units") {
+                self.set(key, value)?;
+            }
         }
         Ok(())
     }
@@ -268,6 +290,7 @@ pub fn summary(draft: &Draft) -> String {
             said
         }
         Draft::Sleep(sleep) => crate::domain::time::format_duration(sleep.minutes * 60.0),
+        Draft::Pump(pump) => pump.summary(),
     }
 }
 
@@ -299,6 +322,13 @@ pub fn draft_for(dataset: &Dataset, at: &RowRef, units: Units) -> Option<Draft> 
     }
     if let Some(feed) = dataset.feeds.iter().find(|event| is_at(event.at(), at)) {
         return Some(feed_draft(feed, units));
+    }
+    if let Some(pump) = dataset
+        .pumps
+        .iter()
+        .find(|event| is_at(event.at.as_ref(), at))
+    {
+        return Some(Draft::Pump(PumpDraft::from_event(pump, units)));
     }
     dataset
         .sleep

@@ -61,6 +61,7 @@ either, say which.
 | **live state** | What the trackers say is happening right now: a running sleep, a running nursing session. It is not history, and history cannot know about it. |
 | **an entry**, **a row of history** | One recorded thing: a feed, a sleep, a diaper. |
 | **a tracker** | One kind of thing Huckleberry records. Sleep, feeding, diapers, pumping, milestones. |
+| **pumping**, **a pump session** | Milk expressed, recorded as a total or separate left/right amounts. It is separate from milk fed to the child. The Home row is **Log pumping**; the command is `pump`. |
 | **as of** | How stale what is on screen is. Every screen carries one. |
 
 ## Days, nights and windows

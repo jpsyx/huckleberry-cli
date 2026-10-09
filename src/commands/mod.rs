@@ -16,6 +16,7 @@ pub mod feed;
 pub mod foods;
 pub mod growth;
 pub mod info;
+pub mod pump;
 pub mod settings;
 pub mod sleep;
 pub mod views;
@@ -94,6 +95,7 @@ async fn act(context: &Context, command: &Command) -> Result<()> {
         Command::Delete { options } => Box::pin(delete::run(context, options)).await,
         Command::Sleep { action } => sleep::run(context, action).await,
         Command::Feed { action } => feed::run(context, action).await,
+        Command::Pump { action } => pump::run(context, action).await,
         Command::Diaper {
             at,
             mode,

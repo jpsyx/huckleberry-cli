@@ -177,7 +177,12 @@ async fn unchanged_time_reads_the_row_without_writing() {
 async fn rejected_commit_has_no_fallback_writes_or_retry() {
     let source = document("pump/c1/intervals/1000000-abc", row());
     let stub = Stub::start_with_status(vec![
-        (200, source),
+        (200, source.clone()),
+        (
+            200,
+            document("pump/c1", json!({"prefs": {"lastPump": {"start": 1000.0}}})),
+        ),
+        (200, json!({"documents": [source]})),
         (409, json!({"error": {"message": "revision changed"}})),
     ])
     .await;
@@ -188,9 +193,9 @@ async fn rejected_commit_has_no_fallback_writes_or_retry() {
             .is_err()
     );
     let requests = stub.requests().await;
-    assert_eq!(requests.len(), 2);
-    assert_eq!(requests[1].method, "POST");
-    let writes = &requests[1].body.as_ref().unwrap()["writes"];
+    assert_eq!(requests.len(), 4);
+    assert_eq!(requests[3].method, "POST");
+    let writes = &requests[3].body.as_ref().unwrap()["writes"];
     assert_eq!(writes[0]["currentDocument"]["exists"], false);
     assert_eq!(writes[1]["currentDocument"]["updateTime"], REVISION);
 }

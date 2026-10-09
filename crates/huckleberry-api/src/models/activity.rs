@@ -1,7 +1,7 @@
 //! `activities/{cid}`: baths, tummy time, and the rest.
 //!
-//! Like pump, this collection has no methods on the Python client. It is
-//! modelled so that a caller reading it raw has somewhere to deserialize into.
+//! Activity operations from the Python client have not been ported here.
+//! The model lets a caller deserialize rows read through the raw collection API.
 
 use serde::{Deserialize, Serialize};
 

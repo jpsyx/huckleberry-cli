@@ -1,14 +1,32 @@
 //! `pump/{cid}`: expressed milk.
 //!
-//! The Python client has no methods for this collection at all; the rows are
-//! read straight off Firestore. They are modelled here because a pumping
-//! session is a real part of a feeding picture, and a caller that has to
-//! hand-parse a map to see it is a caller this crate has failed.
+//! The document, timer, amounts and history shapes are ported from Woyken's
+//! `py-huckleberry-api`, including equal side amounts for total-mode entries.
+
+mod document;
+mod timer;
+
+pub use document::{LastPump, PumpDocument, PumpPrefs};
+pub use timer::PumpTimer;
 
 use serde::{Deserialize, Serialize};
 
 use super::common::Number;
 use super::feed::VolumeUnits;
+
+/// The two ways to record expressed milk, excluding ambiguous mixed inputs.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum PumpAmounts {
+    /// A combined volume, stored evenly between the two side fields.
+    Total(f64),
+    /// A separately measured volume for each side, including zero.
+    LeftRight {
+        /// The volume from the left side.
+        left: f64,
+        /// The volume from the right side.
+        right: f64,
+    },
+}
 
 string_enum! {
     /// Whether the two sides were recorded apart or together.
@@ -28,7 +46,7 @@ pub struct PumpInterval {
     /// Whether the sides were recorded apart or together.
     #[serde(rename = "entryMode")]
     pub entry_mode: PumpEntryMode,
-    /// The left side, or the combined figure when the mode is `total`.
+    /// The left side, or half the combined figure when the mode is `total`.
     #[serde(
         rename = "leftAmount",
         default,

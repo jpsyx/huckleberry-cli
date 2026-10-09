@@ -38,7 +38,9 @@ pub use health::{
     TemperatureEntry, TemperatureUnits,
 };
 pub use milestone::Milestone;
-pub use pump::{PumpEntryMode, PumpInterval};
+pub use pump::{
+    LastPump, PumpAmounts, PumpDocument, PumpEntryMode, PumpInterval, PumpPrefs, PumpTimer,
+};
 pub use sleep::{
     SleepCondition, SleepDetails, SleepDocument, SleepInterval, SleepLocations, SleepTimer,
 };

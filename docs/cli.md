@@ -9,7 +9,7 @@ audiences are first class; see [`rules/cli-ux.md`](rules/cli-ux.md) for why.
 On a terminal, commands show labelled tables with a small emoji heading and
 semantic colours. Successful recordings have a receipt: sleep shows its start,
 end and duration; nursing shows the total and each side; bottles, meals,
-diapers, potty trips and growth show what was recorded. Status, child profiles,
+diapers, pumping, potty trips and growth show what was recorded. Status, child profiles,
 food lists, settings, account details and edit results use the same presentation.
 Long tables become stacked, wrapped records on narrow terminals.
 
@@ -127,14 +127,14 @@ terminal, you are offered the list.
 
 ## Writing
 
-Every new bottle, meal, diaper, potty trip and growth measurement asks **when**
-after its other questions. Enter accepts `now`. Nursing starts ask when they
-started; sleep and nursing pause, resume and stop actions, plus nursing side
+Every new bottle, meal, diaper, pump session, potty trip and growth measurement
+asks **when** before its other questions. Enter accepts `now`. Nursing and pump
+starts ask when they started; sleep, nursing and pump pause, resume and stop actions, plus nursing side
 switches, also ask when. Cancel and status do not record an event and need no time.
 
 **In the shell every When? prompt is a dial rather than a field**: three
 turning columns for the hour, the minute and the half of the day, described in
-[`tui.md`](tui.md). A bottle's amount is a dial too, of two columns, which is
+[`tui.md`](tui.md). Bottle and pump amounts are dials too, of two columns, which is
 why the shell does not ask for its units separately. A dial answers in the
 same words somebody would have typed, so everything below here applies to
 both. What follows is the typed form, which is what a bare terminal gets.
@@ -155,13 +155,15 @@ Time is the first activity question, before amounts, units, sides or notes.
 Accepting `now` records the instant that question is answered, even if the
 remaining questions take longer.
 
-Use `--at <TIME>` to answer directly, or `--start <TIME>` for sleep and nursing
-starts (`--at` is also an alias for nursing starts). Flag values must resolve
-without an AM/PM follow-up. Without a terminal, omitted event times default to
-now, preserving scripts. A timer transition before its current segment is
-refused before writing. Stopping a paused sleep uses its pause time; stopping
-paused nursing records only the already banked durations. Sleep resume retains
-the existing continuous-sleep semantics, so its pause is included in the duration.
+Use `--at <TIME>` to answer directly, or `--start <TIME>` for sleep, nursing and
+pump starts (`--at` is also an alias for nursing and pump starts). Flag values
+must resolve without an AM/PM follow-up. Without a terminal, omitted event times default to
+now, preserving scripts. Sleep and nursing transitions before their current
+segment are refused before writing. Pump transitions cannot precede their
+session start or a recorded pause endpoint. Stopping a paused sleep uses its
+pause time; stopping paused nursing records only the already banked durations.
+Sleep resume retains the existing continuous-sleep semantics, so its pause is
+included in the duration.
 
 ```sh
 h feed bottle --at "32 mins ago"
@@ -288,6 +290,40 @@ A meal asks when, then the food, how much, how it went, and anything to note.
 `feed nursing start` with no `--side` offers the side opposite the last feed,
 which is what the app suggests.
 
+### Pumping
+
+```sh
+h pump log --at "20 mins ago" --amount 120 --units ml --duration 15
+h pump log --left 1.5 --right 2 --units oz --notes "morning"
+h pump log                         # asks when, amounts, duration and notes
+h pump start --start "10 mins ago"
+h pump pause --at now
+h pump resume --at now
+h pump stop --amount 90 --units ml
+h pump status
+h pump cancel
+```
+
+Home's fourth item, **Log pumping**, opens these same commands, with Log first.
+`pump manual` aliases `pump log`, and `pump end` aliases `pump stop`. A completed
+session accepts either `--amount` (`--total`) or `--left` and `--right`, never
+both forms together. All amounts share `--units ml|oz` and may be zero. A
+missing side is asked for on a terminal and reported by flag name on a pipe.
+Without a terminal, omitted units use the configured units.
+`--duration` is optional and measured in minutes, including fractions.
+
+When logging interactively, the time question comes first. Amounts use the same
+volume control as bottles, with the last pump's amounts converted into the
+configured units. The shell offers total or separate side amounts, an optional
+duration through presets or a custom number, and optional notes. Timer actions
+use the shared time prompts; Cancel and Status need no event time. A paused
+timer completes at its pause time. Resuming counts the pause as part of the
+continuous session, matching the upstream API.
+
+View logs includes pumping alongside other entries, and `h log --kind pump`
+filters to it. A total is shown as a total; separate measurements show left and
+right. Pumped volume stays separate from the child's milk intake.
+
 ### Diapers, potty and growth
 
 ```sh
@@ -389,18 +425,24 @@ padded to its widest cell, so the kinds stay aligned down the screen.
 `notes` on a bottle; `left`, `right` and `notes` on a nursing session (in
 minutes); `foods`, `amount`, `reaction` and `notes` on a meal; `duration` (in
 minutes) and `notes` on a sleep, where the form asks for that duration as a stop
-time. An empty value clears the field, as in
+time; `mode`, `amount`, `left`, `right`, `units`, `duration` (in minutes), and
+`notes` on a pump session. Pump `amount` selects total mode; `left` or `right`
+selects separate-side mode. The Edit menu shows a total amount or separate side
+amounts to match the selected mode. `units` converts both amounts rather than
+just relabelling them. An empty value clears an optional field, as in
 `--set color=`. Naming a field the entry does not have fails with the ones it
 does.
 
 Every saved entry accepts `--set at=<TIME>` (`start` is an alias), including
-pumping, milestones, and growth, medication and temperature history. These
-additional entries currently offer the time question only; their other fields
+pumping, milestones, and growth, medication and temperature history. Milestones
+and health entries currently offer the time question only; their other fields
 are preserved. An explicit `--id` can correct a time outside the picker window.
 
 ```sh
 h edit --id feed/1758572400000-3f2a --set "at=8am"
 h edit --id feed/1758572400000-3f2a --set "at=2026-09-27 08:00"
+h edit --id pump/1758572400000-3f2a --set units=ml --set amount=120
+h delete --id pump/1758572400000-3f2a --yes
 ```
 
 Changing a history time preserves duration and unmodeled fields. The API updates

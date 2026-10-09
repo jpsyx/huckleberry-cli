@@ -21,13 +21,14 @@ milestones, and write new entries back.
 > this port in [NOTICE](NOTICE). If this crate is useful to you, the upstream
 > project is the one to star.
 
-The port has the same coverage and the same fidelity to the shapes the app
-itself writes. Where it deliberately differs, `docs/api.md` in the repository
-says so and says why.
+The supported operations retain the shapes the app itself writes. Pump
+logging and timers are ported from upstream commit
+`6d273804e993243e876d3d6fb109d8a4f0082750`; `docs/api.md` in the repository
+records the method mapping and deliberate differences.
 
 ```toml
 [dependencies]
-huckleberry-api = "0.1"
+huckleberry-api = "0.6"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 ```
 
@@ -65,10 +66,17 @@ async fn main() -> Result<(), huckleberry_api::Error> {
 | Solids | `curated_foods`, `custom_foods`, `create_custom_food`, `log_solids` |
 | Diapers | `log_diaper`, `log_potty`, `diaper_intervals`, `diaper_document` |
 | Health | `log_growth`, `latest_growth`, `health_entries`, `health_document` |
-| Pumping | `pump_intervals` |
+| Pumping | `log_pump`, `log_pump_at`, `start_pump`, `pause_pump`, `resume_pump`, `cancel_pump`, `complete_pump`, `pump_document`, `latest_pump`, `pump_intervals`, `update_pump_entry` |
 | Milestones | `milestones` |
 | Anything else | `collection_rows` |
-| Watching | `watch_sleep`, `watch_feed`, `watch_diaper`, `watch_health` |
+| Watching | `watch_sleep`, `watch_feed`, `watch_diaper`, `watch_health`, `watch_pump` |
+
+Pump start, pause, resume and completion also have `_at` variants taking a
+Unix timestamp in seconds. `PumpEntry` carries amounts as either
+`PumpAmounts::Total` or `PumpAmounts::LeftRight`, volume units, an optional
+duration in seconds and an optional note. Total amounts are stored as equal
+halves in the two side fields, as researched by Woyken. `PumpTimer::started_at`
+and `elapsed_seconds` convert the timer's millisecond fields for callers.
 
 ## How it talks to Huckleberry
 

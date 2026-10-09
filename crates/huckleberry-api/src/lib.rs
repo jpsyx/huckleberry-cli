@@ -19,10 +19,10 @@
 //! py-huckleberry-api is MIT licensed, Copyright (c) 2025 Woyken, and its
 //! notice travels with this port in `NOTICE`.
 //!
-//! The port has the same coverage and the same field-for-field fidelity to
-//! what the app itself writes. `docs/api.md` in the repository lists every
-//! method beside its Python original and records the four places the two
-//! deliberately differ.
+//! The supported operations retain the field shapes the app itself writes.
+//! Pump logging and timers are ported from Woyken's upstream commit
+//! `6d273804e993243e876d3d6fb109d8a4f0082750`. `docs/api.md` in the repository
+//! lists the method mapping and deliberate differences.
 //!
 //! # How it talks to Huckleberry
 //!
@@ -93,9 +93,11 @@ pub mod timezone;
 pub use auth::Session;
 pub use client::{Credentials, Huckleberry};
 pub use error::{Error, Result};
+pub use models::pump::PumpAmounts;
 pub use ops::diaper::DiaperDetails;
 pub use ops::feed::CompletedNursing;
 pub use ops::health::GrowthMeasurements;
+pub use ops::pump::{CompletedPump, PumpEntry};
 pub use ops::sleep::CompletedSleep;
 pub use ops::watch::Watching;
 pub use ops::{TimerChange, Window};

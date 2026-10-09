@@ -20,6 +20,7 @@ use crate::error::Result;
 use crate::models::diaper::DiaperDocument;
 use crate::models::feed::FeedDocument;
 use crate::models::health::HealthDocument;
+use crate::models::pump::PumpDocument;
 use crate::models::sleep::SleepDocument;
 use crate::paths;
 
@@ -33,6 +34,26 @@ pub enum Watching {
 }
 
 impl Huckleberry {
+    /// Watches the pump tracker, including timer and last-session changes.
+    ///
+    /// # Errors
+    ///
+    /// As [`Huckleberry::watch_tracker`].
+    pub async fn watch_pump<OnChange, OnError>(
+        &self,
+        cid: &str,
+        interval: Duration,
+        on_change: OnChange,
+        on_error: OnError,
+    ) -> Result<()>
+    where
+        OnChange: FnMut(&PumpDocument) -> Watching,
+        OnError: FnMut(&crate::error::Error) -> Watching,
+    {
+        self.watch_tracker(paths::PUMP, cid, interval, on_change, on_error)
+            .await
+    }
+
     /// Polls a tracker's document, calling `on_change` whenever it differs
     /// from the last reading.
     ///

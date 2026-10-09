@@ -132,6 +132,19 @@ pub fn summaries_for(tracker: &str) -> &'static [Summary] {
             ("offset", "offset"),
         ],
     }];
+    const PUMP: &[Summary] = &[Summary {
+        field: "prefs.lastPump",
+        fills: Fills::Any,
+        keys: &[
+            ("start", "start"),
+            ("duration", "duration"),
+            ("entryMode", "entryMode"),
+            ("leftAmount", "leftAmount"),
+            ("rightAmount", "rightAmount"),
+            ("units", "units"),
+            ("offset", "offset"),
+        ],
+    }];
     // Health's summaries are the entry itself, which is why they have no key
     // map: `lastGrowthEntry` deserializes as a `GrowthEntry`.
     const HEALTH: &[Summary] = &[
@@ -157,6 +170,7 @@ pub fn summaries_for(tracker: &str) -> &'static [Summary] {
         paths::FEED => FEED,
         paths::SLEEP => SLEEP,
         paths::HEALTH => HEALTH,
+        paths::PUMP => PUMP,
         _ => &[],
     }
 }
@@ -352,9 +366,23 @@ mod tests {
 
     #[test]
     fn a_tracker_with_no_summaries_needs_no_repair() {
-        assert!(summaries_for("pump").is_empty());
         assert!(summaries_for("milestones").is_empty());
         assert_eq!(summaries_for(paths::SLEEP).len(), 1);
+    }
+
+    #[test]
+    fn pump_repair_copies_the_upstream_last_pump_fields() {
+        let summaries = summaries_for(paths::PUMP);
+        assert_eq!(summaries.len(), 1);
+        assert_eq!(summaries[0].field, "prefs.lastPump");
+        let row = json!({"start":100.0,"duration":60.0,"entryMode":"total",
+            "leftAmount":25.0,"rightAmount":25.0,"units":"ml","offset":300.0,
+            "notes":"private","lastUpdated":200.0});
+        let summary = summary_of(&row, summaries[0].keys);
+        assert_eq!(summary["duration"], 60.0);
+        assert_eq!(summary["leftAmount"], 25.0);
+        assert!(summary.get("notes").is_none());
+        assert!(summary.get("lastUpdated").is_none());
     }
 
     #[test]

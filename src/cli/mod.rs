@@ -11,6 +11,7 @@
 //! and [`actions`] has the subcommand trees that are more than one level deep.
 
 pub mod actions;
+pub mod pump;
 pub mod values;
 
 use std::path::PathBuf;
@@ -20,6 +21,7 @@ use clap::{Args, Parser, Subcommand};
 pub use actions::{
     AuthAction, ChildAction, ConfigAction, FeedAction, FoodsAction, NursingAction, SleepAction,
 };
+pub use pump::{PumpAction, PumpLogOptions, PumpValues};
 pub use values::{
     Amount, BottleKind, Colour, Consistency, DiaperKind, LogKind, Overlap, PottyOutcome, Reaction,
     Side, System, TrendMetric, Units,
@@ -227,6 +229,13 @@ pub enum Command {
         /// What kind of feed.
         #[command(subcommand)]
         action: FeedAction,
+    },
+
+    /// Record expressed milk or run a pumping timer.
+    Pump {
+        /// What to do with pumping.
+        #[command(subcommand)]
+        action: PumpAction,
     },
 
     /// Record a diaper change.

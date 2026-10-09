@@ -10,6 +10,7 @@ pub mod diaper;
 pub mod feed;
 pub mod health;
 mod history_time;
+pub mod pump;
 pub mod reads;
 pub mod removal;
 pub mod rows;

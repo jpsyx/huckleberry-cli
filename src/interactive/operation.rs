@@ -9,7 +9,7 @@ use super::{
 use crate::{
     cli::{
         AuthAction, ChildAction, Command, ConfigAction, FeedAction, FoodsAction, NursingAction,
-        SleepAction,
+        PumpAction, SleepAction,
     },
     prompt,
     theme::Theme,
@@ -73,6 +73,9 @@ const fn is_read_view(command: &Command) -> bool {
             }
             | Command::Sleep {
                 action: SleepAction::Status
+            }
+            | Command::Pump {
+                action: PumpAction::Status
             }
             | Command::Feed {
                 action: FeedAction::Nursing {
@@ -251,6 +254,7 @@ mod tests {
             "config path",
             "foods list",
             "sleep status",
+            "pump status",
             "feed nursing status",
         ] {
             let cli =
@@ -276,6 +280,12 @@ mod tests {
             "sleep resume",
             "sleep cancel",
             "sleep manual",
+            "pump log",
+            "pump start",
+            "pump pause",
+            "pump resume",
+            "pump stop",
+            "pump cancel",
             "feed nursing start",
             "feed nursing stop",
             "feed nursing pause",

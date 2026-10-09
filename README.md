@@ -79,7 +79,7 @@ Fed today           430 ml total · 6 feeds · since 6:00 am
 ```console
 $ h diaper
 $ h feed
-$ h pump
+$ h pump log
 ```
 
 Each of these commands will enter an interactive mode from which you submit the activity. No need to remember a bunch of annoying options and flags.
@@ -148,6 +148,7 @@ And `h dash` for all of it at once, full screen and live.
 | **Read**        | `now`, `summary`, `stripes`, `trends`, `log`, `dash`, `export`             |
 | **Sleep**       | `sleep start / pause / resume / stop / cancel / status`, `sleep manual`    |
 | **Feeding**     | `feed bottle`, `feed nursing start / switch / pause / stop`, `feed solids` |
+| **Pumping**     | `pump log`, `pump start / pause / resume / stop / cancel / status` |
 | **Diapers**     | `diaper`, `potty`                                                          |
 | **Corrections** | `edit`, `delete`                                                           |
 | **Health**      | `growth`                                                                   |
@@ -157,6 +158,12 @@ And `h dash` for all of it at once, full screen and live.
 Lists browse and search: `log`, `edit`, `delete` and `foods list` open a
 scrollable view on a terminal where `/` filters as you type, and print plain
 aligned rows when piped.
+
+**Log pumping** is the fourth Home item, after Log sleep. Record a total or
+separate left/right amounts in ml or oz, with an optional duration and notes.
+Pumping entries appear in View logs and support the same Edit and Delete flows.
+The pump operations follow Woyken's
+[py-huckleberry-api](https://github.com/Woyken/py-huckleberry-api).
 
 [`docs/cli.md`](docs/cli.md) has the full surface;
 [`docs/dashboards.md`](docs/dashboards.md) describes each screen and the rules
