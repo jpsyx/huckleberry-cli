@@ -43,7 +43,11 @@ pub fn lines(
             theme.value(&text)
         });
     }
+    if let Some(age) = age_in_days(dataset, calendar, now) {
+        lines.push(theme.muted(&format!("{} is {age} days old", dataset.child.name)));
+    }
     lines.extend(footer(rows, dataset, calendar, theme, units, now));
+    lines.push(theme.muted(&super::now::as_of(dataset, now)));
     lines
 }
 
@@ -63,52 +67,31 @@ pub fn footer(
             .into_iter()
             .map(|line| theme.muted(&line)),
     );
-    lines.push(theme.muted(
-        "Wake totals estimate time outside recorded sleep; gaps need two sleeps. Rows marked ~ are partial (today or limited snapshot coverage).",
-    ));
-    lines.push(
-        theme.muted(
-            "Averages: measured bottles only; nursing sessions only; sleep averages include completed day and night sleeps.",
-        ),
-    );
-    lines.push(
-        theme.muted("Wake gaps belong to the day waking began; unfinished gaps are excluded."),
-    );
-    lines.push(theme.muted(
-        "Chart dots: mean of recorded values in the previous 7 complete days; today, incomplete snapshot days and missing values excluded.",
-    ));
-    lines.push(theme.muted("Feeding day/night splits follow each feed's start time."));
-    lines.push(theme.muted(&crate::render::now::as_of(dataset, now)));
-    let age = dataset
+    let age = age_in_days(dataset, calendar, now);
+    lines.extend(averages(rows, theme, units, age));
+    lines.extend(bands(rows, theme, age));
+    lines
+}
+
+/// Age shared by the plain summary and the interactive header.
+fn age_in_days(dataset: &Dataset, calendar: &Calendar, now: f64) -> Option<i64> {
+    dataset
         .child
         .birthdate
         .as_deref()
-        .and_then(|birthdate| calendar.age_in_days(birthdate, now));
-    lines.extend(averages(rows, theme, units, age));
-    lines.extend(bands(rows, dataset, theme, age));
-    lines
+        .and_then(|birthdate| calendar.age_in_days(birthdate, now))
 }
 
 fn night_note(dataset: &Dataset) -> Vec<String> {
     let start = crate::domain::time::split_hour(dataset.child.night_start_hour);
     let end = crate::domain::time::split_hour(dataset.child.morning_cutoff_hour);
     let label = |(hour, minute)| crate::domain::clock::TimeOfDay { hour, minute }.label();
-    vec![
-        format!(
-            "* Night: {} to the next {} ({}).",
-            label(start),
-            label(end),
-            dataset.timezone
-        ),
-        format!(
-            "(Change night start: h config set day_end {:02}:{:02};",
-            start.0, start.1
-        ),
-        format!(
-            " change night end: h config set day_start {:02}:{:02}. Choose your preferred times.)",
-            end.0, end.1
-        ),
-    ]
+    vec![format!(
+        "* Night: {} to the next {} ({}).",
+        label(start),
+        label(end),
+        dataset.timezone
+    )]
 }
 
 /// The heading row, with the volume unit named in it.
@@ -234,12 +217,12 @@ fn averages(rows: &[DaySummary], theme: Theme, units: Units, age: Option<i64>) -
 ///
 /// Yellow, never red. A figure outside a typical range is worth a second look
 /// and is not an emergency, and this tool is in no position to say which.
-fn bands(rows: &[DaySummary], dataset: &Dataset, theme: Theme, age: Option<i64>) -> Vec<String> {
+fn bands(rows: &[DaySummary], theme: Theme, age: Option<i64>) -> Vec<String> {
     let Some(age) = age else {
         return Vec::new();
     };
 
-    let mut lines = vec![theme.muted(&format!("{} is {age} days old", dataset.child.name))];
+    let mut lines = Vec::new();
     let mut any_band = false;
     for figure in AVERAGED {
         let (pick, _, metric) = figure;
@@ -579,18 +562,12 @@ mod tests {
     }
 
     #[test]
-    fn summary_night_note_uses_configured_hours_and_names_commands() {
+    fn summary_night_note_uses_configured_hours() {
         let mut data = dataset();
         data.child.night_start_hour = 19.5;
         data.child.morning_cutoff_hour = 6.25;
         let rendered = table(&data, 1);
-        for value in [
-            "7:30 pm",
-            "6:15 am",
-            "America/New_York",
-            "h config set day_end",
-            "h config set day_start",
-        ] {
+        for value in ["7:30 pm", "6:15 am", "America/New_York"] {
             assert!(rendered.contains(value), "{value} missing: {rendered}");
         }
     }

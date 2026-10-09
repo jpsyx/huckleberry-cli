@@ -89,7 +89,7 @@ impl View<'_> {
     pub fn lines(&self, state: &mut State, size: (u16, u16), theme: Theme) -> Vec<String> {
         let width = usize::from(size.0);
         let height = usize::from(size.1);
-        if height < 5 {
+        if height < 6 {
             let mut lines = vec!["Enlarge the panel".to_owned(), "Esc/q back".to_owned()];
             lines.truncate(height);
             lines.resize(height, String::new());
@@ -100,8 +100,8 @@ impl View<'_> {
         let head_height = if height < 12 { 2 } else { 3 };
         let chart_height = (size.1 / 3)
             .clamp(4, 9)
-            .min(size.1.saturating_sub(head_height + 3));
-        let body_height = height.saturating_sub(usize::from(head_height + 2 + chart_height));
+            .min(size.1.saturating_sub(head_height + 4));
+        let body_height = height.saturating_sub(usize::from(head_height + 3 + chart_height));
         let body = self.body(range.clone(), state.selected, width, theme);
         state.page = body_height.max(1);
         state.limit = body.len().saturating_sub(body_height);
@@ -122,6 +122,7 @@ impl View<'_> {
             ));
         }
         lines.extend(hints(state, width).iter().map(|line| theme.muted(line)));
+        lines.push(theme.muted(&crate::render::now::as_of(self.dataset, self.now)));
         lines.truncate(height);
         lines.into_iter().map(|line| clip(&line, width)).collect()
     }
@@ -138,9 +139,11 @@ impl View<'_> {
                 cell,
             );
         }
+        let age = super::age_in_days(self.dataset, self.calendar, self.now)
+            .map_or_else(String::new, |days| format!(" · {days} days old"));
         vec![
             theme.heading(&format!(
-                "Summary · {} · column {}/{} · ~ partial",
+                "Summary · {}{age} · column {}/{} · ~ partial",
                 self.dataset.child.name,
                 selected + 1,
                 COLUMNS.len()

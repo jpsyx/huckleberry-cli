@@ -127,8 +127,17 @@ bar chart underneath, with gaps between bars and a dotted average of the previou
 seven complete days (today excluded). The default shows eight days: those seven
 plus today. Horizontal scrolling moves only at the visible edges. Up/down scrolls the rows and notes; Esc or Q leaves.
 Milk/feed averages only bottles with recorded amounts, and nurse/feed averages
-only nursing sessions. The night note shows the configured hours and the commands
-that change them. The same view is in the shell under Visualizations > Summary.
+only nursing sessions. The night note shows the configured hours. The header
+includes the child's age; freshness stays at the bottom of the panel. The same
+view is in the shell under Visualizations > Summary.
+
+Wake totals estimate time outside recorded sleep; wake gaps require two sleeps.
+Rows marked `~` are partial, either today or days with limited snapshot coverage.
+Sleep averages include completed daytime and nighttime sleeps. Wake gaps belong
+to the day waking began, and unfinished gaps are excluded. Feeding day/night
+splits follow each feed's start time. The chart's dense `···` line averages
+recorded values from the previous seven complete family days, excluding today,
+incomplete snapshot days, and missing values.
 
 ```sh
 h summary --days 7

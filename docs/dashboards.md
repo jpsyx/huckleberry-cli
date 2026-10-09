@@ -200,7 +200,8 @@ window, oldest to newest, with a blank column between bars. Durations use hours;
 the table keeps hours and minutes. Missing values leave empty slots. The dotted
 horizontal line is the mean of that metric's recorded daily values in the most
 recent seven complete family days. Today never contributes, and older days never
-replace gaps. The dots are magenta against cyan bars. Where a dot crosses a bar,
+replace gaps. A dot occupies every chart column; the legend begins `··· 7-day avg`.
+The dots are magenta against cyan bars. Where a dot crosses a bar,
 its background retains the cyan bar color so the line overlays the bar without
 cutting a dark hole through it. Every occupied bar cell also has a cyan background,
 including fractional top glyphs, so the bar and overlapping dots fill equal cell
@@ -208,11 +209,15 @@ heights. Colored bars therefore display at whole-cell height resolution. Empty
 slots and gaps keep the terminal background.
 The legend shows the value and the number of usable days out of
 seven; no usable days means no average line. Shorter requested windows use the
-available complete days and say how many. The notes explain the dots even in
-panels too short for the legend. If the window cannot fit separated bars, the
+available complete days and say how many. Short panels omit the legend.
+If the window cannot fit separated bars, the
 chart asks for a wider panel or fewer days instead of merging days together.
 Up/down, J/K, W/S, PageUp/PageDown, and Home/End scroll the rows and notes while
-the graph stays visible. Short panels omit the title to retain a data row.
+the graph stays visible. The header includes the child's age when known, between
+the name and selected-column position. Freshness stays on the panel's bottom line,
+below the navigation hints, independent of scrolling. Short panels omit the title
+to retain a data row; panels under six lines ask for more space. Calculation explanations live here and in the README,
+rather than in the Summary footer.
 Esc or Q returns directly to the menu. Piped output stays a plain table;
 `--json` always prints numeric data and never opens an interactive screen.
 
@@ -263,10 +268,10 @@ even if the gap crosses a day boundary. The unfinished gap after the last sleep
 is excluded; so is any unknown gap before the first recorded sleep.
 
 The muted note below the rows names the configured night start and end, and the
-timezone. Its parenthetical shows `h config set day_end HH:MM` to change night
-start and `h config set day_start HH:MM` to change night end, using current values
-as editable examples. The same settings are reachable through the shell's Config
-menu. See [`setup.md`](setup.md).
+timezone. To change them, use `h config set day_end HH:MM` for night start and
+`h config set day_start HH:MM` for night end, or the shell's Config menu.
+These instructions are documented here instead of repeated in the view.
+See [`setup.md`](setup.md).
 
 ## `stripes`
 

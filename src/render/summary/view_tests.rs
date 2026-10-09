@@ -106,7 +106,7 @@ fn every_column_stays_visible_with_day_and_the_correct_graph_when_narrow() {
 }
 
 #[test]
-fn scrolling_reaches_night_configuration_and_keeps_the_graph_and_keys() {
+fn scrolling_reaches_night_hours_and_keeps_the_graph_and_keys() {
     let calendar = Calendar::new("America/New_York").unwrap();
     let data = dataset();
     let rows = summaries::build(&data, &calendar, DayRule::default(), AFTERNOON, 30);
@@ -127,13 +127,7 @@ fn scrolling_reaches_night_configuration_and_keeps_the_graph_and_keys() {
         seen.push_str(&drawn);
         press(&mut state, KeyCode::Down);
     }
-    for text in [
-        "h config set day_end 20:00",
-        "h config set day_start 07:00",
-        "8:00 pm",
-        "7:00 am",
-        "pediatrician",
-    ] {
+    for text in ["8:00 pm", "7:00 am", "pediatrician"] {
         assert!(seen.contains(text), "missing {text}");
     }
     press(&mut state, KeyCode::Home);
@@ -236,11 +230,87 @@ fn summary_bars_are_separated_and_explain_the_complete_day_average() {
     let rows = summaries::build(&data, &calendar, DayRule::default(), AFTERNOON, 10);
     let lines = chart::lines(&rows, &COLUMNS[1], Units::Ml, (100, 12), Theme::dark(false));
     let drawn = lines.join("\n");
-    assert!(drawn.contains("7-day avg: 100.0"), "{drawn}");
+    assert!(drawn.contains("··· 7-day avg: 100.0"), "{drawn}");
     assert!(drawn.contains("today excluded"), "{drawn}");
     assert!(drawn.contains('·'), "the average must be dotted: {drawn}");
     assert!(
         lines.iter().any(|line| line.contains("█ █")),
         "bars need gaps: {drawn}"
     );
+}
+
+#[test]
+fn age_stays_in_the_header_and_freshness_stays_at_the_bottom_when_scrolling() {
+    let calendar = Calendar::new("America/New_York").unwrap();
+    let data = dataset();
+    let rows = summaries::build(&data, &calendar, DayRule::default(), AFTERNOON, 30);
+    let view = View {
+        rows: &rows,
+        dataset: &data,
+        calendar: &calendar,
+        units: Units::Ml,
+        now: AFTERNOON,
+    };
+    for size in [(80, 9), (80, 14), (120, 35)] {
+        let mut state = State::default();
+        for _ in 0..80 {
+            let lines = view.lines(&mut state, size, Theme::dark(false));
+            let drawn = lines.join("\n");
+            assert_eq!(lines.last().unwrap(), "as of just now");
+            assert_eq!(drawn.matches("as of").count(), 1);
+            if size.1 >= 12 {
+                assert!(
+                    lines[0].contains("Summary · Bear · 21 days old · column 1/21 · ~ partial")
+                );
+                assert_eq!(drawn.matches("days old").count(), 1);
+            }
+            for removed in [
+                "Change night",
+                "h config set",
+                "Wake totals estimate",
+                "Rows marked",
+                "Averages:",
+                "Wake gaps belong",
+                "Chart dots:",
+                "Feeding day/night splits",
+            ] {
+                assert!(!drawn.contains(removed), "{drawn}");
+            }
+            press(&mut state, KeyCode::Down);
+        }
+    }
+}
+
+#[test]
+fn unknown_age_is_omitted_from_the_summary_header() {
+    let calendar = Calendar::utc();
+    let mut data = dataset();
+    data.child.birthdate = None;
+    let view = View {
+        rows: &[],
+        dataset: &data,
+        calendar: &calendar,
+        units: Units::Ml,
+        now: AFTERNOON,
+    };
+    let lines = view.lines(&mut State::default(), (100, 24), Theme::dark(false));
+    assert!(lines[0].contains("Summary · Bear · column 1/21"));
+    assert!(!lines[0].contains("days old"));
+}
+
+#[test]
+fn a_panel_too_short_for_any_data_asks_for_more_space() {
+    let calendar = Calendar::utc();
+    let data = dataset();
+    let view = View {
+        rows: &[],
+        dataset: &data,
+        calendar: &calendar,
+        units: Units::Ml,
+        now: AFTERNOON,
+    };
+    let lines = view.lines(&mut State::default(), (80, 5), Theme::dark(false));
+    assert_eq!(lines.len(), 5);
+    assert_eq!(lines[0], "Enlarge the panel");
+    assert!(lines[1].contains("Esc/q back"));
 }

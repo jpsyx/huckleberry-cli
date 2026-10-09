@@ -66,8 +66,8 @@ pub(super) fn lines(
     }
     if height >= 5 {
         let legend = average.map_or_else(
-            || "· 7-day avg unavailable: no recorded complete days".to_owned(),
-            |(mean, count)| format!("· 7-day avg: {mean:.1} ({count}/7 days; today excluded)"),
+            || "··· 7-day avg unavailable: no recorded complete days".to_owned(),
+            |(mean, count)| format!("··· 7-day avg: {mean:.1} ({count}/7 days; today excluded)"),
         );
         lines.push(theme.paint(Tone::Average, &legend));
     }
@@ -110,9 +110,8 @@ fn plot(
 fn paint_cells(cells: &[char], is_average_row: bool, theme: Theme) -> String {
     cells
         .iter()
-        .enumerate()
-        .map(|(column, symbol)| {
-            if is_average_row && column % 2 == 0 {
+        .map(|symbol| {
+            if is_average_row {
                 let tone = if *symbol == ' ' {
                     Tone::Average
                 } else {
@@ -172,6 +171,18 @@ mod tests {
     }
 
     #[test]
+    fn average_dots_fill_every_plot_column() {
+        let lines = plot(
+            &[Some(8.0), Some(2.0), None],
+            Some(4.0),
+            15,
+            4,
+            Theme::dark(false),
+        );
+        assert_eq!(lines[2], "       │···············");
+    }
+
+    #[test]
     fn average_dots_contrast_with_bars_and_keep_their_background() {
         // The average crosses a full bar, empty space, and a missing day.
         let lines = plot(
@@ -183,7 +194,7 @@ mod tests {
         );
         let cells = styled_cells(&lines[2]);
         let (dot, over_bar) = cells[8];
-        let (block, bar) = cells[9];
+        let (block, bar) = styled_cells(&lines[1])[9];
         let (gap_dot, gap) = cells[12];
         let (missing_dot, missing) = cells[18];
         assert_eq!((dot, block, gap_dot, missing_dot), ('·', '█', '·', '·'));
@@ -204,8 +215,11 @@ mod tests {
         let lines = plot(&[Some(1.0), Some(9.0)], Some(1.0), 10, 6, Theme::dark(true));
         let cells = styled_cells(&lines[5]);
         assert_eq!(cells[8].0, '·');
-        assert_eq!(cells[9].0, '▅');
-        assert_eq!(cells[8].1.bg, cells[9].1.fg);
+        assert_eq!(cells[9].0, '·');
+        assert_eq!(
+            cells[8].1.bg,
+            Some(crate::tui::draw::tone(Tone::SummaryBar))
+        );
         assert_eq!(cells[9].1.bg, cells[8].1.bg, "the bar top must stay level");
     }
 
@@ -243,7 +257,13 @@ mod tests {
             dotted_row, 5,
             "100/900 fills only the bottom row of a six-row plot"
         );
-        assert!(lines[dotted_row].contains('▅') || lines[dotted_row].contains('▆'));
+        assert_eq!(
+            lines[dotted_row]
+                .chars()
+                .filter(|symbol| *symbol == '·')
+                .count(),
+            20
+        );
     }
     #[test]
     fn unavailable_days_never_pull_older_values_into_the_seven_day_average() {
