@@ -320,6 +320,11 @@ The `now` renderer combines the live sleep duration with the last completed
 sleep from the domain view. Its secondary previous-sleep note uses the muted
 role; relative time is measured from the completed sleep's end. Without a live
 sleep it displays that elapsed time and the recorded duration.
+`render::now::screen` assembles Last facts, recent/daily tables, and typical
+ranges; `render::now::layout` wraps styled text and arranges these sections
+according to available content width. Stdout and the Now drawer use the same
+rows. The drawer supplies its current inner width on every frame, so resize
+changes the arrangement without a second implementation of the content.
 
 Removing one is the same reference and one more step. Every tracker keeps a
 copy of its most recent entry on its own document so the app can draw a home

@@ -40,9 +40,8 @@ fn lines(facts: &Facts, at: f64, width: u16) -> Vec<Line<'static>> {
         return vec![waiting(facts)];
     };
     let view = now::build(&reading.dataset, &reading.calendar, reading.rule, at);
-    // Two columns here too when the panel is wide enough: the drawer is
-    // `h now`, and it lays itself out the same way.
-    crate::render::now::laid_out(
+    // The content width selects the same layout as `h now`, on every frame.
+    crate::render::now::screen(
         &view,
         &reading.dataset,
         &reading.calendar,
@@ -50,9 +49,6 @@ fn lines(facts: &Facts, at: f64, width: u16) -> Vec<Line<'static>> {
         at,
         // Its own width, not the terminal's: the drawer is a panel.
         Some(usize::from(width).saturating_sub(1)),
-        // A drawer cannot grow: stacking the ranges under the facts would make
-        // the glance strip the biggest thing on a screen it shares.
-        crate::render::now::WhenNarrow::Drop,
     )
     .into_iter()
     .map(|row| {

@@ -319,30 +319,69 @@ mod frames {
     /// The rule the drawer exists to keep: it is `h now`, and nothing else.
     #[test]
     fn the_drawer_draws_exactly_what_the_now_command_prints() {
-        let app = loaded();
+        let mut app = loaded();
+        let mut data = populated();
+        data.child.birthdate = Some("2025-09-08".to_owned());
+        app.facts.replace(data, calendar(), Units::Ml, rule());
         let reading = app.facts.reading().expect("a reading");
         let view =
             crate::domain::now::build(&reading.dataset, &reading.calendar, reading.rule, AFTERNOON);
-        // The facts, which are what "same wording" means. Where the typical
-        // ranges go is a layout decision each surface makes for its own room;
-        // see `WhenNarrow`.
-        let printed: Vec<String> = crate::render::now::screen(
-            &view,
-            &reading.dataset,
-            &reading.calendar,
-            reading.units,
-            AFTERNOON,
-            None,
-        )
-        .into_iter()
-        .map(|row| row.into_iter().map(|piece| piece.text).collect::<String>())
-        .collect();
-        let drawn = screen(&app, 100, 36);
-        for line in printed.iter().filter(|line| !line.trim().is_empty()) {
-            assert!(
-                drawn.contains(line.trim_end()),
-                "`h now` prints `{line}` and the drawer does not: {drawn}"
+        for width in [60, 83, 123, 183] {
+            // The drawer reserves two borders and one leading space.
+            let printed = crate::render::now::lines(
+                &view,
+                &reading.dataset,
+                &reading.calendar,
+                crate::theme::Theme::dark(false),
+                reading.units,
+                AFTERNOON,
+                Some(usize::from(width - 3)),
             );
+            let drawn = screen(&app, width, 120);
+            for line in printed.iter().filter(|line| !line.trim().is_empty()) {
+                assert!(
+                    drawn.contains(line.trim_end()),
+                    "`h now` prints `{line}` and the drawer does not at {width}: {drawn}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_now_drawer_reflows_after_terminal_resize() {
+        let app = loaded();
+        let mut terminal = Terminal::new(TestBackend::new(183, 100)).unwrap();
+        for width in [183, 123, 83, 183] {
+            terminal.backend_mut().resize(width, 100);
+            terminal.draw(|frame| draw(frame, &app, AFTERNOON)).unwrap();
+            let buffer = terminal.backend().buffer();
+            let position = |text: &str| {
+                (0..buffer.area.height)
+                    .find_map(|row| {
+                        let line: String = (0..buffer.area.width)
+                            .map(|column| buffer[(column, row)].symbol())
+                            .collect();
+                        line.find(text)
+                            .map(|offset| (row, line[..offset].chars().count()))
+                    })
+                    .unwrap_or_else(|| panic!("missing {text} at {width}"))
+            };
+            let facts = position("Last fed");
+            let tables = position("In last 4h");
+            let age = position("21 days old");
+            match width {
+                183 => assert!(facts.1 < tables.1 && tables.1 < age.1),
+                123 => {
+                    assert_eq!(facts.1, age.1);
+                    assert!(facts.1 < tables.1 && facts.0 < age.0);
+                }
+                _ => {
+                    assert_eq!(facts.1, tables.1);
+                    assert_eq!(tables.1, age.1);
+                    assert!(facts.0 < tables.0 && tables.0 < age.0);
+                }
+            }
+            position("pediatrician");
         }
     }
 
