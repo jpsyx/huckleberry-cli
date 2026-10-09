@@ -28,23 +28,11 @@ pub fn widget(facts: &Facts, at: f64, width: u16) -> Paragraph<'static> {
 /// How many rows the drawer wants, borders included.
 ///
 /// Asked before the layout is split, so the menu can be given everything left
-/// over rather than a guess.
+/// over rather than a guess. Measurement uses the same instant as rendering,
+/// because elapsed-time labels can wrap as the clock advances.
 #[must_use]
-pub fn height(facts: &Facts, width: u16) -> u16 {
-    u16::try_from(
-        lines(facts, measured_at(facts), width)
-            .len()
-            .saturating_add(2),
-    )
-    .unwrap_or(u16::MAX)
-}
-
-/// The instant used for measuring alone: how many rows there are does not
-/// depend on the clock, and measuring must not read one.
-fn measured_at(facts: &Facts) -> f64 {
-    facts
-        .reading()
-        .map_or(0.0, |reading| reading.dataset.fetched_at)
+pub fn height(facts: &Facts, width: u16, at: f64) -> u16 {
+    u16::try_from(lines(facts, at, width).len().saturating_add(2)).unwrap_or(u16::MAX)
 }
 
 fn lines(facts: &Facts, at: f64, width: u16) -> Vec<Line<'static>> {

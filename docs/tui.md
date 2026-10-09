@@ -141,20 +141,30 @@ version: the **Menu view** is the main panel, the **Now widget** is the one
 widget beside it, and **widget** and **panel** mean the same thing.
 
 ```
- Huckleberry · Wren                                                  Home
+ Huckleberry · Wren                                             Home
 ┌ Now ───────────────────────────────────────────────────────────────────┐
 │ Wren                                                                   │
 │                                                                        │
 │ Last fed            36m ago · 73 ml of Formula · 8:03 pm               │
-│ Diaper              1h 31m ago · wet · 7:09 pm                         │
-│ Sleep               currently sleeping for 40m                         │
-│                     (previous sleep finished 2h ago · slept for 1h 20m)│
+│ Last diaper         1h 31m ago · wet · 7:09 pm                         │
+│ Last sleep          currently sleeping for 30m                         │
+│                     (previous sleep finished 2h 10m ago · slept for 1h 20m) │
 │ Tonight             nothing finished yet                               │
-│ Sleep in last 4h    1h 20m total · 1 sleep 2h 10m ago                  │
-│ Sleep today         11h 18m total                                      │
-│ Fed in last 4h      146 ml total · 2 feeds                             │
-│                     fed 36m ago and 3h 4m ago                          │
-│ Fed today           430 ml total · 6 feeds · since 6:00 am             │
+│                                                                        │
+│ In last 4h                                                             │
+│ ┌────────────────────────┬────────────────────────┐                    │
+│ │ Feed                   │ Sleep                  │                    │
+│ ├────────────────────────┼────────────────────────┤                    │
+│ │ 146 ml total · 2 feeds │ 1h 20m total · 1 sleep │                    │
+│ │ 36m ago · 3h 4m ago    │ 2h 10m ago             │                    │
+│ └────────────────────────┴────────────────────────┘                    │
+│                                                                        │
+│ Today                                                                  │
+│ ┌────────────────────────────────────────┬───────────────┐             │
+│ │ Feed                                   │ Sleep         │             │
+│ ├────────────────────────────────────────┼───────────────┤             │
+│ │ 430 ml total · 6 feeds · since 6:00 am │ 11h 18m total │             │
+│ └────────────────────────────────────────┴───────────────┘             │
 │                                                                        │
 │ as of 2m ago                                                           │
 └────────────────────────────────────────────────────────────────────────┘
@@ -449,26 +459,23 @@ is what makes that one change rather than fifty.
 
 ## The widgets
 
-### 11. A widget shows one thing, and the Menu view stays the main panel
+### 11. A widget shows one thing, and the menu remains usable
 
-The shell is a dashboard in the Bloomberg sense: small dense boxes, each
-answering one question, around the thing you actually operate. That is a reason
-to add widgets carefully rather than a licence to fill the screen. A widget
-earns its place by answering a question somebody would otherwise navigate to
-ask. The Menu view is always the largest panel and always present.
-
-**"Largest" is enforced, not hoped for.** `split` caps the drawer at half the
-body, so the menu is always the taller of the two. Left uncapped it creeps:
-every fact added to `h now` is a row taken off the menu, and because the drawer
-mirrors that command by rule 16, the menu can be squeezed by a change made
-somewhere else entirely. On a terminal too short for both, the drawer loses its
-last lines rather than the menu losing rows, because a drawer short of its last
-line is still readable where a menu with no rows is not.
+The Now drawer grows to fit its facts and tables, while keeping at least five
+visible menu rows plus the menu's borders whenever the terminal has room.
+The menu scrolls as its cursor moves. The drawer is no longer capped at half
+the screen: that cap would hide the daily table even when enough room exists
+for both the facts and a usable menu. On a terminal too short for both, the
+last drawer lines are clipped so navigation remains available. While a command
+or dashboard is open, its panel keeps more than half the available height so
+input dials retain their selected values and instructions.
 
 ### 12. A widget is only as tall as it has something to say
 
 The drawer ends where its facts end and the menu takes the rest. A box two
-thirds full of nothing reads as broken rather than as finished.
+thirds full of nothing reads as broken rather than as finished. Height is
+measured at the same instant as the displayed facts, since elapsed-time labels
+can gain wrapped lines as the clock advances.
 
 ### 13. Every widget refreshes together, on `r`
 

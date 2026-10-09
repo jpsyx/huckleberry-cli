@@ -76,7 +76,7 @@ impl Shell {
             .screen
             .draw(|frame| super::draw::draw_with(frame, app, job, at))
             .context("drawing the menu")?;
-        Ok(super::draw::viewport(frame.area, app))
+        Ok(super::draw::viewport(frame.area, app, at))
     }
 
     /// Waits a tick for a keystroke. Nothing (a timeout, a resize, anything

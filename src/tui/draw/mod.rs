@@ -48,20 +48,20 @@ pub fn style(role: Tone) -> Style {
 /// The keys, spelled out on every screen rather than hidden behind `?`.
 pub const HINTS: &str = "↑/↓ j/k w/s · ← h/a back · → l/d open · Enter select · r refresh · q quit";
 
-/// The fewest rows the menu is ever squeezed to.
+/// The fewest rows the menu is ever squeezed to, including its two borders.
 ///
 /// The drawer gives way rather than the menu: the menu is the part being
 /// operated, and a drawer scrolled off its last line is still readable where a
 /// menu with no rows is not.
-const MENU_FLOOR: u16 = 5;
+const MENU_FLOOR: u16 = 7;
 
 /// How many rows fit in the menu list, given the whole terminal.
 ///
 /// The loop passes the same number to [`App::apply`](super::state::App::apply),
 /// so scrolling and drawing agree about what is on screen.
 #[must_use]
-pub fn viewport(area: Rect, app: &App) -> usize {
-    let menu = split(area, app).0;
+pub fn viewport(area: Rect, app: &App, at: f64) -> usize {
+    let menu = split(area, app, at).0;
     usize::from(menu.height).saturating_sub(2).max(1)
 }
 
@@ -82,7 +82,11 @@ pub fn draw_with(frame: &mut Frame, app: &App, job: Option<&crate::tui::job::Job
         .split(frame.area());
 
     frame.render_widget(header(app, areas[0].width), areas[0]);
-    let (rows, facts) = split(areas[1], app);
+    let (rows, facts) = if job.is_some() || app.dashboard.is_some() {
+        split_with_floor(areas[1], app, areas[1].height / 2 + 1, at)
+    } else {
+        split(areas[1], app, at)
+    };
     match (job, app.dashboard.as_ref()) {
         (Some(job), _) => flow::draw(frame, rows, job),
         (None, Some(dashboard)) => {
@@ -111,19 +115,17 @@ pub fn draw_with(frame: &mut Frame, app: &App, job: Option<&crate::tui::job::Job
 /// to say, and gives way to the menu on a short terminal rather than the other
 /// way round: the menu is the part being operated, and a drawer short of its
 /// last line is still readable where a menu with no rows is not.
-fn split(body: Rect, app: &App) -> (Rect, Rect) {
-    let room = body
-        .height
-        .saturating_sub(MENU_FLOOR)
-        // The Menu view is always the largest panel, so the drawer never takes
-        // half. Left uncapped it creeps: every fact added to `now` is a row
-        // taken off the menu, until one day the thing being operated is the
-        // smaller of the two.
-        .min(body.height.saturating_sub(1) / 2);
+fn split(body: Rect, app: &App, at: f64) -> (Rect, Rect) {
+    split_with_floor(body, app, MENU_FLOOR, at)
+}
+
+/// Commands and dashboards retain the larger panel they need for input.
+fn split_with_floor(body: Rect, app: &App, floor: u16, at: f64) -> (Rect, Rect) {
+    let room = body.height.saturating_sub(floor);
     let areas = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(now::height(&app.facts, body.width.saturating_sub(2)).min(room)),
+            Constraint::Length(now::height(&app.facts, body.width.saturating_sub(2), at).min(room)),
             Constraint::Min(3),
         ])
         .split(body);
@@ -330,6 +332,7 @@ mod frames {
             &reading.calendar,
             reading.units,
             AFTERNOON,
+            None,
         )
         .into_iter()
         .map(|row| row.into_iter().map(|piece| piece.text).collect::<String>())
@@ -361,15 +364,90 @@ mod frames {
         // The wording is `h now`'s, because the drawer has none of its own.
         for fact in [
             "Last fed",
-            "Diaper",
-            "Sleep",
-            "Fed in last 4h",
-            "Fed today",
-            "Sleep today",
+            "Last diaper",
+            "Last sleep",
+            "In last 4h",
+            "Today",
+            "Feed",
         ] {
             assert!(drawn.contains(fact), "`{fact}` missing: {drawn}");
         }
         assert!(drawn.contains("wet"), "{drawn}");
+    }
+
+    #[test]
+    fn elapsed_time_wrapping_keeps_the_drawers_final_line_visible() {
+        let mut data = populated();
+        data.feeds = [600.0, 3600.0, 6600.0, 9600.0]
+            .map(|ago| bottle(AFTERNOON - ago, 30.0))
+            .to_vec();
+        data.sleep = [600.0, 3600.0, 6600.0, 9600.0]
+            .map(|ago| sleep(AFTERNOON - ago - 1200.0, 1200.0))
+            .to_vec();
+        let mut app = App::new();
+        app.facts.replace(data, calendar(), Units::Ml, rule());
+        let mut terminal = Terminal::new(TestBackend::new(80, 45)).expect("a test terminal");
+        terminal
+            .draw(|frame| draw(frame, &app, AFTERNOON + 3000.0))
+            .expect("a frame");
+        let buffer = terminal.backend().buffer();
+        let drawn = (0..45)
+            .map(|row| {
+                (0..80)
+                    .map(|column| buffer[(column, row)].symbol())
+                    .collect::<String>()
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(drawn.contains("as of 50m ago"), "{drawn}");
+    }
+
+    #[test]
+    fn both_recent_event_lists_remain_visible_at_eighty_columns() {
+        let mut data = populated();
+        data.feeds = [600.0, 4200.0, 7800.0, 11400.0]
+            .map(|ago| bottle(AFTERNOON - ago, 30.0))
+            .to_vec();
+        data.sleep = [600.0, 4200.0, 7800.0, 11400.0]
+            .map(|ago| sleep(AFTERNOON - ago - 1200.0, 1200.0))
+            .to_vec();
+        let mut app = App::new();
+        app.facts.replace(data, calendar(), Units::Ml, rule());
+        let drawn = screen(&app, 80, 45);
+        // Each timestamp must survive in both cells, including the last one.
+        assert_eq!(drawn.matches("3h 10m ago").count(), 2, "{drawn}");
+        assert_eq!(drawn.matches("2h 10m ago").count(), 2, "{drawn}");
+    }
+
+    #[test]
+    fn mixed_feeding_totals_fit_an_eighty_column_drawer() {
+        let mut data = populated();
+        data.feeds = [0.5, 3.0, 4.5, 5.0, 6.0]
+            .map(|hours| bottle(AFTERNOON - hours * 3600.0, 86.0))
+            .to_vec();
+        data.feeds.push(crate::domain::fixtures::nursing(
+            AFTERNOON - 25_200.0,
+            600.0,
+            300.0,
+        ));
+        data.sleep = vec![
+            sleep(AFTERNOON - 3600.0, 1200.0),
+            sleep(AFTERNOON - 10_000.0, 3600.0),
+        ];
+        let mut app = App::new();
+        app.facts.replace(data, calendar(), Units::Ml, rule());
+        let drawn = screen(&app, 80, 40);
+        assert!(drawn.contains("1h 20m total · 2 sleeps"), "{drawn}");
+        assert!(
+            drawn.contains("430 ml total · nursed 15m · 6 feeds · since 6:00 am"),
+            "{drawn}"
+        );
+        assert!(
+            drawn
+                .lines()
+                .any(|line| line.contains("since 6:00 am") && line.contains("1h 20m total")),
+            "{drawn}"
+        );
     }
 
     #[test]
@@ -383,7 +461,7 @@ mod frames {
     #[test]
     fn the_widget_carries_the_running_totals_the_now_command_shows() {
         let drawn = screen(&loaded(), 100, 30);
-        for fact in ["Fed in last 4h", "Fed today", "Sleep today"] {
+        for fact in ["In last 4h", "Today", "Feed"] {
             assert!(drawn.contains(fact), "`{fact}` missing: {drawn}");
         }
         assert!(drawn.contains("90 ml total · 1 feed"), "{drawn}");
@@ -399,8 +477,8 @@ mod frames {
             crate::domain::today::DayRule::continuous(6.0, 19.5),
         );
         let drawn = screen(&app, 100, 30);
-        assert!(drawn.contains("Fed in last 24h"), "{drawn}");
-        assert!(!drawn.contains("Fed today"), "{drawn}");
+        assert!(drawn.contains("In last 24h"), "{drawn}");
+        assert!(!drawn.contains("Today"), "{drawn}");
     }
 
     #[test]
@@ -481,21 +559,16 @@ mod frames {
     }
 
     #[test]
-    fn the_menu_is_the_main_panel_and_gets_the_room() {
-        let body = Rect::new(0, 1, 100, 28);
-        let (rows, facts) = split(body, &loaded());
-        assert_eq!(rows.width, facts.width, "both span the width");
-        assert!(
-            rows.height > facts.height,
-            "the menu view is the main panel: {} vs {}",
-            rows.height,
-            facts.height
-        );
-        assert_eq!(
-            facts.y + facts.height,
-            rows.y,
-            "and the menu is beneath the drawer"
-        );
+    fn the_drawer_can_grow_while_preserving_five_visible_menu_rows() {
+        let body = Rect::new(0, 1, 100, 38);
+        let app = loaded();
+        let (menu, facts) = split(body, &app, AFTERNOON);
+        assert_eq!(facts.height, now::height(&app.facts, 98, AFTERNOON));
+        assert!(menu.height >= 7, "five rows plus menu borders");
+        assert_eq!(menu.width, facts.width);
+        assert_eq!(facts.y + facts.height, menu.y);
+        let (short_menu, _) = split(Rect::new(0, 1, 100, 28), &app, AFTERNOON);
+        assert!(short_menu.height >= 7);
     }
 
     #[test]
@@ -575,6 +648,44 @@ mod frames {
     }
 
     #[test]
+    fn an_active_dial_keeps_its_selected_value_and_instructions_visible() {
+        use crate::prompt::dial::{draw, model::Dial, wheel::Wheel};
+        let dial = Dial {
+            wheels: vec![Wheel::new(
+                (0..60).map(|value| value.to_string()).collect(),
+                23,
+                5,
+                "",
+            )],
+            column: 0,
+            landmark: None,
+            switch: None,
+            trailing: Some("minutes ago".to_owned()),
+        };
+        let lines = draw::render("When?", &dial, 98, crate::theme::Theme::dark(false));
+        let job = crate::tui::job::Job::idle("Log sleep", &lines);
+        let mut terminal = Terminal::new(TestBackend::new(100, 30)).expect("a test terminal");
+        terminal
+            .draw(|frame| draw_with(frame, &loaded(), Some(&job), AFTERNOON))
+            .expect("a frame");
+        let buffer = terminal.backend().buffer();
+        let drawn = (0..30)
+            .map(|row| {
+                (0..100)
+                    .map(|column| buffer[(column, row)].symbol())
+                    .collect::<String>()
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        for line in lines.iter().filter(|line| !line.trim().is_empty()) {
+            assert!(
+                drawn.contains(line.trim()),
+                "missing dial line {line}: {drawn}"
+            );
+        }
+    }
+
+    #[test]
     fn a_command_draws_where_the_menu_was_and_leaves_everything_else_alone() {
         let app = loaded();
         let job = crate::tui::job::Job::idle("Diaper", &["wet or dirty?".to_owned()]);
@@ -619,7 +730,7 @@ mod frames {
     fn the_viewport_leaves_room_for_the_rows_it_reports() {
         for (width, height) in [(100_u16, 24_u16), (60, 24), (40, 14), (100, 8)] {
             let body = Rect::new(0, 1, width, height.saturating_sub(2));
-            let rows = viewport(body, &loaded());
+            let rows = viewport(body, &loaded(), AFTERNOON);
             assert!(rows >= 1, "{width}x{height} reported {rows} rows");
         }
     }

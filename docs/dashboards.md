@@ -72,22 +72,35 @@ The 3am screen: four facts, in the order they get asked.
 Wren
 
 Last fed            36m ago · 73 ml of Formula · 8:03 pm
-Diaper              1h 31m ago · wet · 7:09 pm
-Sleep               currently sleeping for 30m
+Last diaper         1h 31m ago · wet · 7:09 pm
+Last sleep          currently sleeping for 30m
                     (previous sleep finished 2h 10m ago · slept for 1h 20m)
 Tonight             nothing finished yet
-Sleep in last 4h    1h 20m total · 1 sleep 2h 10m ago
-Sleep today         11h 18m total
-Fed in last 4h      146 ml total · 2 feeds
-                    fed 36m ago and 3h 4m ago
-Fed today           430 ml total · 6 feeds · since 6:00 am
+
+In last 4h
+┌────────────────────────┬────────────────────────┐
+│ Feed                   │ Sleep                  │
+├────────────────────────┼────────────────────────┤
+│ 146 ml total · 2 feeds │ 1h 20m total · 1 sleep │
+│ 36m ago · 3h 4m ago    │ 2h 10m ago             │
+└────────────────────────┴────────────────────────┘
+
+Today
+┌────────────────────────────────────────┬───────────────┐
+│ Feed                                   │ Sleep         │
+├────────────────────────────────────────┼───────────────┤
+│ 430 ml total · 6 feeds · since 6:00 am │ 11h 18m total │
+└────────────────────────────────────────┴───────────────┘
 
 as of 2m ago
 ```
 
-The sleep facts run together and the feeding facts run together: last night,
-then the last four hours, then the day, and only then what went in. An eye that
-has just read "last night" is still on the subject.
+After the last-event facts and the night's sleep, totals are grouped by window.
+`In last 4h` has Feed and Sleep columns, a header row, and one data row with
+two lines: totals above event times. The daily table follows with the same
+columns and a single-line data row. Each table sizes its columns to its own contents to avoid wasting width.
+On narrow terminals, long cells wrap within the same data row, without adding
+horizontal separators or dropping events.
 
 A running sleep takes two lines: what is happening now, and the one before it
 underneath in muted text, indented to line up with the value it is about. One
@@ -101,23 +114,16 @@ The next line relabels itself. Inside the family's night window it reads
 was precise and is not what anybody calls it at 3am. An ambiguous label there is
 the one that gets misread, so "tonight" and "last night" stay distinct.
 
-**The recent totals say "total".** `350 ml · 5 feeds` reads as 350 ml each
-about as easily as it reads as 350 altogether, and one of those is four hundred
-per cent of the truth. The word goes on the quantity rather than on the count,
-because the count was never the ambiguous half. The day rows take it too, and
-in exchange their labels dropped the word: `Fed today`, not `Total fed today`,
-because a row that says "total" twice reads as though it answered a different
-question from the one above it.
+**Every populated total says "total".** The word qualifies the quantity,
+so a volume or duration cannot be mistaken for the amount per event.
 
-**Each recent total carries the times behind it.** `3 feeds` does not say
-whether they were spread through the window or all at once, which is the next
-thing asked, so the times go on a muted line underneath, indented to the value.
-Two are joined with `and`, because a bullet between exactly two things reads
-like a list that got cut off. A single time needs no line of its own and goes
-on the end of the total, where it reads as a sentence: `73 ml · 1 feed 36m ago`.
-Sleeps are listed the same way and say `slept`, measured from when each one
-ended, because that is when the baby woke. A sleep still running is not in the
-list: the sleep line above already says it is happening.
+**Each recent total carries the times behind it.** Event times occupy a
+muted second line in the same table cell, with no border separating them
+from the total. One event uses that line too; multiple events always use
+` · `, including lists of two. The list has no leading verb. Sleep times
+measure from the end of each completed sleep, because that is when the baby
+woke. A sleep still running is described in the Last sleep fact above.
+The daily table keeps the existing total wording and has no event list.
 
 On a screen wide enough, the typical ranges for this baby's age go in a second
 column beside the facts, each judged against **today** rather than against the
@@ -129,7 +135,7 @@ what a day means here.
 
 **A rule runs down the gutter between the two columns**, and it is not
 decoration. The columns are two lists that share a screen, not a table of
-pairs: the range sitting beside "Diaper" is about sleep as often as not, and
+pairs: the range sitting beside "Last diaper" is about sleep as often as not, and
 without a divider the eye reads across. The rule is drawn on every row of the
 block rather than only where the right column has something to say, because a
 line that stops and starts again reads as a border that has gone wrong.
@@ -141,19 +147,11 @@ table with a header and not fine in a column that has none. The age heads the
 column with a blank line under it, so it reads as the heading it is rather than
 as the first range.
 
-The three running totals answer the second question rather than the first: not
-"when did she last eat" but "has she had enough". Four hours because that spans
-a newborn's usual feeding interval with room to spare, so the question the line
-answers is whether one is due.
-
-The last two say which window they mean rather than assuming one.
-A family counting a rolling day sees `Fed in last 24h` and `Slept in last 24h`;
-a family counting from an hour sees `Total fed today` and `Total slept today`,
-with `since 6:00 am`
-on the first of them so both are anchored without saying it twice. What
-`today` covers is a setting, and [`setup.md`](setup.md) is what asks. A sleep
-in progress counts towards `Total slept today`, because a baby asleep right now has
-slept that time today whatever the intervals collection says.
+The tables show the last four hours followed by the family's daily window.
+A family counting a rolling day sees `In last 24h`; a family counting from
+an hour sees `Today`, with `since 6:00 am` in the Feed cell. What `today`
+covers is a setting, and [`setup.md`](setup.md) is what asks. A sleep in
+progress counts towards the daily Sleep total.
 
 A window with nothing in it says `nothing logged` rather than `0 ml`, for the
 reason every other figure here does: zero is a claim about the baby and an

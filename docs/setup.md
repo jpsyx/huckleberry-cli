@@ -119,7 +119,7 @@ chose.
 
 | Where | What it does |
 | --- | --- |
-| `now`, and the shell's Now widget | `day_mode` decides what the feed and sleep totals cover, and whether they read `Fed today` / `Sleep today` or `Fed in last 24h` / `Sleep in last 24h` |
+| `now`, and the shell's Now widget | `day_mode` decides what the feed and sleep totals cover, and whether their shared table heading reads `Today` or `In last 24h` |
 | `summary` and `trends` | each row is one of this family's days, `day_start` to `day_start`, so a 4am feed is counted on the row before |
 | `stripes` | each row runs from the previous `day_end` to this one, so a night lands whole on one row |
 | every screen with a night on it | `day_end` and `day_start` replace the profile's night, applied to the dataset once as it is read |

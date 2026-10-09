@@ -567,7 +567,7 @@ twenty-four hours; an older baby has a day with a beginning, and "how much has
 she eaten today" means since she woke.
 
 **Consequences.** Screens say which window they mean rather than assuming one:
-a rolling family sees `Fed in last 24h`, a discrete family sees `Total fed today` with
+a rolling family sees `In last 24h`, a discrete family sees `Today` with
 the hour it began on it. The setting reaches every screen through one step,
 `DayRule::apply_to` on the dataset as it is read, rather than through a
 parameter on every renderer. That also means `child show` prints the night this
