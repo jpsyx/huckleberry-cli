@@ -2,7 +2,11 @@
 
 use std::fmt::Write as _;
 
-use crate::{cli::Units, domain::summaries::DaySummary, theme::Theme};
+use crate::{
+    cli::Units,
+    domain::summaries::DaySummary,
+    theme::{Theme, Tone},
+};
 
 use super::columns::Column;
 
@@ -65,7 +69,7 @@ pub(super) fn lines(
             || "· 7-day avg unavailable: no recorded complete days".to_owned(),
             |(mean, count)| format!("· 7-day avg: {mean:.1} ({count}/7 days; today excluded)"),
         );
-        lines.push(theme.muted(&legend));
+        lines.push(theme.paint(Tone::Average, &legend));
     }
     lines.resize(height, String::new());
     lines
@@ -88,12 +92,8 @@ fn plot(
         .map(|mean| (((1.0 - mean / maximum) * height as f64).floor() as usize).min(height - 1));
     (0..height)
         .map(|row| {
-            let mut cells = bar_row(values, maximum, width, height, row);
-            if average_row == Some(row) {
-                for column in (0..width).step_by(2) {
-                    cells[column] = '·';
-                }
-            }
+            let cells = bar_row(values, maximum, width, height, row);
+            let painted_cells = paint_cells(&cells, average_row == Some(row), theme);
             let label = if row == 0 {
                 format!("{maximum:.1}")
             } else if row == height - 1 {
@@ -101,7 +101,27 @@ fn plot(
             } else {
                 String::new()
             };
-            theme.accent(&format!("{label:>7}│{}", cells.iter().collect::<String>()))
+            format!("{}{painted_cells}", theme.accent(&format!("{label:>7}│")))
+        })
+        .collect()
+}
+
+/// Paint dots independently so their background ends at the bar's edge.
+fn paint_cells(cells: &[char], is_average_row: bool, theme: Theme) -> String {
+    cells
+        .iter()
+        .enumerate()
+        .map(|(column, symbol)| {
+            if is_average_row && column % 2 == 0 {
+                let tone = if *symbol == ' ' {
+                    Tone::Average
+                } else {
+                    Tone::AverageOverBar
+                };
+                theme.paint(tone, "·")
+            } else {
+                theme.accent(&symbol.to_string())
+            }
         })
         .collect()
 }
@@ -140,6 +160,48 @@ fn day_labels(rows: &[DaySummary], width: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn styled_cells(line: &str) -> Vec<(char, ratatui::style::Style)> {
+        crate::tui::draw::painted(line)
+            .spans
+            .iter()
+            .flat_map(|span| span.content.chars().map(|symbol| (symbol, span.style)))
+            .collect()
+    }
+
+    #[test]
+    fn average_dots_contrast_with_bars_and_keep_their_background() {
+        // The average crosses a full bar, empty space, and a missing day.
+        let lines = plot(
+            &[Some(8.0), Some(2.0), None],
+            Some(4.0),
+            15,
+            4,
+            Theme::dark(true),
+        );
+        let cells = styled_cells(&lines[2]);
+        let (dot, over_bar) = cells[8];
+        let (block, bar) = cells[9];
+        let (gap_dot, gap) = cells[12];
+        let (missing_dot, missing) = cells[18];
+        assert_eq!((dot, block, gap_dot, missing_dot), ('·', '█', '·', '·'));
+        assert_ne!(over_bar.fg, bar.fg, "dots must contrast with the bars");
+        assert_eq!(over_bar.bg, bar.fg, "dots must not punch holes in bars");
+        assert_eq!(gap.fg, over_bar.fg);
+        assert_eq!(missing.fg, over_bar.fg);
+        assert_eq!(gap.bg, None, "gaps must retain the terminal background");
+        assert_eq!(missing.bg, None);
+        assert_eq!(bar.bg, None, "dot backgrounds must not leak to later cells");
+    }
+
+    #[test]
+    fn average_dots_keep_the_background_of_partial_bar_cells() {
+        let lines = plot(&[Some(1.0), Some(9.0)], Some(1.0), 10, 6, Theme::dark(true));
+        let cells = styled_cells(&lines[5]);
+        assert_eq!(cells[8].0, '·');
+        assert_eq!(cells[9].0, '▅');
+        assert_eq!(cells[8].1.bg, cells[9].1.fg);
+    }
 
     #[test]
     fn average_dots_align_with_bars_of_the_same_height_even_near_zero() {

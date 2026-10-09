@@ -35,7 +35,10 @@ pub use crate::dashboard::draw::tone;
 /// and there is still exactly one file that decides what a role looks like.
 #[must_use]
 pub fn style(role: Tone) -> Style {
-    let style = Style::default().fg(tone(role));
+    let mut style = Style::default().fg(tone(role));
+    if let Some(background) = role.background() {
+        style = style.bg(tone(background));
+    }
     if role.sgr().starts_with("1;") {
         return style.add_modifier(Modifier::BOLD);
     }

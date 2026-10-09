@@ -61,6 +61,10 @@ pub enum Tone {
     /// distinction from [`Tone::Warning`] is the point: that one is for the
     /// tool's own problems, this one is an observation about a number.
     Attention,
+    /// The dotted seven-day average in the Summary chart.
+    Average,
+    /// An average dot over a bar, preserving the bar color behind it.
+    AverageOverBar,
     /// A sleep, wherever entries of several kinds are listed together.
     Sleep,
     /// A feed of any sort.
@@ -76,7 +80,7 @@ pub enum Tone {
 impl Tone {
     /// Every role, so something reading a painted line back can find which
     /// one painted it.
-    pub const ALL: [Self; 19] = [
+    pub const ALL: [Self; 21] = [
         Self::Heading,
         Self::Accent,
         Self::Value,
@@ -91,6 +95,8 @@ impl Tone {
         Self::Today,
         Self::Good,
         Self::Attention,
+        Self::Average,
+        Self::AverageOverBar,
         Self::Sleep,
         Self::Feeding,
         Self::Diaper,
@@ -142,8 +148,18 @@ impl Tone {
             // here it is a reading.
             Self::Attention | Self::Milestone => "93",
             Self::Info | Self::Sleep => "94",
-            Self::Diaper => "95",
+            Self::Diaper | Self::Average => "95",
+            Self::AverageOverBar => "106;95",
             Self::Accent | Self::Feeding => "96",
+        }
+    }
+
+    /// The background role, when a glyph must preserve a colored surface.
+    #[must_use]
+    pub const fn background(self) -> Option<Self> {
+        match self {
+            Self::AverageOverBar => Some(Self::Accent),
+            _ => None,
         }
     }
 
@@ -164,7 +180,7 @@ impl Tone {
             Self::Success | Self::Good | Self::Pumping => 10,
             Self::Warning | Self::Attention | Self::Milestone => 11,
             Self::Info | Self::Sleep => 12,
-            Self::Heading | Self::Diaper => 13,
+            Self::Heading | Self::Diaper | Self::Average | Self::AverageOverBar => 13,
             Self::Accent | Self::Prompt | Self::Feeding => 14,
             Self::Value | Self::Today | Self::Selected => 15,
         }
@@ -293,7 +309,7 @@ pub fn color_enabled() -> bool {
 mod tests {
     use super::*;
 
-    const EVERY_TONE: [Tone; 18] = [
+    const EVERY_TONE: [Tone; 20] = [
         Tone::Heading,
         Tone::Accent,
         Tone::Value,
@@ -307,6 +323,8 @@ mod tests {
         Tone::Today,
         Tone::Good,
         Tone::Attention,
+        Tone::Average,
+        Tone::AverageOverBar,
         Tone::Sleep,
         Tone::Feeding,
         Tone::Diaper,

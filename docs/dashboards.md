@@ -200,7 +200,10 @@ window, oldest to newest, with a blank column between bars. Durations use hours;
 the table keeps hours and minutes. Missing values leave empty slots. The dotted
 horizontal line is the mean of that metric's recorded daily values in the most
 recent seven complete family days. Today never contributes, and older days never
-replace gaps. The legend shows the value and the number of usable days out of
+replace gaps. The dots are magenta against cyan bars. Where a dot crosses a bar,
+its background retains the cyan bar color so the line overlays the bar without
+cutting a dark hole through it. Dots in empty slots keep the terminal background.
+The legend shows the value and the number of usable days out of
 seven; no usable days means no average line. Shorter requested windows use the
 available complete days and say how many. The notes explain the dots even in
 panels too short for the legend. If the window cannot fit separated bars, the

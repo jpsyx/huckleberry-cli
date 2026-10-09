@@ -471,7 +471,9 @@ numeric columns have grouped headings; Day stays fixed. Tab/Shift-Tab and
 left/right (H/L, A/D, either case) cycle columns and update the separated bar chart
 below. The horizontal window moves only when selection crosses an edge. A dotted
 line compares the bars with the previous seven complete days' average, excluding
-today. The default table and chart include those seven days plus partial today.
+today. Its magenta dots keep a cyan background where they cross a bar, so the
+line reads as an overlay without dark gaps in the bars. The default table and
+chart include those seven days plus partial today.
 Left is movement within this control, so Esc or Q closes it directly.
 Up/down (J/K, W/S) scroll the rows and notes, including configured night hours
 and the commands that change them. The selected heading has brackets as well as
