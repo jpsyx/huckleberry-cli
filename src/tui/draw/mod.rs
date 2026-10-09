@@ -369,17 +369,13 @@ mod frames {
             let facts = position("Last fed");
             let tables = position("In last 4h");
             let age = position("21 days old");
-            match width {
-                183 => assert!(facts.1 < tables.1 && tables.1 < age.1),
-                123 => {
-                    assert_eq!(facts.1, age.1);
-                    assert!(facts.1 < tables.1 && facts.0 < age.0);
-                }
-                _ => {
-                    assert_eq!(facts.1, tables.1);
-                    assert_eq!(tables.1, age.1);
-                    assert!(facts.0 < tables.0 && tables.0 < age.0);
-                }
+            if width >= 99 {
+                assert_eq!(facts.1, age.1);
+                assert!(facts.1 < tables.1 && facts.0 < age.0);
+            } else {
+                assert_eq!(facts.1, tables.1);
+                assert_eq!(tables.1, age.1);
+                assert!(facts.0 < tables.0 && tables.0 < age.0);
             }
             position("pediatrician");
         }

@@ -14,17 +14,12 @@ const GUTTER: usize = 3;
 pub(super) enum Columns {
     Stacked(Option<usize>),
     Two([usize; 2]),
-    Three([usize; 3]),
 }
 
 impl Columns {
     /// Each side-by-side section needs at least 46 cells to remain readable.
-    pub(super) const fn for_width(width: Option<usize>, has_ranges: bool) -> Self {
+    pub(super) const fn for_width(width: Option<usize>) -> Self {
         match width {
-            Some(width) if width >= 144 && has_ranges => {
-                let usable = width - 2 * GUTTER;
-                Self::Three([usable / 3, usable / 3, usable - 2 * (usable / 3)])
-            }
             Some(width) if width >= 96 => {
                 let usable = width - GUTTER;
                 Self::Two([usable / 2, usable - usable / 2])
@@ -38,7 +33,6 @@ impl Columns {
         match self {
             Self::Stacked(width) => *width,
             Self::Two(widths) => Some(widths[1]),
-            Self::Three(widths) => Some(widths[1]),
         }
     }
 
@@ -54,14 +48,6 @@ impl Columns {
             }
             Self::Two(widths) => beside(
                 &[wrap_rows(stack(facts, ranges), widths[0]), tables],
-                &widths,
-            ),
-            Self::Three(widths) => beside(
-                &[
-                    wrap_rows(facts, widths[0]),
-                    tables,
-                    wrap_rows(ranges, widths[2]),
-                ],
                 &widths,
             ),
         }
