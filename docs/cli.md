@@ -639,9 +639,11 @@ deleting, settings/account changes, and exports. Required questions and
 command-specific confirmations remain in their normal flows; there is no Run,
 Options, Change options, or Session options menu item.
 Static read results stay visible with Back selected by default, without a
-separate Continue prompt. Leaving the View logs browser with Back returns
-directly to its parent menu; there is no second exit prompt. Empty log results
-and newly opened entry details stay visible until Back. Trends
+separate Continue prompt. Back from View logs or Foods List returns directly
+to its parent menu; Back from the Edit/Delete entry picker returns to Home.
+There is no second exit prompt or completion receipt after leaving a picker.
+Empty results and newly opened entry details stay visible until Back. Enter
+on a browsed food with no details leaves the list and selection in place. Trends
 still asks for its required metric before displaying a chart. Failed views offer
 Back and an explicit Retry; they never retry automatically.
 Successful logging returns home; views return to their parent menu. Other static

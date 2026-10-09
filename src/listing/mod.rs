@@ -145,9 +145,13 @@ impl<'a> Listing<'a> {
     /// Shows the listing: browsable on a terminal, plain text otherwise.
     ///
     /// Enter opens what is under the cursor, which for a listing nobody is
-    /// choosing from means printing what is known about it.
+    /// choosing from means printing what is known about it. In the shell,
+    /// explicit Back cancels the command so it cannot add a completion prompt.
     pub fn show(&self, theme: Theme) -> Result<()> {
-        self.show_with_outcome(theme).map(|_| ())
+        if self.show_with_outcome(theme)? == ShowOutcome::Back && crate::prompt::host::hosted() {
+            return Err(crate::prompt::Cancelled.into());
+        }
+        Ok(())
     }
 
     /// Shows a listing while preserving whether the reader explicitly went back.
@@ -187,9 +191,14 @@ impl<'a> Listing<'a> {
 
     /// Opens the listing for somebody to pick one row, and hands back its key.
     ///
-    /// `None` means they left without choosing, which is not a failure.
+    /// In the shell, explicit Back cancels the command before its completion
+    /// receipt. `None` means an empty result, or leaving a standalone listing.
     pub fn choose(&self, theme: Theme) -> Result<Option<String>> {
-        self.open(theme, true)
+        let chosen = self.open(theme, true)?;
+        if chosen.is_none() && !self.rows.is_empty() && crate::prompt::host::hosted() {
+            return Err(crate::prompt::Cancelled.into());
+        }
+        Ok(chosen)
     }
 
     /// The listing, one way or the other.
@@ -263,6 +272,9 @@ impl<'a> Listing<'a> {
                     };
                     if choosing && !row.selectable {
                         state.trouble.clone_from(&row.refusal);
+                        continue;
+                    }
+                    if !choosing && row.detail.is_empty() {
                         continue;
                     }
                     return Ok(Some(row.key.clone()));
@@ -346,6 +358,9 @@ impl<'a> Listing<'a> {
                     };
                     if choosing && !row.selectable {
                         state.trouble.clone_from(&row.refusal);
+                        continue;
+                    }
+                    if !choosing && row.detail.is_empty() {
                         continue;
                     }
                     return Ok(Some(row.key.clone()));
@@ -483,6 +498,142 @@ mod tests {
                 .group("Sun 27 Sep")
                 .tone(Tone::Feeding),
         ])
+    }
+
+    #[test]
+    fn hosted_back_cancels_browsers_and_entry_pickers() {
+        use crossterm::event::KeyCode;
+        for choosing in [true, false] {
+            for key in [
+                KeyCode::Esc,
+                KeyCode::Left,
+                KeyCode::Char('h'),
+                KeyCode::Char('a'),
+                KeyCode::Char('q'),
+            ] {
+                let journey = hosted_navigation(choosing, &[key], false);
+                assert!(
+                    journey
+                        .result
+                        .as_ref()
+                        .is_err_and(crate::prompt::is_cancelled),
+                    "Back must bypass completion prompts: {:?}",
+                    journey.result
+                );
+                assert_eq!(journey.frames.len(), 1);
+                assert!(journey.output.is_empty());
+            }
+        }
+    }
+
+    #[test]
+    fn enter_without_details_keeps_the_browse_selection_in_place() {
+        use crossterm::event::KeyCode;
+        let journey =
+            hosted_navigation(false, &[KeyCode::Down, KeyCode::Enter, KeyCode::Esc], false);
+        assert_eq!(
+            journey.frames.len(),
+            3,
+            "Enter must keep the list open: {:?}",
+            journey.frames
+        );
+        assert_eq!(
+            journey.frames[1], journey.frames[2],
+            "the selected row must not reset"
+        );
+        assert!(journey.output.is_empty(), "no empty detail receipt");
+    }
+
+    #[test]
+    fn entry_pickers_can_select_rows_without_display_details() {
+        use crossterm::event::KeyCode;
+        let journey = hosted_navigation(true, &[KeyCode::Down, KeyCode::Enter], false);
+        assert_eq!(journey.result.unwrap(), Some("b".to_owned()));
+        assert_eq!(journey.frames.len(), 2);
+    }
+
+    #[test]
+    fn empty_hosted_results_remain_displayed_instead_of_cancelling() {
+        for choosing in [false, true] {
+            let journey = hosted_navigation(choosing, &[], true);
+            assert_eq!(journey.result.unwrap(), None);
+            assert!(journey.frames.is_empty());
+            assert!(journey.output.contains("no entries"));
+        }
+    }
+
+    struct Journey {
+        result: Result<Option<String>>,
+        frames: Vec<String>,
+        output: String,
+    }
+
+    fn hosted_navigation(
+        choosing: bool,
+        keys: &[crossterm::event::KeyCode],
+        empty: bool,
+    ) -> Journey {
+        use crate::prompt::host;
+        let _serial = host::one_at_a_time();
+        let channel = host::install();
+        let worker = std::thread::spawn(move || {
+            let mut listing = listing();
+            if empty {
+                listing.rows.clear();
+            }
+            if choosing {
+                listing.choose(Theme::dark(false))
+            } else {
+                listing.show(Theme::dark(false)).map(|()| None)
+            }
+        });
+        let (frames, output) = drive_navigation(&channel, &worker, keys);
+        let completed = worker.is_finished();
+        host::remove();
+        let result = worker.join().unwrap();
+        assert!(
+            completed,
+            "the listing must finish before its host is removed"
+        );
+        Journey {
+            result,
+            frames,
+            output,
+        }
+    }
+
+    fn drive_navigation(
+        channel: &crate::prompt::host::Channel,
+        worker: &std::thread::JoinHandle<Result<Option<String>>>,
+        keys: &[crossterm::event::KeyCode],
+    ) -> (Vec<String>, String) {
+        use crate::prompt::host::{Input, Reply, Request};
+        use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+        let mut frames = Vec::new();
+        let mut output = String::new();
+        let started = std::time::Instant::now();
+        while !worker.is_finished() && started.elapsed() < std::time::Duration::from_secs(5) {
+            let Ok((request, reply)) = channel
+                .requests
+                .recv_timeout(std::time::Duration::from_millis(20))
+            else {
+                continue;
+            };
+            let answer = match request {
+                Request::Frame(lines) => {
+                    let key = keys.get(frames.len()).copied().unwrap_or(KeyCode::Esc);
+                    frames.push(lines.join("\n"));
+                    Reply::Input(Input::Key(KeyEvent::new(key, KeyModifiers::NONE)))
+                }
+                Request::Show(lines) => {
+                    output.push_str(&lines.join("\n"));
+                    Reply::Shown
+                }
+                Request::Step(_) => Reply::Stepped { interrupted: false },
+            };
+            reply.send(answer).unwrap();
+        }
+        (frames, output)
     }
 
     #[test]

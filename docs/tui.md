@@ -72,10 +72,12 @@ Every submenu still ends in a Back row, so walking out of one is a row on the
 screen as well as a key. Home ends in nothing, because there is nothing at Home
 to walk out to.
 
-Leaving View logs with Escape, left, `h`, `a`, or `q` returns straight to the
-menu. That key is the whole navigation action; there is no "Anything else?"
-confirmation afterward. Empty results and entry details still remain visible
-until the reader leaves them.
+Leaving View logs, Foods List, or the Edit/Delete entry picker with Escape,
+left, `h`, `a`, or `q` returns straight to the menu. That key is the whole
+navigation action; there is no "Anything else?" or Continue confirmation
+afterward. Empty results and entry details still remain visible until the
+reader leaves them. Enter on a browsed row without details, such as a food,
+keeps the list and its selection in place.
 
 ### 3. Menus first, typing last
 
