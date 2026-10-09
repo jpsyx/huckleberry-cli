@@ -37,7 +37,7 @@ pub type Row = Vec<Piece>;
 ///
 /// The single source of what `now` says. Anything that shows these facts draws
 /// from here, so no second copy of the wording can drift from this one.
-/// `width` chooses three, two, or one column and bounds the wrapped content.
+/// `width` chooses two or one column and bounds the wrapped content.
 #[must_use]
 pub fn screen(
     view: &NowView,
@@ -48,7 +48,7 @@ pub fn screen(
     width: Option<usize>,
 ) -> Vec<Row> {
     let ranges = ranges(view, &dataset.child, calendar, now);
-    let columns = layout::Columns::for_width(width, !ranges.is_empty());
+    let columns = layout::Columns::for_width(width);
     let tables = totals_rows(view, units, now, columns.table_width());
     columns.arrange(facts(view, dataset, calendar, units, now), tables, ranges)
 }
@@ -96,8 +96,8 @@ fn facts(
 /// The screen as lines of text, ready for stdout.
 ///
 /// `width` is how many columns there are to draw in, when that is known. With
-/// room, facts, tables, and typical ranges occupy three columns. Medium widths
-/// put facts and ranges together on the left; narrow widths stack all three.
+/// room, facts and ranges share the left column and tables occupy the right.
+/// Narrow or unknown widths stack all three sections.
 #[must_use]
 pub fn lines(
     view: &NowView,
@@ -882,7 +882,7 @@ mod tests {
     /// The columns are not rows: nothing on the right belongs to the line it
     /// happens to sit beside, and a rule is what says so.
     #[test]
-    fn rules_separate_the_three_columns() {
+    fn a_rule_separates_the_two_columns() {
         let text = wide(&a_newborns_day(), AFTERNOON);
         let columns: Vec<usize> = text
             .lines()
@@ -890,7 +890,7 @@ mod tests {
                 line.chars()
                     .collect::<Vec<_>>()
                     .iter()
-                    .rposition(|glyph| *glyph == '\u{2502}')
+                    .position(|glyph| *glyph == '\u{2502}')
             })
             .collect();
         assert!(
@@ -1439,7 +1439,7 @@ mod tests {
     }
 
     #[test]
-    fn a_wide_screen_carries_the_typical_ranges_beside_the_facts() {
+    fn a_wide_screen_carries_the_typical_ranges_with_the_facts() {
         let text = wide(&a_newborns_day(), AFTERNOON);
         assert!(
             text.contains("typical feed in the first weeks: 8 or more feeds a day"),
@@ -1562,19 +1562,6 @@ mod tests {
             .position(|line| line.contains("pediatrician"))
             .expect("the note");
         assert!(note > last_range, "{text}");
-    }
-
-    #[test]
-    fn the_ranges_sit_beside_the_facts_rather_than_under_them() {
-        let text = wide(&a_newborns_day(), AFTERNOON);
-        let beside = text
-            .lines()
-            .find(|line| line.contains("Last fed") && line.contains("typical"))
-            .unwrap_or_else(|| panic!("no line holding both: {text}"));
-        assert!(
-            beside.find("Last fed") < beside.find("typical"),
-            "the facts are the left column: {beside}"
-        );
     }
 
     #[test]

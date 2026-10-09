@@ -1,5 +1,10 @@
 # Responsive Now layout implementation plan
 
+**Follow-up:** The three-column layout was subsequently removed at the user's
+request. The current layout uses two columns from 96 content cells and one
+below that; see [`dashboards.md`](../../dashboards.md). The plan and
+verification below record the original implementation.
+
 **Goal:** Lay out Last facts, recent/daily tables, and typical ranges according
 to the available terminal or drawer width.
 

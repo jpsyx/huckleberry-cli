@@ -131,14 +131,12 @@ recent and daily tables, and typical ranges for the baby's age. Available
 
 | Width | Arrangement |
 | --- | --- |
-| 144 cells or more | Last facts left, tables middle, typical ranges right |
-| 96 to 143 cells | Last facts followed by typical ranges left, tables right |
+| 96 cells or more | Last facts followed by typical ranges left, tables right |
 | Below 96 cells, or unknown width | Last facts, tables, then typical ranges stacked vertically |
 
-If no age-specific ranges are available, wide screens use two useful columns.
 Facts and ranges wrap within their columns; table cells wrap inside their
-borders. A muted vertical rule separates neighboring sections for the full
-height of the block, so a range beside a fact is not mistaken for its value.
+borders. A muted vertical rule separates facts and ranges from tables for the
+full height of the block, so neighboring entries are read independently.
 Long words wrap at Unicode grapheme boundaries, and column padding counts
 terminal cells rather than characters.
 
