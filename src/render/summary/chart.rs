@@ -119,6 +119,8 @@ fn paint_cells(cells: &[char], is_average_row: bool, theme: Theme) -> String {
                     Tone::AverageOverBar
                 };
                 theme.paint(tone, "·")
+            } else if *symbol != ' ' {
+                theme.paint(Tone::SummaryBar, &symbol.to_string())
             } else {
                 theme.accent(&symbol.to_string())
             }
@@ -191,7 +193,10 @@ mod tests {
         assert_eq!(missing.fg, over_bar.fg);
         assert_eq!(gap.bg, None, "gaps must retain the terminal background");
         assert_eq!(missing.bg, None);
-        assert_eq!(bar.bg, None, "dot backgrounds must not leak to later cells");
+        assert_eq!(
+            bar.bg, bar.fg,
+            "bar cells must fill the same background as dots"
+        );
     }
 
     #[test]
@@ -201,6 +206,27 @@ mod tests {
         assert_eq!(cells[8].0, '·');
         assert_eq!(cells[9].0, '▅');
         assert_eq!(cells[8].1.bg, cells[9].1.fg);
+        assert_eq!(cells[9].1.bg, cells[8].1.bg, "the bar top must stay level");
+    }
+
+    #[test]
+    fn bars_fill_their_cells_even_without_an_average_line() {
+        let lines = plot(
+            &[Some(1.0), Some(9.0), None],
+            None,
+            15,
+            6,
+            Theme::dark(true),
+        );
+        let cells = styled_cells(&lines[5]);
+        for column in [8, 9, 10, 11, 13, 14, 15, 16] {
+            assert_eq!(cells[column].1.bg, cells[column].1.fg);
+        }
+        for column in [12, 17, 18, 19, 20, 21, 22] {
+            assert_eq!(cells[column].0, ' ');
+            assert_eq!(cells[column].1.bg, None, "empty cells must stay empty");
+        }
+        assert_eq!(styled_cells(&lines[0])[8].1.bg, None);
     }
 
     #[test]

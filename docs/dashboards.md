@@ -202,7 +202,10 @@ horizontal line is the mean of that metric's recorded daily values in the most
 recent seven complete family days. Today never contributes, and older days never
 replace gaps. The dots are magenta against cyan bars. Where a dot crosses a bar,
 its background retains the cyan bar color so the line overlays the bar without
-cutting a dark hole through it. Dots in empty slots keep the terminal background.
+cutting a dark hole through it. Every occupied bar cell also has a cyan background,
+including fractional top glyphs, so the bar and overlapping dots fill equal cell
+heights. Colored bars therefore display at whole-cell height resolution. Empty
+slots and gaps keep the terminal background.
 The legend shows the value and the number of usable days out of
 seven; no usable days means no average line. Shorter requested windows use the
 available complete days and say how many. The notes explain the dots even in

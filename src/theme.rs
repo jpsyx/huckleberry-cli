@@ -61,6 +61,8 @@ pub enum Tone {
     /// distinction from [`Tone::Warning`] is the point: that one is for the
     /// tool's own problems, this one is an observation about a number.
     Attention,
+    /// A Summary bar cell, filled with cyan foreground and background.
+    SummaryBar,
     /// The dotted seven-day average in the Summary chart.
     Average,
     /// An average dot over a bar, preserving the bar color behind it.
@@ -80,7 +82,7 @@ pub enum Tone {
 impl Tone {
     /// Every role, so something reading a painted line back can find which
     /// one painted it.
-    pub const ALL: [Self; 21] = [
+    pub const ALL: [Self; 22] = [
         Self::Heading,
         Self::Accent,
         Self::Value,
@@ -95,6 +97,7 @@ impl Tone {
         Self::Today,
         Self::Good,
         Self::Attention,
+        Self::SummaryBar,
         Self::Average,
         Self::AverageOverBar,
         Self::Sleep,
@@ -150,6 +153,7 @@ impl Tone {
             Self::Info | Self::Sleep => "94",
             Self::Diaper | Self::Average => "95",
             Self::AverageOverBar => "106;95",
+            Self::SummaryBar => "106;96",
             Self::Accent | Self::Feeding => "96",
         }
     }
@@ -158,7 +162,7 @@ impl Tone {
     #[must_use]
     pub const fn background(self) -> Option<Self> {
         match self {
-            Self::AverageOverBar => Some(Self::Accent),
+            Self::AverageOverBar | Self::SummaryBar => Some(Self::Accent),
             _ => None,
         }
     }
@@ -181,7 +185,7 @@ impl Tone {
             Self::Warning | Self::Attention | Self::Milestone => 11,
             Self::Info | Self::Sleep => 12,
             Self::Heading | Self::Diaper | Self::Average | Self::AverageOverBar => 13,
-            Self::Accent | Self::Prompt | Self::Feeding => 14,
+            Self::Accent | Self::Prompt | Self::Feeding | Self::SummaryBar => 14,
             Self::Value | Self::Today | Self::Selected => 15,
         }
     }
@@ -309,7 +313,7 @@ pub fn color_enabled() -> bool {
 mod tests {
     use super::*;
 
-    const EVERY_TONE: [Tone; 20] = [
+    const EVERY_TONE: [Tone; 21] = [
         Tone::Heading,
         Tone::Accent,
         Tone::Value,
@@ -323,6 +327,7 @@ mod tests {
         Tone::Today,
         Tone::Good,
         Tone::Attention,
+        Tone::SummaryBar,
         Tone::Average,
         Tone::AverageOverBar,
         Tone::Sleep,
