@@ -470,18 +470,24 @@ options. There is no separate Other logging menu.
 ### Summary keeps its graph inside the flow panel
 
 Home > Summary opens a browsable table through the prompt host. Its
-numeric columns have grouped headings; Day stays fixed. Tab/Shift-Tab and
+numeric columns have grouped headings; Feed adds bottle feed and nursed
+subheadings above their columns, with total feeds outside both. Day stays fixed.
+Tab/Shift-Tab and
 left/right (H/L, A/D, either case) cycle columns and update the separated bar chart
 below. The horizontal window moves only when selection crosses an edge. A dotted
 line compares the bars with the previous seven complete days' average, excluding
 today. A dot fills every chart column, and the legend starts `··· 7-day avg`.
-Its magenta dots keep a cyan background where they cross a bar, so the
+Its quantity sits beside the dotted line on the y-axis in the same magenta,
+without a day-count parenthetical in the legend. Its magenta dots keep a cyan
+background where they cross a bar, so the
 line reads as an overlay without dark gaps in the bars. All occupied bar cells
 share that cyan background, keeping the top edge level through the dots. The
 default table and chart include those seven days plus partial today.
 Left is movement within this control, so Esc or Q closes it directly.
 Up/down (J/K, W/S) scroll the rows and notes, including configured night hours
-and reference ranges. Calculation explanations and configuration commands live
+but not reference ranges or their pediatrician note, which the Now drawer
+already shows. Standalone summary retains those lines. Calculation explanations
+and configuration commands live
 in the README and screen documentation. The title includes the child's age when
 known; freshness stays at the very bottom, below the keys, even while scrolling.
 The selected heading has brackets as well as

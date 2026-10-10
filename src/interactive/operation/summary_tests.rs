@@ -8,7 +8,7 @@ fn summary_columns_cycle_in_the_host_and_escape_returns_to_the_menu() {
     std::fs::create_dir_all(&directory).unwrap();
     let globals = fixture(&directory);
     let channel = host::install();
-    host::set_size(90, 30);
+    host::set_size(120, 60);
     let worker = std::thread::spawn(move || {
         tokio::runtime::Runtime::new().unwrap().block_on(super::run(
             &super::CommandPath(vec!["summary".into()]),
@@ -21,6 +21,13 @@ fn summary_columns_cycle_in_the_host_and_escape_returns_to_the_menu() {
     let result = worker.join().unwrap();
     std::fs::remove_dir_all(directory).unwrap();
     result.unwrap();
+    for frame in &frames {
+        assert!(!frame.contains("typical feed"), "{frame}");
+        assert!(!frame.contains("typical sleep"), "{frame}");
+        assert!(!frame.contains("typical diapers"), "{frame}");
+        assert!(!frame.contains("pediatrician"), "{frame}");
+        assert!(frame.contains("* Night:"), "{frame}");
+    }
     assert_eq!(frames.len(), 3, "{frames:?}");
     assert!(frames[0].contains("[feeds]"), "{}", frames[0]);
     assert!(frames[1].contains("[milk ml]"), "{}", frames[1]);

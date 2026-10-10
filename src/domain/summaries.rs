@@ -77,12 +77,20 @@ pub struct DaySummary {
     pub longest_sleep_seconds: f64,
     /// Mean full duration of all completed sleeps starting on this day.
     pub average_sleep_seconds: Option<f64>,
+    /// Mean full duration of completed sleeps starting at night on this day.
+    pub average_night_sleep_seconds: Option<f64>,
     /// Mean duration of completed sleeps starting in daytime on this day.
     pub average_nap_seconds: Option<f64>,
     /// Elapsed day time minus recorded sleep, absent without sleep records.
     pub wake_seconds: Option<f64>,
     /// Elapsed night time minus recorded night sleep.
     pub night_wake_seconds: Option<f64>,
+    /// Elapsed daytime minus recorded daytime sleep.
+    pub day_wake_seconds: Option<f64>,
+    /// Mean complete gap starting at night, attributed to the day waking began.
+    pub average_night_wake_seconds: Option<f64>,
+    /// Mean complete gap starting in daytime, attributed to the day waking began.
+    pub average_day_wake_seconds: Option<f64>,
     /// Mean complete gap between sleeps, attributed to the day waking began.
     pub average_wake_seconds: Option<f64>,
     /// Longest complete gap between sleeps, attributed to the day waking began.
@@ -147,8 +155,12 @@ impl DaySummary {
             longest_sleep_seconds: 0.0,
             average_nap_seconds: None,
             average_sleep_seconds: None,
+            average_night_sleep_seconds: None,
             wake_seconds: None,
             night_wake_seconds: None,
+            day_wake_seconds: None,
+            average_night_wake_seconds: None,
+            average_day_wake_seconds: None,
             average_wake_seconds: None,
             longest_wake_seconds: None,
             pump_count: 0,

@@ -75,11 +75,12 @@ either, say which.
 | **day start** | The hour a day begins at. Anything earlier belongs to the day before. Always configured. |
 | **day end** | The hour a day ends at, which is where night begins. Always configured. Was called **night start**, which is the same hour under a name that made it sound like a third setting. |
 | **the night** | The stretch from `day_end` to the next `day_start`. Not configured separately: it is what is left over. |
-| **average sleep** (in summary) | Mean full duration of all completed sleeps starting on a family day, including night sleeps. |
-| **the 7-day average line** | Dotted horizontal chart line: mean of recorded values in the preceding seven complete family days, excluding today. |
+| **average sleep** (in summary) | Mean full duration of all completed sleeps starting on a family day, including night sleeps. Average day sleep and average night sleep separate these by start time. |
+| **the 7-day average line** | Dotted horizontal chart line: mean of recorded values in the preceding seven complete family days, excluding today, with its quantity in magenta beside the line. |
 | **a nap** (in summary) | A completed sleep starting in the configured daytime. Its full duration belongs to its start day. |
-| **a wake gap** | A complete span from one sleep ending to the next starting, assigned to the day waking began. |
-| **wake time** (in summary) | Estimated elapsed day time outside recorded sleep; night wake restricts it to the configured night. |
+| **a wake gap** | A complete span from one sleep ending to the next starting, assigned to the day waking began. Average day wake and average night wake classify whole gaps by their start time. |
+| **bottle feed**, **nursed** (summary subcategories) | The second Feed header row: bottle milk amounts and averages, then nursing durations and averages. Total feeds belongs to neither. |
+| **wake time** (in summary) | Estimated elapsed day time outside recorded sleep; night wake restricts it to the configured night and day wake to daytime. |
 | **a day row** | One row of `summary` or `trends`: `day_start` to `day_start`. |
 | **a calendar day** | Midnight to midnight, in the family's timezone. What `log`, `edit` and `delete` group under, and what a timestamp is always reported against. Never used for arithmetic. |
 | **a stripe row** | One row of `stripes`: the previous `day_end` to this one, so a night lands whole on it. |

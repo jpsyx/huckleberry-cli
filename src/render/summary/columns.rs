@@ -15,6 +15,7 @@ enum Kind {
 pub struct Column {
     /// Umbrella heading spanning adjacent columns.
     pub group: &'static str,
+    subgroup: &'static str,
     label: &'static str,
     kind: Kind,
     pick: fn(&DaySummary) -> Option<f64>,
@@ -29,10 +30,16 @@ impl Column {
     ) -> Self {
         Self {
             group,
+            subgroup: "",
             label,
             kind,
             pick,
         }
+    }
+
+    const fn in_subgroup(mut self, subgroup: &'static str) -> Self {
+        self.subgroup = subgroup;
+        self
     }
 
     /// Heading in the family's chosen volume unit.
@@ -109,45 +116,58 @@ pub const COLUMNS: &[Column] = &[
     Column::new("feed", "feeds", Kind::Count, |row| {
         recorded(row.feed_count as f64)
     }),
-    Column::new("feed", "milk", Kind::Volume, |row| recorded(row.total_ml)),
+    Column::new("feed", "milk", Kind::Volume, |row| recorded(row.total_ml))
+        .in_subgroup("bottle feed"),
     Column::new("feed", "formula", Kind::Volume, |row| {
         recorded(row.formula_ml)
-    }),
+    })
+    .in_subgroup("bottle feed"),
     Column::new("feed", "breast", Kind::Volume, |row| {
         recorded(row.breast_milk_ml)
-    }),
-    Column::new("feed", "nursed", Kind::Duration, |row| {
-        recorded(row.nursing_seconds)
-    }),
+    })
+    .in_subgroup("bottle feed"),
     Column::new("feed", "daytime milk", Kind::Volume, |row| {
         recorded(row.day_milk_ml)
-    }),
+    })
+    .in_subgroup("bottle feed"),
     Column::new("feed", "night milk", Kind::Volume, |row| {
         recorded(row.night_milk_ml)
-    }),
-    Column::new("feed", "daytime nursed", Kind::Duration, |row| {
-        recorded(row.day_nursing_seconds)
-    }),
-    Column::new("feed", "night nursed", Kind::Duration, |row| {
-        recorded(row.night_nursing_seconds)
-    }),
+    })
+    .in_subgroup("bottle feed"),
     Column::new(
         "feed",
         "avg milk",
         Kind::Volume,
         DaySummary::average_milk_ml,
-    ),
+    )
+    .in_subgroup("bottle feed"),
+    Column::new("feed", "nursed", Kind::Duration, |row| {
+        recorded(row.nursing_seconds)
+    })
+    .in_subgroup("nursed"),
+    Column::new("feed", "daytime nursed", Kind::Duration, |row| {
+        recorded(row.day_nursing_seconds)
+    })
+    .in_subgroup("nursed"),
+    Column::new("feed", "night nursed", Kind::Duration, |row| {
+        recorded(row.night_nursing_seconds)
+    })
+    .in_subgroup("nursed"),
     Column::new(
         "feed",
         "nurse/feed",
         Kind::Duration,
         DaySummary::average_nursing_seconds,
-    ),
+    )
+    .in_subgroup("nursed"),
     Column::new("sleep", "sleep", Kind::Duration, |row| {
         recorded(row.sleep_seconds)
     }),
     Column::new("sleep", "night*", Kind::Duration, |row| {
         recorded(row.night_sleep_seconds)
+    }),
+    Column::new("sleep", "day", Kind::Duration, |row| {
+        recorded(row.day_sleep_seconds)
     }),
     Column::new("sleep", "longest", Kind::Duration, |row| {
         recorded(row.longest_sleep_seconds)
@@ -155,14 +175,29 @@ pub const COLUMNS: &[Column] = &[
     Column::new("sleep", "avg sleep", Kind::Duration, |row| {
         row.average_sleep_seconds
     }),
+    Column::new("sleep", "avg night sleep", Kind::Duration, |row| {
+        row.average_night_sleep_seconds
+    }),
+    Column::new("sleep", "avg day sleep", Kind::Duration, |row| {
+        row.average_nap_seconds
+    }),
     Column::new("wake time", "wake time", Kind::Duration, |row| {
         row.wake_seconds
     }),
     Column::new("wake time", "night wake*", Kind::Duration, |row| {
         row.night_wake_seconds
     }),
+    Column::new("wake time", "day wake", Kind::Duration, |row| {
+        row.day_wake_seconds
+    }),
     Column::new("wake time", "avg wake", Kind::Duration, |row| {
         row.average_wake_seconds
+    }),
+    Column::new("wake time", "avg night wake", Kind::Duration, |row| {
+        row.average_night_wake_seconds
+    }),
+    Column::new("wake time", "avg day wake", Kind::Duration, |row| {
+        row.average_day_wake_seconds
     }),
     Column::new("wake time", "longest", Kind::Duration, |row| {
         row.longest_wake_seconds
@@ -213,12 +248,26 @@ pub fn join_cells(day: &str, cells: &[String], range: Range<usize>) -> String {
 /// Merged category headings, spanning their visible leaf columns.
 #[must_use]
 pub fn group_row(units: Units, range: Range<usize>) -> String {
+    merged_row(units, range, |column| column.group)
+}
+
+/// Merged feeding subcategories; total feeds has no subcategory.
+#[must_use]
+pub fn subgroup_row(units: Units, range: Range<usize>) -> String {
+    merged_row(units, range, |column| column.subgroup)
+}
+
+fn merged_row(units: Units, range: Range<usize>, label: fn(&Column) -> &str) -> String {
     let mut line = " ".repeat(11);
     let mut index = range.start;
     while index < range.end {
         let start = index;
         let group = COLUMNS[index].group;
-        while index < range.end && COLUMNS[index].group == group {
+        let heading = label(&COLUMNS[index]);
+        while index < range.end
+            && COLUMNS[index].group == group
+            && label(&COLUMNS[index]) == heading
+        {
             index += 1;
         }
         let width = (start..index)
@@ -227,7 +276,8 @@ pub fn group_row(units: Units, range: Range<usize>) -> String {
             + (index - start - 1) * 2;
         let boundary = start == 0 || COLUMNS[start - 1].group != group;
         line.push_str(if boundary { " │ " } else { "  " });
-        let _ = write!(line, "{group:^width$}");
+        let heading: String = heading.chars().take(width).collect();
+        let _ = write!(line, "{heading:^width$}");
     }
     line
 }

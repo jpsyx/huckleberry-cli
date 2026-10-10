@@ -67,7 +67,7 @@ pub(super) fn lines(
     if height >= 5 {
         let legend = average.map_or_else(
             || "··· 7-day avg unavailable: no recorded complete days".to_owned(),
-            |(mean, count)| format!("··· 7-day avg: {mean:.1} ({count}/7 days; today excluded)"),
+            |(mean, _)| format!("··· 7-day avg: {mean:.1}"),
         );
         lines.push(theme.paint(Tone::Average, &legend));
     }
@@ -94,14 +94,18 @@ fn plot(
         .map(|row| {
             let cells = bar_row(values, maximum, width, height, row);
             let painted_cells = paint_cells(&cells, average_row == Some(row), theme);
-            let label = if row == 0 {
+            let scale_label = if row == 0 {
                 format!("{maximum:.1}")
             } else if row == height - 1 {
                 "0".to_owned()
             } else {
                 String::new()
             };
-            format!("{}{painted_cells}", theme.accent(&format!("{label:>7}│")))
+            let label = average.filter(|_| average_row == Some(row)).map_or_else(
+                || theme.accent(&format!("{scale_label:>7}")),
+                |mean| theme.paint(Tone::Average, &format!("{mean:>7.1}")),
+            );
+            format!("{label}{}{painted_cells}", theme.accent("│"))
         })
         .collect()
 }
@@ -179,7 +183,22 @@ mod tests {
             4,
             Theme::dark(false),
         );
-        assert_eq!(lines[2], "       │···············");
+        assert_eq!(lines[2], "    4.0│···············");
+    }
+
+    #[test]
+    fn average_quantity_matches_the_line_color_even_at_scale_edges() {
+        for average in [0.0, 3.9, 8.0] {
+            let lines = plot(&[Some(8.0)], Some(average), 10, 4, Theme::dark(true));
+            let line = lines.iter().find(|line| line.contains('·')).unwrap();
+            let cells = styled_cells(line);
+            let label: String = cells[..7].iter().map(|cell| cell.0).collect();
+            assert_eq!(label.trim(), format!("{average:.1}"));
+            for (_, style) in &cells[..7] {
+                assert_eq!(style.fg, cells[8].1.fg);
+                assert_eq!(style.bg, None);
+            }
+        }
     }
 
     #[test]

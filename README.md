@@ -122,6 +122,8 @@ Wed 23 Sep │██▼█◦███▼◦███ ▼◦  ▼█◦ ▼ █�
 ````
 
 `h summary` opens a day table grouped into feed, sleep, wake time and diaper.
+Feed has bottle feed and nursed subcategories; total feeds stays outside both.
+Sleep and wake columns include day/night totals and separate day/night averages.
 Tab/Shift-Tab or left/right (H/L, A/D) selects a numeric column and draws its
 bar chart underneath, with gaps between bars and a dotted average of the previous
 seven complete days (today excluded). The default shows eight days: those seven
@@ -129,7 +131,8 @@ plus today. Horizontal scrolling moves only at the visible edges. Up/down scroll
 Milk/feed averages only bottles with recorded amounts, and nurse/feed averages
 only nursing sessions. The night note shows the configured hours. The header
 includes the child's age; freshness stays at the bottom of the panel. The same
-view is in the shell under Home > Summary.
+view is in the shell under Home > Summary, where reference ranges and their
+pediatrician note stay in the Now drawer instead of repeating below the table.
 
 Wake totals estimate time outside recorded sleep; wake gaps require two sleeps.
 Rows marked `~` are partial, either today or days with limited snapshot coverage.
@@ -137,7 +140,8 @@ Sleep averages include completed daytime and nighttime sleeps. Wake gaps belong
 to the day waking began, and unfinished gaps are excluded. Feeding day/night
 splits follow each feed's start time. The chart's dense `···` line averages
 recorded values from the previous seven complete family days, excluding today,
-incomplete snapshot days, and missing values.
+incomplete snapshot days, and missing values. Its quantity appears in magenta
+beside the line on the y-axis as well as in the legend.
 
 ```sh
 h summary --days 7

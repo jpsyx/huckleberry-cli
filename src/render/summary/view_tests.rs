@@ -63,6 +63,7 @@ fn every_column_stays_visible_with_day_and_the_correct_graph_when_narrow() {
     data.sleep = vec![sleep(AFTERNOON - 7200.0, 3600.0)];
     let rows = summaries::build(&data, &calendar, DayRule::default(), AFTERNOON, 7);
     let view = View {
+        is_hosted: false,
         rows: &rows,
         dataset: &data,
         calendar: &calendar,
@@ -84,9 +85,9 @@ fn every_column_stays_visible_with_day_and_the_correct_graph_when_narrow() {
                     .all(|line| ratatui::text::Line::raw(line).width() <= usize::from(size.0)),
                 "{drawn}"
             );
-            assert!(lines[2].contains("day"), "{drawn}");
+            assert!(lines[3].contains("day"), "{drawn}");
             assert!(
-                lines[2].contains(&format!("[{}]", column.heading(Units::Ml))),
+                lines[3].contains(&format!("[{}]", column.heading(Units::Ml))),
                 "{drawn}"
             );
             assert!(drawn.contains("Esc/q back"), "{drawn}");
@@ -111,6 +112,7 @@ fn scrolling_reaches_night_hours_and_keeps_the_graph_and_keys() {
     let data = dataset();
     let rows = summaries::build(&data, &calendar, DayRule::default(), AFTERNOON, 30);
     let view = View {
+        is_hosted: false,
         rows: &rows,
         dataset: &data,
         calendar: &calendar,
@@ -171,6 +173,7 @@ fn a_nine_line_shell_panel_keeps_one_data_row_and_a_graph_visible() {
     data.feeds = vec![bottle(AFTERNOON, 90.0)];
     let rows = summaries::build(&data, &calendar, DayRule::default(), AFTERNOON, 7);
     let view = View {
+        is_hosted: false,
         rows: &rows,
         dataset: &data,
         calendar: &calendar,
@@ -196,6 +199,7 @@ fn reversing_inside_the_visible_columns_keeps_the_window_in_place() {
     let data = dataset();
     let rows = summaries::build(&data, &calendar, DayRule::default(), AFTERNOON, 8);
     let view = View {
+        is_hosted: false,
         rows: &rows,
         dataset: &data,
         calendar: &calendar,
@@ -214,7 +218,7 @@ fn reversing_inside_the_visible_columns_keeps_the_window_in_place() {
         before[1], after[1],
         "reversing within the window must not scroll"
     );
-    assert_eq!(before[3], after[3]);
+    assert_eq!(before[4], after[4]);
 }
 
 #[test]
@@ -231,7 +235,8 @@ fn summary_bars_are_separated_and_explain_the_complete_day_average() {
     let lines = chart::lines(&rows, &COLUMNS[1], Units::Ml, (100, 12), Theme::dark(false));
     let drawn = lines.join("\n");
     assert!(drawn.contains("··· 7-day avg: 100.0"), "{drawn}");
-    assert!(drawn.contains("today excluded"), "{drawn}");
+    assert!(!drawn.contains("today excluded"), "{drawn}");
+    assert!(!drawn.contains("/7 days"), "{drawn}");
     assert!(drawn.contains('·'), "the average must be dotted: {drawn}");
     assert!(
         lines.iter().any(|line| line.contains("█ █")),
@@ -245,22 +250,24 @@ fn age_stays_in_the_header_and_freshness_stays_at_the_bottom_when_scrolling() {
     let data = dataset();
     let rows = summaries::build(&data, &calendar, DayRule::default(), AFTERNOON, 30);
     let view = View {
+        is_hosted: false,
         rows: &rows,
         dataset: &data,
         calendar: &calendar,
         units: Units::Ml,
         now: AFTERNOON,
     };
-    for size in [(80, 9), (80, 14), (120, 35)] {
+    for size in [(32, 9), (80, 9), (80, 14), (120, 35)] {
         let mut state = State::default();
         for _ in 0..80 {
             let lines = view.lines(&mut state, size, Theme::dark(false));
             let drawn = lines.join("\n");
             assert_eq!(lines.last().unwrap(), "as of just now");
+            assert!(drawn.contains("Esc/q back"), "{drawn}");
             assert_eq!(drawn.matches("as of").count(), 1);
             if size.1 >= 12 {
                 assert!(
-                    lines[0].contains("Summary · Bear · 21 days old · column 1/21 · ~ partial")
+                    lines[0].contains("Summary · Bear · 21 days old · column 1/27 · ~ partial")
                 );
                 assert_eq!(drawn.matches("days old").count(), 1);
             }
@@ -287,6 +294,7 @@ fn unknown_age_is_omitted_from_the_summary_header() {
     let mut data = dataset();
     data.child.birthdate = None;
     let view = View {
+        is_hosted: false,
         rows: &[],
         dataset: &data,
         calendar: &calendar,
@@ -294,7 +302,7 @@ fn unknown_age_is_omitted_from_the_summary_header() {
         now: AFTERNOON,
     };
     let lines = view.lines(&mut State::default(), (100, 24), Theme::dark(false));
-    assert!(lines[0].contains("Summary · Bear · column 1/21"));
+    assert!(lines[0].contains("Summary · Bear · column 1/27"));
     assert!(!lines[0].contains("days old"));
 }
 
@@ -303,6 +311,7 @@ fn a_panel_too_short_for_any_data_asks_for_more_space() {
     let calendar = Calendar::utc();
     let data = dataset();
     let view = View {
+        is_hosted: false,
         rows: &[],
         dataset: &data,
         calendar: &calendar,

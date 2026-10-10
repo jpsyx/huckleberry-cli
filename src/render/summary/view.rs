@@ -12,7 +12,7 @@ use crate::{
 
 use super::{
     chart,
-    columns::{COLUMNS, data_cells, group_row, heading_cells, join_cells},
+    columns::{COLUMNS, data_cells, group_row, heading_cells, join_cells, subgroup_row},
 };
 
 #[cfg(test)]
@@ -71,6 +71,8 @@ impl State {
 
 /// The data shown by either interactive host, with an explicit reading time.
 pub struct View<'a> {
+    /// The shell already displays reference ranges and their note in the Now drawer.
+    pub is_hosted: bool,
     /// Newest-first daily aggregates.
     pub rows: &'a [DaySummary],
     /// Source of the child's name and configured night hours.
@@ -97,17 +99,19 @@ impl View<'_> {
         }
         let range = visible_columns(state.first_column, state.selected, self.units, width);
         state.first_column = range.start;
-        let head_height = if height < 12 { 2 } else { 3 };
+        let head_height = if height < 12 { 3 } else { 4 };
+        let footer_height = if height < 12 { 2 } else { 3 };
         let chart_height = (size.1 / 3)
             .clamp(4, 9)
-            .min(size.1.saturating_sub(head_height + 4));
-        let body_height = height.saturating_sub(usize::from(head_height + 3 + chart_height));
+            .min(size.1.saturating_sub(head_height + footer_height + 1));
+        let body_height =
+            height.saturating_sub(usize::from(head_height + footer_height + chart_height));
         let body = self.body(range.clone(), state.selected, width, theme);
         state.page = body_height.max(1);
         state.limit = body.len().saturating_sub(body_height);
         state.scroll = state.scroll.min(state.limit);
         let mut lines = self.head(range, state.selected, theme);
-        if head_height == 2 {
+        if head_height == 3 {
             lines.remove(0);
         }
         lines.extend(body.into_iter().skip(state.scroll).take(body_height));
@@ -121,10 +125,17 @@ impl View<'_> {
                 theme,
             ));
         }
-        lines.extend(hints(state, width).iter().map(|line| theme.muted(line)));
-        lines.push(theme.muted(&crate::render::now::as_of(self.dataset, self.now)));
+        lines.extend(self.status(state, width, footer_height == 2, theme));
         lines.truncate(height);
         lines.into_iter().map(|line| clip(&line, width)).collect()
+    }
+
+    fn status(&self, state: &State, width: usize, compact: bool, theme: Theme) -> Vec<String> {
+        hints(state, width, compact)
+            .into_iter()
+            .chain([crate::render::now::as_of(self.dataset, self.now)])
+            .map(|line| theme.muted(&line))
+            .collect()
     }
 
     fn head(&self, range: Range<usize>, selected: usize, theme: Theme) -> Vec<String> {
@@ -149,6 +160,7 @@ impl View<'_> {
                 COLUMNS.len()
             )),
             theme.heading(&group_row(self.units, range.clone())),
+            theme.heading(&subgroup_row(self.units, range.clone())),
             join_cells(&theme.heading("day        "), &cells, range),
         ]
     }
@@ -186,28 +198,48 @@ impl View<'_> {
                 join_cells(&day, &cells, range.clone())
             })
             .collect();
-        for line in super::footer(
-            self.rows,
-            self.dataset,
-            self.calendar,
-            theme,
-            self.units,
-            self.now,
-        ) {
+        for line in self.notes(theme) {
             lines.extend(wrap(&line, width));
         }
         lines
     }
+    fn notes(&self, theme: Theme) -> Vec<String> {
+        if self.is_hosted {
+            super::notes(
+                self.rows,
+                self.dataset,
+                theme,
+                self.units,
+                super::age_in_days(self.dataset, self.calendar, self.now),
+            )
+        } else {
+            super::footer(
+                self.rows,
+                self.dataset,
+                self.calendar,
+                theme,
+                self.units,
+                self.now,
+            )
+        }
+    }
 }
 
-fn hints(state: &State, width: usize) -> [String; 2] {
+fn hints(state: &State, width: usize, compact: bool) -> Vec<String> {
+    if compact {
+        return vec![if width < 55 {
+            "Tab/←→ ↑↓ j/k · Esc/q back".into()
+        } else {
+            "Tab/←→ h/l a/d · ↑↓ j/k w/s · Esc/q back".into()
+        }];
+    }
     if width < 55 {
-        return [
+        return vec![
             "Tab/S-Tab ←/→ h/l a/d".into(),
             "↑↓ j/k w/s · Esc/q back".into(),
         ];
     }
-    [
+    vec![
         "Tab/Shift-Tab · ←/→ h/l a/d columns · Esc/q back".into(),
         format!(
             "↑/↓ j/k w/s scroll rows & notes · {}/{}",

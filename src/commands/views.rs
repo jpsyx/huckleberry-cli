@@ -58,6 +58,7 @@ pub async fn summary(context: &Context, days: Option<u32>, json: bool) -> Result
                 calendar: &calendar,
                 units: units(context),
                 now: at,
+                is_hosted: crate::prompt::host::hosted(),
             },
             context.output_theme(),
         );
@@ -260,53 +261,69 @@ fn totals_as_json(totals: &crate::domain::today::Totals) -> serde_json::Value {
 
 /// The day table as JSON, for a spreadsheet or a script.
 fn rows_as_json(rows: &[summaries::DaySummary]) -> serde_json::Value {
-    serde_json::Value::Array(
-        rows.iter()
-            .map(|row| {
-                serde_json::json!({
-                    "day": row.day.to_string(),
-                    "partial": row.partial,
-                    "has_data": row.has_data,
-                    "feeds": row.feed_count,
-                    "bottles": row.bottle_count,
-                    "nursing": row.nursing_count,
-                    "solids": row.solids_count,
-                    "milk_ml": row.total_ml,
-                    "day_milk_ml": row.day_milk_ml,
-                    "night_milk_ml": row.night_milk_ml,
-                    "day_nursing_seconds": row.day_nursing_seconds,
-                    "night_nursing_seconds": row.night_nursing_seconds,
-                    "formula_ml": row.formula_ml,
-                    "breast_milk_ml": row.breast_milk_ml,
-                    "nursing_seconds": row.nursing_seconds,
-                    "average_milk_ml": row.average_milk_ml(),
-                    "average_nursing_seconds": row.average_nursing_seconds(),
-                    "left_seconds": row.left_seconds,
-                    "right_seconds": row.right_seconds,
-                    "average_feed_gap_seconds": row.average_feed_gap_seconds,
-                    "longest_feed_gap_seconds": row.longest_feed_gap_seconds,
-                    "wet": row.wet_count,
-                    "dirty": row.dirty_count,
-                    "diapers": row.diaper_count,
-                    "rashes": row.rash_count,
-                    "sleep_seconds": row.sleep_seconds,
-                    "night_sleep_seconds": row.night_sleep_seconds,
-                    "day_sleep_seconds": row.day_sleep_seconds,
-                    "sleeps": row.sleep_count,
-                    "longest_sleep_seconds": row.longest_sleep_seconds,
-                    "average_nap_seconds": row.average_nap_seconds,
-                    "average_sleep_seconds": row.average_sleep_seconds,
-                    "wake_seconds": row.wake_seconds,
-                    "night_wake_seconds": row.night_wake_seconds,
-                    "average_wake_seconds": row.average_wake_seconds,
-                    "longest_wake_seconds": row.longest_wake_seconds,
-                    "pumps": row.pump_count,
-                    "pumped_ml": row.pumped_ml,
-                    "milestones": row.milestone_count,
-                })
-            })
-            .collect(),
-    )
+    serde_json::Value::Array(rows.iter().map(summary_to_json).collect())
+}
+
+fn summary_to_json(row: &summaries::DaySummary) -> serde_json::Value {
+    let mut value = serde_json::json!({
+        "day": row.day.to_string(),
+        "partial": row.partial,
+        "has_data": row.has_data,
+        "feeds": row.feed_count,
+        "bottles": row.bottle_count,
+        "nursing": row.nursing_count,
+        "solids": row.solids_count,
+        "milk_ml": row.total_ml,
+        "day_milk_ml": row.day_milk_ml,
+        "night_milk_ml": row.night_milk_ml,
+        "day_nursing_seconds": row.day_nursing_seconds,
+        "night_nursing_seconds": row.night_nursing_seconds,
+        "formula_ml": row.formula_ml,
+        "breast_milk_ml": row.breast_milk_ml,
+        "nursing_seconds": row.nursing_seconds,
+        "average_milk_ml": row.average_milk_ml(),
+        "average_nursing_seconds": row.average_nursing_seconds(),
+        "left_seconds": row.left_seconds,
+        "right_seconds": row.right_seconds,
+        "average_feed_gap_seconds": row.average_feed_gap_seconds,
+        "longest_feed_gap_seconds": row.longest_feed_gap_seconds,
+        "wet": row.wet_count,
+        "dirty": row.dirty_count,
+        "diapers": row.diaper_count,
+        "rashes": row.rash_count,
+        "pumps": row.pump_count,
+        "pumped_ml": row.pumped_ml,
+        "milestones": row.milestone_count,
+    });
+    add_sleep_json(&mut value, row);
+    value
+}
+
+/// Keep sleep metrics together without exceeding the JSON macro's recursion limit.
+fn add_sleep_json(value: &mut serde_json::Value, row: &summaries::DaySummary) {
+    value["sleeps"] = serde_json::json!(row.sleep_count);
+    for (name, seconds) in [
+        ("sleep_seconds", Some(row.sleep_seconds)),
+        ("night_sleep_seconds", Some(row.night_sleep_seconds)),
+        ("day_sleep_seconds", Some(row.day_sleep_seconds)),
+        ("longest_sleep_seconds", Some(row.longest_sleep_seconds)),
+        ("average_nap_seconds", row.average_nap_seconds),
+        ("average_sleep_seconds", row.average_sleep_seconds),
+        ("average_day_sleep_seconds", row.average_nap_seconds),
+        (
+            "average_night_sleep_seconds",
+            row.average_night_sleep_seconds,
+        ),
+        ("wake_seconds", row.wake_seconds),
+        ("night_wake_seconds", row.night_wake_seconds),
+        ("day_wake_seconds", row.day_wake_seconds),
+        ("average_wake_seconds", row.average_wake_seconds),
+        ("average_day_wake_seconds", row.average_day_wake_seconds),
+        ("average_night_wake_seconds", row.average_night_wake_seconds),
+        ("longest_wake_seconds", row.longest_wake_seconds),
+    ] {
+        value[name] = serde_json::json!(seconds);
+    }
 }
 
 #[cfg(test)]
@@ -376,6 +393,35 @@ mod tests {
     }
 
     #[test]
+    fn summary_day_and_night_metrics_use_coverage_and_completed_start_times() {
+        use crate::domain::fixtures::sleep;
+        let mut data = dataset();
+        data.sleep = vec![
+            sleep(at("2025-09-21", 8, 0), 3600.0),
+            sleep(at("2025-09-21", 19, 0), 7200.0),
+            sleep(at("2025-09-21", 23, 0), 10800.0),
+            sleep(at("2025-09-22", 6, 0), 7200.0),
+            sleep(at("2025-09-22", 10, 0), 3600.0),
+        ];
+        let json = summary_json(&data, AFTERNOON, 2);
+        for (field, seconds) in [
+            ("day_sleep_seconds", 7200.0),
+            ("night_sleep_seconds", 18000.0),
+            ("day_wake_seconds", 39600.0),
+            ("night_wake_seconds", 21600.0),
+            ("average_day_sleep_seconds", 5400.0),
+            ("average_night_sleep_seconds", 9000.0),
+            ("average_day_wake_seconds", 36000.0),
+            ("average_night_wake_seconds", 10800.0),
+        ] {
+            assert_eq!(json[1][field], seconds, "{field}");
+        }
+        assert_eq!(json[0]["day_wake_seconds"], 18000.0);
+        assert_eq!(json[0]["average_day_wake_seconds"], 7200.0);
+        assert!(json[0]["average_night_wake_seconds"].is_null());
+    }
+
+    #[test]
     fn summary_averages_use_only_measured_bottles_and_nursing_sessions() {
         use crate::domain::fixtures::nursing;
         let mut data = dataset();
@@ -438,6 +484,7 @@ mod tests {
         assert_eq!(json[0]["average_wake_seconds"], 4500.0);
         assert_eq!(json[0]["longest_wake_seconds"], 5400.0);
         assert_eq!(json[0]["wake_seconds"], 16200.0);
+        assert_eq!(json[0]["day_wake_seconds"], 16200.0);
         assert!(
             json[0]["night_wake_seconds"].is_null(),
             "night has not started"
@@ -457,6 +504,7 @@ mod tests {
         assert_eq!(json[0]["sleep_seconds"], 14400.0);
         assert_eq!(json[0]["wake_seconds"], 10800.0);
         assert_eq!(json[0]["average_wake_seconds"], 3600.0);
+        assert_eq!(json[0]["average_day_wake_seconds"], 3600.0);
     }
 
     #[test]
@@ -466,6 +514,7 @@ mod tests {
         data.sleep = vec![sleep(at("2025-11-01", 22, 0), 7200.0)];
         let json = summary_json(&data, at("2025-11-02", 14, 0), 2);
         assert_eq!(json[1]["wake_seconds"], 82800.0, "25h day minus 2h sleep");
+        assert_eq!(json[1]["day_wake_seconds"], 46800.0);
         assert_eq!(
             json[1]["night_wake_seconds"], 36000.0,
             "12h night minus 2h sleep"
@@ -478,6 +527,11 @@ mod tests {
         for field in [
             "wake_seconds",
             "night_wake_seconds",
+            "day_wake_seconds",
+            "average_day_sleep_seconds",
+            "average_night_sleep_seconds",
+            "average_day_wake_seconds",
+            "average_night_wake_seconds",
             "average_wake_seconds",
             "longest_wake_seconds",
             "average_nap_seconds",
@@ -497,6 +551,9 @@ mod tests {
         let json = summary_json(&data, AFTERNOON, 1);
         assert_eq!(json[0]["sleep_seconds"], 7200.0);
         assert_eq!(json[0]["wake_seconds"], 18000.0);
+        assert_eq!(json[0]["day_wake_seconds"], 18000.0);
+        assert!(json[0]["average_day_sleep_seconds"].is_null());
+        assert!(json[0]["average_night_sleep_seconds"].is_null());
         assert!(json[0]["average_nap_seconds"].is_null());
     }
     #[test]
@@ -530,6 +587,7 @@ mod tests {
         .unwrap();
         let json = summary_json(&data, AFTERNOON, 1);
         assert!(json[0]["wake_seconds"].is_null());
+        assert!(json[0]["day_wake_seconds"].is_null());
     }
     #[test]
     fn summary_naps_follow_the_same_boundaries_as_daytime_sleep_for_inverted_hours() {

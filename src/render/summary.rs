@@ -17,7 +17,7 @@ mod chart;
 pub mod columns;
 pub mod view;
 
-use columns::{COLUMNS, data_cells, group_row, heading_cells, join_cells};
+use columns::{COLUMNS, data_cells, group_row, heading_cells, join_cells, subgroup_row};
 
 /// The table, one line per row, ready for stdout.
 #[must_use]
@@ -31,6 +31,7 @@ pub fn lines(
 ) -> Vec<String> {
     let mut lines = vec![
         theme.heading(&group_row(units, 0..COLUMNS.len())),
+        theme.heading(&subgroup_row(units, 0..COLUMNS.len())),
         theme.heading(&heading_row(units)),
     ];
     for row in rows {
@@ -61,15 +62,26 @@ pub fn footer(
     units: Units,
     now: f64,
 ) -> Vec<String> {
+    let age = age_in_days(dataset, calendar, now);
+    let mut lines = notes(rows, dataset, theme, units, age);
+    lines.extend(bands(rows, theme, age));
+    lines
+}
+
+fn notes(
+    rows: &[DaySummary],
+    dataset: &Dataset,
+    theme: Theme,
+    units: Units,
+    age: Option<i64>,
+) -> Vec<String> {
     let mut lines = vec![String::new()];
     lines.extend(
         night_note(dataset)
             .into_iter()
             .map(|line| theme.muted(&line)),
     );
-    let age = age_in_days(dataset, calendar, now);
     lines.extend(averages(rows, theme, units, age));
-    lines.extend(bands(rows, theme, age));
     lines
 }
 
@@ -554,11 +566,65 @@ mod tests {
         for group in ["feed", "sleep", "diaper", "wake time"] {
             assert!(lines[0].contains(group), "{rendered}");
         }
+        assert!(lines[1].contains("bottle feed"), "{rendered}");
+        assert!(lines[1].contains("nursed"), "{rendered}");
         for heading in ["ml/feed", "nurse/feed", "avg sleep", "avg wake"] {
-            assert!(lines[1].contains(heading), "{rendered}");
+            assert!(lines[2].contains(heading), "{rendered}");
         }
-        assert!(lines[2].contains("120"), "{rendered}");
-        assert!(lines[2].contains("15m"), "{rendered}");
+        assert!(lines[3].contains("120"), "{rendered}");
+        assert!(lines[3].contains("15m"), "{rendered}");
+    }
+
+    #[test]
+    fn summary_subheaders_span_only_their_feeding_columns_at_every_scroll_position() {
+        for start in 0..COLUMNS.len() {
+            for end in start + 1..=COLUMNS.len() {
+                let headings = heading_row(Units::Ml);
+                let subgroup = subgroup_row(Units::Ml, start..end);
+                let leaves = join_cells(
+                    "day",
+                    &heading_cells(Units::Ml, start..end, None),
+                    start..end,
+                );
+                assert_eq!(subgroup.chars().count(), leaves.chars().count());
+                if start == 0 && end == COLUMNS.len() {
+                    let bottle = subgroup.find("bottle feed").unwrap();
+                    let nursing = subgroup.find("nursed").unwrap();
+                    assert!(bottle > headings.find("feeds").unwrap());
+                    assert!(bottle < headings.find("nursed").unwrap());
+                    assert!(nursing > headings.find("milk ml/feed").unwrap());
+                    assert!(nursing < headings.find("sleep").unwrap());
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn summary_split_columns_plot_hours_from_their_own_measurements() {
+        use crate::domain::fixtures::sleep;
+        let mut data = dataset();
+        let calendar = calendar();
+        let at = |hour| calendar.at("2025-09-21".parse().unwrap(), hour, 0);
+        data.sleep = vec![
+            sleep(at(8), 3600.0),
+            sleep(at(19), 7200.0),
+            sleep(at(23), 10800.0),
+        ];
+        let rows = summaries::build(&data, &calendar, rule(), AFTERNOON, 2);
+        for (heading, hours) in [
+            ("day", 2.0),
+            ("avg night sleep", 3.0),
+            ("avg day sleep", 1.5),
+            ("day wake", 11.0),
+            ("avg night wake", 2.0),
+            ("avg day wake", 10.0),
+        ] {
+            let column = COLUMNS
+                .iter()
+                .find(|column| column.heading(Units::Ml) == heading)
+                .unwrap();
+            assert_eq!(column.value(&rows[1], Units::Ml), Some(hours), "{heading}");
+        }
     }
 
     #[test]
