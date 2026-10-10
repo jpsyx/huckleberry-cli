@@ -16,3 +16,31 @@ Release development tests use Python 3.9 or newer, with no extra packages:
 `python3 -B -m unittest discover -s scripts/release/tests -v` (also `just release-test`).
 `just check` includes these alongside Rust format, lint, and tests. Building and
 running the app itself still requires only the Rust toolchain.
+
+## What gets published
+
+The workflow makes a version-only commit on the source SHA from the push and
+tags it as `v0.MINOR.PATCH`. The annotated tag records the original source and
+push range. It publishes a normal GitHub release with generated release notes,
+linked commit subjects, and a compare link. GitHub provides source archives;
+this workflow does not build installers or publish the API crate.
+
+It then synchronizes the CLI version back to main. If another push advanced
+main during validation, only the version fields are applied to that newer
+tree. The release tag still contains its original source. Generated version
+commits appear in normal pulls, and the workflow's GitHub token prevents them
+from triggering another push release.
+
+## Recovery
+
+The source SHA identifies an already reserved release. Rerunning a failed
+workflow completes a missing release or main update using the same tag and
+version. Tags are never moved and main is never force-pushed. A failed run
+that reserved nothing and was overtaken by a newer released source reports
+that it is superseded. An older reserved release can be recovered without
+replacing the latest release or lowering main's version.
+
+Failed validation publishes nothing. Network failures and concurrent main
+updates receive bounded retries; persistent failures stay visible in Actions.
+An annotated tag with incompatible metadata, or rewritten main history,
+requires investigation rather than overwriting published history.
