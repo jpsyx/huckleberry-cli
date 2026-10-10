@@ -66,16 +66,17 @@ enforced by tests rather than by good intentions.
 
 ## `now`
 
-The 3am screen: four facts, in the order they get asked.
+The 3am screen: five facts, in the order they get asked.
 
 ```
-Wren
+Wren · 25 days old
 
 Last fed            36m ago · 73 ml of Formula · 8:03 pm
 Last diaper         1h 31m ago · wet · 7:09 pm
 Last sleep          currently sleeping for 30m
                     (previous sleep finished 2h 10m ago · slept for 1h 20m)
 Tonight             nothing finished yet
+Last wake up        30m ago · awake for 1h 40m · 8:10 pm
 
 as of 2m ago
 
@@ -95,7 +96,7 @@ Today
 └────────────────────────────────────────┴───────────────┘
 ```
 
-After the last-event facts and the night's sleep, totals are grouped by window.
+After the last-event facts, the night's sleep, and the last wake period, totals are grouped by window.
 `In last 4h` has Feed and Sleep columns, a header row, and one data row with
 two lines: totals above event times. The daily table follows with the same
 columns and a single-line data row. Each table sizes its columns to its own contents to avoid wasting width.
@@ -113,6 +114,15 @@ The next line relabels itself. Inside the family's night window it reads
 `Tonight`; outside it reads `Last night's sleep`. It used to name the date, which
 was precise and is not what anybody calls it at 3am. An ambiguous label there is
 the one that gets misread, so "tonight" and "last night" stay distinct.
+
+`Last wake up` follows the night line. While awake, it says `currently awake
+for …`, measured from the last recorded sleep's end. While sleeping (including
+a paused sleep timer), it shows the most recent complete wake period's end,
+how long the baby was awake, and the local clock time. The wake period ends
+when the following sleep starts. Overlapping sleeps are merged as in Summary;
+future records are excluded. Without enough sleep history, the row says
+`duration unknown` while awake or `no wake period recorded` while sleeping.
+These periods use elapsed time and are not cut at family-day boundaries.
 
 **Every populated total says "total".** The word qualifies the quantity,
 so a volume or duration cannot be mistaken for the amount per event.
@@ -137,6 +147,8 @@ recent and daily tables, and typical ranges for the baby's age. Available
 Facts and ranges wrap within their columns; table cells wrap inside their
 borders. A muted vertical rule separates facts and ranges from tables for the
 full height of the block, so neighboring entries are read independently.
+The freshness timestamp and any read-failure notes sit at the bottom of the
+left column, below the facts and typical ranges.
 Long words wrap at Unicode grapheme boundaries, and column padding counts
 terminal cells rather than characters.
 
@@ -153,9 +165,9 @@ They live in [`data/reference.toml`](../data/reference.toml); see
 **Each range names its subject**: `typical sleep at this age`, `typical feed in
 the first weeks`, `typical diapers from day 3`. A label that opened with
 `typical at this age` left the reader to work out what of, which is fine in a
-table with a header and not fine in a column that has none. The age heads the
-column with a blank line under it, so it reads as the heading it is rather than
-as the first range.
+table with a header and not fine in a column that has none. The child heading
+includes the age when known (`Wren · 25 days old`), even when no reference
+ranges apply. The ranges do not repeat it.
 
 The tables show the last four hours followed by the family's daily window.
 A family counting a rolling day sees `In last 24h`; a family counting from

@@ -65,7 +65,7 @@ fn completed_sleeps(
 }
 
 /// Merge overlapping records before taking their complement or the gaps.
-fn intervals(dataset: &Dataset, now: f64) -> Vec<Interval> {
+pub fn intervals(dataset: &Dataset, now: f64) -> Vec<Interval> {
     let mut spans: Vec<_> = dataset
         .sleep
         .iter()

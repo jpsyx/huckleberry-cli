@@ -118,6 +118,15 @@ pub struct SleepState {
     pub last_sleep_end: Option<f64>,
 }
 
+/// A completed span awake between two recorded sleeps.
+#[derive(Debug, Clone, PartialEq)]
+pub struct LastWake {
+    /// When the next sleep began, ending this wake period.
+    pub end: f64,
+    /// Time between the preceding sleep's end and this period's end.
+    pub seconds: f64,
+}
+
 /// The longest unbroken stretch of a night.
 #[derive(Debug, Clone, PartialEq)]
 pub struct LongestStretch {
@@ -151,6 +160,8 @@ pub struct NowView {
     pub last_diaper: Option<LastDiaper>,
     /// Asleep or awake.
     pub sleep_state: SleepState,
+    /// The latest complete wake period, with overlapping sleeps merged.
+    pub last_wake: Option<LastWake>,
     /// The longest stretch of the relevant night.
     pub longest_stretch: LongestStretch,
     /// A nursing session in progress.
@@ -197,7 +208,13 @@ pub fn build(dataset: &Dataset, calendar: &Calendar, rule: DayRule, now: f64) ->
     // The live timer wins over history: a sleep in progress has not been
     // written to the intervals collection yet, so history cannot know.
     let asleep = dataset.live.sleep_active && dataset.live.sleep_start.is_some();
-    let last_sleep_end = dataset.last_sleep().map(super::types::SleepEvent::end);
+    let last_sleep_end = dataset
+        .sleep
+        .iter()
+        .filter(|sleep| sleep.start.is_finite() && sleep.duration > 0.0)
+        .map(SleepEvent::end)
+        .filter(|end| end.is_finite() && *end <= now)
+        .max_by(f64::total_cmp);
     let sleep_state = SleepState {
         asleep,
         paused: dataset.live.sleep_paused,
@@ -246,6 +263,7 @@ pub fn build(dataset: &Dataset, calendar: &Calendar, rule: DayRule, now: f64) ->
         last_feed,
         last_diaper,
         sleep_state,
+        last_wake: last_wake(dataset, now),
         longest_stretch: LongestStretch {
             tonight: position.inside,
             night_of: position.night_of,
@@ -254,6 +272,19 @@ pub fn build(dataset: &Dataset, calendar: &Calendar, rule: DayRule, now: f64) ->
         },
         nursing_now: nursing_now(dataset, now),
     }
+}
+
+/// The latest gap bounded by sleep on both sides; no inferred gap before history.
+fn last_wake(dataset: &Dataset, now: f64) -> Option<LastWake> {
+    let intervals = super::summaries::sleep::intervals(dataset, now);
+    intervals.windows(2).rev().find_map(|pair| {
+        let start = pair[0].1;
+        let end = pair[1].0;
+        (start > pair[0].0 && end > start).then_some(LastWake {
+            end,
+            seconds: end - start,
+        })
+    })
 }
 
 fn nursing_now(dataset: &Dataset, now: f64) -> Option<NursingNow> {

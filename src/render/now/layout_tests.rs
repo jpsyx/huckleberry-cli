@@ -48,7 +48,7 @@ fn all_side_by_side_widths_stack_ranges_under_facts_on_the_left() {
         let daily = position(&rows, "In last 24h");
         assert!(facts.1 < recent.1, "{}", rows.join("\n"));
         assert_eq!(facts.1, typical.1, "ranges stay left at {width} cells");
-        assert!(age.0 > facts.0 && typical.0 > age.0);
+        assert!(age.0 < facts.0 && typical.0 > facts.0);
         assert_eq!(recent.1, daily.1);
         assert!(recent.0 < daily.0);
     }
@@ -68,7 +68,13 @@ fn wrapping_keeps_a_fitting_feed_amount_and_type_together() {
 fn narrow_and_unknown_widths_stack_all_three_sections() {
     for width in [None, Some(40), Some(80), Some(95)] {
         let rows = rendered(&sample(), width);
-        let labels = ["Last fed", "In last 4h", "In last 24h", "days old"];
+        let labels = [
+            "days old",
+            "Last fed",
+            "In last 4h",
+            "In last 24h",
+            "typical feed",
+        ];
         let positions: Vec<_> = labels.iter().map(|label| position(&rows, label)).collect();
         assert!(positions.windows(2).all(|pair| pair[0].0 < pair[1].0));
         assert_eq!(positions[1].1, 0);
@@ -113,7 +119,7 @@ fn without_ranges_uses_two_useful_columns() {
 }
 
 #[test]
-fn freshness_sits_at_the_bottom_of_the_second_column() {
+fn freshness_sits_at_the_bottom_of_the_first_column() {
     for width in [96, 120, 180, 240] {
         for has_ranges in [false, true] {
             let mut data = sample();
@@ -122,7 +128,7 @@ fn freshness_sits_at_the_bottom_of_the_second_column() {
             }
             let rows = rendered(&data, Some(width));
             let freshness = position(&rows, "as of");
-            assert_eq!(freshness.1, position(&rows, "In last 4h").1);
+            assert_eq!(freshness.1, position(&rows, "Last fed").1);
             assert_eq!(freshness.0, rows.len() - 1);
             assert_eq!(rows.join("\n").matches("as of").count(), 1);
         }

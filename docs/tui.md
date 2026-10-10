@@ -150,13 +150,14 @@ widget beside it, and **widget** and **panel** mean the same thing.
 ```
  Huckleberry · Wren                                             Home
 ┌ Now ───────────────────────────────────────────────────────────────────┐
-│ Wren                                                                   │
+│ Wren · 25 days old                                                     │
 │                                                                        │
 │ Last fed            36m ago · 73 ml of Formula · 8:03 pm               │
 │ Last diaper         1h 31m ago · wet · 7:09 pm                         │
 │ Last sleep          currently sleeping for 30m                         │
 │                     (previous sleep finished 2h 10m ago · slept for 1h 20m) │
 │ Tonight             nothing finished yet                               │
+│ Last wake up        30m ago · awake for 1h 40m · 8:10 pm                  │
 │                                                                        │
 │ In last 4h                                                             │
 │ ┌────────────────────────┬────────────────────────┐                    │
@@ -572,6 +573,10 @@ It is a full-width strip across the **top**, above the Menu view:
 order, no additions and no abbreviations.** It is that command left on the
 screen rather than a second screen about the same data.
 
+The child heading includes their age when known, as in Summary. `Last wake up`
+follows the night's sleep and shows either the current awake duration or the
+end and duration of the latest completed wake period.
+
 `render::now::screen` is the one function that decides what `now` says.
 `lines` paints its rows for stdout and the drawer draws the same rows as
 widgets, so the two cannot drift: there is no second copy of the wording to
@@ -579,8 +584,9 @@ forget to update. The same function chooses two columns at 96 content cells
 and a vertical stack below that. Two columns put Last facts and typical
 ranges together on the left and tables on the right, even on the widest
 screens. The freshness line (`as of…`) and any read-failure notes sit at the
-bottom of the right column, below the tables. In a vertical stack they stay
-after the Last facts and before the tables. The drawer recomputes this on resize, after
+bottom of the left column, below the facts and typical ranges. In a vertical
+stack they stay after the Last facts and before the tables. The drawer
+recomputes this on resize, after
 reserving its borders and leading space. Narrow widths retain all sections;
 the existing height limit still protects the menu on short screens.
 

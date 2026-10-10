@@ -8,7 +8,7 @@
 //! the small hours off every night, which for a newborn is most of the sleep
 //! there is.
 
-mod sleep;
+pub(super) mod sleep;
 
 use jiff::civil::Date;
 

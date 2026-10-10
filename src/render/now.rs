@@ -1,6 +1,6 @@
 //! The 3am screen.
 //!
-//! Four facts, large and unadorned, in the order a parent needs them. The
+//! Five facts, large and unadorned, in the order a parent needs them. The
 //! screen answers "when did he last eat" before anything else because that is
 //! the question that gets asked at 3am, and it carries an honest "as of" line
 //! because a stale "last fed two hours ago" is what sends somebody to wake a
@@ -67,13 +67,17 @@ fn facts(
     now: f64,
 ) -> Vec<Row> {
     let mut rows = vec![
-        vec![Piece::new(dataset.child.name.clone(), Tone::Heading)],
+        vec![Piece::new(
+            child_heading(&dataset.child, calendar, now),
+            Tone::Heading,
+        )],
         Row::new(),
         fact("Last fed", &feed_line(view, calendar, units, now)),
         fact("Last diaper", &diaper_line(view, calendar, now)),
     ];
     rows.extend(sleep_rows(view, dataset, now));
     rows.push(fact(&stretch_label(view), &stretch_line(view, calendar)));
+    rows.push(fact("Last wake up", &wake_line(view, calendar, now)));
 
     if let Some(nursing) = &view.nursing_now {
         let state = if nursing.paused { " (paused)" } else { "" };
@@ -88,6 +92,39 @@ fn facts(
     }
 
     rows
+}
+
+/// Keep the child's age with their name, including when no ranges apply.
+fn child_heading(child: &Child, calendar: &Calendar, now: f64) -> String {
+    child
+        .birthdate
+        .as_deref()
+        .and_then(|birthdate| calendar.age_in_days(birthdate, now))
+        .map_or_else(
+            || child.name.clone(),
+            |age| format!("{} · {age} days old", child.name),
+        )
+}
+
+/// The current wake duration, or the most recent completed wake's end and length.
+fn wake_line(view: &NowView, calendar: &Calendar, now: f64) -> String {
+    if !view.sleep_state.asleep {
+        return view.sleep_state.awake_seconds.map_or_else(
+            || "currently awake · duration unknown".to_owned(),
+            |seconds| format!("currently awake for {}", format_duration(seconds)),
+        );
+    }
+    view.last_wake.as_ref().map_or_else(
+        || "no wake period recorded".to_owned(),
+        |wake| {
+            format!(
+                "{} · awake for {} · {}",
+                format_ago(wake.end, now),
+                format_duration(wake.seconds),
+                format::clock(wake.end, calendar),
+            )
+        },
+    )
 }
 
 /// Freshness and read failures travel together so stale data stays explicit.
@@ -161,16 +198,7 @@ fn ranges(view: &NowView, child: &Child, calendar: &Calendar, now: f64) -> Vec<R
     if rows.is_empty() {
         return rows;
     }
-    // The left column already says the name, so this says the thing it does
-    // not: how old the baby is, which is what makes these ranges the right
-    // ones.
-    // The age heads the column and the ranges under it are a separate
-    // thought, so they are not run together.
-    let mut lines = vec![
-        vec![Piece::new(format!("{age} days old"), Tone::Muted)],
-        Row::new(),
-    ];
-    lines.extend(rows);
+    let mut lines = rows;
     // Last, because a caveat that arrives before the thing it qualifies is a
     // caveat nobody reads.
     lines.push(Row::new());
@@ -239,7 +267,7 @@ const fn tone_for(standing: Standing) -> Tone {
 
 /// The running totals, and the times behind the recent ones.
 ///
-/// These come after the four facts because they answer the second question
+/// These come after the five facts because they answer the second question
 /// rather than the first: not "when did she last eat" but "has she had
 /// enough". Each recent total is followed by when those feeds or sleeps
 /// actually were, because "3 feeds" does not say whether they were spread out
@@ -761,7 +789,6 @@ mod tests {
 
     /// The night line named the day it was talking about, which is precise and
     /// is not what anybody calls it at 3am.
-    /// The age heads the column; the ranges under it are a separate thought.
     /// "350 ml · 5 feeds" can be read as 350 ml each, which is four hundred
     /// per cent of the truth and exactly the kind of number that gets acted on.
     #[test]
@@ -843,15 +870,104 @@ mod tests {
     }
 
     #[test]
-    fn a_blank_line_separates_the_age_from_the_first_range() {
-        let text = joined(&a_newborns_day(), AFTERNOON);
-        let lines: Vec<&str> = text.lines().collect();
-        let age = lines
+    fn age_is_in_the_child_heading_once() {
+        let text = joined(&dataset(), AFTERNOON);
+        assert_eq!(text.lines().next(), Some("Bear · 21 days old"));
+        assert_eq!(text.matches("days old").count(), 1);
+        let mut data = dataset();
+        data.child.birthdate = None;
+        assert_eq!(screen(&data, AFTERNOON)[0], "Bear");
+    }
+
+    #[test]
+    fn last_wake_shows_the_current_duration_after_the_night() {
+        let mut data = dataset();
+        data.sleep = vec![sleep(AFTERNOON - 7_200.0, 3_600.0)];
+        let rows = screen(&data, AFTERNOON);
+        let night = rows
             .iter()
-            .position(|line| line.contains("days old"))
-            .expect("an age line");
-        assert!(lines[age + 1].trim().is_empty(), "{text}");
-        assert!(lines[age + 2].contains("typical"), "{text}");
+            .position(|row| row.contains("Last night's sleep"))
+            .unwrap();
+        assert!(rows[night + 1].contains("Last wake up"));
+        assert!(rows[night + 1].contains("currently awake for 1h 0m"));
+    }
+
+    #[test]
+    fn last_wake_while_awake_ignores_future_sleep_records() {
+        let mut data = dataset();
+        data.sleep = vec![
+            sleep(AFTERNOON - 7_200.0, 3_600.0),
+            sleep(AFTERNOON + 3_600.0, 1_800.0),
+        ];
+        let rows = screen(&data, AFTERNOON);
+        let wake = rows
+            .iter()
+            .find(|row| row.contains("Last wake up"))
+            .unwrap();
+        assert!(wake.contains("currently awake for 1h 0m"), "{wake}");
+    }
+
+    #[test]
+    fn last_wake_ends_at_the_live_sleep_start_even_when_paused() {
+        let mut data = dataset();
+        data.sleep = vec![sleep(AFTERNOON - 10_800.0, 3_600.0)];
+        data.live.sleep_active = true;
+        data.live.sleep_start = Some(AFTERNOON - 1_800.0);
+        for paused in [false, true] {
+            data.live.sleep_paused = paused;
+            let rows = screen(&data, AFTERNOON);
+            let wake = rows
+                .iter()
+                .find(|row| row.contains("Last wake up"))
+                .unwrap();
+            assert!(
+                wake.contains("30m ago · awake for 1h 30m · 1:30 pm"),
+                "{wake}"
+            );
+            assert!(!wake.contains("currently awake"));
+        }
+    }
+
+    #[test]
+    fn last_wake_merges_overlapping_sleep_and_ignores_future_records() {
+        let mut data = dataset();
+        data.sleep = vec![
+            sleep(AFTERNOON - 3_600.0, 3_000.0),
+            sleep(AFTERNOON - 14_400.0, 7_200.0),
+            sleep(AFTERNOON - 10_800.0, 1_800.0),
+            sleep(AFTERNOON + 3_600.0, 1_800.0),
+        ];
+        data.live.sleep_active = true;
+        data.live.sleep_start = Some(AFTERNOON - 1_800.0);
+        let rows = screen(&data, AFTERNOON);
+        let wake = rows
+            .iter()
+            .find(|row| row.contains("Last wake up"))
+            .unwrap();
+        assert!(
+            wake.contains("1h 0m ago · awake for 1h 0m · 1:00 pm"),
+            "{wake}"
+        );
+    }
+
+    #[test]
+    fn last_wake_keeps_missing_history_unknown() {
+        let mut data = dataset();
+        for asleep in [false, true] {
+            data.live.sleep_active = asleep;
+            data.live.sleep_start = Some(AFTERNOON - 600.0);
+            let rows = screen(&data, AFTERNOON);
+            let wake = rows
+                .iter()
+                .find(|row| row.contains("Last wake up"))
+                .unwrap();
+            let expected = if asleep {
+                "no wake period recorded"
+            } else {
+                "currently awake · duration unknown"
+            };
+            assert!(wake.contains(expected), "{wake}");
+        }
     }
 
     /// "typical at this age" leaves the reader to work out what of.

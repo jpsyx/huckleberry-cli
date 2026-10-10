@@ -378,14 +378,16 @@ mod frames {
             };
             let facts = position("Last fed");
             let tables = position("In last 4h");
-            let age = position("21 days old");
+            let age = position("Bear · 21 days old");
+            let ranges = position("typical feed");
             if width >= 99 {
                 assert_eq!(facts.1, age.1);
-                assert!(facts.1 < tables.1 && facts.0 < age.0);
+                assert!(facts.1 < tables.1 && age.0 < facts.0);
+                assert!(facts.0 < ranges.0);
             } else {
                 assert_eq!(facts.1, tables.1);
                 assert_eq!(tables.1, age.1);
-                assert!(facts.0 < tables.0 && tables.0 < age.0);
+                assert!(age.0 < facts.0 && facts.0 < tables.0 && tables.0 < ranges.0);
             }
             position("pediatrician");
         }

@@ -40,7 +40,7 @@ impl Columns {
     pub(super) fn arrange(
         self,
         facts: Vec<Row>,
-        mut tables: Vec<Row>,
+        tables: Vec<Row>,
         ranges: Vec<Row>,
         freshness: Vec<Row>,
     ) -> Vec<Row> {
@@ -53,11 +53,11 @@ impl Columns {
                 }
             }
             Self::Two(widths) => {
-                let left = wrap_rows(stack(facts, ranges), widths[0]);
-                let freshness = wrap_rows(freshness, widths[1]);
-                let footer_start = left.len().saturating_sub(freshness.len());
-                tables.resize(footer_start.max(tables.len() + 1), Row::new());
-                tables.extend(freshness);
+                let mut left = wrap_rows(stack(facts, ranges), widths[0]);
+                let freshness = wrap_rows(freshness, widths[0]);
+                let footer_start = tables.len().saturating_sub(freshness.len());
+                left.resize(footer_start.max(left.len() + 1), Row::new());
+                left.extend(freshness);
                 beside(&[left, tables], &widths)
             }
         }
