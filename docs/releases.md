@@ -44,3 +44,17 @@ Failed validation publishes nothing. Network failures and concurrent main
 updates receive bounded retries; persistent failures stay visible in Actions.
 An annotated tag with incompatible metadata, or rewritten main history,
 requires investigation rather than overwriting published history.
+
+## GitHub Actions
+
+`.github/workflows/release.yml` validates each main push at its exact source
+SHA. Format, clippy, Rust tests, and release tests all have to pass. Before
+publication it waits for older unfinished main runs, then enters the release
+job's concurrency queue. The queue retains up to GitHub's 100 pending runs;
+it does not cancel an earlier push when another arrives.
+
+The publish job uses the repository's built-in `GITHUB_TOKEN` with contents
+write permission. No personal token or release approval is needed. Releases
+appear at [GitHub Releases](https://github.com/jpsyx/huckleberry-cli/releases).
+If a workflow fails, its Actions log identifies the step; rerunning that run
+uses the same push identity and safely resumes reserved publication.

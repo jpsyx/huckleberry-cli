@@ -12,6 +12,9 @@ sitting down, baby on your lap, bottle-feeding in one hand, and you only have on
 hand to type. Just run `h` and then navigate the interactive menu
 with the arrow keys, hjkl, or WASD and press Enter to make your selections.
 
+Every successful main push publishes a [GitHub release](https://github.com/jpsyx/huckleberry-cli/releases)
+with an automatic version and tag. See [how releases work](docs/releases.md).
+
 **Huge** props goes to [Woyken](https://github.com/Woyken) for having built the [py-huckleberry-api](https://github.com/Woyken/py-huckleberry-api)
 in the first place (see [Credit](#credit)). This repo is a direct port of his repo into Rust. All ported API code is in `crates/huckleberry-api`.
 The CLI is a wrapper around the ported Rust API.
