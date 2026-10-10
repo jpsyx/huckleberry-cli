@@ -98,7 +98,9 @@ types interactively. On a terminal it opens a list you can scroll, search and
 open an entry from; piped, it is the same rows as plain text. See
 [`dashboards.md`](dashboards.md) for the keys.
 
-`summary` uses Tab/Shift-Tab or left/right (H/L, A/D) to cycle numeric columns.
+`summary` uses Tab/Shift-Tab or left/right (H/L, A/D) to move between numeric
+columns, stopping at both ends without leaving the view. `g` selects the first
+numeric column and `G` the last. Home/End scroll to the top/bottom of rows and notes.
 Up/down (J/K, W/S) scroll rows and explanatory notes; Esc or Q leaves. The day
 column stays visible and the selected metric's bar chart stays below the
 table. Horizontal scrolling happens only when selection crosses a visible edge.

@@ -476,8 +476,9 @@ Home > Summary opens a browsable table through the prompt host. Its
 numeric columns have grouped headings; Feed adds bottle feed and nursed
 subheadings above their columns, with total feeds outside both. Day stays fixed.
 Tab/Shift-Tab and
-left/right (H/L, A/D, either case) cycle columns and update the separated bar chart
-below. The horizontal window moves only when selection crosses an edge. A dotted
+left/right (H/L, A/D, either case) move between columns, stopping at both ends,
+and update the separated bar chart below. `g` selects the first numeric column
+and `G` the last. Home/End scroll to the top/bottom of the rows and notes. The horizontal window moves only when selection crosses an edge. A dotted
 line compares the bars with the previous seven complete days' average, excluding
 today. A dot fills every chart column, and the legend starts `··· 7-day avg`.
 Its quantity sits beside the dotted line on the y-axis in the same magenta,
@@ -489,7 +490,7 @@ default table and chart include those seven days plus partial today. The table
 uses only the height its rows and wrapped notes need; the chart fills the
 remaining space above the keys and freshness line. Long tables scroll while
 leaving a visible chart.
-Left is movement within this control, so Esc or Q closes it directly.
+Left stays in this control even at the first column; Esc or Q closes it directly.
 Up/down (J/K, W/S) scroll the rows and notes, including configured night hours
 but not reference ranges or their pediatrician note, which the Now drawer
 already shows. Standalone summary retains those lines. Calculation explanations

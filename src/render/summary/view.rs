@@ -48,7 +48,7 @@ impl State {
             }
             KeyCode::Tab if key.modifiers.contains(KeyModifiers::SHIFT) => self.previous_column(),
             KeyCode::Tab | KeyCode::Right | KeyCode::Char('l' | 'L' | 'd' | 'D') => {
-                self.selected = (self.selected + 1) % COLUMNS.len();
+                self.selected = (self.selected + 1).min(COLUMNS.len() - 1);
             }
             KeyCode::Down | KeyCode::Char('j' | 'J' | 's' | 'S') => {
                 self.scroll = self.scroll.saturating_add(1);
@@ -58,8 +58,10 @@ impl State {
             }
             KeyCode::PageDown => self.scroll = self.scroll.saturating_add(self.page),
             KeyCode::PageUp => self.scroll = self.scroll.saturating_sub(self.page),
-            KeyCode::Home | KeyCode::Char('g') => self.scroll = 0,
-            KeyCode::End | KeyCode::Char('G') => self.scroll = self.limit,
+            KeyCode::Char('g') => self.selected = 0,
+            KeyCode::Char('G') => self.selected = COLUMNS.len() - 1,
+            KeyCode::Home => self.scroll = 0,
+            KeyCode::End => self.scroll = self.limit,
             _ => {}
         }
         self.scroll = self.scroll.min(self.limit);
@@ -67,7 +69,7 @@ impl State {
     }
 
     const fn previous_column(&mut self) {
-        self.selected = (self.selected + COLUMNS.len() - 1) % COLUMNS.len();
+        self.selected = self.selected.saturating_sub(1);
     }
 }
 
@@ -238,19 +240,19 @@ impl View<'_> {
 fn hints(state: &State, width: usize, compact: bool) -> Vec<String> {
     if compact {
         return vec![if width < 55 {
-            "Tab/←→ ↑↓ j/k · Esc/q back".into()
+            "←→ ↑↓ g/G · Esc/q back".into()
         } else {
-            "Tab/←→ h/l a/d · ↑↓ j/k w/s · Esc/q back".into()
+            "Tab/←→ h/l a/d · ↑↓ j/k w/s · g/G ends · Esc/q back".into()
         }];
     }
     if width < 55 {
         return vec![
-            "Tab/S-Tab ←/→ h/l a/d".into(),
+            "Tab/S-Tab ←/→ h/l a/d · g/G ends".into(),
             "↑↓ j/k w/s · Esc/q back".into(),
         ];
     }
     vec![
-        "Tab/Shift-Tab · ←/→ h/l a/d columns · Esc/q back".into(),
+        "Tab/S-Tab ←/→ h/l a/d · g/G first/last · Esc/q back".into(),
         format!(
             "↑/↓ j/k w/s scroll rows & notes · {}/{}",
             state.scroll + 1,

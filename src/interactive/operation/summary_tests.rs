@@ -2,7 +2,7 @@ use crate::prompt::host::{self, Input, Reply, Request};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 #[test]
-fn summary_columns_cycle_in_the_host_and_escape_returns_to_the_menu() {
+fn summary_column_boundaries_and_shortcuts_stay_in_the_host_until_escape() {
     let _serial = host::one_at_a_time();
     let directory = std::env::temp_dir().join(format!("h-summary-host-{}", std::process::id()));
     std::fs::create_dir_all(&directory).unwrap();
@@ -28,10 +28,14 @@ fn summary_columns_cycle_in_the_host_and_escape_returns_to_the_menu() {
         assert!(!frame.contains("pediatrician"), "{frame}");
         assert!(frame.contains("* Night:"), "{frame}");
     }
-    assert_eq!(frames.len(), 3, "{frames:?}");
+    assert_eq!(frames.len(), 7, "{frames:?}");
     assert!(frames[0].contains("[feeds]"), "{}", frames[0]);
-    assert!(frames[1].contains("[milk ml]"), "{}", frames[1]);
-    assert!(frames[2].contains("[feeds]"), "{}", frames[2]);
+    assert!(frames[1].contains("[feeds]"), "{}", frames[1]);
+    assert!(frames[2].contains("column 28/28"), "{}", frames[2]);
+    assert!(frames[3].contains("column 28/28"), "{}", frames[3]);
+    assert!(frames[4].contains("[feeds]"), "{}", frames[4]);
+    assert!(frames[5].contains("[milk ml]"), "{}", frames[5]);
+    assert!(frames[6].contains("[feeds]"), "{}", frames[6]);
 }
 
 /// Own the receiver so a regression that asks an extra question cannot leave a worker hung.
@@ -46,8 +50,12 @@ fn answer_frames(channel: host::Channel) -> Vec<String> {
                 frames.push(lines.join("\n"));
                 let key = match frames.len() {
                     _ if frames.last().unwrap().contains("Anything else?") => KeyCode::Esc,
-                    1 => KeyCode::Tab,
-                    2 => KeyCode::BackTab,
+                    1 => KeyCode::Left,
+                    2 => KeyCode::Char('G'),
+                    3 => KeyCode::Right,
+                    4 => KeyCode::Char('g'),
+                    5 => KeyCode::Tab,
+                    6 => KeyCode::BackTab,
                     _ => KeyCode::Esc,
                 };
                 reply
@@ -64,7 +72,7 @@ fn answer_frames(channel: host::Channel) -> Vec<String> {
                 reply.send(Reply::Stepped { interrupted: false }).unwrap();
             }
         }
-        if frames.len() == 3
+        if frames.len() == 7
             || frames
                 .last()
                 .is_some_and(|frame| frame.contains("Anything else?"))

@@ -203,7 +203,10 @@ the chosen volume unit.
 
 On a terminal, `summary` opens an interactive table. It runs through the prompt
 host in the shell, keeping the Now drawer in place. Tab and Shift-Tab, left/right,
-H/L, and A/D cycle every numeric column, wrapping at the ends. Day is fixed and
+H/L, and A/D move between numeric columns, stopping at both ends. `g` selects
+the first numeric column and `G` the last; neither changes vertical scroll.
+Home/End scroll to the top/bottom of the rows and notes. Left at the first
+column keeps the summary open. Day is fixed and
 cannot be selected. Selection has brackets as well as colour. A panel at least
 36 columns wide fits the fixed day and the longest selected heading in full.
 In narrower panels, an oversized column uses the available space: its heading

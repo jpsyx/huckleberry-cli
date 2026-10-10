@@ -46,7 +46,7 @@ fn feed_header_delimiters_follow_visible_subcategory_boundaries() {
 }
 
 #[test]
-fn all_direction_aliases_cycle_every_metric_and_wrap_without_selecting_day() {
+fn all_direction_aliases_stop_at_the_ends_without_closing() {
     for code in [
         KeyCode::Tab,
         KeyCode::Right,
@@ -56,7 +56,7 @@ fn all_direction_aliases_cycle_every_metric_and_wrap_without_selecting_day() {
         KeyCode::Char('D'),
     ] {
         let mut state = State::default();
-        for expected in (1..COLUMNS.len()).chain([0]) {
+        for expected in (1..COLUMNS.len()).chain([COLUMNS.len() - 1]) {
             assert!(!press(&mut state, code));
             assert_eq!(state.selected, expected);
         }
@@ -69,8 +69,11 @@ fn all_direction_aliases_cycle_every_metric_and_wrap_without_selecting_day() {
         KeyCode::Char('a'),
         KeyCode::Char('A'),
     ] {
-        let mut state = State::default();
-        for expected in (0..COLUMNS.len()).rev() {
+        let mut state = State {
+            selected: COLUMNS.len() - 1,
+            ..State::default()
+        };
+        for expected in (0..COLUMNS.len() - 1).rev().chain([0]) {
             assert!(!press(&mut state, code));
             assert_eq!(state.selected, expected);
         }
@@ -79,16 +82,43 @@ fn all_direction_aliases_cycle_every_metric_and_wrap_without_selecting_day() {
 
 #[test]
 fn shifted_tab_moves_back_and_release_events_do_not_move_twice() {
-    let mut state = State::default();
-    state.apply(KeyEvent::new(KeyCode::Tab, KeyModifiers::SHIFT));
-    assert_eq!(state.selected, COLUMNS.len() - 1);
+    let mut state = State {
+        selected: 1,
+        ..State::default()
+    };
+    assert!(!state.apply(KeyEvent::new(KeyCode::Tab, KeyModifiers::SHIFT)));
+    assert_eq!(state.selected, 0);
+    assert!(!state.apply(KeyEvent::new(KeyCode::Tab, KeyModifiers::SHIFT)));
+    assert_eq!(state.selected, 0);
     state.apply(KeyEvent::new_with_kind(
         KeyCode::Tab,
         KeyModifiers::NONE,
         KeyEventKind::Release,
     ));
-    assert_eq!(state.selected, COLUMNS.len() - 1);
+    assert_eq!(state.selected, 0);
     assert!(press(&mut state, KeyCode::Esc));
+}
+
+#[test]
+fn g_shortcuts_select_end_columns_without_changing_vertical_scroll() {
+    let mut state = State {
+        selected: 4,
+        scroll: 3,
+        limit: 10,
+        ..State::default()
+    };
+    for modifiers in [KeyModifiers::NONE, KeyModifiers::SHIFT] {
+        assert!(!state.apply(KeyEvent::new(KeyCode::Char('G'), modifiers)));
+        assert_eq!(state.selected, COLUMNS.len() - 1);
+        assert_eq!(state.scroll, 3);
+        assert!(!press(&mut state, KeyCode::Char('g')));
+        assert_eq!(state.selected, 0);
+        assert_eq!(state.scroll, 3);
+    }
+    assert!(!press(&mut state, KeyCode::End));
+    assert_eq!(state.scroll, 10);
+    assert!(!press(&mut state, KeyCode::Home));
+    assert_eq!(state.scroll, 0);
 }
 
 #[test]
