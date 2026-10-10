@@ -184,10 +184,10 @@ pub const COLUMNS: &[Column] = &[
     Column::new("sleep", "avg sleep", Kind::Duration, |row| {
         row.average_sleep_seconds
     }),
-    Column::new("sleep", "avg night sleep", Kind::Duration, |row| {
+    Column::new("sleep", "avg night nap", Kind::Duration, |row| {
         row.average_night_sleep_seconds
     }),
-    Column::new("sleep", "avg day sleep", Kind::Duration, |row| {
+    Column::new("sleep", "avg day nap", Kind::Duration, |row| {
         row.average_nap_seconds
     }),
     Column::new("wake time", "wake time", Kind::Duration, |row| {
@@ -199,13 +199,16 @@ pub const COLUMNS: &[Column] = &[
     Column::new("wake time", "day wake", Kind::Duration, |row| {
         row.day_wake_seconds
     }),
-    Column::new("wake time", "avg wake", Kind::Duration, |row| {
+    Column::new("wake time", "avg wake window", Kind::Duration, |row| {
         row.average_wake_seconds
     }),
-    Column::new("wake time", "avg night wake", Kind::Duration, |row| {
-        row.average_night_wake_seconds
-    }),
-    Column::new("wake time", "avg day wake", Kind::Duration, |row| {
+    Column::new(
+        "wake time",
+        "avg night wake window",
+        Kind::Duration,
+        |row| row.average_night_wake_seconds,
+    ),
+    Column::new("wake time", "avg day wake window", Kind::Duration, |row| {
         row.average_day_wake_seconds
     }),
     Column::new("wake time", "longest", Kind::Duration, |row| {

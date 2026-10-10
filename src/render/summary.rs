@@ -570,7 +570,7 @@ mod tests {
         }
         assert!(lines[1].contains("bottle feed"), "{rendered}");
         assert!(lines[1].contains("nursed"), "{rendered}");
-        for heading in ["ml/feed", "nurse/feed", "avg sleep", "avg wake"] {
+        for heading in ["ml/feed", "nurse/feed", "avg sleep", "avg wake window"] {
             assert!(lines[2].contains(heading), "{rendered}");
         }
         assert!(lines[3].contains("120"), "{rendered}");
@@ -639,11 +639,11 @@ mod tests {
         let rows = summaries::build(&data, &calendar, rule(), AFTERNOON, 2);
         for (heading, hours) in [
             ("day", 2.0),
-            ("avg night sleep", 3.0),
-            ("avg day sleep", 1.5),
+            ("avg night nap", 3.0),
+            ("avg day nap", 1.5),
             ("day wake", 11.0),
-            ("avg night wake", 2.0),
-            ("avg day wake", 10.0),
+            ("avg night wake window", 2.0),
+            ("avg day wake window", 10.0),
         ] {
             let column = COLUMNS
                 .iter()

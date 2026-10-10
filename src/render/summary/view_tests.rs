@@ -31,7 +31,7 @@ fn feed_header_delimiters_follow_visible_subcategory_boundaries() {
         (9..12, vec![]),
     ] {
         for selected in range.clone() {
-            let lines = view.head(range.clone(), selected, Theme::dark(false));
+            let lines = view.head(range.clone(), selected, usize::MAX, Theme::dark(false));
             for line in &lines[2..=3] {
                 let separators: Vec<_> = line
                     .chars()
@@ -106,7 +106,8 @@ fn every_column_stays_visible_with_day_and_the_correct_graph_when_narrow() {
         units: Units::Ml,
         now: AFTERNOON,
     };
-    for size in [(32, 14), (40, 14), (80, 24), (120, 35), (240, 35)] {
+    // The fixed day and bracketed "avg night wake window" need 36 cells.
+    for size in [(36, 14), (40, 14), (80, 24), (120, 35), (240, 35)] {
         for (selected, column) in COLUMNS.iter().enumerate() {
             let mut state = State {
                 selected,
@@ -138,6 +139,42 @@ fn every_column_stays_visible_with_day_and_the_correct_graph_when_narrow() {
                 "{drawn}"
             );
             assert!(!drawn.contains('\u{1b}'));
+        }
+    }
+}
+
+#[test]
+fn narrow_wake_columns_keep_complete_values_and_bracketed_headings() {
+    let calendar = Calendar::new("America/New_York").unwrap();
+    let data = dataset();
+    for (seconds, expected_value) in [(2700.0, "45m"), (9000.0, "2h 30m")] {
+        let mut rows = summaries::build(&data, &calendar, DayRule::default(), AFTERNOON, 1);
+        rows[0].average_night_wake_seconds = Some(seconds);
+        rows[0].average_day_wake_seconds = Some(seconds);
+        let view = View {
+            is_hosted: true,
+            rows: &rows,
+            dataset: &data,
+            calendar: &calendar,
+            units: Units::Ml,
+            now: AFTERNOON,
+        };
+        for (heading, shortened) in [
+            ("avg night wake window", "[avg night wake w…]"),
+            ("avg day wake window", "[avg day wake win…]"),
+        ] {
+            let mut state = State {
+                selected: COLUMNS
+                    .iter()
+                    .position(|column| column.heading(Units::Ml) == heading)
+                    .unwrap(),
+                ..State::default()
+            };
+            let lines = view.lines(&mut state, (32, 14), Theme::dark(false));
+            assert!(lines[4].ends_with(expected_value), "{}", lines[4]);
+            assert!(lines[3].ends_with(shortened), "{}", lines[3]);
+            assert_eq!(lines[3].chars().count(), 32);
+            assert_eq!(lines[4].chars().count(), 32);
         }
     }
 }
