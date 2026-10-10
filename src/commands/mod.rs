@@ -150,7 +150,7 @@ async fn act(context: &Context, command: &Command) -> Result<()> {
         Command::Foods { action } => foods::run(context, action).await,
         Command::Export { days, out } => export::run(context, *days, out.as_deref()).await,
         Command::Config { action } => settings::run(context, action),
-        Command::Info => info::run(context),
+        Command::Info { check_update } => info::run(context, *check_update).await,
     }
 }
 

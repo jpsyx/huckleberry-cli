@@ -1,37 +1,66 @@
 //! `info`: what this build is.
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 
 use crate::session::Context;
 
 /// Shows build details as a table, or stable `key=value` lines on a pipe.
-pub fn run(context: &Context) -> Result<()> {
-    let machine = facts(
+pub async fn run(context: &Context, check_update: bool) -> Result<()> {
+    let mut machine = facts(
         &context.config_path.display().to_string(),
         &context.credentials_path.display().to_string(),
         &context.config.timezone,
         context.config.child(),
     );
-    context.present(
-        "🍼 Huckleberry",
-        &[
-            ("App", crate::APP_NAME.into()),
-            ("Version", env!("CARGO_PKG_VERSION").into()),
-            ("API version", huckleberry_api::VERSION.into()),
-            ("Settings file", context.config_path.display().to_string()),
+    let mut fields = fields(context);
+    let report = if check_update {
+        Some(crate::version::check(context.offline.is_some()).await)
+    } else {
+        None
+    };
+    if let Some(report) = &report {
+        let latest = report.latest.as_deref().unwrap_or("");
+        machine.extend([
+            format!("latest_version={latest}"),
+            format!("update_status={}", report.status.code()),
+        ]);
+        fields.extend([
             (
-                "Credentials file",
-                context.credentials_path.display().to_string(),
+                "Latest version",
+                report.latest.clone().unwrap_or_else(|| "Unknown".into()),
             ),
-            ("Timezone", context.config.timezone.clone()),
-            (
-                "Child",
-                context.config.child().unwrap_or("Not selected").into(),
-            ),
-        ],
-        &machine,
-    );
+            ("Update status", report.status.message().into()),
+        ]);
+    }
+    context.present("🍼 Huckleberry", &fields, &machine);
+    if let Some(report) = report
+        && report.status == crate::version::UpdateStatus::Unavailable
+    {
+        bail!(
+            "{}: {}",
+            report.status.message(),
+            report.reason.as_deref().unwrap_or("Unknown error")
+        );
+    }
     Ok(())
+}
+
+fn fields(context: &Context) -> Vec<(&'static str, String)> {
+    vec![
+        ("App", crate::APP_NAME.into()),
+        ("Version", env!("CARGO_PKG_VERSION").into()),
+        ("API version", huckleberry_api::VERSION.into()),
+        ("Settings file", context.config_path.display().to_string()),
+        (
+            "Credentials file",
+            context.credentials_path.display().to_string(),
+        ),
+        ("Timezone", context.config.timezone.clone()),
+        (
+            "Child",
+            context.config.child().unwrap_or("Not selected").into(),
+        ),
+    ]
 }
 
 /// The facts and their order.
