@@ -869,6 +869,7 @@ dependencies = [
  "jiff",
  "ratatui",
  "reqwest",
+ "semver",
  "serde",
  "serde_json",
  "tokio",

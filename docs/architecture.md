@@ -381,6 +381,8 @@ possible without credentials.
 | `ratatui` | The full-screen dashboard, and the shell `h` opens with no command. |
 | `crossterm` | Reading a password without an echo, and the dashboard's backend. |
 | `tokio` | The async runtime the client needs. |
+| `reqwest` (rustls) | Public GitHub release checks, sharing the API crate's HTTP stack. |
+| `semver` | Correct installed/latest version ordering, including prereleases and build metadata. |
 | `huckleberry-api` | The client. The CLI holds no knowledge of Firestore. |
 
 Request-level summary tests reuse the API's `reqwest` dependency to point a client
@@ -388,6 +390,14 @@ at a local Firestore stub; they require no account or network service.
 
 Adding to either set means saying here what the crate is for, in one line, in
 the same change. See [`rules/rust.md`](rules/rust.md).
+
+## Software version checks
+
+`version` owns release comparison and `VersionReport`, including explicit
+offline, no-release, and unavailable outcomes. `version/client` fetches the
+public GitHub latest-release endpoint with a five-second total timeout and no
+account credentials or child data. Consumers share this client and its semantic
+comparison; they never infer that an unsuccessful request means up to date.
 
 ## The 400-line rule in practice
 

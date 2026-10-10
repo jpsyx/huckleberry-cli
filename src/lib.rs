@@ -16,6 +16,7 @@ pub mod setup;
 pub mod summary;
 pub mod theme;
 pub mod tui;
+pub mod version;
 
 pub const APP_NAME: &str = "huckleberry-cli";
 
