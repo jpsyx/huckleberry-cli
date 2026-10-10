@@ -174,7 +174,10 @@ the intervals collection yet, so history cannot know about it.
 
 A day table with four merged category headings above its numeric columns.
 Feed has a second header row for bottle feed and nursed, followed by the leaf
-headings. Total feeds sits outside both subcategories:
+headings. Vertical delimiters in those two lower header rows mark the start of
+bottle feed after total feeds and the start of nursed after milk/feed. They use
+the existing column gaps, keeping headings aligned with data while scrolling.
+Total feeds sits outside both subcategories:
 
 | Category | Columns |
 | --- | --- |

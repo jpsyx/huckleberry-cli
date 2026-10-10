@@ -12,7 +12,9 @@ use crate::{
 
 use super::{
     chart,
-    columns::{COLUMNS, data_cells, group_row, heading_cells, join_cells, subgroup_row},
+    columns::{
+        COLUMNS, data_cells, group_row, heading_cells, join_cells, join_heading_cells, subgroup_row,
+    },
 };
 
 #[cfg(test)]
@@ -161,7 +163,7 @@ impl View<'_> {
             )),
             theme.heading(&group_row(self.units, range.clone())),
             theme.heading(&subgroup_row(self.units, range.clone())),
-            join_cells(&theme.heading("day        "), &cells, range),
+            join_heading_cells(&theme.heading("day        "), &cells, range),
         ]
     }
 

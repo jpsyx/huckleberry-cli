@@ -17,7 +17,9 @@ mod chart;
 pub mod columns;
 pub mod view;
 
-use columns::{COLUMNS, data_cells, group_row, heading_cells, join_cells, subgroup_row};
+use columns::{
+    COLUMNS, data_cells, group_row, heading_cells, join_cells, join_heading_cells, subgroup_row,
+};
 
 /// The table, one line per row, ready for stdout.
 #[must_use]
@@ -109,7 +111,7 @@ fn night_note(dataset: &Dataset) -> Vec<String> {
 /// The heading row, with the volume unit named in it.
 #[must_use]
 pub fn heading_row(units: Units) -> String {
-    join_cells(
+    join_heading_cells(
         "day",
         &heading_cells(units, 0..COLUMNS.len(), None),
         0..COLUMNS.len(),
@@ -576,12 +578,35 @@ mod tests {
     }
 
     #[test]
+    fn summary_feed_delimiters_bound_bottle_columns_in_both_lower_headers() {
+        let rendered = table(&dataset(), 1);
+        let lines: Vec<_> = rendered.lines().collect();
+        let subgroups: Vec<_> = lines[1].split('│').map(str::trim).collect();
+        assert_eq!(subgroups, ["", "", "bottle feed", "nursed", "", "", ""]);
+        let headings: Vec<_> = lines[2].split('│').map(str::trim).collect();
+        assert_eq!(headings[1], "feeds");
+        assert!(headings[2].starts_with("milk ml"));
+        assert!(headings[2].ends_with("milk ml/feed"));
+        assert!(headings[3].starts_with("nursed"));
+        assert!(headings[3].ends_with("nurse/feed"));
+        let separators = |line: &str| {
+            line.chars()
+                .enumerate()
+                .filter_map(|(position, character)| (character == '│').then_some(position))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(separators(lines[1]), separators(lines[2]));
+        assert_eq!(separators(lines[0]).len(), 4);
+        assert_eq!(separators(lines[3]).len(), 4);
+    }
+
+    #[test]
     fn summary_subheaders_span_only_their_feeding_columns_at_every_scroll_position() {
         for start in 0..COLUMNS.len() {
             for end in start + 1..=COLUMNS.len() {
                 let headings = heading_row(Units::Ml);
                 let subgroup = subgroup_row(Units::Ml, start..end);
-                let leaves = join_cells(
+                let leaves = join_heading_cells(
                     "day",
                     &heading_cells(Units::Ml, start..end, None),
                     start..end,

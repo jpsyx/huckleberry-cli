@@ -10,6 +10,41 @@ fn press(state: &mut State, code: KeyCode) -> bool {
 }
 
 #[test]
+fn feed_header_delimiters_follow_visible_subcategory_boundaries() {
+    let calendar = Calendar::new("America/New_York").unwrap();
+    let data = dataset();
+    let view = View {
+        is_hosted: true,
+        rows: &[],
+        dataset: &data,
+        calendar: &calendar,
+        units: Units::Oz,
+        now: AFTERNOON,
+    };
+    for (range, expected) in [
+        (0..11, vec![12, 22, 112]),
+        (1..11, vec![12, 102]),
+        (2..11, vec![91]),
+        (6..9, vec![28]),
+        (7..11, vec![12]),
+        (8..11, vec![]),
+    ] {
+        for selected in range.clone() {
+            let lines = view.head(range.clone(), selected, Theme::dark(false));
+            for line in &lines[2..=3] {
+                let separators: Vec<_> = line
+                    .chars()
+                    .enumerate()
+                    .filter_map(|(position, character)| (character == '│').then_some(position))
+                    .collect();
+                assert_eq!(separators, expected, "{range:?}: {line}");
+                assert_eq!(line.chars().count(), table_width(range.clone(), Units::Oz));
+            }
+        }
+    }
+}
+
+#[test]
 fn all_direction_aliases_cycle_every_metric_and_wrap_without_selecting_day() {
     for code in [
         KeyCode::Tab,

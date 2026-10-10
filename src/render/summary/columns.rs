@@ -236,13 +236,38 @@ pub fn data_cells(row: &DaySummary, units: Units, range: Range<usize>) -> Vec<St
 /// A fixed day label and numeric cells, separated at category boundaries.
 #[must_use]
 pub fn join_cells(day: &str, cells: &[String], range: Range<usize>) -> String {
+    join_row(day, cells, range, |column| column.group)
+}
+
+/// Leaf headings with delimiters at category and feeding subcategory boundaries.
+#[must_use]
+pub fn join_heading_cells(day: &str, cells: &[String], range: Range<usize>) -> String {
+    join_row(day, cells, range, |column| column.subgroup)
+}
+
+fn join_row(
+    day: &str,
+    cells: &[String],
+    range: Range<usize>,
+    label: fn(&Column) -> &str,
+) -> String {
     let mut line = format::pad(day, 11);
     for (index, cell) in range.zip(cells) {
-        let boundary = index == 0 || COLUMNS[index - 1].group != COLUMNS[index].group;
-        line.push_str(if boundary { " │ " } else { "  " });
+        line.push_str(separator(index, label));
         line.push_str(cell);
     }
     line
+}
+
+fn separator(index: usize, label: fn(&Column) -> &str) -> &'static str {
+    if index == 0 || COLUMNS[index - 1].group != COLUMNS[index].group {
+        " │ "
+    } else if label(&COLUMNS[index - 1]) != label(&COLUMNS[index]) {
+        // Use the existing gap so headers, data and viewport widths stay aligned.
+        " │"
+    } else {
+        "  "
+    }
 }
 
 /// Merged category headings, spanning their visible leaf columns.
@@ -274,8 +299,7 @@ fn merged_row(units: Units, range: Range<usize>, label: fn(&Column) -> &str) -> 
             .map(|column| COLUMNS[column].width(units))
             .sum::<usize>()
             + (index - start - 1) * 2;
-        let boundary = start == 0 || COLUMNS[start - 1].group != group;
-        line.push_str(if boundary { " │ " } else { "  " });
+        line.push_str(separator(start, label));
         let heading: String = heading.chars().take(width).collect();
         let _ = write!(line, "{heading:^width$}");
     }
