@@ -29,6 +29,14 @@ class PublishTests(unittest.TestCase):
         self.assertIn("$(literal)", self.github.releases["v0.48.0"]["body"])
         self.assertIn(self.push.source, self.github.releases["v0.48.0"]["body"])
 
+    def test_bootstrap_uses_the_source_version_when_main_advanced_before_activation(self):
+        self.repo.write_version("0.48.1")
+        source = self.fixture.commit("feat: activate automatic releases")
+        record = self.publish(Push(self.push.source, source, 2))
+        self.assertEqual(record.version, "0.49.0")
+        self.repo.fetch()
+        self.assertIn('version = "0.49.0"', self.repo.contents("origin/main", "Cargo.toml"))
+
     def test_retry_after_lost_create_response_reuses_release(self):
         self.github.fail_after_create = True
         with self.assertRaises(ConnectionError):

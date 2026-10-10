@@ -49,10 +49,12 @@ uses commit messages; contributors do not edit version files or select a
 release version. Ordinary messages still release through the patch fallback.
 Changing the major-version policy is a future explicit repository change.
 
-The initial baseline is the existing CLI version, `0.47.2`; historical commits
+The initial baseline is the existing CLI version in the triggering source
+manifest (`0.47.2` when this design was written); historical commits
 before the first triggering push do not create retrospective releases. With a
 `feat:` commit for this feature and no intervening releases, the first release
-will be `v0.48.0`. After bootstrap, release tags are the allocation ledger,
+would be `v0.48.0` from that baseline. Main advanced to `0.48.1` during
+implementation, so the expected first release is now `v0.49.0`. After bootstrap, release tags are the allocation ledger,
 including a reserved tag whose GitHub release still needs publication.
 
 Only the CLI package version and its matching lockfile package entry are

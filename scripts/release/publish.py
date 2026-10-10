@@ -2,9 +2,7 @@
 from typing import Callable, Optional
 
 from .repository import Push, ReleaseRecord, Repository
-from .versions import next_version, parse_version
-
-BASELINE = "0.47.2"
+from .versions import manifest_version, next_version, parse_version
 
 
 def description(repository: Repository, name: str, push: Push) -> str:
@@ -37,7 +35,7 @@ def publish_push(repository: Repository, github, push: Push,
         if any(record.source != push.source and repository.ancestor(push.source, record.source) for record in records):
             print("This unreserved push was superseded by a newer released source.")
             return None
-        current = records[-1].version if records else BASELINE
+        current = records[-1].version if records else manifest_version(repository.contents(push.source, "Cargo.toml"))
         record = repository.prepare(push, next_version(current, repository.messages(push)))
     verify(record)
     repository.push_tag(record)

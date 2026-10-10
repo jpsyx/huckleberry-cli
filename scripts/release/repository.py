@@ -7,7 +7,7 @@ import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from .versions import parse_version, replace_lock_version, replace_manifest_version
+from .versions import manifest_version, parse_version, replace_lock_version, replace_manifest_version
 
 FILES = {"Cargo.toml": replace_manifest_version, "Cargo.lock": replace_lock_version}
 BOT = ["-c", "user.name=github-actions[bot]", "-c",
@@ -178,10 +178,8 @@ class Repository:
         for attempt in range(5):
             self.fetch()
             head = self.git("rev-parse", "origin/main")
-            current = re.search(r'^version = "([^"]+)"', self.contents(head, "Cargo.toml"), re.MULTILINE)
-            if not current:
-                raise ValueError("main has no CLI package version")
-            if parse_version(current[1]) >= parse_version(record.version):
+            current = manifest_version(self.contents(head, "Cargo.toml"))
+            if parse_version(current) >= parse_version(record.version):
                 return
             commit = self.sync_commit(record, head)
             try:

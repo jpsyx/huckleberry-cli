@@ -23,14 +23,29 @@ def next_version(current: str, messages: Sequence[str]) -> str:
     return f"{major}.{minor}.{patch + 1}"
 
 
-def _replace(text: str, version: str, heading: str) -> str:
-    parse_version(version)
+def _package_section(text: str, heading: str):
+    """Find exactly one named CLI package without matching workspace settings."""
     sections = list(re.finditer(r"(?ms)^" + re.escape(heading) + r"[^\n]*\n(.*?)(?=^\[|\Z)", text))
     matches = [section for section in sections
                if re.search(r'^name\s*=\s*"huckleberry-cli"\s*$', section[1], re.MULTILINE)]
     if len(matches) != 1:
         raise ValueError("expected exactly one huckleberry-cli package")
-    section = matches[0]
+    return matches[0]
+
+
+def manifest_version(text: str) -> str:
+    """Read the existing stable CLI version for initial release allocation."""
+    section = _package_section(text, "[package]")
+    versions = re.findall(r'(?m)^version\s*=\s*"([^"\n]+)"', section[1])
+    if len(versions) != 1:
+        raise ValueError("expected exactly one CLI package version")
+    parse_version(versions[0])
+    return versions[0]
+
+
+def _replace(text: str, version: str, heading: str) -> str:
+    parse_version(version)
+    section = _package_section(text, heading)
     body, count = re.subn(r'(?m)^(version\s*=\s*)"[^"\n]+"',
                           lambda match: match[1] + f'"{version}"', section[1])
     if count != 1:

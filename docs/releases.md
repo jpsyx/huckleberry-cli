@@ -9,7 +9,8 @@ optional scope), a conventional `!` header, or a `BREAKING CHANGE:` /
 `BREAKING-CHANGE:` footer increments the minor version. All other pushes,
 including documentation and unclassified messages, increment the patch.
 Major stays zero. One push containing several commits receives one bump,
-with minor taking precedence. The initial baseline is 0.47.2.
+with minor taking precedence. The first release starts from the CLI version in that push’s Cargo manifest,
+so changes made before automation is enabled cannot cause a version rollback.
 
 The reusable API crate has its own version and is not bumped by CLI releases.
 Release development tests use Python 3.9 or newer, with no extra packages:
