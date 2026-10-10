@@ -51,7 +51,9 @@ requires investigation rather than overwriting published history.
 ## GitHub Actions
 
 `.github/workflows/release.yml` validates each main push at its exact source
-SHA. Format, clippy, Rust tests, and release tests all have to pass. The entire
+SHA. Format, clippy, Rust tests, and release tests all have to pass. Both jobs
+use the same pinned Rust 1.95.0 toolchain, matching local verification, so a
+new upstream lint cannot unexpectedly stop otherwise unchanged releases. The entire
 workflow enters a concurrency queue before any job allocates a runner. Waiting
 runs cannot occupy the runners needed to finish an earlier release. The queue
 retains up to GitHub’s 100 pending runs and does not replace earlier pending
