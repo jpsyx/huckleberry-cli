@@ -64,6 +64,12 @@ either, say which.
 | **pumping**, **a pump session** | Milk expressed, recorded as a total or separate left/right amounts. It is separate from milk fed to the child. The Home row is **Log pumping**; the command is `pump`. |
 | **as of** | How stale what is on screen is. Every screen carries one. |
 
+## Software information
+
+| Term | Means |
+| --- | --- |
+| **Version modal** | Centered overlay opened from More > Version, showing the installed version and the latest GitHub release with its update status. Closing returns to the same menu row. |
+
 ## Days, nights and windows
 
 | Term | Means |

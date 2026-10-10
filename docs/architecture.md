@@ -393,6 +393,12 @@ the same change. See [`rules/rust.md`](rules/rust.md).
 
 ## Software version checks
 
+The shell keeps pure modal input state in `tui/version`, rendering in
+`tui/draw/version`, and the cancelable background request in `tui/version_task`.
+The shell collects only finished tasks alongside ordinary reads. Closing or
+quitting aborts the task; a fresh opening owns a fresh request. No network
+await sits on the key-handling path, and modal keys never reach the menu below.
+
 `version` owns release comparison and `VersionReport`, including explicit
 offline, no-release, and unavailable outcomes. `version/client` fetches the
 public GitHub latest-release endpoint with a five-second total timeout and no

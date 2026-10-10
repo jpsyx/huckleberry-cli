@@ -609,3 +609,25 @@ Dials use left and right to select a column; shifted up and down leap.
 The standalone dashboard uses left and right to switch tabs and up and down
 to scroll. Inside the shell, left/back closes the Dashboard view, and Tab,
 right or Shift-Tab navigate its tabs. WASD follows these same boundaries.
+
+## Version modal
+
+More > Version opens a centered, bordered **Version modal** over the current
+menu. It shows the installed version immediately, checks the latest public
+GitHub release in the background, and displays both versions and the result.
+The modal is 64 columns by 12 rows, centered again on resize and clamped to a
+smaller terminal. The Now drawer and menu remain underneath it.
+
+Close is selected by default. Enter, Space, Right, `l`, or `d` closes it;
+Escape, Left, `h`, `a`, Backspace, and Ctrl-C also return to the same menu row.
+`r` retries a completed online check. Movement and number keys cannot change
+the menu behind the modal; `q` and Ctrl-Q still quit the shell. Its footer
+shows close, back, retry, and quit controls.
+
+A check says Checking, Up to date, Update available, Ahead of the latest
+release, No published release found, or Unable to check GitHub. Failures keep
+the installed version visible and allow retry. Offline mode says the check is
+disabled and never starts a request. Closing or quitting cancels the request;
+reopening starts fresh, so an old result cannot replace a new check. Each
+request has a five-second timeout. The same report is scriptable with
+`h info --check-update`; plain `h info` stays local.

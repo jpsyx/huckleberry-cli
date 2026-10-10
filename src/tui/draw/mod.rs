@@ -16,6 +16,7 @@
 pub mod flow;
 pub mod menu;
 pub mod now;
+pub mod version;
 
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
@@ -109,6 +110,9 @@ pub fn draw_with(frame: &mut Frame, app: &App, job: Option<&crate::tui::job::Job
         facts,
     );
     frame.render_widget(footer(app, job.is_some()), areas[2]);
+    if let Some(version) = &app.version {
+        version::draw(frame, version);
+    }
 }
 
 /// Where the Now drawer sits, and what the menu gets under it.
@@ -218,6 +222,9 @@ const DASH_HINTS: &str =
     "tab/1-4/→ l/d screens · ↑/↓ j/k w/s scroll · r refresh · ← h/a back · q quit";
 
 fn footer(app: &App, running: bool) -> Paragraph<'static> {
+    if app.version.is_some() {
+        return Paragraph::new(version::HINTS).style(style(Tone::Muted));
+    }
     let note = if app.facts.refreshing {
         Some(("reading…".to_owned(), Tone::Info))
     } else if let Some(trouble) = &app.facts.trouble {
