@@ -154,7 +154,7 @@ fn rows(id: MenuId) -> Vec<MenuEntry> {
             menu("Nursing", MenuId::Nursing),
             command("Solids", "feed solids"),
         ],
-        MenuId::Sleep => children("sleep"),
+        MenuId::Sleep => sleep(),
         MenuId::Pump => children("pump"),
         MenuId::Nursing => children("feed nursing"),
         MenuId::Foods => children("foods"),
@@ -162,6 +162,18 @@ fn rows(id: MenuId) -> Vec<MenuEntry> {
         MenuId::Account => children("auth"),
         MenuId::Settings => children("config"),
     }
+}
+
+fn sleep() -> Vec<MenuEntry> {
+    vec![
+        command("Start", "sleep start"),
+        command("Stop", "sleep stop"),
+        command("Pause", "sleep pause"),
+        command("Resume", "sleep resume"),
+        command("Cancel", "sleep cancel"),
+        command("Manual", "sleep manual"),
+        command("Status", "sleep status"),
+    ]
 }
 
 fn more() -> Vec<MenuEntry> {

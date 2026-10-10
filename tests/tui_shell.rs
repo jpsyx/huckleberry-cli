@@ -182,6 +182,44 @@ fn digits_highlight_a_row_and_only_enter_opens_it() {
 }
 
 #[test]
+fn sleep_menu_numbers_open_the_requested_timer_actions() {
+    for (digit, label, action) in [
+        ('1', "Start", "start"),
+        ('2', "Stop", "stop"),
+        ('3', "Pause", "pause"),
+        ('4', "Resume", "resume"),
+        ('5', "Cancel", "cancel"),
+        ('6', "Manual", "manual"),
+        ('7', "Status", "status"),
+        ('8', "Back", "back"),
+    ] {
+        let mut app = App::new();
+        highlight(&mut app, "Log sleep");
+        assert_eq!(app.apply(Motion::Open, HEIGHT), Intent::Stay);
+        assert_eq!(app.menu(), MenuId::Sleep);
+        assert_eq!(
+            app.apply(motion_for(key(KeyCode::Char(digit))), HEIGHT),
+            Intent::Stay
+        );
+        assert_eq!(
+            app.rows()[app.cursor()].label,
+            label,
+            "sleep menu key {digit}"
+        );
+        let intent = app.apply(Motion::Open, HEIGHT);
+        if action == "back" {
+            assert_eq!(intent, Intent::Stay);
+            assert_eq!(app.menu(), MenuId::Home);
+        } else {
+            assert_eq!(
+                intent,
+                Intent::Run(catalog::CommandPath(vec!["sleep".into(), action.into()]))
+            );
+        }
+    }
+}
+
+#[test]
 fn a_release_moves_nothing() {
     let released = KeyEvent::new_with_kind(
         KeyCode::Char('j'),

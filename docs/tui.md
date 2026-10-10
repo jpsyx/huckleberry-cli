@@ -207,6 +207,9 @@ A chevron (`›`) marks a row that opens another menu, so nothing is a surprise.
 The numbers are right-aligned as a column, so every label starts in the same
 place whether its row is 9 or 10.
 
+Log sleep lists Start, Stop, Pause, Resume, Cancel, Manual, Status, then Back.
+Start and Stop are rows 1 and 2; digits highlight a row and Enter opens it.
+
 Log pumping opens with Log, followed by Start, Pause, Resume, Stop, Cancel and
 Status. Logging asks when first, then offers a total or separate left/right
 amounts using the shared volume dial. Pump amounts can be zero, including a
