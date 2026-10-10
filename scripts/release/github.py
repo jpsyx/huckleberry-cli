@@ -79,14 +79,3 @@ class GitHub:
                     raise RuntimeError("GitHub release could not be published") from None
                 time.sleep(min(2 ** attempt, 30))
         raise RuntimeError("GitHub retry limit reached")
-
-    def runs(self, workflow: str) -> list[dict]:
-        runs = []
-        page = 1
-        while True:
-            path = f"/actions/workflows/{quote(workflow, safe='')}/runs?branch=main&event=push&per_page=100&page={page}"
-            batch = self.read(path)["workflow_runs"]
-            runs.extend(batch)
-            if len(batch) < 100:
-                return runs
-            page += 1

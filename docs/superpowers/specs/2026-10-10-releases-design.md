@@ -67,8 +67,7 @@ manually increment the baseline.
 ### Trigger, validation, and authority
 
 The workflow runs on every push to main with no path filters. It uses the
-repository's generated token with explicit `contents: write` and Actions read
-access for coordination. No personal access token or contributor-managed
+repository's generated token with explicit `contents: write` for publication. No personal access token or contributor-managed
 release secret is required. GitHub documents that pushes made with this token
 do not recursively start push workflows, which prevents the generated version
 commit from causing another release. [Token behavior](https://docs.github.com/en/actions/concepts/security/github_token)
@@ -82,13 +81,14 @@ successful pushes need no approval or manual release step.
 
 1. Retain the event's before/after SHAs as the push identity and description
    range. Check out the exact after SHA with history available.
-2. Wait for older unfinished main-push runs before entering the publication
-   queue. Perform this wait outside the publication concurrency group so an
-   earlier run cannot be trapped behind the run waiting for it.
-3. Serialize publication with a dedicated concurrency group and `queue: max`.
-   The default single-pending queue cancels intervening runs; it is unsuitable
-   here. GitHub's queue has a 100-pending-run limit and orders waiting time,
-   so predecessor coordination remains necessary. [Concurrency behavior](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency)
+2. Queue the entire workflow before runner allocation with a dedicated
+   concurrency group and `queue: max`. Waiting workflows must not occupy the
+   runners needed to complete earlier publication jobs.
+3. Keep validation and publication within that workflow lock. GitHub retains
+   up to 100 pending runs, ordered by queue entry rather than dispatch time.
+   An unusually late original run can be superseded if newer source already
+   released. This is an explicit exception to one release per push; it prevents
+   publishing stale source as latest. [Concurrency behavior](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency)
 4. Inside the publication lock, fetch current release tags, resolve any
    existing reservation for this push, and choose the next version once.
 5. Produce a version-only commit whose parent is the triggering source SHA.
@@ -120,10 +120,10 @@ main synchronization instead of allocating another version. Existing tags
 are never moved. A mismatched reservation is an error, not permission to
 overwrite someone else's tag.
 
-Only complete earlier runs cease blocking publication. If an earlier run
-failed before reserving a version and a newer source has since released, an
-old retry reports that it was superseded instead of publishing stale code as
-the newest version. A retry of an already reserved older version may complete
+If an earlier run reserved no version and newer source has since released,
+the old run reports that it was superseded instead of publishing stale code
+as the newest version. This applies to retries and unusually late original
+runs; their changes are already included in the newer release. A retry of an already reserved older version may complete
 its missing release, but must not change GitHub's latest pointer or lower
 main's version. Partial publication remains visible as a failed workflow
 until recovery succeeds. Transient network and main-update races receive

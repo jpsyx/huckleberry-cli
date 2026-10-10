@@ -4,9 +4,12 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: main-releases
+  queue: max
+
 permissions:
   contents: read
-  actions: read
 
 jobs:
   validate:
@@ -27,12 +30,6 @@ jobs:
       - run: cargo clippy --all-targets --locked -- -D warnings
       - run: cargo test --locked
       - run: python3 -B -m unittest discover -s scripts/release/tests -v
-      # Waiting outside the publish lock prevents an older run being trapped
-      # behind the very run waiting for it to finish.
-      - name: Wait for earlier main pushes
-        run: python3 -B -m scripts.release wait
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   publish:
     needs: validate
@@ -40,10 +37,6 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: write
-      actions: read
-    concurrency:
-      group: main-releases
-      queue: max
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

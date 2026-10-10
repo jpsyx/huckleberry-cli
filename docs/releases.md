@@ -1,6 +1,7 @@
 # Releases
 
-Every successful push to main produces one version, tag, and GitHub release.
+Each successful main push normally produces one version, tag, and GitHub release.
+The late-run exception is described below.
 Contributors push their changes without editing the CLI version themselves.
 `Cargo.toml` remains the build version source and `Cargo.lock` moves with it.
 
@@ -36,9 +37,10 @@ from triggering another push release.
 
 The source SHA identifies an already reserved release. Rerunning a failed
 workflow completes a missing release or main update using the same tag and
-version. Tags are never moved and main is never force-pushed. A failed run
-that reserved nothing and was overtaken by a newer released source reports
-that it is superseded. An older reserved release can be recovered without
+version. Tags are never moved and main is never force-pushed. An unreserved run
+overtaken by a newer released source reports that it is superseded, including
+a rare original run that reaches GitHub’s queue late. Its changes are already
+in the newer release; publishing stale code as latest would be misleading. An older reserved release can be recovered without
 replacing the latest release or lowering main's version.
 
 Failed validation publishes nothing. Network failures and concurrent main
@@ -49,10 +51,12 @@ requires investigation rather than overwriting published history.
 ## GitHub Actions
 
 `.github/workflows/release.yml` validates each main push at its exact source
-SHA. Format, clippy, Rust tests, and release tests all have to pass. Before
-publication it waits for older unfinished main runs, then enters the release
-job's concurrency queue. The queue retains up to GitHub's 100 pending runs;
-it does not cancel an earlier push when another arrives.
+SHA. Format, clippy, Rust tests, and release tests all have to pass. The entire
+workflow enters a concurrency queue before any job allocates a runner. Waiting
+runs cannot occupy the runners needed to finish an earlier release. The queue
+retains up to GitHub’s 100 pending runs and does not replace earlier pending
+pushes. GitHub orders runs by queue entry, not dispatch time, so an unusually
+late original run can be superseded as described above.
 
 The publish job uses the repository's built-in `GITHUB_TOKEN` with contents
 write permission. No personal token or release approval is needed. Releases

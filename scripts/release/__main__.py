@@ -8,7 +8,6 @@ from pathlib import Path
 from .github import GitHub
 from .publish import publish_push
 from .repository import Push, ReleaseRecord, Repository
-from .workflow import wait_for_predecessors
 
 
 def verify_build(repository: Repository, record: ReleaseRecord) -> None:
@@ -24,17 +23,14 @@ def verify_build(repository: Repository, record: ReleaseRecord) -> None:
 def main() -> None:
     """Validate workflow context before any publication operation."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["wait", "publish"])
-    arguments = parser.parse_args()
+    parser.add_argument("action", choices=["publish"])
+    parser.parse_args()
     if os.environ.get("GITHUB_ACTIONS") != "true" or os.environ.get("GITHUB_REF") != "refs/heads/main":
         raise ValueError("release entry points run only in a main-branch GitHub Actions push")
     if os.environ.get("GITHUB_EVENT_NAME") != "push":
         raise ValueError("release entry points require a push event")
     run_id = int(os.environ["GITHUB_RUN_ID"])
     github = GitHub(os.environ["GITHUB_REPOSITORY"], os.environ["GITHUB_TOKEN"])
-    if arguments.action == "wait":
-        wait_for_predecessors(github, "release.yml", run_id, int(os.environ["GITHUB_RUN_NUMBER"]))
-        return
     event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
     if event["ref"] != "refs/heads/main" or event["after"] != os.environ["GITHUB_SHA"] or event.get("forced"):
         raise ValueError("release event does not match a normal main push")
