@@ -15,6 +15,19 @@ fn every_version_alias_prints_the_same_version() {
 }
 
 #[test]
+fn version_aliases_remain_available_under_subcommands() {
+    for arguments in [
+        vec!["h", "info", "--version"],
+        vec!["h", "config", "show", "-V"],
+        vec!["h", "sleep", "start", "-v"],
+    ] {
+        let result = Cli::try_parse_from(arguments).unwrap_err();
+        assert_eq!(result.kind(), ErrorKind::DisplayVersion);
+        assert!(result.to_string().contains(env!("CARGO_PKG_VERSION")));
+    }
+}
+
+#[test]
 fn diagnostics_keep_the_long_flag() {
     assert!(
         Cli::try_parse_from(["h", "--verbose", "info"])
