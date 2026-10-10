@@ -23,7 +23,7 @@ tokio = "1"
 
 [package]
 name = "huckleberry-cli"
-version = "0.48.1"
+version = "0.48.2"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
