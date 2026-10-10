@@ -282,6 +282,7 @@ fn summary_to_json(row: &summaries::DaySummary) -> serde_json::Value {
         "breast_milk_ml": row.breast_milk_ml,
         "nursing_seconds": row.nursing_seconds,
         "average_milk_ml": row.average_milk_ml(),
+        "day_milk_percent": row.day_milk_percent(),
         "average_nursing_seconds": row.average_nursing_seconds(),
         "left_seconds": row.left_seconds,
         "right_seconds": row.right_seconds,
@@ -422,6 +423,24 @@ mod tests {
     }
 
     #[test]
+    fn summary_daytime_feed_percent_json_keeps_numeric_precision() {
+        for (day_milk, night_milk, expected) in
+            [(180.0, 120.0, 60.0), (100.0, 200.0, 33.333_333_333_333)]
+        {
+            let mut data = dataset();
+            data.feeds = vec![
+                bottle(at("2025-09-21", 8, 0), day_milk),
+                bottle(at("2025-09-22", 4, 0), night_milk),
+            ];
+            let json = summary_json(&data, AFTERNOON, 2);
+            let percent = json[1]["day_milk_percent"]
+                .as_f64()
+                .expect("numeric percent");
+            assert!((percent - expected).abs() < 1e-10);
+        }
+    }
+
+    #[test]
     fn summary_averages_use_only_measured_bottles_and_nursing_sessions() {
         use crate::domain::fixtures::nursing;
         let mut data = dataset();
@@ -536,6 +555,7 @@ mod tests {
             "longest_wake_seconds",
             "average_nap_seconds",
             "average_milk_ml",
+            "day_milk_percent",
             "average_nursing_seconds",
         ] {
             assert!(json[0].get(field).is_some(), "missing {field}");

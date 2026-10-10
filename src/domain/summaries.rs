@@ -117,6 +117,12 @@ impl DaySummary {
         (self.measured_bottle_count > 0).then(|| self.total_ml / self.measured_bottle_count as f64)
     }
 
+    /// Percentage of recorded milk volume taken in daytime, absent with no milk volume.
+    #[must_use]
+    pub fn day_milk_percent(&self) -> Option<f64> {
+        (self.total_ml > 0.0).then(|| self.day_milk_ml / self.total_ml * 100.0)
+    }
+
     /// Mean nursing duration over nursing sessions only.
     #[must_use]
     pub fn average_nursing_seconds(&self) -> Option<f64> {

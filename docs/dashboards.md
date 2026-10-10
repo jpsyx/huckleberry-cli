@@ -174,13 +174,16 @@ the intervals collection yet, so history cannot know about it.
 
 A day table with four merged category headings above its numeric columns.
 Feed has a second header row for bottle feed and nursed, followed by the leaf
-headings. Total feeds sits outside both subcategories:
+headings. Vertical delimiters in those two lower header rows mark the start of
+bottle feed after total feeds and the start of nursed after `% feed daytime`. They use
+the existing column gaps, keeping headings aligned with data while scrolling.
+Total feeds sits outside both subcategories:
 
 | Category | Columns |
 | --- | --- |
-| feed | feeds; bottle feed: milk, formula, breast, daytime milk, night milk, milk ml/feed (or milk oz/feed); nursed: nursed, daytime nursed, night nursed, nurse/feed |
-| sleep | sleep, night, day, longest, avg sleep, avg night sleep, avg day sleep |
-| wake time | wake time, night wake, day wake, avg wake, avg night wake, avg day wake, longest |
+| feed | feeds; bottle feed: milk, formula, breast, daytime milk, night milk, milk ml/feed (or milk oz/feed), % feed daytime; nursed: nursed, daytime nursed, night nursed, nurse/feed |
+| sleep | sleep, night, day, longest, avg sleep, avg night nap, avg day nap |
+| wake time | wake time, night wake, day wake, avg wake window, avg night wake window, avg day wake window, longest |
 | diaper | wet, dirty |
 
 Volume headings follow the configured `ml` or `oz` unit. Milk/feed includes
@@ -189,12 +192,26 @@ recorded amount. Unknown amounts are not zero measurements. Nurse/feed divides
 both sides' duration by nursing sessions only. Neither average uses all feeds.
 A missing denominator prints a dash and becomes `null` in JSON.
 
+`% feed daytime` follows milk/feed and shows daytime milk divided by total milk,
+multiplied by 100 and rounded to a whole percentage. Six ounces in daytime and
+four at night give 60%. It uses recorded formula and expressed-milk volumes,
+with feeds classified by their start time and the configured daytime hours.
+Nursing durations and bottles without amounts contribute no volume. A positive
+nighttime-only total gives 0%; no recorded milk volume gives a dash. The chart
+and JSON retain the unrounded percentage on a 0 to 100 scale, independent of
+the chosen volume unit.
+
 On a terminal, `summary` opens an interactive table. It runs through the prompt
 host in the shell, keeping the Now drawer in place. Tab and Shift-Tab, left/right,
 H/L, and A/D cycle every numeric column, wrapping at the ends. Day is fixed and
-cannot be selected. Selection has brackets as well as colour. Numeric columns
-shift into view only when the selection passes a visible edge. Reversing direction
-moves the selection within the existing window until it passes the opposite edge.
+cannot be selected. Selection has brackets as well as colour. A panel at least
+36 columns wide fits the fixed day and the longest selected heading in full.
+In narrower panels, an oversized column uses the available space: its heading
+shortens with an ellipsis and keeps its selection brackets, while its values
+stay right-aligned within the panel.
+Numeric columns shift into view only when the selection passes a visible edge.
+Reversing direction moves the selection within the existing window until it
+passes the opposite edge.
 This is the default behavior, with no scrolling-mode toggle.
 
 A bar chart below the table shows the selected metric across the entire requested
@@ -251,7 +268,7 @@ night boundaries, using actual elapsed seconds through daylight saving changes.
 Completed sleep counts and the longest sleep belong to the day the sleep began.
 Average sleep is the mean full duration of completed sleeps that began on the
 row's family day, including both daytime and nighttime starts. Unfinished live
-sleeps do not contribute. Average night sleep and average day sleep use the same
+sleeps do not contribute. `avg night nap` and `avg day nap` use the same
 full durations: day sleeps start before the configured night start, and night
 sleeps start at or after it. The older `average_nap_seconds` JSON field remains an
 alias of `average_day_sleep_seconds` for compatibility.

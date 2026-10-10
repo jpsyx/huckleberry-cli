@@ -10,6 +10,42 @@ fn press(state: &mut State, code: KeyCode) -> bool {
 }
 
 #[test]
+fn feed_header_delimiters_follow_visible_subcategory_boundaries() {
+    let calendar = Calendar::new("America/New_York").unwrap();
+    let data = dataset();
+    let view = View {
+        is_hosted: true,
+        rows: &[],
+        dataset: &data,
+        calendar: &calendar,
+        units: Units::Oz,
+        now: AFTERNOON,
+    };
+    for (range, expected) in [
+        (0..12, vec![12, 22, 130]),
+        (1..12, vec![12, 120]),
+        (2..12, vec![109]),
+        (6..10, vec![46]),
+        (7..12, vec![30]),
+        (8..12, vec![12]),
+        (9..12, vec![]),
+    ] {
+        for selected in range.clone() {
+            let lines = view.head(range.clone(), selected, usize::MAX, Theme::dark(false));
+            for line in &lines[2..=3] {
+                let separators: Vec<_> = line
+                    .chars()
+                    .enumerate()
+                    .filter_map(|(position, character)| (character == '│').then_some(position))
+                    .collect();
+                assert_eq!(separators, expected, "{range:?}: {line}");
+                assert_eq!(line.chars().count(), table_width(range.clone(), Units::Oz));
+            }
+        }
+    }
+}
+
+#[test]
 fn all_direction_aliases_cycle_every_metric_and_wrap_without_selecting_day() {
     for code in [
         KeyCode::Tab,
@@ -70,7 +106,8 @@ fn every_column_stays_visible_with_day_and_the_correct_graph_when_narrow() {
         units: Units::Ml,
         now: AFTERNOON,
     };
-    for size in [(32, 14), (40, 14), (80, 24), (120, 35), (240, 35)] {
+    // The fixed day and bracketed "avg night wake window" need 36 cells.
+    for size in [(36, 14), (40, 14), (80, 24), (120, 35), (240, 35)] {
         for (selected, column) in COLUMNS.iter().enumerate() {
             let mut state = State {
                 selected,
@@ -102,6 +139,42 @@ fn every_column_stays_visible_with_day_and_the_correct_graph_when_narrow() {
                 "{drawn}"
             );
             assert!(!drawn.contains('\u{1b}'));
+        }
+    }
+}
+
+#[test]
+fn narrow_wake_columns_keep_complete_values_and_bracketed_headings() {
+    let calendar = Calendar::new("America/New_York").unwrap();
+    let data = dataset();
+    for (seconds, expected_value) in [(2700.0, "45m"), (9000.0, "2h 30m")] {
+        let mut rows = summaries::build(&data, &calendar, DayRule::default(), AFTERNOON, 1);
+        rows[0].average_night_wake_seconds = Some(seconds);
+        rows[0].average_day_wake_seconds = Some(seconds);
+        let view = View {
+            is_hosted: true,
+            rows: &rows,
+            dataset: &data,
+            calendar: &calendar,
+            units: Units::Ml,
+            now: AFTERNOON,
+        };
+        for (heading, shortened) in [
+            ("avg night wake window", "[avg night wake w…]"),
+            ("avg day wake window", "[avg day wake win…]"),
+        ] {
+            let mut state = State {
+                selected: COLUMNS
+                    .iter()
+                    .position(|column| column.heading(Units::Ml) == heading)
+                    .unwrap(),
+                ..State::default()
+            };
+            let lines = view.lines(&mut state, (32, 14), Theme::dark(false));
+            assert!(lines[4].ends_with(expected_value), "{}", lines[4]);
+            assert!(lines[3].ends_with(shortened), "{}", lines[3]);
+            assert_eq!(lines[3].chars().count(), 32);
+            assert_eq!(lines[4].chars().count(), 32);
         }
     }
 }
@@ -312,7 +385,7 @@ fn age_stays_in_the_header_and_freshness_stays_at_the_bottom_when_scrolling() {
             assert_eq!(drawn.matches("as of").count(), 1);
             if size.1 >= 12 {
                 assert!(
-                    lines[0].contains("Summary · Bear · 21 days old · column 1/27 · ~ partial")
+                    lines[0].contains("Summary · Bear · 21 days old · column 1/28 · ~ partial")
                 );
                 assert_eq!(drawn.matches("days old").count(), 1);
             }
@@ -347,7 +420,7 @@ fn unknown_age_is_omitted_from_the_summary_header() {
         now: AFTERNOON,
     };
     let lines = view.lines(&mut State::default(), (100, 24), Theme::dark(false));
-    assert!(lines[0].contains("Summary · Bear · column 1/27"));
+    assert!(lines[0].contains("Summary · Bear · column 1/28"));
     assert!(!lines[0].contains("days old"));
 }
 

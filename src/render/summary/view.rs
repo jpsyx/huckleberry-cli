@@ -12,7 +12,9 @@ use crate::{
 
 use super::{
     chart,
-    columns::{COLUMNS, data_cells, group_row, heading_cells, join_cells, subgroup_row},
+    columns::{
+        COLUMNS, data_cells, group_row, heading_cells, join_cells, join_heading_cells, subgroup_row,
+    },
 };
 
 #[cfg(test)]
@@ -111,7 +113,7 @@ impl View<'_> {
         state.page = body_height.max(1);
         state.limit = body.len().saturating_sub(body_height);
         state.scroll = state.scroll.min(state.limit);
-        let mut lines = self.head(range, state.selected, theme);
+        let mut lines = self.head(range, state.selected, width, theme);
         if head_height == 3 {
             lines.remove(0);
         }
@@ -138,8 +140,15 @@ impl View<'_> {
             .collect()
     }
 
-    fn head(&self, range: Range<usize>, selected: usize, theme: Theme) -> Vec<String> {
+    fn head(
+        &self,
+        range: Range<usize>,
+        selected: usize,
+        width: usize,
+        theme: Theme,
+    ) -> Vec<String> {
         let mut cells = heading_cells(self.units, range.clone(), Some(selected));
+        fit_single_column(&mut cells, range.clone(), self.units, width);
         for (index, cell) in range.clone().zip(&mut cells) {
             *cell = theme.paint(
                 if index == selected {
@@ -161,7 +170,7 @@ impl View<'_> {
             )),
             theme.heading(&group_row(self.units, range.clone())),
             theme.heading(&subgroup_row(self.units, range.clone())),
-            join_cells(&theme.heading("day        "), &cells, range),
+            join_heading_cells(&theme.heading("day        "), &cells, range),
         ]
     }
 
@@ -177,6 +186,7 @@ impl View<'_> {
             .iter()
             .map(|row| {
                 let mut cells = data_cells(row, self.units, range.clone());
+                fit_single_column(&mut cells, range.clone(), self.units, width);
                 for (index, cell) in range.clone().zip(&mut cells) {
                     let tone = match (row.partial, index == selected) {
                         (true, true) => Tone::Prompt,
@@ -273,6 +283,33 @@ fn table_width(range: Range<usize>, units: Units) -> usize {
                 }
         })
         .sum::<usize>()
+}
+
+/// A long heading must not push its right-aligned values off a narrow panel.
+fn fit_single_column(cells: &mut [String], range: Range<usize>, units: Units, width: usize) {
+    let [cell] = cells else { return };
+    let prefix_width = table_width(range.clone(), units) - COLUMNS[range.start].width(units);
+    let available = width.saturating_sub(prefix_width);
+    if cell.chars().count() > available {
+        *cell = fit_cell(cell, available);
+    }
+}
+
+fn fit_cell(cell: &str, width: usize) -> String {
+    if width == 0 {
+        return String::new();
+    }
+    let text = cell.trim();
+    if text.chars().count() <= width {
+        return super::format::pad_left(text, width);
+    }
+    let suffix = if text.starts_with('[') && width > 1 {
+        "…]"
+    } else {
+        "…"
+    };
+    let prefix: String = text.chars().take(width - suffix.chars().count()).collect();
+    format!("{prefix}{suffix}")
 }
 
 fn clip(line: &str, width: usize) -> String {

@@ -9,6 +9,7 @@ enum Kind {
     Count,
     Volume,
     Duration,
+    Percentage,
 }
 
 /// A numeric summary column. The day label is deliberately outside this catalog.
@@ -81,7 +82,7 @@ impl Column {
             + 2
     }
 
-    /// Numeric graph value: durations in hours, volumes in the chosen unit.
+    /// Numeric graph value: hours, chosen volume units, or percentages from 0 to 100.
     #[must_use]
     pub fn value(&self, row: &DaySummary, units: Units) -> Option<f64> {
         let value = (self.pick)(row)?;
@@ -101,6 +102,7 @@ impl Column {
                 Kind::Count => format!("{value:.0}"),
                 Kind::Volume => format::volume_bare(Some(value), units),
                 Kind::Duration => crate::domain::time::format_duration(value),
+                Kind::Percentage => format!("{value:.0}%"),
             },
         );
         format::pad_left(&value, self.width(units))
@@ -141,6 +143,13 @@ pub const COLUMNS: &[Column] = &[
         DaySummary::average_milk_ml,
     )
     .in_subgroup("bottle feed"),
+    Column::new(
+        "feed",
+        "% feed daytime",
+        Kind::Percentage,
+        DaySummary::day_milk_percent,
+    )
+    .in_subgroup("bottle feed"),
     Column::new("feed", "nursed", Kind::Duration, |row| {
         recorded(row.nursing_seconds)
     })
@@ -175,10 +184,10 @@ pub const COLUMNS: &[Column] = &[
     Column::new("sleep", "avg sleep", Kind::Duration, |row| {
         row.average_sleep_seconds
     }),
-    Column::new("sleep", "avg night sleep", Kind::Duration, |row| {
+    Column::new("sleep", "avg night nap", Kind::Duration, |row| {
         row.average_night_sleep_seconds
     }),
-    Column::new("sleep", "avg day sleep", Kind::Duration, |row| {
+    Column::new("sleep", "avg day nap", Kind::Duration, |row| {
         row.average_nap_seconds
     }),
     Column::new("wake time", "wake time", Kind::Duration, |row| {
@@ -190,13 +199,16 @@ pub const COLUMNS: &[Column] = &[
     Column::new("wake time", "day wake", Kind::Duration, |row| {
         row.day_wake_seconds
     }),
-    Column::new("wake time", "avg wake", Kind::Duration, |row| {
+    Column::new("wake time", "avg wake window", Kind::Duration, |row| {
         row.average_wake_seconds
     }),
-    Column::new("wake time", "avg night wake", Kind::Duration, |row| {
-        row.average_night_wake_seconds
-    }),
-    Column::new("wake time", "avg day wake", Kind::Duration, |row| {
+    Column::new(
+        "wake time",
+        "avg night wake window",
+        Kind::Duration,
+        |row| row.average_night_wake_seconds,
+    ),
+    Column::new("wake time", "avg day wake window", Kind::Duration, |row| {
         row.average_day_wake_seconds
     }),
     Column::new("wake time", "longest", Kind::Duration, |row| {
@@ -236,13 +248,38 @@ pub fn data_cells(row: &DaySummary, units: Units, range: Range<usize>) -> Vec<St
 /// A fixed day label and numeric cells, separated at category boundaries.
 #[must_use]
 pub fn join_cells(day: &str, cells: &[String], range: Range<usize>) -> String {
+    join_row(day, cells, range, |column| column.group)
+}
+
+/// Leaf headings with delimiters at category and feeding subcategory boundaries.
+#[must_use]
+pub fn join_heading_cells(day: &str, cells: &[String], range: Range<usize>) -> String {
+    join_row(day, cells, range, |column| column.subgroup)
+}
+
+fn join_row(
+    day: &str,
+    cells: &[String],
+    range: Range<usize>,
+    label: fn(&Column) -> &str,
+) -> String {
     let mut line = format::pad(day, 11);
     for (index, cell) in range.zip(cells) {
-        let boundary = index == 0 || COLUMNS[index - 1].group != COLUMNS[index].group;
-        line.push_str(if boundary { " │ " } else { "  " });
+        line.push_str(separator(index, label));
         line.push_str(cell);
     }
     line
+}
+
+fn separator(index: usize, label: fn(&Column) -> &str) -> &'static str {
+    if index == 0 || COLUMNS[index - 1].group != COLUMNS[index].group {
+        " │ "
+    } else if label(&COLUMNS[index - 1]) != label(&COLUMNS[index]) {
+        // Use the existing gap so headers, data and viewport widths stay aligned.
+        " │"
+    } else {
+        "  "
+    }
 }
 
 /// Merged category headings, spanning their visible leaf columns.
@@ -274,10 +311,68 @@ fn merged_row(units: Units, range: Range<usize>, label: fn(&Column) -> &str) -> 
             .map(|column| COLUMNS[column].width(units))
             .sum::<usize>()
             + (index - start - 1) * 2;
-        let boundary = start == 0 || COLUMNS[start - 1].group != group;
-        line.push_str(if boundary { " │ " } else { "  " });
+        line.push_str(separator(start, label));
         let heading: String = heading.chars().take(width).collect();
         let _ = write!(line, "{heading:^width$}");
     }
     line
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::{
+        Calendar,
+        fixtures::{AFTERNOON, bottle, dataset, nursing},
+        summaries,
+        today::DayRule,
+        types::FeedEvent,
+    };
+
+    fn milk_day(day_ounces: f64, night_ounces: f64) -> DaySummary {
+        let calendar = Calendar::new("America/New_York").unwrap();
+        let at = |date: &str, hour, minute| calendar.at(date.parse().unwrap(), hour, minute);
+        let ounce = huckleberry_api::models::feed::MILLILITRES_PER_OUNCE;
+        let mut data = dataset();
+        let mut breast = bottle(at("2025-09-21", 19, 29), day_ounces * ounce / 2.0);
+        if let FeedEvent::Bottle { bottle_type, .. } = &mut breast {
+            *bottle_type = Some("Breast Milk".into());
+        }
+        let mut unknown = bottle(at("2025-09-21", 12, 0), 0.0);
+        if let FeedEvent::Bottle { amount_ml, .. } = &mut unknown {
+            *amount_ml = None;
+        }
+        data.feeds = vec![
+            bottle(at("2025-09-21", 6, 0), day_ounces * ounce / 2.0),
+            breast,
+            bottle(at("2025-09-21", 19, 30), night_ounces * ounce / 2.0),
+            bottle(at("2025-09-22", 5, 59), night_ounces * ounce / 2.0),
+            nursing(at("2025-09-21", 17, 0), 300.0, 300.0),
+            unknown,
+        ];
+        summaries::build(&data, &calendar, DayRule::discrete(6.0, 19.5), AFTERNOON, 2).remove(1)
+    }
+
+    #[test]
+    fn daytime_feed_percent_uses_recorded_volume_in_both_units() {
+        for (day, night, expected, display) in [
+            (6.0, 4.0, Some(60.0), "60%"),
+            (0.0, 4.0, Some(0.0), "0%"),
+            (6.0, 0.0, Some(100.0), "100%"),
+            (1.0, 2.0, Some(33.333_333_333_333), "33%"),
+            (0.0, 0.0, None, format::MISSING),
+        ] {
+            let row = milk_day(day, night);
+            for units in [Units::Ml, Units::Oz] {
+                let column = &COLUMNS[7];
+                assert_eq!(column.heading(units), "% feed daytime");
+                assert_eq!(column.cell(&row, units).trim(), display);
+                if let Some(expected) = expected {
+                    assert!((column.value(&row, units).unwrap() - expected).abs() < 1e-10);
+                } else {
+                    assert_eq!(column.value(&row, units), None);
+                }
+            }
+        }
+    }
 }

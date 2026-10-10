@@ -132,7 +132,10 @@ bar chart underneath, with gaps between bars and a dotted average of the previou
 seven complete days (today excluded). The default shows eight days: those seven
 plus today. Horizontal scrolling moves only at the visible edges. Up/down scrolls the rows and notes; Esc or Q leaves.
 Milk/feed averages only bottles with recorded amounts, and nurse/feed averages
-only nursing sessions. The night note shows the configured hours. The header
+only nursing sessions. `% feed daytime`, after milk/feed, shows the share of
+recorded milk volume received during the configured daytime, rounded to a whole
+percentage. Six ounces in daytime and four at night give 60%; no milk volume
+gives a dash. The night note shows the configured hours. The header
 includes the child's age; freshness stays at the bottom of the panel. The same
 view is in the shell under Home > Summary, where reference ranges and their
 pediatrician note stay in the Now drawer instead of repeating below the table.
