@@ -45,7 +45,7 @@ impl Needs {
 #[must_use]
 pub const fn needs(command: &Command, offline: bool) -> Needs {
     match command {
-        Command::Auth { .. } | Command::Config { .. } | Command::Info => Needs::NOTHING,
+        Command::Auth { .. } | Command::Config { .. } | Command::Info { .. } => Needs::NOTHING,
         _ => Needs {
             // A snapshot is a different source, deliberately chosen, and
             // nothing under it opens a socket. There is nobody to sign in as.

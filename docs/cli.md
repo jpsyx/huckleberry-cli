@@ -59,6 +59,18 @@ sign-in does. Backspace and Ctrl-U erase; Ctrl-C and Esc abandon.
 
 ## Global flags
 
+`h -v`, `h -V`, and `h --version` print the installed version and exit before
+setup or networking. Diagnostics use `--verbose` or `HUCKLEBERRY_VERBOSE`.
+
+`h info` prints local build and configuration facts. Add `--check-update` to
+compare the installed version with GitHub's latest release. This check needs
+no Huckleberry login. In pipes it appends `latest_version` (empty when unknown)
+and `update_status`: `up_to_date`, `update_available`, `ahead`, `offline`,
+`no_release`, or `unavailable`. A failed check reports the unavailable state
+and exits unsuccessfully. `--offline` disables the request and reports offline
+successfully, without opening a snapshot. In the shell, More > Version provides
+the same check in a centered modal.
+
 | Flag | Environment | What it does |
 | --- | --- | --- |
 | `--child <CID>` | `HUCKLEBERRY_CHILD` | act on this child for one run |

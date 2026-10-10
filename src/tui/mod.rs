@@ -16,6 +16,8 @@ pub mod job;
 pub mod keys;
 pub mod shell;
 pub mod state;
+pub mod version;
+pub mod version_task;
 
 pub use draw::draw;
 pub use facts::{Facts, Reading};
@@ -59,8 +61,12 @@ async fn navigate(
     // and usable before the network has answered.
     let mut reading = Some(begin(app, globals, theme));
     let mut job: Option<Job> = None;
+    let mut version_check = version_task::VersionTask::default();
     loop {
         collect(app, &mut reading).await;
+        if let Some(report) = version_check.collect().await {
+            app.complete_version(report);
+        }
         if let Some(running) = job.as_mut() {
             running.collect();
         }
@@ -82,7 +88,11 @@ async fn navigate(
             continue;
         }
 
-        let wait = if job.is_some() {
+        let checking_version = app
+            .version
+            .as_ref()
+            .is_some_and(|version| matches!(version.check, version::CheckState::Checking));
+        let wait = if job.is_some() || checking_version {
             shell::WORKING
         } else {
             shell::TICK
@@ -118,8 +128,13 @@ async fn navigate(
                 }
             }
             Intent::Version => {
-                app.set_status(format!("{} {}", crate::APP_NAME, env!("CARGO_PKG_VERSION")));
+                let offline = globals.offline.is_some();
+                app.open_version(offline);
+                if !offline {
+                    version_check.start(crate::version::check(false));
+                }
             }
+            Intent::CloseVersion => version_check.cancel(),
             Intent::Help => job = Some(Job::help(theme)),
             Intent::Dashboard => app.open_dashboard(days(globals, theme)),
             Intent::Run(path) => job = Some(Job::start(&path, globals, theme)),

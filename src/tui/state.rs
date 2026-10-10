@@ -61,6 +61,8 @@ pub enum Intent {
     Dashboard,
     /// Report the build version.
     Version,
+    /// Cancel the version request after closing its modal.
+    CloseVersion,
     /// End the session.
     Quit,
 }
@@ -73,6 +75,8 @@ pub struct App {
     pub facts: Facts,
     /// The dashboard, when it is the thing in the panel.
     pub dashboard: Option<crate::dashboard::State>,
+    /// The centered Version modal, when open.
+    pub version: Option<super::version::State>,
 }
 
 impl Default for App {
@@ -90,6 +94,7 @@ impl App {
             status: None,
             facts: Facts::new(),
             dashboard: None,
+            version: None,
         }
     }
 
@@ -205,8 +210,31 @@ impl App {
         self.dashboard.take().is_some()
     }
 
+    /// Open or retry the Version modal without moving the current menu cursor.
+    pub fn open_version(&mut self, offline: bool) {
+        self.version = Some(super::version::State::new(offline));
+    }
+
+    /// Accept a check result only while the modal that owns it is open.
+    pub fn complete_version(&mut self, report: crate::version::VersionReport) {
+        if let Some(version) = self.version.as_mut() {
+            version.check = super::version::CheckState::Complete(report);
+        }
+    }
+
     /// Applies one motion, given how many rows the viewport can show.
     pub fn apply(&mut self, motion: Motion, height: usize) -> Intent {
+        if let Some(version) = self.version.as_mut() {
+            return match version.apply(motion) {
+                super::version::Action::Stay => Intent::Stay,
+                super::version::Action::Quit => Intent::Quit,
+                super::version::Action::Check => Intent::Version,
+                super::version::Action::Close => {
+                    self.version = None;
+                    Intent::CloseVersion
+                }
+            };
+        }
         self.status = None;
         let entries = catalog::entries(self.menu());
         let last = entries.len().saturating_sub(1);

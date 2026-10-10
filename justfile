@@ -35,7 +35,11 @@ fmt-check:
     cargo fmt --check
 
 # Everything that has to pass before a change lands (reports only: `just fmt` fixes).
-check: fmt-check lint test
+check: fmt-check lint test release-test
+
+# Release policy and Git/GitHub recovery tests (Python 3.9+, standard library).
+release-test:
+    python3 -B -m unittest discover -s scripts/release/tests -v
 
 # Build release and install the binary into $BIN_DIR (default ~/.local/bin).
 install:

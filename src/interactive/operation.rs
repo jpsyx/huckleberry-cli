@@ -58,7 +58,7 @@ const fn is_read_view(command: &Command) -> bool {
             | Command::Trends { .. }
             | Command::Stripes { .. }
             | Command::Log { .. }
-            | Command::Info
+            | Command::Info { .. }
             | Command::Auth {
                 action: AuthAction::Status
             }

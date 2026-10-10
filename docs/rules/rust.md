@@ -73,9 +73,10 @@ why. Update the affected document in the same change that changes behavior.
 Design rationale belongs in `docs/decisions.md`: one section per decision, what
 was chosen, what it rules out, and what would make it worth revisiting.
 
-## Bump the crate version for every committed change
+## Let the release workflow own the CLI version
 
-`Cargo.toml` is the single source of the version and `Cargo.lock` moves with
-it. Before 1.0, a user-visible addition bumps the minor version and a fix or an
-internal change bumps the patch version. Pick the bump yourself rather than
-asking.
+The main-push workflow updates the CLI version in `Cargo.toml` and `Cargo.lock`.
+Do not manually bump it in feature branches. Use `feat:` for additions and
+conventional breaking-change markers for incompatible changes; these increment
+the minor version while major remains zero. Other messages increment the patch.
+The API crate retains its independent version. See [`../releases.md`](../releases.md).

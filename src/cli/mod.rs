@@ -29,10 +29,11 @@ pub use values::{
 
 /// A terminal client and dashboard for Huckleberry baby tracking.
 #[derive(Debug, Clone, Parser)]
-#[command(version, propagate_version = true)]
+#[command(version, propagate_version = true, disable_version_flag = true)]
+#[command(arg(clap::Arg::new("version").long("version").short('V').visible_short_alias('v').global(true).action(clap::ArgAction::Version)))]
 pub struct Cli {
     /// Print detailed diagnostics to stderr.
-    #[arg(short, long, global = true, env = "HUCKLEBERRY_VERBOSE")]
+    #[arg(long, global = true, env = "HUCKLEBERRY_VERBOSE")]
     pub verbose: bool,
 
     /// Read and write this configuration file instead of the default one.
@@ -349,7 +350,11 @@ pub enum Command {
     },
 
     /// Print what this build is, one `key=value` line per fact.
-    Info,
+    Info {
+        /// Compare this build with the latest public GitHub release.
+        #[arg(long)]
+        check_update: bool,
+    },
 }
 
 #[cfg(test)]
