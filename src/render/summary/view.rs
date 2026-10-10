@@ -101,12 +101,13 @@ impl View<'_> {
         state.first_column = range.start;
         let head_height = if height < 12 { 3 } else { 4 };
         let footer_height = if height < 12 { 2 } else { 3 };
-        let chart_height = (size.1 / 3)
+        let content_height = size.1.saturating_sub(head_height + footer_height);
+        let minimum_chart_height = (size.1 / 3)
             .clamp(4, 9)
-            .min(size.1.saturating_sub(head_height + footer_height + 1));
-        let body_height =
-            height.saturating_sub(usize::from(head_height + footer_height + chart_height));
+            .min(content_height.saturating_sub(1));
         let body = self.body(range.clone(), state.selected, width, theme);
+        let body_height = usize::from(content_height - minimum_chart_height).min(body.len());
+        let chart_height = content_height - body_height as u16;
         state.page = body_height.max(1);
         state.limit = body.len().saturating_sub(body_height);
         state.scroll = state.scroll.min(state.limit);
@@ -115,7 +116,6 @@ impl View<'_> {
             lines.remove(0);
         }
         lines.extend(body.into_iter().skip(state.scroll).take(body_height));
-        lines.resize(usize::from(head_height) + body_height, String::new());
         if chart_height > 0 {
             lines.extend(chart::lines(
                 self.rows,

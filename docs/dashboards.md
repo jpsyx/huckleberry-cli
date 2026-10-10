@@ -198,7 +198,10 @@ moves the selection within the existing window until it passes the opposite edge
 This is the default behavior, with no scrolling-mode toggle.
 
 A bar chart below the table shows the selected metric across the entire requested
-window, oldest to newest, with a blank column between bars. Durations use hours;
+window, oldest to newest, with a blank column between bars. The chart expands
+into all height left after the table, wrapped notes, navigation and freshness;
+the table is not padded with empty rows. Long tables scroll with room reserved
+for the chart. Durations use hours;
 the table keeps hours and minutes. Missing values leave empty slots. The dotted
 horizontal line is the mean of that metric's recorded daily values in the most
 recent seven complete family days. Today never contributes, and older days never

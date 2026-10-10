@@ -194,6 +194,51 @@ fn a_nine_line_shell_panel_keeps_one_data_row_and_a_graph_visible() {
 }
 
 #[test]
+fn chart_fills_the_space_after_the_table_and_notes_when_the_panel_grows() {
+    let calendar = Calendar::new("America/New_York").unwrap();
+    let mut data = dataset();
+    data.feeds = (0..8)
+        .map(|day| bottle(AFTERNOON - f64::from(day) * 86400.0, 90.0))
+        .collect();
+    let rows = summaries::build(&data, &calendar, DayRule::default(), AFTERNOON, 8);
+    for is_hosted in [true, false] {
+        let view = View {
+            is_hosted,
+            rows: &rows,
+            dataset: &data,
+            calendar: &calendar,
+            units: Units::Ml,
+            now: AFTERNOON,
+        };
+        let mut plot_heights = Vec::new();
+        for height in [40, 60] {
+            let lines = view.lines(&mut State::default(), (120, height), Theme::dark(false));
+            let chart_start = lines
+                .iter()
+                .position(|line| line == "feed / feeds")
+                .unwrap();
+            assert!(
+                !lines[chart_start - 1].trim().is_empty(),
+                "blank space before chart: {lines:#?}"
+            );
+            let plot_height = lines[chart_start..]
+                .iter()
+                .filter(|line| line.contains('│'))
+                .count();
+            assert!(
+                plot_height > 6,
+                "the chart must grow past its old six plot rows"
+            );
+            plot_heights.push(plot_height);
+            assert_eq!(lines.len(), usize::from(height));
+            assert!(lines[lines.len() - 3].contains("Esc/q back"));
+            assert_eq!(lines.last().unwrap(), "as of just now");
+        }
+        assert_eq!(plot_heights[1] - plot_heights[0], 20);
+    }
+}
+
+#[test]
 fn reversing_inside_the_visible_columns_keeps_the_window_in_place() {
     let calendar = Calendar::new("America/New_York").unwrap();
     let data = dataset();

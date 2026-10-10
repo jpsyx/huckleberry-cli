@@ -482,7 +482,10 @@ without a day-count parenthetical in the legend. Its magenta dots keep a cyan
 background where they cross a bar, so the
 line reads as an overlay without dark gaps in the bars. All occupied bar cells
 share that cyan background, keeping the top edge level through the dots. The
-default table and chart include those seven days plus partial today.
+default table and chart include those seven days plus partial today. The table
+uses only the height its rows and wrapped notes need; the chart fills the
+remaining space above the keys and freshness line. Long tables scroll while
+leaving a visible chart.
 Left is movement within this control, so Esc or Q closes it directly.
 Up/down (J/K, W/S) scroll the rows and notes, including configured night hours
 but not reference ranges or their pediatrician note, which the Now drawer
