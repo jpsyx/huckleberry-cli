@@ -586,7 +586,8 @@ mod tests {
         let headings: Vec<_> = lines[2].split('│').map(str::trim).collect();
         assert_eq!(headings[1], "feeds");
         assert!(headings[2].starts_with("milk ml"));
-        assert!(headings[2].ends_with("milk ml/feed"));
+        assert!(headings[2].contains("milk ml/feed"));
+        assert!(headings[2].ends_with("% feed daytime"));
         assert!(headings[3].starts_with("nursed"));
         assert!(headings[3].ends_with("nurse/feed"));
         let separators = |line: &str| {

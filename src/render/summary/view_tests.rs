@@ -22,12 +22,13 @@ fn feed_header_delimiters_follow_visible_subcategory_boundaries() {
         now: AFTERNOON,
     };
     for (range, expected) in [
-        (0..11, vec![12, 22, 112]),
-        (1..11, vec![12, 102]),
-        (2..11, vec![91]),
-        (6..9, vec![28]),
-        (7..11, vec![12]),
-        (8..11, vec![]),
+        (0..12, vec![12, 22, 130]),
+        (1..12, vec![12, 120]),
+        (2..12, vec![109]),
+        (6..10, vec![46]),
+        (7..12, vec![30]),
+        (8..12, vec![12]),
+        (9..12, vec![]),
     ] {
         for selected in range.clone() {
             let lines = view.head(range.clone(), selected, Theme::dark(false));
@@ -347,7 +348,7 @@ fn age_stays_in_the_header_and_freshness_stays_at_the_bottom_when_scrolling() {
             assert_eq!(drawn.matches("as of").count(), 1);
             if size.1 >= 12 {
                 assert!(
-                    lines[0].contains("Summary · Bear · 21 days old · column 1/27 · ~ partial")
+                    lines[0].contains("Summary · Bear · 21 days old · column 1/28 · ~ partial")
                 );
                 assert_eq!(drawn.matches("days old").count(), 1);
             }
@@ -382,7 +383,7 @@ fn unknown_age_is_omitted_from_the_summary_header() {
         now: AFTERNOON,
     };
     let lines = view.lines(&mut State::default(), (100, 24), Theme::dark(false));
-    assert!(lines[0].contains("Summary · Bear · column 1/27"));
+    assert!(lines[0].contains("Summary · Bear · column 1/28"));
     assert!(!lines[0].contains("days old"));
 }
 

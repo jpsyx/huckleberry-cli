@@ -175,13 +175,13 @@ the intervals collection yet, so history cannot know about it.
 A day table with four merged category headings above its numeric columns.
 Feed has a second header row for bottle feed and nursed, followed by the leaf
 headings. Vertical delimiters in those two lower header rows mark the start of
-bottle feed after total feeds and the start of nursed after milk/feed. They use
+bottle feed after total feeds and the start of nursed after `% feed daytime`. They use
 the existing column gaps, keeping headings aligned with data while scrolling.
 Total feeds sits outside both subcategories:
 
 | Category | Columns |
 | --- | --- |
-| feed | feeds; bottle feed: milk, formula, breast, daytime milk, night milk, milk ml/feed (or milk oz/feed); nursed: nursed, daytime nursed, night nursed, nurse/feed |
+| feed | feeds; bottle feed: milk, formula, breast, daytime milk, night milk, milk ml/feed (or milk oz/feed), % feed daytime; nursed: nursed, daytime nursed, night nursed, nurse/feed |
 | sleep | sleep, night, day, longest, avg sleep, avg night sleep, avg day sleep |
 | wake time | wake time, night wake, day wake, avg wake, avg night wake, avg day wake, longest |
 | diaper | wet, dirty |
@@ -191,6 +191,15 @@ formula and expressed breast milk, divided by the number of bottles with a
 recorded amount. Unknown amounts are not zero measurements. Nurse/feed divides
 both sides' duration by nursing sessions only. Neither average uses all feeds.
 A missing denominator prints a dash and becomes `null` in JSON.
+
+`% feed daytime` follows milk/feed and shows daytime milk divided by total milk,
+multiplied by 100 and rounded to a whole percentage. Six ounces in daytime and
+four at night give 60%. It uses recorded formula and expressed-milk volumes,
+with feeds classified by their start time and the configured daytime hours.
+Nursing durations and bottles without amounts contribute no volume. A positive
+nighttime-only total gives 0%; no recorded milk volume gives a dash. The chart
+and JSON retain the unrounded percentage on a 0 to 100 scale, independent of
+the chosen volume unit.
 
 On a terminal, `summary` opens an interactive table. It runs through the prompt
 host in the shell, keeping the Now drawer in place. Tab and Shift-Tab, left/right,
