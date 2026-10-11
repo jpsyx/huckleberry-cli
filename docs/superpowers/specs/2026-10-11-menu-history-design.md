@@ -1,7 +1,6 @@
 # Retained form navigation in the shell
 
-Status: written spec awaiting review. The interaction design was approved on
-2026-10-11; implementation has not started.
+Status: approved on 2026-10-11. Implementation has not started.
 
 ## Purpose and success criteria
 
@@ -193,10 +192,10 @@ confirmation and edit-field menus.
 
 Expected source areas are `src/prompt/`, `src/tui/`, `src/interactive/`, the
 affected collectors under `src/commands/`, and the existing prompt owners in
-`src/session.rs`, `src/setup/` and `src/picker/`. Listing, summary and dashboard
-integration changes are limited to routing Escape/Home and returning to their
-containing view. No second set of prompt renderers or API-crate changes is
-needed. No new dependency is planned.
+`src/session.rs`, `src/setup/` and `src/commands/edit/pick.rs`. Listing, summary
+and dashboard integration changes are limited to routing Escape/Home and
+returning to their containing view. No second set of prompt renderers or
+API-crate changes is needed. No new dependency is planned.
 
 Document the final behavior in `docs/tui.md`, `docs/architecture.md`,
 `docs/nomenclature.md`, `docs/rules/cli-ux.md` and the relevant command/setup
