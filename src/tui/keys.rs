@@ -27,6 +27,8 @@ pub enum Motion {
     Open,
     /// Go back to where this was opened from.
     Back,
+    /// Abandon the current view and return to Home.
+    Home,
     /// Leave this menu, and at the top level leave the shell.
     Cancel,
     /// Re-read everything on the screen.
@@ -59,6 +61,7 @@ pub fn motion_for(key: KeyEvent) -> Motion {
     }
     if key.modifiers.contains(KeyModifiers::CONTROL) {
         return match key.code {
+            KeyCode::Esc => Motion::Home,
             KeyCode::Char('q' | 'Q') => Motion::Quit,
             KeyCode::Char('c') => Motion::Cancel,
             KeyCode::Char('n') => Motion::Next,
@@ -72,10 +75,8 @@ pub fn motion_for(key: KeyEvent) -> Motion {
         KeyCode::Right | KeyCode::Char('l' | 'L' | 'd' | 'D' | ' ') | KeyCode::Enter => {
             Motion::Open
         }
-        KeyCode::Left
-        | KeyCode::Char('h' | 'H' | 'a' | 'A')
-        | KeyCode::Esc
-        | KeyCode::Backspace => Motion::Back,
+        KeyCode::Left | KeyCode::Char('h' | 'H' | 'a' | 'A') | KeyCode::Backspace => Motion::Back,
+        KeyCode::Esc => Motion::Home,
         KeyCode::Char('q' | 'Q') => Motion::Quit,
         KeyCode::Char('r' | 'R') => Motion::Refresh,
         KeyCode::Home | KeyCode::Char('g') => Motion::First,

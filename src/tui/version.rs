@@ -47,7 +47,7 @@ impl State {
     pub fn apply(&mut self, motion: Motion) -> Action {
         match motion {
             Motion::Quit => Action::Quit,
-            Motion::Open | Motion::Back | Motion::Cancel => Action::Close,
+            Motion::Open | Motion::Back | Motion::Home | Motion::Cancel => Action::Close,
             Motion::Refresh => {
                 if matches!(&self.check, CheckState::Complete(report) if report.status != UpdateStatus::Offline)
                 {

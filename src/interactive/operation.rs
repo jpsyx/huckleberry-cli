@@ -16,6 +16,20 @@ use crate::{
 };
 use anyhow::Result;
 
+/// Resolves a selected command before collecting its owned form.
+pub async fn prepare(
+    path: &CommandPath,
+    globals: &SessionOptions,
+    theme: Theme,
+    now: f64,
+) -> Result<Option<crate::commands::prepared::PreparedCommand>> {
+    let command = CommandDraft::new(path.clone())
+        .resolve(globals)?
+        .command
+        .ok_or_else(|| anyhow::anyhow!("no command selected"))?;
+    crate::commands::prepared::prepare(load_context(globals, theme)?, command, now).await
+}
+
 /// Returns true after a successful action that should return to home.
 pub async fn run(path: &CommandPath, globals: &SessionOptions, theme: Theme) -> Result<bool> {
     let draft = CommandDraft::new(path.clone());

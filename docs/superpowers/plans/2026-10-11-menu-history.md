@@ -228,15 +228,15 @@ modify `src/tui/{job,state,keys,mod,version}.rs`, `src/tui/draw/{mod,flow,versio
 `tui::forms::Forms` owns one active/suspended PreparedCommand, its CommandPath,
 and execution phase. Add `Motion::Home` for Escape, distinct from Back/Cancel.
 
-- [ ] Write `first_view_suspends_without_a_waiter`, `same_command_restores_draft`,
+- [x] Write `first_view_suspends_without_a_waiter`, `same_command_restores_draft`,
   `another_command_clears_draft`, `escape_goes_home_from_every_depth`,
   `menu_selection_survives_reentry`, `ready_can_execute_only_once` and
   `escaping_a_write_waits_for_its_result`. Use a synthetic prepared form and
   a controlled execution future; assert its call count is exactly one despite
   queued Enter/Back. No read or write reruns when a suspended form is resumed.
-- [ ] Run `cargo test --test form_lifecycle` and `cargo test --test tui_shell`;
+- [x] Run `cargo test --test form_lifecycle` and `cargo test --test tui_shell`;
   confirm failures distinguish current menu-only navigation from the new flow.
-- [ ] Introduce Preparing, Collecting, Suspended, Executing and Result phases.
+- [x] Introduce Preparing, Collecting, Suspended, Executing and Result phases.
   Form controls run from the shell's input/tick loop without a waiting worker.
   Background tasks prepare or execute; existing host transport handles output
   and read-only viewers. Reuse Exchange queuing/nonblank-frame behavior, with
@@ -244,9 +244,9 @@ and execution phase. Add `Motion::Home` for Escape, distinct from Back/Cancel.
   landing intent, consumes no new submission and still collects the result.
   Preserve selections keyed by MenuId and clear the suspended draft on Home,
   cancellation, different command, completion or quit. Document the boundary.
-- [ ] Run `cargo test --test form_lifecycle`, `cargo test --test tui_shell` and existing
+- [x] Run `cargo test --test form_lifecycle`, `cargo test --test tui_shell` and existing
   `tui::job` tests. Verify no disconnected reply causes an error receipt or hang.
-- [ ] Commit: `refactor: separate shell form collection from command execution`.
+- [x] Commit: `refactor: separate shell form collection from command execution`.
 
 ### Task 5: Diaper and potty forms, including the reported journey
 

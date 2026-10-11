@@ -12,6 +12,7 @@
 pub mod data;
 pub mod draw;
 pub mod facts;
+pub mod forms;
 pub mod job;
 pub mod keys;
 pub mod shell;
@@ -61,6 +62,7 @@ async fn navigate(
     // and usable before the network has answered.
     let mut reading = Some(begin(app, globals, theme));
     let mut job: Option<Job> = None;
+    let mut suspended: Option<forms::Forms> = None;
     let mut version_check = version_task::VersionTask::default();
     loop {
         collect(app, &mut reading).await;
@@ -68,16 +70,13 @@ async fn navigate(
             app.complete_version(report);
         }
         if let Some(running) = job.as_mut() {
-            running.collect();
+            running.collect(now_seconds()).await;
         }
         let height = shell.draw_with(app, job.as_ref(), now_seconds())?;
 
         if job.as_ref().is_some_and(Job::finished) {
-            let landing = job
-                .take()
-                .expect("just checked there is a job")
-                .finish()
-                .await;
+            let (landing, draft) = job.take().expect("just checked there is a job").finish();
+            suspended = draft;
             land(app, landing);
             // A command may have logged the very thing the widgets show, so
             // whatever is in flight describes a moment already gone.
@@ -108,7 +107,7 @@ async fn navigate(
         if let Some(running) = job.as_mut() {
             // Never turned away: a question that has not arrived yet will
             // still want this.
-            running.feed(input);
+            running.feed(input, now_seconds());
             continue;
         }
         let Input::Key(key) = input else {
@@ -119,6 +118,9 @@ async fn navigate(
             continue;
         }
 
+        if matches!(motion_for(key), Motion::Home | Motion::Cancel) {
+            suspended = None;
+        }
         match app.apply(motion_for(key), height) {
             Intent::Stay => {}
             Intent::Quit => return Ok(()),
@@ -128,6 +130,7 @@ async fn navigate(
                 }
             }
             Intent::Version => {
+                suspended = None;
                 let offline = globals.offline.is_some();
                 app.open_version(offline);
                 if !offline {
@@ -135,9 +138,26 @@ async fn navigate(
                 }
             }
             Intent::CloseVersion => version_check.cancel(),
-            Intent::Help => job = Some(Job::help(theme)),
-            Intent::Dashboard => app.open_dashboard(days(globals, theme)),
-            Intent::Run(path) => job = Some(Job::start(&path, globals, theme)),
+            Intent::Help => {
+                suspended = None;
+                job = Some(Job::help(theme));
+            }
+            Intent::Dashboard => {
+                suspended = None;
+                app.open_dashboard(days(globals, theme));
+            }
+            Intent::Run(path) => {
+                job = Some(suspended.take().map_or_else(
+                    || Job::start(&path, globals, theme),
+                    |mut draft| {
+                        if draft.resume(&path) {
+                            Job::resume(draft, theme)
+                        } else {
+                            Job::start(&path, globals, theme)
+                        }
+                    },
+                ));
+            }
         }
     }
 }
@@ -157,6 +177,7 @@ fn dashboard_key(
     match motion_for(key) {
         // Leaving is the shell's to do, wherever the cursor happens to be.
         Motion::Quit => return false,
+        Motion::Home => app.go_home(),
         Motion::Back | Motion::Cancel => {
             app.close_dashboard();
         }

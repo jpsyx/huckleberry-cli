@@ -16,6 +16,7 @@ pub mod feed;
 pub mod foods;
 pub mod growth;
 pub mod info;
+pub mod prepared;
 pub mod pump;
 pub mod settings;
 pub mod sleep;

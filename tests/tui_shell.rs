@@ -47,10 +47,10 @@ fn every_direction_has_arrow_vim_and_wasd_keys_that_agree() {
 }
 
 #[test]
-fn enter_opens_and_escape_goes_back() {
+fn enter_opens_and_escape_goes_home() {
     assert_eq!(motion_for(key(KeyCode::Enter)), Motion::Open);
     assert_eq!(motion_for(key(KeyCode::Char(' '))), Motion::Open);
-    assert_eq!(motion_for(key(KeyCode::Esc)), Motion::Back);
+    assert_eq!(motion_for(key(KeyCode::Esc)), Motion::Home);
     assert_eq!(motion_for(key(KeyCode::Backspace)), Motion::Back);
 }
 
@@ -165,7 +165,15 @@ fn the_reflex_navigation_keys_still_never_end_the_session() {
         KeyCode::Left,
         KeyCode::Char('h'),
     ] {
-        assert_eq!(motion_for(key(code)), Motion::Back, "{code:?}");
+        assert_eq!(
+            motion_for(key(code)),
+            if code == KeyCode::Esc {
+                Motion::Home
+            } else {
+                Motion::Back
+            },
+            "{code:?}"
+        );
     }
 }
 
@@ -529,4 +537,36 @@ fn closing_the_dashboard_puts_the_menu_back() {
         !app.rows().is_empty(),
         "and the menu is what the panel shows"
     );
+}
+
+#[test]
+fn escape_goes_home_from_every_depth() {
+    for depth in 0..=2 {
+        let mut app = App::new();
+        if depth > 0 {
+            highlight(&mut app, "Log a feed");
+            app.apply(Motion::Open, HEIGHT);
+        }
+        if depth > 1 {
+            highlight(&mut app, "Nursing");
+            app.apply(Motion::Open, HEIGHT);
+        }
+        assert_eq!(
+            app.apply(motion_for(key(KeyCode::Esc)), HEIGHT),
+            Intent::Stay
+        );
+        assert_eq!(app.menu(), MenuId::Home);
+    }
+}
+
+#[test]
+fn menu_selection_survives_reentry() {
+    let mut app = App::new();
+    highlight(&mut app, "Log a feed");
+    app.apply(Motion::Open, HEIGHT);
+    highlight(&mut app, "Nursing");
+    let selected = app.cursor();
+    app.apply(Motion::Back, HEIGHT);
+    app.apply(Motion::Open, HEIGHT);
+    assert_eq!(app.cursor(), selected);
 }

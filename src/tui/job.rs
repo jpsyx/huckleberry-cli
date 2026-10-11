@@ -12,6 +12,10 @@ use std::sync::mpsc::{SyncSender, TryRecvError};
 use anyhow::Result;
 use tokio::task::JoinHandle;
 
+mod work;
+use super::forms::{Forms, Phase};
+use work::Outcome;
+
 use crate::interactive::catalog::CommandPath;
 use crate::interactive::session::SessionOptions;
 use crate::prompt::host::{self, Channel, Input, Reply, Request};
@@ -117,7 +121,11 @@ pub fn window(output: &[String], question: Option<&[String]>, height: usize) -> 
 /// A command, and everything it has said so far.
 pub struct Job {
     title: String,
-    handle: JoinHandle<Landing>,
+    handle: Option<JoinHandle<Outcome>>,
+    forms: Option<Forms>,
+    landing: Option<Landing>,
+    path: CommandPath,
+    theme: Theme,
     channel: Channel,
     /// What is on the screen and what has been typed at it.
     exchange: Exchange,
@@ -133,59 +141,74 @@ impl Job {
     pub fn start(path: &CommandPath, globals: &SessionOptions, theme: Theme) -> Self {
         let channel = host::install();
         let title = crate::render::output::words(&path.0.join(" "));
-        let (path, globals) = (path.clone(), globals.clone());
-        let handle = tokio::spawn(async move {
-            settle(
-                Box::pin(crate::interactive::operation::run(&path, &globals, theme)).await,
-                theme,
-            )
-        });
+        let handle = work::prepare(path.clone(), globals.clone(), theme);
+        Self::create_job(title, path.clone(), theme, channel, Some(handle))
+    }
+
+    fn create_job(
+        title: String,
+        path: CommandPath,
+        theme: Theme,
+        channel: Channel,
+        handle: Option<JoinHandle<Outcome>>,
+    ) -> Self {
         Self {
             title,
-            handle,
+            path,
+            theme,
             channel,
+            handle,
+            forms: None,
+            landing: None,
             exchange: Exchange::default(),
             reply: None,
             output: Vec::new(),
         }
     }
 
-    /// A job that is not running anything, for drawing a panel in a test.
+    /// Resumes a draft without repeating its preparation or keeping a prompt worker.
+    #[must_use]
+    pub fn resume(forms: Forms, theme: Theme) -> Self {
+        let path = forms.path().clone();
+        let title = crate::render::output::words(&path.0.join(" "));
+        let mut job = Self::create_job(title, path, theme, host::install(), None);
+        job.forms = Some(forms);
+        job
+    }
+
+    /// A panel containing only output, for rendering tests.
     #[cfg(test)]
     #[must_use]
     pub fn idle(title: &str, output: &[String]) -> Self {
-        let channel = host::detached();
-        Self {
-            title: title.to_owned(),
-            // A handle over a task that has nothing to do: this exists to
-            // draw a panel, not to run anything.
-            handle: tokio::runtime::Builder::new_current_thread()
-                .build()
-                .expect("a runtime")
-                .spawn(std::future::ready(Landing::Stay)),
-            channel,
-            exchange: Exchange::default(),
-            reply: None,
-            output: output.to_vec(),
-        }
+        let mut job = Self::create_job(
+            title.into(),
+            CommandPath(Vec::new()),
+            Theme::dark(false),
+            host::detached(),
+            None,
+        );
+        job.output = output.to_vec();
+        job.landing = Some(Landing::Stay);
+        job
     }
 
-    /// Command help, which is a flow like any other.
+    /// Command help, hosted like every other viewer.
     #[must_use]
     pub fn help(theme: Theme) -> Self {
         let channel = host::install();
-        let handle =
-            tokio::spawn(
-                async move { settle(crate::interactive::help(theme).map(|()| false), theme) },
-            );
-        Self {
-            title: "Help".to_owned(),
-            handle,
+        let handle = tokio::spawn(async move {
+            Outcome::Finished(settle(
+                crate::interactive::help(theme).map(|()| false),
+                theme,
+            ))
+        });
+        Self::create_job(
+            "Help".into(),
+            CommandPath(Vec::new()),
+            theme,
             channel,
-            exchange: Exchange::default(),
-            reply: None,
-            output: Vec::new(),
-        }
+            Some(handle),
+        )
     }
 
     /// What the panel calls itself.
@@ -200,7 +223,63 @@ impl Job {
     /// answered from whatever has been typed, which may have been typed before
     /// the question arrived: the loop never turns input away, so a burst from
     /// a paste or a fast hand is spent one frame at a time rather than lost.
-    pub fn collect(&mut self) {
+    pub async fn collect(&mut self, now: f64) {
+        self.collect_host();
+        if self.handle.as_ref().is_some_and(JoinHandle::is_finished) {
+            let outcome = self
+                .handle
+                .take()
+                .expect("finished worker")
+                .await
+                .unwrap_or(Outcome::Finished(Landing::Failed));
+            self.accept_outcome(outcome);
+        }
+        self.collect_form(now);
+    }
+
+    fn accept_outcome(&mut self, outcome: Outcome) {
+        match outcome {
+            Outcome::Continue(prepared) => {
+                if let Some(forms) = self.forms.as_mut() {
+                    forms.complete(crate::commands::prepared::CommandProgress::Continue(
+                        prepared,
+                    ));
+                } else {
+                    self.forms = Some(Forms::create_forms(self.path.clone(), *prepared));
+                }
+            }
+            Outcome::Finished(landing) => {
+                let home_requested = self.forms.as_ref().is_some_and(Forms::go_home);
+                self.landing = Some(if home_requested {
+                    Landing::Home
+                } else {
+                    landing
+                });
+            }
+        }
+    }
+
+    fn collect_form(&mut self, now: f64) {
+        let Some(forms) = self.forms.as_mut() else {
+            return;
+        };
+        if forms.phase() != Phase::Collecting {
+            return;
+        }
+        let size = host::size();
+        self.exchange.show(forms.render(now, size, self.theme));
+        if let Some(input) = self.exchange.take() {
+            forms.apply(input, now, size);
+        }
+        if let Some(execution) = forms.take_execution() {
+            self.exchange = Exchange::default();
+            self.handle = Some(work::execute(execution, self.theme));
+        } else if forms.phase() == Phase::Collecting {
+            self.exchange.show(forms.render(now, size, self.theme));
+        }
+    }
+
+    fn collect_host(&mut self) {
         loop {
             if self.reply.is_some() {
                 let Some(input) = self.exchange.take() else {
@@ -233,7 +312,15 @@ impl Job {
     }
 
     /// Offers input to the command, now or when it next asks for some.
-    pub fn feed(&mut self, input: Input) {
+    pub fn feed(&mut self, input: Input, now: f64) {
+        if let Some(forms) = self.forms.as_mut() {
+            if forms.phase() == Phase::Executing {
+                forms.apply(input.clone(), now, host::size());
+                if self.reply.is_none() {
+                    return;
+                }
+            }
+        }
         self.exchange.push(input);
     }
 
@@ -247,13 +334,25 @@ impl Job {
     /// Whether the command has run to the end.
     #[must_use]
     pub fn finished(&self) -> bool {
-        self.handle.is_finished()
+        self.landing.is_some()
+            || self
+                .forms
+                .as_ref()
+                .is_some_and(|forms| matches!(forms.phase(), Phase::Suspended | Phase::Result))
     }
 
     /// Takes the outcome, and gives the prompts back to the terminal.
-    pub async fn finish(self) -> Landing {
+    #[must_use]
+    pub fn finish(self) -> (Landing, Option<Forms>) {
         host::remove();
-        self.handle.await.unwrap_or(Landing::Failed)
+        if let Some(landing) = self.landing {
+            return (landing, None);
+        }
+        match self.forms {
+            Some(forms) if forms.phase() == Phase::Suspended => (Landing::Stay, Some(forms)),
+            Some(forms) if forms.go_home() => (Landing::Home, None),
+            _ => (Landing::Cancelled, None),
+        }
     }
 }
 

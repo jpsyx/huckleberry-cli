@@ -492,3 +492,12 @@ The API crate and its operation semantics are unchanged.
 The session installs a Tokio Ctrl-C listener around operations, including picker
 reads. Interruption stops waiting and returns to navigation, with a reminder to
 check logs if a write might already have reached the service. Each selection creates a fresh command draft.
+
+The shell separates command preparation, collection, suspension and execution.
+A prepared command owns its typed form and a consuming executor. Form input is
+handled directly by the shell, with no prompt worker waiting while a draft is
+suspended at its launching menu. Reopening that command resumes the same draft;
+starting another action or pressing Escape discards it. Execution consumes the
+draft once, and Escape during a write records a Home destination while its
+actual result is still collected and shown. Menu selection is retained by menu
+identity when revisiting a submenu.

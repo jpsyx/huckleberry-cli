@@ -10,7 +10,7 @@ use crate::tui::version::{CheckState, State};
 use crate::version::UpdateStatus;
 
 /// Modal controls replace ordinary menu hints while the overlay is open.
-pub const HINTS: &str = "Enter/→ l/d close · Esc/← h/a back · r retry · q quit";
+pub const HINTS: &str = "Enter/→ l/d close · ← h/a back · Esc home · r retry · q quit";
 
 /// Keep the modal centered and entirely inside the current terminal bounds.
 #[must_use]

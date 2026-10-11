@@ -70,6 +70,7 @@ pub enum Intent {
 /// Everything the shell is holding.
 pub struct App {
     levels: Vec<Level>,
+    remembered: Vec<Level>,
     status: Option<String>,
     /// What the widgets draw, and how stale it is.
     pub facts: Facts,
@@ -91,6 +92,7 @@ impl App {
     pub fn new() -> Self {
         Self {
             levels: vec![Level::new(MenuId::Home, "Home".into())],
+            remembered: Vec::new(),
             status: None,
             facts: Facts::new(),
             dashboard: None,
@@ -157,7 +159,10 @@ impl App {
 
     /// Returns to Home, which is where a finished recording belongs.
     pub fn go_home(&mut self) {
-        self.levels.truncate(1);
+        while self.levels.len() > 1 {
+            self.pop();
+        }
+        self.dashboard = None;
     }
 
     /// Opens the dashboard on what has already been read.
@@ -224,6 +229,14 @@ impl App {
 
     /// Applies one motion, given how many rows the viewport can show.
     pub fn apply(&mut self, motion: Motion, height: usize) -> Intent {
+        if motion == Motion::Home {
+            self.go_home();
+            return if self.version.take().is_some() {
+                Intent::CloseVersion
+            } else {
+                Intent::Stay
+            };
+        }
         if let Some(version) = self.version.as_mut() {
             return match version.apply(motion) {
                 super::version::Action::Stay => Intent::Stay,
@@ -251,6 +264,7 @@ impl App {
                 self.level_mut().cursor = index;
             }
             Motion::Back => self.pop(),
+            Motion::Home => self.go_home(),
             // Cancel what you are in. At the top level that is the session.
             Motion::Cancel => {
                 if self.levels.len() == 1 {
@@ -277,7 +291,15 @@ impl App {
     fn open(&mut self, entry: &MenuEntry) -> Intent {
         match &entry.target {
             MenuTarget::Menu(menu) => {
-                self.levels.push(Level::new(*menu, entry.label.clone()));
+                let level = self
+                    .remembered
+                    .iter()
+                    .position(|level| level.menu == *menu)
+                    .map_or_else(
+                        || Level::new(*menu, entry.label.clone()),
+                        |index| self.remembered.remove(index),
+                    );
+                self.levels.push(level);
                 Intent::Stay
             }
             // The dashboard is a screen rather than a command with
@@ -297,7 +319,9 @@ impl App {
     /// Back at Home is a no-op: see [`super::keys::motion_for`].
     fn pop(&mut self) {
         if self.levels.len() > 1 {
-            self.levels.pop();
+            let level = self.levels.pop().expect("submenu exists");
+            self.remembered.retain(|saved| saved.menu != level.menu);
+            self.remembered.push(level);
         }
     }
 
