@@ -490,7 +490,8 @@ share that cyan background, keeping the top edge level through the dots. The
 default table and chart include those seven days plus partial today. The table
 uses only the height its rows and wrapped notes need; the chart fills the
 remaining space above the keys and freshness line. Long tables scroll while
-leaving a visible chart.
+leaving a visible chart. One blank line separates the rows and notes from the
+chart, except in panels under ten rows where the data and bars take priority.
 Left stays in this control even at the first column; Esc or Q closes it directly.
 Up/down (J/K, W/S) scroll the rows and notes, including configured night hours
 but not reference ranges or their pediatrician note, which the Now drawer
@@ -498,6 +499,8 @@ already shows. Standalone summary retains those lines. Calculation explanations
 and configuration commands live
 in the README and screen documentation. The title includes the child's age when
 known; freshness stays at the very bottom, below the keys, even while scrolling.
+Column navigation, row scrolling and the scroll position share one help line,
+with shorter wording when the panel is narrow.
 The selected heading has brackets as well as
 colour, and the keys remain visible on narrow and short panels. The Now drawer
 stays on screen throughout.
@@ -533,10 +536,16 @@ can gain wrapped lines as the clock advances.
 
 ### 13. Every widget refreshes together, on `r`
 
-One key re-reads everything on the screen, because a screen where two boxes
-disagree about what time it is is worse than one that is uniformly a minute
-old. A refresh also happens by itself after any command, since a command may
-have logged the very thing a widget is showing.
+When the shell has the keyboard, `r` re-reads the Now drawer and the embedded
+Dashboard view together. Both receive the same completed reading. A refresh
+also happens by itself after any command, since a command may have logged the
+very thing a widget is showing.
+
+Hosted commands such as Summary load their own snapshots when opened. Those
+snapshots can differ from the Now drawer's reading and are not replaced by a
+shell refresh. Their keys belong to the command while it is open. Summary
+therefore retains its own freshness line; the Now drawer's timestamp cannot
+describe every panel's data.
 
 Refreshing never moves the cursor or changes the menu: `r` is not navigation.
 

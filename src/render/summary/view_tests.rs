@@ -321,8 +321,9 @@ fn chart_fills_the_space_after_the_table_and_notes_when_the_panel_grows() {
                 .position(|line| line == "feed / feeds")
                 .unwrap();
             assert!(
-                !lines[chart_start - 1].trim().is_empty(),
-                "blank space before chart: {lines:#?}"
+                lines[chart_start - 1].trim().is_empty()
+                    && !lines[chart_start - 2].trim().is_empty(),
+                "exactly one blank line must separate the notes and chart: {lines:#?}"
             );
             let plot_height = lines[chart_start..]
                 .iter()
@@ -334,7 +335,16 @@ fn chart_fills_the_space_after_the_table_and_notes_when_the_panel_grows() {
             );
             plot_heights.push(plot_height);
             assert_eq!(lines.len(), usize::from(height));
-            assert!(lines[lines.len() - 3].contains("Esc/q back"));
+            let navigation = &lines[lines.len() - 2];
+            for hint in [
+                "Tab/S-Tab",
+                "g/G first/last",
+                "Esc/q back",
+                "scroll rows & notes",
+                "1/1",
+            ] {
+                assert!(navigation.contains(hint), "{navigation}");
+            }
             assert_eq!(lines.last().unwrap(), "as of just now");
         }
         assert_eq!(plot_heights[1] - plot_heights[0], 20);
@@ -412,6 +422,14 @@ fn age_stays_in_the_header_and_freshness_stays_at_the_bottom_when_scrolling() {
             let drawn = lines.join("\n");
             assert_eq!(lines.last().unwrap(), "as of just now");
             assert!(drawn.contains("Esc/q back"), "{drawn}");
+            let navigation = &lines[lines.len() - 2];
+            assert!(navigation.contains("Esc/q back"), "{drawn}");
+            assert!(navigation.contains("g/G"), "{drawn}");
+            assert!(
+                navigation.contains('↑') && navigation.contains('↓'),
+                "{drawn}"
+            );
+            assert!(navigation.contains(&format!("{}/{}", state.scroll + 1, state.limit + 1)));
             assert_eq!(drawn.matches("as of").count(), 1);
             if size.1 >= 12 {
                 assert!(

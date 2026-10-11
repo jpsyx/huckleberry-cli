@@ -104,8 +104,9 @@ impl View<'_> {
         let range = visible_columns(state.first_column, state.selected, self.units, width);
         state.first_column = range.start;
         let head_height = if height < 12 { 3 } else { 4 };
-        let footer_height = if height < 12 { 2 } else { 3 };
-        let content_height = size.1.saturating_sub(head_height + footer_height);
+        // Below ten rows, the gap would displace the last visible data row or bars.
+        let chart_gap = u16::from(height >= 10);
+        let content_height = size.1.saturating_sub(head_height + 2 + chart_gap);
         let minimum_chart_height = (size.1 / 3)
             .clamp(4, 9)
             .min(content_height.saturating_sub(1));
@@ -121,6 +122,7 @@ impl View<'_> {
         }
         lines.extend(body.into_iter().skip(state.scroll).take(body_height));
         if chart_height > 0 {
+            lines.extend((0..chart_gap).map(|_| String::new()));
             lines.extend(chart::lines(
                 self.rows,
                 &COLUMNS[state.selected],
@@ -129,17 +131,19 @@ impl View<'_> {
                 theme,
             ));
         }
-        lines.extend(self.status(state, width, footer_height == 2, theme));
+        lines.extend(self.status(state, width, theme));
         lines.truncate(height);
         lines.into_iter().map(|line| clip(&line, width)).collect()
     }
 
-    fn status(&self, state: &State, width: usize, compact: bool, theme: Theme) -> Vec<String> {
-        hints(state, width, compact)
-            .into_iter()
-            .chain([crate::render::now::as_of(self.dataset, self.now)])
-            .map(|line| theme.muted(&line))
-            .collect()
+    fn status(&self, state: &State, width: usize, theme: Theme) -> Vec<String> {
+        [
+            build_hints(state, width),
+            crate::render::now::as_of(self.dataset, self.now),
+        ]
+        .into_iter()
+        .map(|line| theme.muted(&line))
+        .collect()
     }
 
     fn head(
@@ -237,28 +241,18 @@ impl View<'_> {
     }
 }
 
-fn hints(state: &State, width: usize, compact: bool) -> Vec<String> {
-    if compact {
-        return vec![if width < 55 {
-            "←→ ↑↓ g/G · Esc/q back".into()
-        } else {
-            "Tab/←→ h/l a/d · ↑↓ j/k w/s · g/G ends · Esc/q back".into()
-        }];
-    }
-    if width < 55 {
-        return vec![
-            "Tab/S-Tab ←/→ h/l a/d · g/G ends".into(),
-            "↑↓ j/k w/s · Esc/q back".into(),
-        ];
-    }
-    vec![
-        "Tab/S-Tab ←/→ h/l a/d · g/G first/last · Esc/q back".into(),
-        format!(
-            "↑/↓ j/k w/s scroll rows & notes · {}/{}",
-            state.scroll + 1,
-            state.limit + 1
-        ),
+fn build_hints(state: &State, width: usize) -> String {
+    let position = format!("{}/{}", state.scroll + 1, state.limit + 1);
+    [
+        "Tab/S-Tab ←/→ h/l a/d · g/G first/last · Esc/q back · ↑/↓ j/k w/s scroll rows & notes",
+        "Tab/S-Tab ←/→ h/l a/d · ↑↓ j/k w/s · g/G ends · Esc/q back",
+        "←→ h/l a/d · ↑↓ j/k w/s · g/G · Esc/q back",
+        "←→ ↑↓ g/G · Esc/q back",
     ]
+    .into_iter()
+    .map(|keys| format!("{keys} · {position}"))
+    .find(|line| ratatui::text::Line::raw(line).width() <= width)
+    .unwrap_or_else(|| "←→ ↑↓ · Esc/q back".into())
 }
 
 /// Keep the viewport anchored until selection passes an edge or resizing hides it.

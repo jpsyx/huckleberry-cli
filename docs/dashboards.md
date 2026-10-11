@@ -232,7 +232,8 @@ This is the default behavior, with no scrolling-mode toggle.
 A bar chart below the table shows the selected metric across the entire requested
 window, oldest to newest, with a blank column between bars. The chart expands
 into all height left after the table, wrapped notes, navigation and freshness;
-the table is not padded with empty rows. Long tables scroll with room reserved
+one blank line separates the notes from the chart, without padding the table
+with empty rows. Long tables scroll with room reserved
 for the chart. Durations use hours;
 the table keeps hours and minutes. Missing values leave empty slots. The dotted
 horizontal line is the mean of that metric's recorded daily values in the most
@@ -254,9 +255,10 @@ chart asks for a wider panel or fewer days instead of merging days together.
 Up/down, J/K, W/S, PageUp/PageDown, and Home/End scroll the rows and notes while
 the graph stays visible. The header includes the child's age when known, between
 the name and selected-column position. Freshness stays on the panel's bottom line,
-below the navigation hints, independent of scrolling. Short panels omit the title
-to retain a data row and use one compact navigation line; panels under six lines
-ask for more space. Calculation explanations live here and in the README,
+below a single navigation line combining column controls, scrolling and scroll
+position, independent of scrolling. Narrow panels shorten the navigation wording.
+Short panels omit the title to retain a data row; panels under ten lines omit the
+chart gap, and panels under six lines ask for more space. Calculation explanations live here and in the README,
 rather than in the Summary footer.
 Esc or Q returns directly to the menu. Piped output stays a plain table;
 `--json` always prints numeric data and never opens an interactive screen.
@@ -294,6 +296,9 @@ by its start time, matching the existing daily feeding totals. Daytime runs from
 The splits always add back to the daily totals.
 
 Summary rows are rebuilt on opening from the latest settings and raw history.
+Summary fetches its own snapshot, independently of the shell's Now drawer and
+embedded Dashboard view, which share one reading. Its freshness line is retained
+inside the shell because those snapshots can be from different reads.
 After any shell command, retained Now/dashboard history receives the current day
 rule immediately, before the background refresh returns. Changing hours or mode
 therefore updates calculations even if that refresh fails; derived totals are not
