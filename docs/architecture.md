@@ -499,7 +499,10 @@ suspended at its launching menu. Reopening that command resumes the same draft;
 starting another action or pressing Escape discards it. Execution consumes the
 draft once, and Escape during a write records a Home destination while its
 actual result is still collected and shown. Menu selection is retained by menu
-identity when revisiting a submenu.
+identity when revisiting a submenu. Leaving a command discards both its internal
+input queue and terminal events already waiting for it, so a rapid key burst
+cannot reopen the draft or launch a new command from its menu. Forced quit
+remains effective at this boundary.
 
 Entry editing and deletion now prepare owned picker rows and targets before
 collection. Picker state retains its query, cursor and scroll; refreshed rows
@@ -517,3 +520,6 @@ the standalone prerequisite policy, saves only completed prerequisites, reloads
 Context and continues the owned requested Command. Completed authentication is
 never replayed by navigation through a later form. Bare `h` starts this setup
 inside its panel, and widgets report missing data until it is complete.
+Typed authentication errors from preparation reopen sign-in with the email
+retained and a fresh password buffer. Recovery surrounds preparation only;
+execution failures never enter an automatic authentication or submission retry.

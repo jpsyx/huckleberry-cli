@@ -323,6 +323,8 @@ current time in every column, which is almost never any row once a dial has
 been touched, and a mark that is never there answers nothing.
 
 **`n` puts every column back on now at once**, not just the one being turned.
+It replaces the exact instant and its calendar date even when the visible clock
+minute already matches now. Later turns use that new date.
 Following the mark by hand is a column at a time, and the dial is most often
 wanted exactly where it opened: somebody turns it to check what time something
 was, then wants now again. The key is offered only where there is a mark to

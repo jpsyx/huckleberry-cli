@@ -89,7 +89,7 @@ fn prerequisite_completion_resumes_requested_command_once() {
 }
 
 #[test]
-fn completed_authentication_is_not_replayed_by_back_in_setup() {
+fn authentication_recovery_is_not_replayed_by_back_in_setup() {
     use std::sync::{
         Arc,
         atomic::{AtomicUsize, Ordering},
@@ -108,14 +108,14 @@ fn completed_authentication_is_not_replayed_by_back_in_setup() {
     .unwrap();
     let authentications = Arc::new(AtomicUsize::new(0));
     let count = Arc::clone(&authentications);
-    let mut command = super::super::gates::create_login(context,Some(crate::cli::Command::Now { json: true }),10000.0,move |context, answer| async move {
+    let mut command = super::super::gates::finish_preparation(context,crate::cli::Command::Now { json: true },10000.0, Err(huckleberry_api::Error::NotAuthenticated.into()), move |context, answer| async move {
         count.fetch_add(1,Ordering::SeqCst);
         let session = huckleberry_api::auth::parse_sign_in(&serde_json::json!({"idToken":"local-token","refreshToken":"local-refresh","localId":"local-user","expiresIn":"3600"}),10000.0)?;
         context.save_credentials(&crate::credentials::Resolved {
             email: Some(answer.email), password: Some(answer.password), session: Some(session), password_from_environment: false,
         })?;
         context.reload()
-    }).unwrap();
+    }).unwrap().unwrap();
     command.apply(
         Input::Pasted("parent@example.invalid".into()),
         10000.0,
@@ -201,4 +201,119 @@ fn read_view(command: prepared::PreparedCommand) -> Vec<String> {
     let result = worker.join().unwrap();
     assert!(result.as_ref().is_err_and(crate::prompt::is_cancelled));
     output
+}
+
+#[test]
+fn rejected_refresh_collects_fresh_credentials_and_submits_the_requested_setting_once() {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+    let fixture = Fixture::create_fixture("refresh-recovery");
+    let context = fixture.context();
+    let config_path = context.config_path.clone();
+    context
+        .save_credentials(&crate::credentials::Resolved {
+            email: Some("parent@example.invalid".into()),
+            password: Some("rejected-password".into()),
+            session: Some(huckleberry_api::Session {
+                id_token: "expired".into(),
+                refresh_token: "rejected".into(),
+                user_uid: "test".into(),
+                expires_at: 0,
+            }),
+            password_from_environment: false,
+        })
+        .unwrap();
+    let authentications = Arc::new(AtomicUsize::new(0));
+    let count = Arc::clone(&authentications);
+    let mut command = super::super::gates::finish_preparation(
+        context,
+        crate::cli::Command::Config {
+            action: crate::cli::ConfigAction::Set {
+                key: None,
+                value: None,
+            },
+        },
+        10000.0,
+        Err(
+            anyhow::Error::new(huckleberry_api::Error::Refresh("rejected".into()))
+                .context("reading the account"),
+        ),
+        move |context, answer| async move {
+            assert_eq!(answer.email, "parent@example.invalid");
+            assert_eq!(answer.password, "replacement-secret");
+            count.fetch_add(1, Ordering::SeqCst);
+            context.save_credentials(&crate::credentials::Resolved {
+                email: Some(answer.email),
+                password: Some(answer.password),
+                session: None,
+                password_from_environment: false,
+            })?;
+            context.reload()
+        },
+    )
+    .unwrap()
+    .unwrap();
+    command.apply(key(KeyCode::Enter), 10000.0, (80, 24));
+    command.apply(
+        Input::Pasted("replacement-secret".into()),
+        10000.0,
+        (80, 24),
+    );
+    command.apply(key(KeyCode::Left), 10000.0, (80, 24));
+    command.apply(key(KeyCode::Enter), 10000.0, (80, 24));
+    command.apply(key(KeyCode::Enter), 10000.0, (80, 24));
+    assert_eq!(
+        command.apply(key(KeyCode::Enter), 10000.0, (80, 24)),
+        FormEvent::Ready
+    );
+    assert_eq!(authentications.load(Ordering::SeqCst), 0);
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let CommandProgress::Continue(mut command) = runtime.block_on(command.execute()).unwrap()
+    else {
+        panic!("the requested setting form must follow sign-in")
+    };
+    command.apply(key(KeyCode::Char('4')), 10000.0, (80, 24));
+    command.apply(key(KeyCode::Enter), 10000.0, (80, 24));
+    command.apply(key(KeyCode::Left), 10000.0, (80, 24));
+    command.apply(key(KeyCode::Enter), 10000.0, (80, 24));
+    command.apply(key(KeyCode::Char('2')), 10000.0, (80, 24));
+    assert_eq!(
+        command.apply(key(KeyCode::Enter), 10000.0, (80, 24)),
+        FormEvent::Ready
+    );
+    assert!(!config_path.exists());
+    let (progress, output) = hosted(move || runtime.block_on(command.execute()));
+    assert!(matches!(progress, CommandProgress::Finished { .. }));
+    assert_eq!(authentications.load(Ordering::SeqCst), 1);
+    assert_eq!(crate::config::load(&config_path).unwrap().units, "oz");
+    assert_eq!(
+        output
+            .iter()
+            .filter(|line| line.contains("Setting saved"))
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn preparation_server_failures_do_not_start_authentication() {
+    let fixture = Fixture::create_fixture("preparation-server-error");
+    for status in [403, 503] {
+        let result = super::super::gates::finish_preparation(
+            fixture.context(),
+            crate::cli::Command::Now { json: false },
+            10000.0,
+            Err(huckleberry_api::Error::Api {
+                operation: "reading the account".into(),
+                status,
+                message: "unavailable".into(),
+            }
+            .into()),
+            |_, _| async { panic!("a server failure must not authenticate") },
+        );
+        assert!(result.is_err());
+        assert!(!fixture.context().credentials_path.exists());
+    }
 }

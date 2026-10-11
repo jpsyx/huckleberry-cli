@@ -76,6 +76,9 @@ async fn navigate(
 
         if job.as_ref().is_some_and(Job::finished) {
             let (landing, draft) = job.take().expect("just checked there is a job").finish();
+            if shell.discard_pending_input()? {
+                return Ok(());
+            }
             suspended = draft;
             land(app, landing);
             // A command may have logged the very thing the widgets show, so

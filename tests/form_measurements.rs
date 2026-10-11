@@ -146,6 +146,71 @@ fn growth_units_preserve_measurements() {
         assert!((answer.measurements.height.unwrap() - expected.1).abs() < 1e-9);
     }
 }
+
+#[test]
+fn explicit_growth_numbers_use_the_first_chosen_units_then_keep_their_quantity() {
+    let mut model = GrowthForm::create_growth(
+        Calendar::new("UTC").unwrap(),
+        GrowthInput {
+            at: Some(9000.0),
+            measurements: GrowthMeasurements {
+                weight: Some(7.0),
+                height: Some(20.0),
+                head: Some(14.0),
+            },
+            system: None,
+        },
+        System::Metric,
+    )
+    .unwrap();
+    for system in ["imperial", "metric", "imperial"] {
+        model
+            .accept(
+                &fields::create_id("system"),
+                FormValue::Choice(system.into()),
+                10000.0,
+            )
+            .unwrap();
+        let answer = model.complete().unwrap();
+        let factor = if system == "metric" {
+            0.453_592_37
+        } else {
+            1.0
+        };
+        let length_factor = if system == "metric" { 2.54 } else { 1.0 };
+        assert!((answer.measurements.weight.unwrap() - 7.0 * factor).abs() < 1e-9);
+        assert!((answer.measurements.height.unwrap() - 20.0 * length_factor).abs() < 1e-9);
+        assert!((answer.measurements.head.unwrap() - 14.0 * length_factor).abs() < 1e-9);
+    }
+}
+
+#[test]
+fn growth_flag_units_survive_back_from_a_missing_measurement() {
+    let model = GrowthForm::create_growth(
+        Calendar::new("UTC").unwrap(),
+        GrowthInput {
+            at: Some(9000.0),
+            measurements: GrowthMeasurements {
+                weight: Some(7.0),
+                ..Default::default()
+            },
+            system: None,
+        },
+        System::Metric,
+    )
+    .unwrap();
+    let mut form = FormState::create_form(model, 10000.0).unwrap();
+    press(&mut form, KeyCode::Down);
+    press(&mut form, KeyCode::Enter); // flags now mean 7 lb
+    press(&mut form, KeyCode::Left);
+    press(&mut form, KeyCode::Up);
+    press(&mut form, KeyCode::Enter); // convert the retained quantity to kg
+    press(&mut form, KeyCode::Enter); // skip length
+    assert_eq!(press(&mut form, KeyCode::Enter), FormEvent::Ready);
+    let answer = form.complete().unwrap();
+    assert_eq!(answer.system, System::Metric);
+    assert!((answer.measurements.weight.unwrap() - 7.0 * 0.453_592_37).abs() < 1e-9);
+}
 #[test]
 fn optional_measurements_stay_cleared() {
     let mut form = FormState::create_form(growth(), 10000.0).unwrap();

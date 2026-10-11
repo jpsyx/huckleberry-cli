@@ -13,7 +13,7 @@ use huckleberry_api::GrowthMeasurements;
 pub struct GrowthInput {
     /// Event time.
     pub at: Option<f64>,
-    /// Measurements in the explicit or configured system.
+    /// Measurements in the explicit, first chosen, or noninteractive default system.
     pub measurements: GrowthMeasurements,
     /// Explicit unit system.
     pub system: Option<System>,
@@ -34,9 +34,10 @@ pub struct GrowthForm {
     at: Option<f64>,
     canonical: GrowthMeasurements,
     system: System,
+    has_chosen_system: bool,
 }
 impl GrowthForm {
-    /// Creates a draft, converting explicit measurements only once.
+    /// Creates a draft whose first unit answer establishes explicit measurements' units.
     pub fn create_growth(calendar: Calendar, given: GrowthInput, default: System) -> Result<Self> {
         super::growth::validate(&given.measurements)?;
         let system = given.system.unwrap_or(default);
@@ -44,6 +45,7 @@ impl GrowthForm {
         Ok(Self {
             calendar,
             at: given.at,
+            has_chosen_system: given.system.is_some(),
             given,
             canonical,
             system,
@@ -104,7 +106,13 @@ impl FormModel for GrowthForm {
     fn accept(&mut self, id: &ViewId, value: FormValue, _: f64) -> Result<()> {
         match id.field {
             "at" => self.at = Some(fields::instant(&value)?),
-            "system" => self.system = fields::parse_choice(value)?,
+            "system" => {
+                self.system = fields::parse_choice(value)?;
+                if !self.has_chosen_system {
+                    self.canonical = convert(&self.given.measurements, self.system, true);
+                    self.has_chosen_system = true;
+                }
+            }
             field => {
                 let number = match value {
                     FormValue::Number(value) => Some(value),

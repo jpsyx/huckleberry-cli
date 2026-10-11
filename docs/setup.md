@@ -25,6 +25,10 @@ again. Widgets show missing data until setup is complete.
 Sign-in is a separate completed prerequisite. Once it succeeds, navigating Back
 through day settings does not authenticate again. Completing a prerequisite
 reloads the configuration and continues the originally selected command once.
+If a preparation read discovers rejected credentials or an expired session that
+cannot refresh, the shell retains that command while asking for fresh sign-in
+credentials. Authentication failures during execution remain reported outcomes;
+they do not replay a submission.
 Child selection and its remember question also collect a complete draft before
 saving the choice.
 

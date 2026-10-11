@@ -1,6 +1,6 @@
 //! Exact instants retained independently of the dial's rounded display.
 use anyhow::{Result, bail};
-use crossterm::event::KeyEvent;
+use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 
 use super::{ControlEvent, view::navigation};
 use crate::{
@@ -76,6 +76,16 @@ impl TimeState {
     pub fn apply(&mut self, key: KeyEvent, now: f64) -> ControlEvent {
         if let Some(event) = navigation(key, self.dial.column == 0, true) {
             return event;
+        }
+        if key.kind == KeyEventKind::Press
+            && !key.modifiers.contains(KeyModifiers::CONTROL)
+            && matches!(key.code, KeyCode::Char('n' | 'N'))
+        {
+            self.at = now;
+            self.recorded = Some(now);
+            self.floating_now = false;
+            self.refresh(now);
+            return ControlEvent::Stay;
         }
         self.refresh(now);
         match self.dial.apply(key) {

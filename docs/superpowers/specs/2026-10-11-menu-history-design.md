@@ -1,6 +1,6 @@
 # Retained form navigation in the shell
 
-Status: approved on 2026-10-11. Implemented on `refactor/menu-history`; verification complete and final review pending.
+Status: approved on 2026-10-11. Implemented on `refactor/menu-history`; final review findings fixed and verification complete.
 
 ## Purpose and success criteria
 

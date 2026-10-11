@@ -489,7 +489,7 @@ Use existing local Firestore stub support without changing the API crate.
   `cargo clippy --all-targets -- -D warnings`, `cargo test`, and
   `python3 -B -m unittest discover -s scripts/release/tests -v` individually.
   Expected: all commands exit 0; PTY reports `PTY checks passed`.
-- [ ] Review the full branch using the execution method selected by the user;
+- [x] Review the full branch using the execution method selected by the user;
   address findings with reproducing tests. Commit the final tests/docs as
   `test: verify retained form navigation across the shell`. Report checks,
   branch and remaining limitations. Leave the worktree for review, with no push

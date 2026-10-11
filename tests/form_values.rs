@@ -56,6 +56,29 @@ fn explicit_now_updates_time() {
 }
 
 #[test]
+fn explicit_now_replaces_a_matching_clock_minute_and_its_date() {
+    let now = 1_762_065_000.125;
+    for instant in [now - 86_400.0, now - 3600.0, now - 0.125] {
+        let mut time = clock(instant, now, Mode::Absolute);
+        time.apply(press(KeyCode::Char('n')), now);
+        assert_eq!(time.accept(now).unwrap().to_bits(), now.to_bits());
+    }
+    let now = 100_020.125;
+    let mut time = clock(now - 86_400.0, now, Mode::Absolute);
+    time.apply(press(KeyCode::Char('n')), now);
+    time.apply(press(KeyCode::Right), now);
+    time.apply(press(KeyCode::Up), now);
+    assert_eq!(
+        time.accept(now).unwrap().to_bits(),
+        (now - 60.125).to_bits()
+    );
+    let mut time = clock(now - 0.125, now, Mode::Relative);
+    time.accept(now).unwrap();
+    time.apply(press(KeyCode::Char('n')), now);
+    assert_eq!(time.accept(now).unwrap().to_bits(), now.to_bits());
+}
+
+#[test]
 fn clock_switch_keeps_instant() {
     let mut time = clock(8800.125, 10000.0, Mode::Relative);
     time.apply(press(KeyCode::Tab), 10300.0);

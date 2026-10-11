@@ -2,7 +2,7 @@
 use super::{CommandProgress, PreparedCommand, utilities};
 use crate::{
     cli::{ChildAction, Command},
-    commands::utility_form::{ChildForm, ReadyForm},
+    commands::utility_form::{ChildForm, LoginForm, ReadyForm},
     session::Context,
     setup::{self, Needs},
 };
@@ -10,6 +10,17 @@ use anyhow::Result;
 
 /// Prepares prerequisites before collection, preserving the standalone dispatch policy.
 pub async fn prepare(
+    context: Context,
+    command: Command,
+    now: f64,
+) -> Result<Option<PreparedCommand>> {
+    let recovery_context = context.reload()?;
+    let requested = command.clone();
+    let result = prepare_once(context, command, now).await;
+    finish_preparation(recovery_context, requested, now, result, authenticate)
+}
+
+async fn prepare_once(
     context: Context,
     command: Command,
     now: f64,
@@ -36,6 +47,39 @@ pub async fn prepare(
     super::execute::prepare(context, command, now).await
 }
 
+/// Classifies preparation failures before any submission has been collected.
+pub(super) fn finish_preparation<Authenticate, Work>(
+    context: Context,
+    command: Command,
+    now: f64,
+    result: Result<Option<PreparedCommand>>,
+    authenticate: Authenticate,
+) -> Result<Option<PreparedCommand>>
+where
+    Authenticate:
+        FnOnce(Context, crate::commands::utility_form::LoginSubmission) -> Work + Send + 'static,
+    Work: std::future::Future<Output = Result<Context>> + Send + 'static,
+{
+    if result.as_ref().is_err_and(|error| {
+        error
+            .downcast_ref::<huckleberry_api::Error>()
+            .is_some_and(huckleberry_api::Error::is_authentication)
+    }) {
+        let model = crate::commands::auth::create_model(&context, None, None, None)?
+            .asking_for_credentials();
+        return bind_login(context, Some(command), model, now, authenticate).map(Some);
+    }
+    result
+}
+
+async fn authenticate(
+    context: Context,
+    answer: crate::commands::utility_form::LoginSubmission,
+) -> Result<Context> {
+    crate::commands::auth::execute(&context, answer).await?;
+    context.reload()
+}
+
 /// Bare `h` can open setup inside its panel without preventing access to Home.
 pub async fn startup(context: Context, now: f64) -> Result<Option<PreparedCommand>> {
     let needs = Needs {
@@ -52,16 +96,7 @@ async fn prerequisite(
     now: f64,
 ) -> Result<Option<PreparedCommand>> {
     if needs.credentials && !context.credentials()?.is_usable() {
-        return create_login(
-            context.reload()?,
-            command,
-            now,
-            |context, answer| async move {
-                crate::commands::auth::execute(&context, answer).await?;
-                context.reload()
-            },
-        )
-        .map(Some);
+        return create_login(context.reload()?, command, now, authenticate).map(Some);
     }
     if needs.settings && !setup::missing(&context.config).is_empty() {
         let model = setup::form::SetupForm::create_setup(
@@ -144,6 +179,21 @@ where
     Work: std::future::Future<Output = Result<Context>> + Send + 'static,
 {
     let model = crate::commands::auth::create_model(&context, None, None, None)?;
+    bind_login(context, command, model, now, authenticate)
+}
+
+fn bind_login<Authenticate, Work>(
+    context: Context,
+    command: Option<Command>,
+    model: LoginForm,
+    now: f64,
+    authenticate: Authenticate,
+) -> Result<PreparedCommand>
+where
+    Authenticate:
+        FnOnce(Context, crate::commands::utility_form::LoginSubmission) -> Work + Send + 'static,
+    Work: std::future::Future<Output = Result<Context>> + Send + 'static,
+{
     PreparedCommand::create_prepared(model, now, move |answer| async move {
         let context = authenticate(context, answer).await?;
         continue_command(context, command).await

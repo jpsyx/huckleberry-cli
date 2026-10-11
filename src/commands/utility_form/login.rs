@@ -40,6 +40,15 @@ impl LoginForm {
             given,
         })
     }
+
+    /// Reopens rejected credentials with the email retained and a fresh secret buffer.
+    #[must_use]
+    pub fn asking_for_credentials(mut self) -> Self {
+        self.given.email = None;
+        self.given.password = None;
+        self.draft.password = None;
+        self
+    }
 }
 impl FormModel for LoginForm {
     type Output = LoginSubmission;

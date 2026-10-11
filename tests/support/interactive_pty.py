@@ -246,12 +246,15 @@ def session():
             ui(terminal, "Which setting?", "2\r")
             ui(terminal, "volume units", "4\r")
             ui(terminal, "Fluid ounces (oz)", "2\r")
-            ui(terminal, "Show", "\r")
+            ui(terminal, "Show", "\x1b[D\r")
             assert 'units = "oz"' in config.read_text()
             ui(terminal, "Which setting?", "2\r")
-            ui(terminal, "Show", "h")
+            # One terminal burst must not reopen the suspended form with its Enter.
+            ui(terminal, "Show", "\x1b[D\r")
             ui(terminal, "Which setting?", "\r")
-            ui(terminal, "What would you like to do?", "\x1b")
+            # Nor may keys left behind by Home launch a command from the root.
+            # CSI-u makes Escape unambiguous when it shares a write with Enter.
+            ui(terminal, "What would you like to do?", "\x1b[27u\r")
             terminal.send("\x11")
             terminal.finish()
         finally:

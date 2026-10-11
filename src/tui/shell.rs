@@ -104,6 +104,19 @@ impl Shell {
         }
     }
 
+    /// Discards input already queued for a closing command, preserving forced quit.
+    pub fn discard_pending_input(&mut self) -> Result<bool> {
+        let mut should_quit = false;
+        while crossterm::event::poll(Duration::ZERO).context("checking pending input")? {
+            if let crossterm::event::Event::Key(key) =
+                crossterm::event::read().context("clearing pending input")?
+            {
+                should_quit |= super::keys::forces_quit(key);
+            }
+        }
+        Ok(should_quit)
+    }
+
     /// Gives the terminal back.
     ///
     /// Nothing steps aside any more: every command runs in the panel where the

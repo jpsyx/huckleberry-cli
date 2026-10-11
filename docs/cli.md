@@ -357,6 +357,9 @@ h growth                        # asks when, the system, the weight, then the re
 `growth` asks when, then which system the numbers are in, offering the
 `measurements` setting, then the weight, the length and the head circumference; only the
 weight has to be answered, and only when no measurement was passed at all.
+When flags supply measurements without `--units`, the first unit answer says
+what those numbers mean. Going Back and changing units afterward converts the
+retained physical quantities. Without a terminal, the configured system applies.
 
 The diaper prompt asks when, then what was in it, and every question that answer
 implies: how much wet, how much dirty, the colour, the consistency, whether
