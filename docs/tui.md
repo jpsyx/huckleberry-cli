@@ -503,8 +503,9 @@ uses only the height its rows and wrapped notes need; the chart fills the
 remaining space above the keys. Long tables scroll while
 leaving a visible chart. One blank line separates the rows and notes from the
 chart, except in panels under ten rows where the data and bars take priority.
-In the shell, Left, H and A return to the containing menu; Escape returns Home.
-Tab and Shift-Tab select columns. Standalone summary keeps its column arrows.
+In the shell and standalone Summary, Left/Right, H/L, A/D, Tab and Shift-Tab
+select columns, stopping at either end without leaving the view. In the shell,
+Q or Backspace returns to the containing menu; Escape returns Home.
 Up/down (J/K, W/S) scroll the rows and notes, including configured night hours
 but not reference ranges or their pediatrician note, which the Now drawer
 already shows. Standalone summary retains those lines. Calculation explanations

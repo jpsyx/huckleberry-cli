@@ -166,31 +166,12 @@ fn entry_details_back_keeps_the_selected_row() {
 #[test]
 fn summary_back_returns_to_parent_and_escape_goes_home() {
     for code in [
-        KeyCode::Left,
-        KeyCode::Char('h'),
-        KeyCode::Char('a'),
+        KeyCode::Backspace,
+        KeyCode::Char('q'),
+        KeyCode::Char('Q'),
         KeyCode::Esc,
     ] {
-        let (landing, frames) = journey(
-            || {
-                let dataset: app::domain::Dataset = serde_json::from_value(serde_json::json!({
-                    "fetched_at":10000.0,"timezone":"UTC","days":1,"child":{"cid":"test","name":"Baby","birthdate":null,"night_start_hour":20.0,"morning_cutoff_hour":7.0},
-                    "growth":null,"sleep":[],"feeds":[],"diapers":[],"pumps":[],"milestones":[],"live":{},"notes":[]
-                }))?;
-                app::summary::show(
-                    &app::render::summary::view::View {
-                        is_hosted: true,
-                        rows: &[],
-                        dataset: &dataset,
-                        calendar: &app::domain::Calendar::new("UTC")?,
-                        units: app::cli::Units::Ml,
-                        now: 10000.0,
-                    },
-                    THEME,
-                )
-            },
-            vec![code],
-        );
+        let (landing, frames) = journey(summary, vec![code]);
         assert_eq!(
             landing,
             if code == KeyCode::Esc {
@@ -200,5 +181,51 @@ fn summary_back_returns_to_parent_and_escape_goes_home() {
             }
         );
         assert_eq!(frames.len(), 1);
+    }
+}
+
+fn summary() -> anyhow::Result<()> {
+    let dataset: app::domain::Dataset = serde_json::from_value(serde_json::json!({
+        "fetched_at":10000.0,"timezone":"UTC","days":1,"child":{"cid":"test","name":"Baby","birthdate":null,"night_start_hour":20.0,"morning_cutoff_hour":7.0},
+        "growth":null,"sleep":[],"feeds":[],"diapers":[],"pumps":[],"milestones":[],"live":{},"notes":[]
+    }))?;
+    app::summary::show(
+        &app::render::summary::view::View {
+            is_hosted: true,
+            rows: &[],
+            dataset: &dataset,
+            calendar: &app::domain::Calendar::new("UTC")?,
+            units: app::cli::Units::Ml,
+            now: 10000.0,
+        },
+        THEME,
+    )
+}
+
+#[test]
+fn summary_left_keys_move_columns_without_leaving_the_hosted_view() {
+    let journeys: Vec<_> = [
+        KeyCode::Left,
+        KeyCode::Char('h'),
+        KeyCode::Char('H'),
+        KeyCode::Char('a'),
+        KeyCode::Char('A'),
+    ]
+    .into_iter()
+    .map(|left| journey(summary, vec![KeyCode::Right, left, left, KeyCode::Esc]))
+    .collect();
+    assert_eq!(
+        journeys
+            .iter()
+            .map(|(_, frames)| frames.len())
+            .collect::<Vec<_>>(),
+        vec![4; 5],
+        "every left alias must redraw Summary, including at its first column"
+    );
+    for (landing, frames) in journeys {
+        assert_eq!(landing, Landing::Home);
+        assert_ne!(frames[0], frames[1], "right selects another column");
+        assert_eq!(frames[0], frames[2], "left restores the first column");
+        assert_eq!(frames[2], frames[3], "left stays at the first column");
     }
 }

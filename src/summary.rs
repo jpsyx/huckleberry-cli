@@ -36,16 +36,12 @@ fn hosted(view: &View<'_>, theme: Theme) -> Result<()> {
         let mut lines = view.lines(&mut state, size, theme);
         if let Some(hint) = lines.last_mut() {
             *hint = theme.muted(&crate::prompt::select::clip(
-                "Tab/S-Tab columns · ↑/↓ scroll · ← h/a back · Esc home",
+                "←/→ h/l a/d columns · ↑/↓ scroll · q back · Esc home",
                 usize::from(size.0),
             ));
         }
         if let host::Input::Key(key) = host::frame(lines)?
-            && (matches!(
-                key.code,
-                crossterm::event::KeyCode::Left
-                    | crossterm::event::KeyCode::Char('h' | 'H' | 'a' | 'A')
-            ) || state.apply(key))
+            && state.apply(key)
         {
             // A browsable view has already offered its exit; return straight to the menu.
             return Err(crate::prompt::Cancelled.into());
