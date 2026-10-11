@@ -5,7 +5,7 @@ use crate::{
     commands::prepared::{CommandProgress, PreparedCommand},
     session::Context,
 };
-use anyhow::{Result, bail};
+use anyhow::Result;
 use huckleberry_api::Huckleberry;
 
 /// Prepares a feeding form with its already selected client and child.
@@ -51,6 +51,31 @@ pub async fn prepare_with_client(
                 Ok(CommandProgress::Finished { home: true })
             })
         }
-        FeedAction::Solids { .. } => bail!("meal form is not registered"),
+        FeedAction::Solids {
+            at,
+            foods,
+            amount,
+            reaction,
+            notes,
+        } => {
+            let model = super::solids::create_model(
+                &context,
+                &client,
+                &cid,
+                super::MealInput {
+                    at: at.as_deref(),
+                    foods: &foods,
+                    amount: amount.as_deref(),
+                    reaction,
+                    notes: notes.as_deref(),
+                },
+            )
+            .await?;
+            PreparedCommand::create_prepared(model, now, move |answer| async move {
+                super::solids::execute(&context, &client, &cid, answer).await?;
+                crate::commands::persist_session(&context, &client).await?;
+                Ok(CommandProgress::Finished { home: true })
+            })
+        }
     }
 }

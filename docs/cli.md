@@ -770,3 +770,9 @@ collected before any timer mutation; the timer is checked again before executing
 that decision. If it changed while the form was open, restart the entry to review
 the current timer. A failed write shows its actual result and never replays a
 previous overlap operation when the result is dismissed.
+
+Meal forms keep the selected foods while visiting custom-name and custom-amount
+views. Returning from a custom name reaches the food list; each new name has its
+own buffer. The food catalog is loaded once per draft. Growth forms retain exact
+physical quantities across unit changes, including skipped optional values.
+Unfinished numeric text keeps the units in which it was typed until corrected.

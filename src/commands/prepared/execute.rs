@@ -14,6 +14,24 @@ pub async fn prepare(
     now: f64,
 ) -> Result<Option<PreparedCommand>> {
     match command {
+        Command::Growth {
+            weight,
+            height,
+            head,
+            units,
+            at,
+        } => {
+            let (client, cid) = crate::commands::client_and_child(&context).await?;
+            let input = crate::commands::growth::create_input(
+                &context,
+                weight,
+                height,
+                head,
+                units,
+                at.as_deref(),
+            )?;
+            crate::commands::growth::prepare_with_client(context, client, cid, input, now).map(Some)
+        }
         Command::Sleep { action } => prepare_sleep(context, action, now).await,
         Command::Pump { action } => prepare_pump(context, action, now).await,
         Command::Feed { action } => prepare_feed(context, action, now).await,
@@ -44,7 +62,7 @@ async fn prepare_feed(
         action,
         FeedAction::Nursing {
             action: NursingAction::Status
-        } | FeedAction::Solids { .. }
+        }
     ) {
         return Ok(None);
     }

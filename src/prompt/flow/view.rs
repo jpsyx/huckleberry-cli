@@ -2,7 +2,7 @@
 use anyhow::{Result, anyhow};
 use crossterm::event::{KeyCode, KeyEventKind, KeyModifiers};
 
-use super::{FormValue, time::TimeState, volume::VolumeState};
+use super::{FormValue, measurement::MeasurementState, time::TimeState, volume::VolumeState};
 use crate::prompt::{
     Question,
     host::Input,
@@ -43,11 +43,22 @@ enum Control {
         typed: String,
         secret: bool,
     },
+    Measurement(MeasurementState),
     Time(TimeState),
     Volume(VolumeState),
 }
 
 impl View {
+    /// Creates a number input whose buffer retains its physical units.
+    #[must_use]
+    pub fn create_measurement(label: impl Into<String>, measurement: MeasurementState) -> Self {
+        Self {
+            label: label.into(),
+            description: None,
+            control: Control::Measurement(measurement),
+        }
+    }
+
     /// Creates a time view retaining the exact accepted instant.
     #[must_use]
     pub fn create_time(label: impl Into<String>, time: TimeState) -> Self {
@@ -122,9 +133,34 @@ impl View {
     pub(super) fn refresh(&mut self, fresh: Self) {
         self.label = fresh.label;
         self.description = fresh.description;
-        if let (Control::Time(time), Control::Time(fresh_time)) = (&mut self.control, fresh.control)
-        {
-            time.refresh_constraints(&fresh_time);
+        match (&mut self.control, fresh.control) {
+            (Control::Time(time), Control::Time(fresh_time)) => {
+                time.refresh_constraints(&fresh_time);
+            }
+            (Control::Measurement(value), Control::Measurement(fresh_value)) => {
+                value.refresh(&fresh_value);
+            }
+            (
+                Control::Choice {
+                    rows,
+                    values,
+                    selection,
+                },
+                Control::Choice {
+                    rows: fresh_rows,
+                    values: fresh_values,
+                    selection: fresh_selection,
+                },
+            ) => {
+                selection.cursor = values
+                    .get(selection.cursor)
+                    .and_then(|value| fresh_values.iter().position(|fresh| fresh == value))
+                    .unwrap_or(fresh_selection.cursor);
+                selection.top = selection.top.min(selection.cursor);
+                *rows = fresh_rows;
+                *values = fresh_values;
+            }
+            _ => {}
         }
     }
 
@@ -132,8 +168,10 @@ impl View {
     pub fn apply(&mut self, input: Input, now: f64, size: (u16, u16)) -> ControlEvent {
         match input {
             Input::Pasted(pasted) => {
-                if let Control::Text { typed, .. } = &mut self.control {
-                    text::paste(typed, &pasted);
+                match &mut self.control {
+                    Control::Text { typed, .. } => text::paste(typed, &pasted),
+                    Control::Measurement(value) => text::paste(&mut value.typed, &pasted),
+                    _ => {}
                 }
                 ControlEvent::Stay
             }
@@ -166,11 +204,13 @@ impl View {
                 SelectionAction::Cancel => ControlEvent::Cancel,
                 SelectionAction::Stay => ControlEvent::Stay,
             },
-            Control::Text { typed, .. } => match text::typing(key, typed) {
-                text::Typing::Done => ControlEvent::Accept,
-                text::Typing::Stay => ControlEvent::Stay,
-                text::Typing::Cancel => ControlEvent::Cancel,
-            },
+            Control::Text { typed, .. } | Control::Measurement(MeasurementState { typed, .. }) => {
+                match text::typing(key, typed) {
+                    text::Typing::Done => ControlEvent::Accept,
+                    text::Typing::Stay => ControlEvent::Stay,
+                    text::Typing::Cancel => ControlEvent::Cancel,
+                }
+            }
             Control::Time(_) | Control::Volume(_) => ControlEvent::Stay,
         }
     }
@@ -185,6 +225,7 @@ impl View {
                 .cloned()
                 .ok_or_else(|| anyhow!("there are no choices available")),
             Control::Text { typed, .. } => Ok(FormValue::Text(typed.clone())),
+            Control::Measurement(value) => value.value(),
             Control::Time(time) => time.value(now).map(FormValue::Instant),
             Control::Volume(volume) => {
                 let (units, amount) = volume.value();
@@ -224,10 +265,11 @@ impl View {
                 *secret,
                 theme,
             ),
+            Control::Measurement(value) => value.render(&self.label, theme),
             Control::Time(time) => time.render(&self.label, now, size.0, theme),
             Control::Volume(volume) => volume.render(&self.label, size.0, theme),
         });
-        let back = if matches!(self.control, Control::Text { .. }) {
+        let back = if matches!(self.control, Control::Text { .. } | Control::Measurement(_)) {
             "← back"
         } else {
             "← h/a back"

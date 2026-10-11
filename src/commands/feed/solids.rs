@@ -1,7 +1,7 @@
 //! Solid foods and meal selection.
 use super::{
-    Choice, Context, FoodReference, Huckleberry, MealInput, Question, Reaction, Result,
-    ask_for_notes, bail, format, output, prompt,
+    Context, FoodReference, Huckleberry, MealInput, Question, Reaction, Result, bail, format,
+    output, prompt,
 };
 /// Records a meal, asking for everything that was not given.
 pub(super) async fn solids(
@@ -10,38 +10,60 @@ pub(super) async fn solids(
     cid: &str,
     input: MealInput<'_>,
 ) -> Result<()> {
-    let MealInput {
-        foods,
+    let model = create_model(context, client, cid, input).await?;
+    let answer = crate::prompt::flow::runner::read(
+        model,
+        huckleberry_api::client::now_seconds(),
+        context.theme,
+    )?;
+    execute(context, client, cid, answer).await
+}
+
+pub(super) async fn create_model(
+    context: &Context,
+    client: &Huckleberry,
+    cid: &str,
+    input: MealInput<'_>,
+) -> Result<super::solids_form::SolidsForm> {
+    let at = prompt::time::resolve_at(
+        context,
+        input.at,
+        prompt::available() || prompt::host::hosted(),
+    )?;
+    if input.foods.is_empty() && !prompt::available() && !prompt::host::hosted() {
+        bail!("no foods: pass --food <NAME>");
+    }
+    let known = client.custom_foods(cid, false).await.unwrap_or_default();
+    Ok(super::solids_form::SolidsForm::create_solids(
+        context.calendar()?,
+        super::solids_form::SolidsInput {
+            at,
+            foods: input.foods.to_vec(),
+            amount: input.amount.map(str::to_owned),
+            reaction: input.reaction,
+            notes: input.notes.map(str::to_owned),
+        },
+        known,
+    ))
+}
+
+pub(super) async fn execute(
+    context: &Context,
+    client: &Huckleberry,
+    cid: &str,
+    answer: super::solids_form::SolidsSubmission,
+) -> Result<()> {
+    let super::solids_form::SolidsSubmission {
+        at,
+        foods: references,
         amount,
         reaction,
         notes,
-        at,
-    } = input;
-    let at = prompt::time::read_at(context, at)?;
-    let named = if foods.is_empty() {
-        ask_for_foods(context, client, cid, &[]).await?
-    } else {
-        foods.to_vec()
-    };
-    let amount = match amount {
-        Some(given) => given.to_owned(),
-        None => ask_for_helping(context)?,
-    };
-    let reaction = match reaction {
-        Some(given) => Some(given),
-        None => ask_for_reaction(context)?,
-    };
-    let notes = match notes {
-        Some(given) => Some(given.to_owned()),
-        None => ask_for_notes(context)?,
-    };
-
-    let known = client.custom_foods(cid, false).await.unwrap_or_default();
-    let references: Vec<FoodReference> = named
+    } = answer;
+    let named = references
         .iter()
-        .map(|name| match_food(name, &known, &amount))
-        .collect();
-
+        .map(|food| food.name.clone())
+        .collect::<Vec<_>>();
     client
         .log_solids_at(
             cid,
@@ -70,67 +92,6 @@ pub(super) async fn solids(
         &[],
     );
     Ok(())
-}
-
-/// How much of it, in whatever words suit. "some" is what the app writes when
-/// nobody says, so it is what Enter takes.
-fn ask_for_helping(context: &Context) -> Result<String> {
-    let choices = [
-        Choice {
-            value: "some",
-            hint: "Some",
-        },
-        Choice {
-            value: "custom",
-            hint: "Enter an amount",
-        },
-    ];
-    let question = Question::new("amount", "How much?", "--amount <TEXT>")
-        .with_choices(&choices)
-        .with_default("some");
-    let selected = prompt::ask(&question, context.theme)?;
-    if selected == "custom" {
-        prompt::ask(
-            &Question::new("amount", "How much?", "--amount <TEXT>"),
-            context.theme,
-        )
-    } else {
-        Ok(selected)
-    }
-}
-
-/// How it went, which is optional: a meal nobody had an opinion about is a
-/// meal, and an invented reaction is worse than none.
-fn ask_for_reaction(context: &Context) -> Result<Option<Reaction>> {
-    const CHOICES: [Choice<'static>; 4] = [
-        Choice {
-            value: "loved",
-            hint: "Loved it",
-        },
-        Choice {
-            value: "meh",
-            hint: "Took it or left it",
-        },
-        Choice {
-            value: "hated",
-            hint: "Hated it",
-        },
-        Choice {
-            value: "allergic",
-            hint: "Reacted badly",
-        },
-    ];
-    let question = Question::new("reaction", "How did it go?", "--reaction <REACTION>")
-        .with_choices(&CHOICES)
-        .optional();
-    Ok(
-        prompt::ask_optional(&question, context.theme)?.map(|answer| match answer.as_str() {
-            "meh" => Reaction::Meh,
-            "hated" => Reaction::Hated,
-            "allergic" => Reaction::Allergic,
-            _ => Reaction::Loved,
-        }),
-    )
 }
 
 /// Turns a typed name into a food reference, matching the family's own foods

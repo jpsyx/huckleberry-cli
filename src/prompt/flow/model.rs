@@ -22,6 +22,8 @@ pub enum FormValue {
     Choice(String),
     /// A text buffer, which may be empty.
     Text(String),
+    /// A canonical numeric quantity, independent of display units.
+    Number(f64),
     /// An explicit omitted or cleared value.
     Skipped,
     /// A resolved timestamp, including its original precision.

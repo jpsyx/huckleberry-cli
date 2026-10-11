@@ -9,3 +9,5 @@ pub use model::{FormEvent, FormModel, FormState, FormValue, ViewId};
 pub use view::{ControlEvent, View};
 
 pub mod fields;
+
+pub mod measurement;

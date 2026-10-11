@@ -5,7 +5,7 @@ use huckleberry_api::Huckleberry;
 use huckleberry_api::models::solids::FoodReference;
 
 use crate::cli::{BottleKind, FeedAction, Reaction, Units};
-use crate::prompt::{self, Choice, Question};
+use crate::prompt::{self, Question};
 use crate::render::{format, output};
 use crate::session::Context;
 
@@ -87,14 +87,6 @@ pub(crate) mod prepare;
 pub mod solids;
 pub use bottle::offered_amount;
 pub use solids::match_food;
-/// Anything worth writing down, which every entry can carry.
-fn ask_for_notes(context: &Context) -> Result<Option<String>> {
-    let question = Question::new("notes", "Anything to note?", "--notes <TEXT>").optional();
-    Ok(prompt::ask_optional(&question, context.theme)?
-        .map(|text| text.trim().to_owned())
-        .filter(|text| !text.is_empty()))
-}
-
 #[cfg(test)]
 mod amounts {
     use super::*;
@@ -169,3 +161,5 @@ mod tests {
         assert_eq!(match_food("  Avocado  ", &[avocado()], "some").id, "food-1");
     }
 }
+
+pub mod solids_form;

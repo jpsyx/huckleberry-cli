@@ -72,3 +72,11 @@ pub fn optional_text(value: FormValue) -> Result<Option<String>> {
     let text = text(value)?;
     Ok((!text.trim().is_empty()).then(|| text.trim().to_owned()))
 }
+
+/// Reads a semantic menu value without interpreting its label.
+pub fn choice(value: FormValue) -> Result<String> {
+    match value {
+        FormValue::Choice(value) => Ok(value),
+        _ => Err(anyhow!("choose a value")),
+    }
+}

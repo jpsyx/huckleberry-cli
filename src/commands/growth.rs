@@ -3,8 +3,10 @@
 use anyhow::{Result, bail};
 use huckleberry_api::GrowthMeasurements;
 
+use super::growth_form::{GrowthForm, GrowthInput, GrowthSubmission};
+use super::prepared::{CommandProgress, PreparedCommand};
 use crate::cli::System;
-use crate::prompt::{self, Choice, Question};
+use crate::prompt::{self, flow::runner};
 use crate::session::Context;
 
 /// Records a measurement, asking for everything that was not given.
@@ -22,36 +24,73 @@ pub async fn run(
     at: Option<&str>,
 ) -> Result<()> {
     let (client, cid) = super::client_and_child(context).await?;
-    let at = prompt::time::read_at(context, at)?;
-    let nothing_given = weight.is_none() && height.is_none() && head.is_none();
-    let configured = System::from_setting(&context.config.measurements);
-    // The `measurements` setting is the default, not the answer.
-    let system = match units {
-        Some(given) => given,
-        None => ask_for_system(context, configured)?,
-    };
+    let input = create_input(context, weight, height, head, units, at)?;
+    let answer = runner::read(
+        create_model(context, input)?,
+        huckleberry_api::client::now_seconds(),
+        context.theme,
+    )?;
+    execute(context, &client, &cid, answer).await?;
+    super::persist_session(context, &client).await
+}
 
-    let mut measurements = GrowthMeasurements {
-        weight,
-        height,
-        head,
-    };
-    if nothing_given {
-        measurements.weight = Some(ask_for_weight(context, system)?);
-    }
-    if measurements.height.is_none() {
-        measurements.height = ask_for_length(context, system, "Length?", "--height <NUMBER>")?;
-    }
-    if measurements.head.is_none() {
-        measurements.head =
-            ask_for_length(context, system, "Head circumference?", "--head <NUMBER>")?;
-    }
-    validate(&measurements)?;
-
+pub(crate) fn create_input(
+    context: &Context,
+    weight: Option<f64>,
+    height: Option<f64>,
+    head: Option<f64>,
+    system: Option<System>,
+    at: Option<&str>,
+) -> Result<GrowthInput> {
+    Ok(GrowthInput {
+        at: prompt::time::resolve_at(context, at, prompt::available() || prompt::host::hosted())?,
+        measurements: GrowthMeasurements {
+            weight,
+            height,
+            head,
+        },
+        system,
+    })
+}
+fn create_model(context: &Context, input: GrowthInput) -> Result<GrowthForm> {
+    GrowthForm::create_growth(
+        context.calendar()?,
+        input,
+        System::from_setting(&context.config.measurements),
+    )
+}
+/// Prepares one measurement operation without writing before completion.
+pub(crate) fn prepare_with_client(
+    context: Context,
+    client: huckleberry_api::Huckleberry,
+    cid: String,
+    input: GrowthInput,
+    now: f64,
+) -> Result<PreparedCommand> {
+    PreparedCommand::create_prepared(
+        create_model(&context, input)?,
+        now,
+        move |answer| async move {
+            execute(&context, &client, &cid, answer).await?;
+            super::persist_session(&context, &client).await?;
+            Ok(CommandProgress::Finished { home: true })
+        },
+    )
+}
+async fn execute(
+    context: &Context,
+    client: &huckleberry_api::Huckleberry,
+    cid: &str,
+    answer: GrowthSubmission,
+) -> Result<()> {
+    let GrowthSubmission {
+        at,
+        measurements,
+        system,
+    } = answer;
     client
-        .log_growth_at(&cid, &measurements, system.to_api(), at)
+        .log_growth_at(cid, &measurements, system.to_api(), at)
         .await?;
-    super::persist_session(context, &client).await?;
     let (weight_unit, length_unit) = match system {
         System::Metric => ("kg", "cm"),
         System::Imperial => ("lb", "in"),
@@ -72,56 +111,12 @@ pub async fn run(
     Ok(())
 }
 
-/// Which system the numbers are in.
-fn ask_for_system(context: &Context, configured: System) -> Result<System> {
-    const CHOICES: [Choice<'static>; 2] = [
-        Choice {
-            value: "metric",
-            hint: "Kilograms and centimetres",
-        },
-        Choice {
-            value: "imperial",
-            hint: "Pounds and inches",
-        },
-    ];
-    let question = Question::new("units", "In which units?", "--units <SYSTEM>")
-        .with_choices(&CHOICES)
-        .with_default(configured.as_str());
-    Ok(System::from_setting(&prompt::ask(
-        &question,
-        context.theme,
-    )?))
-}
-
-/// A length, which is optional: most visits weigh and nothing else.
-fn ask_for_length(
-    context: &Context,
-    system: System,
-    label: &str,
-    flag: &str,
-) -> Result<Option<f64>> {
-    let unit = match system {
-        System::Metric => "centimetres",
-        System::Imperial => "inches",
-    };
-    let label = format!("{label} In {unit}.");
-    let question = Question::new("length", &label, flag).optional();
-    let Some(answer) = prompt::ask_optional(&question, context.theme)? else {
-        return Ok(None);
-    };
-    answer
-        .trim()
-        .parse()
-        .map(Some)
-        .map_err(|_| anyhow::anyhow!("`{answer}` is not a number"))
-}
-
 /// Refuses a measurement that cannot be right.
 ///
 /// Not a health judgement: these bounds only catch a decimal point in the
 /// wrong place or pounds typed where kilograms were expected, which is a
 /// mistake worth catching before it is in the record.
-fn validate(measurements: &GrowthMeasurements) -> Result<()> {
+pub(super) fn validate(measurements: &GrowthMeasurements) -> Result<()> {
     for (name, value, limit) in [
         ("weight", measurements.weight, 200.0),
         ("height", measurements.height, 300.0),
@@ -133,20 +128,6 @@ fn validate(measurements: &GrowthMeasurements) -> Result<()> {
         }
     }
     Ok(())
-}
-
-fn ask_for_weight(context: &Context, system: System) -> Result<f64> {
-    let unit = match system {
-        System::Metric => "kilograms",
-        System::Imperial => "pounds",
-    };
-    let label = format!("Weight, in {unit}?");
-    let question = Question::new("weight", &label, "--weight <NUMBER>");
-    let answer = prompt::ask(&question, context.theme)?;
-    answer
-        .trim()
-        .parse()
-        .map_err(|_| anyhow::anyhow!("`{answer}` is not a number"))
 }
 
 /// What was recorded, as a person reads it.
