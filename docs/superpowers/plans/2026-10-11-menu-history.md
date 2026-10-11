@@ -141,7 +141,7 @@ synthetic child IDs and temporary settings. Register each test module in
 `FormState`, `View` and `ControlEvent` from the shared contracts. Start with
 selection/text controls; subsequent tasks add their other variants.
 
-- [ ] Write `back_keeps_forward_answers`, `hidden_answers_return_to_their_own_fields`,
+- [x] Write `back_keeps_forward_answers`, `hidden_answers_return_to_their_own_fields`,
   `skip_is_an_answer` and `back_does_not_validate`. Use a synthetic form with
   stable IDs `at`, `mode`, `colour`, `notes`, and assert this journey:
   ```text
@@ -151,15 +151,15 @@ selection/text controls; subsequent tasks add their other variants.
   Back -> mode; accept dirty -> colour=brown
   ```
   Also assert two views with the same display label retain different answers.
-- [ ] Run `cargo test --test form_state`; observe the expected missing-interface
+- [x] Run `cargo test --test form_state`; observe the expected missing-interface
   failure first, then a behavior failure once the minimal types compile.
-- [ ] Implement the contracts using a map keyed by ViewId and a current ID.
+- [x] Implement the contracts using a map keyed by ViewId and a current ID.
   Maintain accepted values in the typed model and unfinished state in views.
   Recompute routes only from accepted values. Validate completion before Ready.
   Document form view, form draft and current-view cursor in nomenclature.
-- [ ] Run `cargo test --test form_state`; all cases pass. Inspect the tests to
+- [x] Run `cargo test --test form_state`; all cases pass. Inspect the tests to
   ensure they drive transitions and outputs, not internal map layout.
-- [ ] Commit the task files: `feat: retain form answers across view navigation`.
+- [x] Commit the task files: `feat: retain form answers across view navigation`.
 
 ### Task 2: Shared controls distinguish Back, Home and cancellation
 

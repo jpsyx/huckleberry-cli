@@ -28,6 +28,9 @@ either, say which.
 | **the Menu view** | The main panel: the `What would you like to do?` rows. `src/tui/draw/menu.rs`. |
 | **the flow panel** | The same area while a command is running: its questions, its output and its failures. `src/tui/draw/flow.rs`. |
 | **a job** | One command running inside the shell, and everything it has said so far. `src/tui/job.rs`. |
+| **a form draft** | Accepted answers and unfinished controls retained while navigating a command's questions. Distinct from the CLI argument `CommandDraft`. `src/prompt/flow/`. |
+| **a form view** | One question or containing menu in a retained form. Its identity stays the same when conditional questions change position. |
+| **the current-view cursor** | Which form view is being edited; moving it retains earlier and later answers. |
 | **the host** | Whatever is drawing a prompt and feeding it keys. The shell installs itself as one while a job runs; with none installed, prompts own the terminal. `src/prompt/host.rs`. |
 | **a frame** (of a prompt) | One pass of a hosted loop: the lines to draw, and the key that answers them. Not to be confused with a ratatui frame. |
 | **a step** (of a prompt) | A frame drawn without waiting for anybody: one picture of an animation. The host takes it and says whether a key is already waiting, which is how a held key cuts an animation short. |

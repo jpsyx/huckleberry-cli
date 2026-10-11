@@ -1,5 +1,6 @@
 //! Shared prompts: finite choices are menus, free values use a text editor.
 pub mod dial;
+pub mod flow;
 pub mod host;
 mod question;
 mod secret;

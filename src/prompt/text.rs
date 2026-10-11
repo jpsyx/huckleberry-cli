@@ -26,11 +26,7 @@ pub(super) fn read(question: &Question<'_>, theme: Theme, secret: bool) -> Resul
 fn hosted(question: &Question<'_>, theme: Theme, secret: bool) -> Result<String> {
     let mut typed = String::new();
     loop {
-        let mut lines = vec![theme.prompt(question.label)];
-        if let Some(help) = question.help {
-            lines.push(theme.muted(help));
-        }
-        lines.push(theme.value(&typed_line(question, &typed, secret)));
+        let lines = lines(question, &typed, secret, theme);
         match crate::prompt::host::frame(lines)? {
             crate::prompt::host::Input::Pasted(text) => paste(&mut typed, &text),
             crate::prompt::host::Input::Key(key) => match typing(key, &mut typed) {
@@ -40,6 +36,21 @@ fn hosted(question: &Question<'_>, theme: Theme, secret: bool) -> Result<String>
             },
         }
     }
+}
+
+/// The shared field renderer for standalone prompts and retained form views.
+pub(super) fn lines(
+    question: &Question<'_>,
+    typed: &str,
+    secret: bool,
+    theme: Theme,
+) -> Vec<String> {
+    let mut lines = vec![theme.prompt(question.label)];
+    if let Some(help) = question.help {
+        lines.push(theme.muted(help));
+    }
+    lines.push(theme.value(&typed_line(question, typed, secret)));
+    lines
 }
 
 /// What the prompt line reads while somebody types into it.
@@ -61,13 +72,13 @@ fn typed_line(question: &Question<'_>, typed: &str, secret: bool) -> String {
 /// Control characters are left out rather than obeyed: a pasted newline would
 /// otherwise read as Enter and submit the answer halfway through, which is how
 /// a dictated phrase loses everything after its first line.
-fn paste(typed: &mut String, text: &str) {
+pub(super) fn paste(typed: &mut String, text: &str) {
     typed.extend(text.chars().filter(|character| !character.is_control()));
 }
 
 /// What one key does to what has been typed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Typing {
+pub(super) enum Typing {
     /// Redraw and wait.
     Stay,
     /// Take what is there.
@@ -76,7 +87,7 @@ enum Typing {
     Cancel,
 }
 
-fn typing(key: crossterm::event::KeyEvent, typed: &mut String) -> Typing {
+pub(super) fn typing(key: crossterm::event::KeyEvent, typed: &mut String) -> Typing {
     if key.kind != KeyEventKind::Press {
         return Typing::Stay;
     }
