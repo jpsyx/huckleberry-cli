@@ -78,11 +78,13 @@ Every submenu still ends in a Back row, so walking out of one is a row on the
 screen as well as a key. Home ends in nothing, because there is nothing at Home
 to walk out to.
 
-Leaving View logs, Foods List, or the Edit/Delete entry picker with Escape,
-left, `h`, `a`, or `q` returns straight to the menu. That key is the whole
+Leaving View logs, Foods List, or the Edit/Delete entry picker with
+Left, `h`, `a`, or `q` returns to its containing view. Escape returns to Home,
+even while a search editor is focused. That key is the whole
 navigation action; there is no "Anything else?" or Continue confirmation
-afterward. Empty results and entry details still remain visible until the
-reader leaves them. Enter on a browsed row without details, such as a food,
+afterward. Empty results remain visible until the reader leaves them. Back
+from log-entry details restores the listing's filter and selection. Help topics
+likewise return to their retained topic chooser. Enter on a browsed row without details, such as a food,
 keeps the list and its selection in place.
 
 ### 3. Menus first, typing last
@@ -202,7 +204,8 @@ widget beside it, and **widget** and **panel** mean the same thing.
 | `↓`, `j`, `s`, `Ctrl-N` | down one row |
 | `↑`, `k`, `w`, `Ctrl-P` | up one row |
 | `→`, `l`, `d`, `Enter`, `Space` | open the row under the cursor |
-| `←`, `h`, `a`, `Esc`, `Backspace` | back, and nothing at the top level |
+| `←`, `h`, `a`, `Backspace` | back one view, and nothing at the top level |
+| `Esc` | discard an unfinished draft and return to Home |
 | `1`–`9` | put the cursor on that row |
 | `g`, `Home` / `G`, `End` | first row, last row |
 | `r` | refresh every widget |
@@ -298,7 +301,7 @@ When?
    3 : 46
   ──
   ←/→ h/l a/d column · ↑/↓ j/k w/s turn · shift leaps
-  n [now] · Enter set · Esc back
+  n [now] · Enter set · Esc home
 ```
 
 The `[now]` marks the row where **the column being turned** is showing its
@@ -345,7 +348,7 @@ When?
         ───
 
 ←/→ h/l a/d column · ↑/↓ j/k w/s turn · shift leaps
-tab clock · n [now] · Enter set · Esc back
+tab clock · n [now] · Enter set · Esc home
 ```
 
 It opens on the minutes rather than the hours, because most corrections are
@@ -399,9 +402,9 @@ The reasoning is the north star. A parent at 3am has one hand free and is not
 going to type `1:44 pm`, and every character typed is a character that can be
 typed wrong. Turning a wheel cannot produce a time that does not exist.
 
-- **`←`/`→`, `h`/`l` and `a`/`d` move between columns, and the ends hold.**
-  A dial is a row of columns, so `h` and `a` move left within the control. `Esc` is how somebody
-  leaves, and the hint line says so.
+- **`←`/`→`, `h`/`l` and `a`/`d` move between columns.**
+  Left from the first column returns one view, retaining the dial's value.
+  Escape discards the unfinished draft and returns to Home.
 - **`↑`/`↓`, `k`/`j` and `w`/`s` turn the column under the cursor one notch**, and
   shift leaps. The small step is the plain one, because the small step is the
   correction somebody came to make; the leap is what you reach for when it is
@@ -498,7 +501,8 @@ uses only the height its rows and wrapped notes need; the chart fills the
 remaining space above the keys. Long tables scroll while
 leaving a visible chart. One blank line separates the rows and notes from the
 chart, except in panels under ten rows where the data and bars take priority.
-Left stays in this control even at the first column; Esc or Q closes it directly.
+In the shell, Left, H and A return to the containing menu; Escape returns Home.
+Tab and Shift-Tab select columns. Standalone summary keeps its column arrows.
 Up/down (J/K, W/S) scroll the rows and notes, including configured night hours
 but not reference ranges or their pediatrician note, which the Now drawer
 already shows. Standalone summary retains those lines. Calculation explanations
@@ -646,7 +650,8 @@ The modal is 64 columns by 12 rows, centered again on resize and clamped to a
 smaller terminal. The Now drawer and menu remain underneath it.
 
 Close is selected by default. Enter, Space, Right, `l`, or `d` closes it;
-Escape, Left, `h`, `a`, Backspace, and Ctrl-C also return to the same menu row.
+Left, `h`, `a`, Backspace, and Ctrl-C also return to the same menu row.
+Escape closes the modal and returns Home, cancelling its pending version check.
 `r` retries a completed online check. Movement and number keys cannot change
 the menu behind the modal; `q` and Ctrl-Q still quit the shell. Its footer
 shows close, back, retry, and quit controls.

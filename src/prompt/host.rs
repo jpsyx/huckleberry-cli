@@ -157,8 +157,53 @@ fn send(request: Request) -> Result<Reply> {
 /// Draws one frame through the host and waits for an answer.
 pub fn frame(lines: Vec<String>) -> Result<Input> {
     match send(Request::Frame(lines))? {
+        Reply::Input(Input::Key(key))
+            if key.code == crossterm::event::KeyCode::Esc
+                && key.kind != crossterm::event::KeyEventKind::Release =>
+        {
+            Err(super::Home.into())
+        }
         Reply::Input(input) => Ok(input),
         Reply::Shown | Reply::Stepped { .. } => Err(Cancelled.into()),
+    }
+}
+
+/// Holds a nested text view, returning to its retained parent on Back.
+pub(crate) fn page(lines: &[String], theme: crate::theme::Theme) -> Result<()> {
+    use crossterm::event::KeyCode;
+    let mut top = 0_usize;
+    loop {
+        let (width, height) = size();
+        let body: Vec<_> = lines
+            .iter()
+            .flat_map(|line| super::select::wrapped(line, usize::from(width), 0))
+            .collect();
+        let height = usize::from(height).saturating_sub(1).max(1);
+        let limit = body.len().saturating_sub(height);
+        top = top.min(limit);
+        let mut shown = body
+            .iter()
+            .skip(top)
+            .take(height)
+            .cloned()
+            .collect::<Vec<_>>();
+        shown.push(theme.muted("↑/↓ scroll · ← h/a back · Esc home"));
+        let Input::Key(key) = frame(shown)? else {
+            continue;
+        };
+        match key.code {
+            KeyCode::Left
+            | KeyCode::Char('h' | 'H' | 'a' | 'A' | 'q' | 'Q')
+            | KeyCode::Backspace
+            | KeyCode::Enter => return Ok(()),
+            KeyCode::Up | KeyCode::Char('k' | 'K' | 'w' | 'W') => top = top.saturating_sub(1),
+            KeyCode::Down | KeyCode::Char('j' | 'J' | 's' | 'S') => top = top.saturating_add(1),
+            KeyCode::PageUp => top = top.saturating_sub(height),
+            KeyCode::PageDown => top = top.saturating_add(height),
+            KeyCode::Home => top = 0,
+            KeyCode::End => top = limit,
+            _ => {}
+        }
     }
 }
 

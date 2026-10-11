@@ -31,6 +31,21 @@ pub fn is_cancelled(error: &anyhow::Error) -> bool {
     error.is::<Cancelled>()
 }
 
+/// A hosted Escape, distinct from returning one view or reporting a failure.
+#[derive(Debug)]
+pub struct Home;
+impl std::fmt::Display for Home {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("return to Home")
+    }
+}
+impl std::error::Error for Home {}
+/// Recognizes the shell's Home intent through contextual error wrapping.
+#[must_use]
+pub fn is_home(error: &anyhow::Error) -> bool {
+    error.is::<Home>()
+}
+
 /// Whether both input and prompt output support interaction.
 #[must_use]
 pub fn available() -> bool {

@@ -76,6 +76,10 @@ pub(super) async fn prepare(
 
 pub(super) fn immediate(context: Context, command: Command, now: f64) -> Result<PreparedCommand> {
     PreparedCommand::create_prepared(ReadyForm, now, move |()| async move {
+        if crate::interactive::operation::is_read_view(&command) {
+            crate::interactive::operation::run_ready_view(&context, &command).await?;
+            return Err(crate::prompt::Cancelled.into());
+        }
         crate::commands::act(&context, &command).await?;
         Ok(CommandProgress::Finished {
             home: matches!(command, Command::Auth { .. }),

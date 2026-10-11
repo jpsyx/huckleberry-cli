@@ -63,9 +63,20 @@ pub fn help(theme: Theme) -> Result<()> {
             }
         })
         .collect::<Vec<_>>();
-    let index = choose("Help for which command?", &labels, 0, theme)?;
-    if let Some(mut metadata) = catalog::metadata(&paths[index]) {
-        crate::render::note(&metadata.render_long_help().to_string());
+    let mut selected = 0;
+    loop {
+        selected = choose("Help for which command?", &labels, selected, theme)?;
+        if let Some(mut metadata) = catalog::metadata(&paths[selected]) {
+            let help = metadata.render_long_help().to_string();
+            if crate::prompt::host::hosted() {
+                crate::prompt::host::page(
+                    &help.lines().map(str::to_owned).collect::<Vec<_>>(),
+                    theme,
+                )?;
+            } else {
+                crate::render::note(&help);
+                return pause(theme);
+            }
+        }
     }
-    pause(theme)
 }

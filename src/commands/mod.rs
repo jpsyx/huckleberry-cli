@@ -65,7 +65,7 @@ pub async fn dispatch(context: &Context, command: &Command) -> Result<()> {
 }
 
 /// The dispatch itself, with everything setup needed already in place.
-async fn act(context: &Context, command: &Command) -> Result<()> {
+pub(crate) async fn act(context: &Context, command: &Command) -> Result<()> {
     match command {
         Command::Auth { action } => auth::run(context, action).await,
         Command::Child { action } => child::run(context, action).await,

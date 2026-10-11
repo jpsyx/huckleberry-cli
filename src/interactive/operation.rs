@@ -45,10 +45,27 @@ pub async fn run(path: &CommandPath, globals: &SessionOptions, theme: Theme) -> 
 }
 
 async fn run_view(draft: &CommandDraft, globals: &SessionOptions, theme: Theme) -> Result<bool> {
+    read_until_back(|| execute(draft, globals, theme), theme).await
+}
+
+/// Keeps retry and navigation identical after a completed prerequisite.
+pub(crate) async fn run_ready_view(
+    context: &crate::session::Context,
+    command: &Command,
+) -> Result<bool> {
+    read_until_back(|| crate::commands::act(context, command), context.theme).await
+}
+
+async fn read_until_back<Execute, Work, Value>(mut execute: Execute, theme: Theme) -> Result<bool>
+where
+    Execute: FnMut() -> Work,
+    Work: std::future::Future<Output = Result<Value>>,
+{
     loop {
         let mut labels = vec!["Back".into()];
-        match execute(draft, globals, theme).await {
+        match execute().await {
             Ok(_) => {}
+            Err(error) if prompt::is_home(&error) => return Err(error),
             Err(error) if prompt::is_cancelled(&error) => return Ok(false),
             Err(error) => {
                 crate::render::note(&theme.error_line("error:", &format!("{error:#}")));
@@ -63,7 +80,7 @@ async fn run_view(draft: &CommandDraft, globals: &SessionOptions, theme: Theme) 
 }
 
 // Only read-only views offer an explicit retry after failure.
-const fn is_read_view(command: &Command) -> bool {
+pub(crate) const fn is_read_view(command: &Command) -> bool {
     matches!(
         command,
         Command::Now { .. }
@@ -158,8 +175,8 @@ mod tests {
         use crossterm::event::KeyCode;
         let (frames, output) = log_journey(KeyCode::Enter, false);
         assert_eq!(frames.len(), 2, "{frames:?}");
-        assert!(frames[1].contains("Anything else?"), "{frames:?}");
-        assert!(output.contains("Formula"), "{output}");
+        assert!(frames[1].contains("Formula"), "{frames:?}");
+        assert!(!output.contains("Anything else?"), "{output}");
         let (frames, output) = log_journey(KeyCode::Esc, true);
         assert_eq!(frames.len(), 1, "{frames:?}");
         assert!(frames[0].contains("Anything else?"), "{frames:?}");
@@ -191,7 +208,10 @@ mod tests {
         let result = worker.join().unwrap();
         std::fs::remove_dir_all(directory).unwrap();
         assert!(
-            matches!(result, Ok(false)) || result.as_ref().is_err_and(crate::prompt::is_cancelled),
+            matches!(result, Ok(false))
+                || result.as_ref().is_err_and(
+                    |error| crate::prompt::is_cancelled(error) || crate::prompt::is_home(error)
+                ),
             "{result:?}"
         );
         assert!(output.contains("Last fed"), "{output}");
@@ -218,7 +238,10 @@ mod tests {
         let result = worker.join().unwrap();
         std::fs::remove_dir_all(directory).unwrap();
         assert!(
-            matches!(result, Ok(false)) || result.as_ref().is_err_and(crate::prompt::is_cancelled),
+            matches!(result, Ok(false))
+                || result.as_ref().is_err_and(
+                    |error| crate::prompt::is_cancelled(error) || crate::prompt::is_home(error)
+                ),
             "{result:?}"
         );
         (frames, output)

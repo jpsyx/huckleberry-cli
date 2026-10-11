@@ -124,6 +124,7 @@ pub struct Job {
     handle: Option<JoinHandle<Outcome>>,
     forms: Option<Forms>,
     landing: Option<Landing>,
+    home_requested: bool,
     path: CommandPath,
     theme: Theme,
     channel: Channel,
@@ -174,6 +175,7 @@ impl Job {
             handle,
             forms: None,
             landing: None,
+            home_requested: false,
             exchange: Exchange::default(),
             reply: None,
             output: Vec::new(),
@@ -253,6 +255,10 @@ impl Job {
 
     fn accept_outcome(&mut self, outcome: Outcome) {
         match outcome {
+            Outcome::Continue(_) if self.home_requested && self.forms.is_none() => {
+                self.exchange = Exchange::default();
+                self.landing = Some(Landing::Home);
+            }
             Outcome::Continue(prepared) => {
                 if let Some(forms) = self.forms.as_mut() {
                     forms.complete(crate::commands::prepared::CommandProgress::Continue(
@@ -263,7 +269,8 @@ impl Job {
                 }
             }
             Outcome::Finished(landing) => {
-                let home_requested = self.forms.as_ref().is_some_and(Forms::go_home);
+                let home_requested =
+                    self.home_requested || self.forms.as_ref().is_some_and(Forms::go_home);
                 self.landing = Some(if home_requested {
                     Landing::Home
                 } else {
@@ -329,6 +336,10 @@ impl Job {
 
     /// Offers input to the command, now or when it next asks for some.
     pub fn feed(&mut self, input: Input, now: f64) {
+        if matches!(&input, Input::Key(key) if key.code == crossterm::event::KeyCode::Esc && key.kind != crossterm::event::KeyEventKind::Release)
+        {
+            self.home_requested = true;
+        }
         if let Some(forms) = self.forms.as_mut() {
             if forms.phase() == Phase::Executing {
                 forms.apply(input.clone(), now, host::size());
@@ -381,6 +392,7 @@ pub fn settle(result: Result<bool>, theme: Theme) -> Landing {
     match result {
         Ok(true) => Landing::Home,
         Ok(false) => Landing::Stay,
+        Err(error) if crate::prompt::is_home(&error) => Landing::Home,
         Err(error) if crate::prompt::is_cancelled(&error) => Landing::Cancelled,
         Err(error) => {
             crate::render::note(&theme.error_line("error:", &format!("{error:#}")));

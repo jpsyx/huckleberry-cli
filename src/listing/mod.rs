@@ -241,7 +241,15 @@ impl<'a> Listing<'a> {
             let line = body.iter().position(|line| line.row == Some(state.cursor));
             state.top = state::scrolled(state.top, line.unwrap_or(0), height, body.len());
 
-            let drawn = rendered(&head, &body, &state, self.verb, height, theme);
+            let verb = if state.searching {
+                self.verb
+            } else {
+                "↑/↓ j/k w/s move · / searches · Enter opens · ← h/a back · Esc home"
+            };
+            let drawn = rendered(&head, &body, &state, verb, height, theme)
+                .into_iter()
+                .map(|line| line.replace("esc clears", "← leaves filter · Esc home"))
+                .collect();
             let key = match crate::prompt::host::frame(drawn)? {
                 crate::prompt::host::Input::Key(key) => key,
                 crate::prompt::host::Input::Pasted(text) => {
@@ -274,7 +282,15 @@ impl<'a> Listing<'a> {
                         state.trouble.clone_from(&row.refusal);
                         continue;
                     }
-                    if !choosing && row.detail.is_empty() {
+                    if !choosing {
+                        if !row.detail.is_empty() {
+                            let lines = row
+                                .detail
+                                .iter()
+                                .map(|(label, value)| format!("{label}: {value}"))
+                                .collect::<Vec<_>>();
+                            crate::prompt::host::page(&lines, theme)?;
+                        }
                         continue;
                     }
                     return Ok(Some(row.key.clone()));
@@ -521,7 +537,11 @@ mod tests {
                     journey
                         .result
                         .as_ref()
-                        .is_err_and(crate::prompt::is_cancelled),
+                        .is_err_and(|error| if key == KeyCode::Esc {
+                            crate::prompt::is_home(error)
+                        } else {
+                            crate::prompt::is_cancelled(error)
+                        }),
                     "Back must bypass completion prompts: {:?}",
                     journey.result
                 );

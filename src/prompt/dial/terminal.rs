@@ -377,7 +377,7 @@ mod hosted_dial {
             .send(press(KeyCode::Esc, KeyModifiers::NONE))
             .expect("listening");
         let error = asking.join().expect("ends").expect_err("cancelled");
-        assert!(crate::prompt::is_cancelled(&error), "{error:#}");
+        assert!(crate::prompt::is_home(&error), "{error:#}");
         host::remove();
     }
 }

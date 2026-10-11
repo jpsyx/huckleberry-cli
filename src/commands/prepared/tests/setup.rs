@@ -78,12 +78,7 @@ fn prerequisite_completion_resumes_requested_command_once() {
         panic!("requested action must follow setup")
     };
     assert!(command.is_ready());
-    let (result, output) = hosted(move || {
-        tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(command.execute())
-    });
-    assert!(matches!(result, CommandProgress::Finished { .. }));
+    let output = read_view(*command);
     assert_eq!(
         output
             .iter()
@@ -161,11 +156,7 @@ fn completed_authentication_is_not_replayed_by_back_in_setup() {
     let CommandProgress::Continue(command) = progress else {
         panic!("requested command follows setup")
     };
-    let (_, output) = hosted(move || {
-        tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(command.execute())
-    });
+    let output = read_view(*command);
     assert_eq!(authentications.load(Ordering::SeqCst), 1);
     assert_eq!(
         output
@@ -174,4 +165,40 @@ fn completed_authentication_is_not_replayed_by_back_in_setup() {
             .count(),
         1
     );
+}
+
+fn read_view(command: prepared::PreparedCommand) -> Vec<String> {
+    let _serial = crate::prompt::host::one_at_a_time();
+    let channel = crate::prompt::host::install();
+    let worker = std::thread::spawn(move || {
+        tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(command.execute())
+    });
+    let mut output = Vec::new();
+    while !worker.is_finished() {
+        let Ok((request, reply)) = channel
+            .requests
+            .recv_timeout(std::time::Duration::from_millis(20))
+        else {
+            continue;
+        };
+        let answer = match request {
+            crate::prompt::host::Request::Frame(_) => {
+                crate::prompt::host::Reply::Input(key(KeyCode::Left))
+            }
+            crate::prompt::host::Request::Show(lines) => {
+                output.extend(lines);
+                crate::prompt::host::Reply::Shown
+            }
+            crate::prompt::host::Request::Step(_) => {
+                crate::prompt::host::Reply::Stepped { interrupted: false }
+            }
+        };
+        let _ = reply.send(answer);
+    }
+    crate::prompt::host::remove();
+    let result = worker.join().unwrap();
+    assert!(result.as_ref().is_err_and(crate::prompt::is_cancelled));
+    output
 }

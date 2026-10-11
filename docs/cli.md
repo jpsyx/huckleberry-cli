@@ -712,13 +712,14 @@ Static read results stay visible with Back selected by default, without a
 separate Continue prompt. Back from View logs or Foods List returns directly
 to its parent menu; Back from the Edit/Delete entry picker returns to Home.
 There is no second exit prompt or completion receipt after leaving a picker.
-Empty results and newly opened entry details stay visible until Back. Enter
+Empty results stay visible until Back. Entry details return to their listing,
+retaining its filter and selection; Help topics return to their topic chooser. Enter
 on a browsed food with no details leaves the list and selection in place. Trends
 still asks for its required metric before displaying a chart. Failed views offer
 Back and an explicit Retry; they never retry automatically.
 Successful logging returns home; views return to their parent menu. Other static
-results remain visible until Continue. Escape cancels unfinished input and returns
-to navigation. Failed writes return to
+results remain visible until Continue. Escape discards unfinished input and returns
+to Home, including from a focused search. Failed writes return to
 navigation after Continue and are never automatically retried. Bare nonterminal
 invocations print help and exit successfully. Explicit commands keep their
 scriptable behavior. Version is reported on the shell's status line rather than

@@ -20,7 +20,7 @@ fn summary_column_boundaries_and_shortcuts_stay_in_the_host_until_escape() {
     host::remove();
     let result = worker.join().unwrap();
     std::fs::remove_dir_all(directory).unwrap();
-    result.unwrap();
+    assert!(result.as_ref().is_err_and(crate::prompt::is_home));
     for frame in &frames {
         assert!(!frame.contains("as of"), "{frame}");
         assert!(!frame.contains("typical feed"), "{frame}");
@@ -51,12 +51,11 @@ fn answer_frames(channel: host::Channel) -> Vec<String> {
                 frames.push(lines.join("\n"));
                 let key = match frames.len() {
                     _ if frames.last().unwrap().contains("Anything else?") => KeyCode::Esc,
-                    1 => KeyCode::Left,
+                    1 | 6 => KeyCode::BackTab,
                     2 => KeyCode::Char('G'),
                     3 => KeyCode::Right,
                     4 => KeyCode::Char('g'),
                     5 => KeyCode::Tab,
-                    6 => KeyCode::BackTab,
                     _ => KeyCode::Esc,
                 };
                 reply

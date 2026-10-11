@@ -32,7 +32,13 @@ fn hosted(label: &str, items: &[MenuItem], default: usize, theme: Theme) -> Resu
     let mut state = Selection::new(items.len(), default);
     let (width, height) = crate::prompt::host::size();
     loop {
-        let lines = render(label, items, &state, width, height, theme);
+        let mut lines = render(label, items, &state, width, height, theme);
+        if let Some(hint) = lines.last_mut() {
+            *hint = theme.muted(&super::clip(
+                "↑/↓ j/k w/s · Enter select · ← h/a back · Esc home",
+                usize::from(width),
+            ));
+        }
         let crate::prompt::host::Input::Key(key) = crate::prompt::host::frame(lines)? else {
             // A menu has nothing to paste into.
             continue;
