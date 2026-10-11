@@ -570,7 +570,7 @@ mod tests {
         }
         assert!(lines[1].contains("bottle feed"), "{rendered}");
         assert!(lines[1].contains("nursed"), "{rendered}");
-        for heading in ["ml/feed", "nurse/feed", "avg sleep", "avg wake window"] {
+        for heading in ["ml/feed", "nurse/feed", "avg naps", "avg wake window"] {
             assert!(lines[2].contains(heading), "{rendered}");
         }
         assert!(lines[3].contains("120"), "{rendered}");
@@ -626,7 +626,7 @@ mod tests {
     }
 
     #[test]
-    fn summary_split_columns_plot_hours_from_their_own_measurements() {
+    fn summary_split_columns_plot_their_own_measurements() {
         use crate::domain::fixtures::sleep;
         let mut data = dataset();
         let calendar = calendar();
@@ -637,8 +637,11 @@ mod tests {
             sleep(at(23), 10800.0),
         ];
         let rows = summaries::build(&data, &calendar, rule(), AFTERNOON, 2);
-        for (heading, hours) in [
+        for (heading, value) in [
             ("day", 2.0),
+            ("night naps", 1.0),
+            ("day naps", 2.0),
+            ("avg naps", 2.0),
             ("avg night nap", 3.0),
             ("avg day nap", 1.5),
             ("day wake", 11.0),
@@ -649,7 +652,7 @@ mod tests {
                 .iter()
                 .find(|column| column.heading(Units::Ml) == heading)
                 .unwrap();
-            assert_eq!(column.value(&rows[1], Units::Ml), Some(hours), "{heading}");
+            assert_eq!(column.value(&rows[1], Units::Ml), Some(value), "{heading}");
         }
     }
 

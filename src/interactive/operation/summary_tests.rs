@@ -32,8 +32,8 @@ fn summary_column_boundaries_and_shortcuts_stay_in_the_host_until_escape() {
     assert_eq!(frames.len(), 7, "{frames:?}");
     assert!(frames[0].contains("[feeds]"), "{}", frames[0]);
     assert!(frames[1].contains("[feeds]"), "{}", frames[1]);
-    assert!(frames[2].contains("column 28/28"), "{}", frames[2]);
-    assert!(frames[3].contains("column 28/28"), "{}", frames[3]);
+    assert!(frames[2].contains("column 30/30"), "{}", frames[2]);
+    assert!(frames[3].contains("column 30/30"), "{}", frames[3]);
     assert!(frames[4].contains("[feeds]"), "{}", frames[4]);
     assert!(frames[5].contains("[milk ml]"), "{}", frames[5]);
     assert!(frames[6].contains("[feeds]"), "{}", frames[6]);

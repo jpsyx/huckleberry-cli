@@ -308,6 +308,8 @@ fn summary_to_json(row: &summaries::DaySummary) -> serde_json::Value {
 /// Keep sleep metrics together without exceeding the JSON macro's recursion limit.
 fn add_sleep_json(value: &mut serde_json::Value, row: &summaries::DaySummary) {
     value["sleeps"] = serde_json::json!(row.sleep_count);
+    value["night_naps"] = serde_json::json!(row.night_nap_count);
+    value["day_naps"] = serde_json::json!(row.day_nap_count);
     for (name, seconds) in [
         ("sleep_seconds", Some(row.sleep_seconds)),
         ("night_sleep_seconds", Some(row.night_sleep_seconds)),
@@ -670,5 +672,76 @@ mod tests {
         ];
         let json = summary_json(&data, AFTERNOON, 2);
         assert_eq!(json[1]["average_sleep_seconds"], 3600.0);
+    }
+
+    #[test]
+    fn summary_nap_counts_use_start_times_at_configured_boundaries() {
+        use crate::domain::fixtures::sleep;
+        let mut data = dataset();
+        data.sleep = vec![
+            sleep(at("2025-09-21", 6, 14), 120.0),
+            sleep(at("2025-09-21", 6, 15), 1800.0),
+            sleep(at("2025-09-21", 19, 29), 120.0),
+            sleep(at("2025-09-21", 19, 30), 1800.0),
+            sleep(at("2025-09-22", 5, 59), 1800.0),
+            sleep(at("2025-09-22", 6, 15), 1800.0),
+        ];
+        let calendar = Calendar::new("America/New_York").unwrap();
+        for rule in [
+            DayRule::discrete(6.25, 19.5),
+            DayRule::continuous(6.25, 19.5),
+        ] {
+            let json = rows_as_json(&summaries::build(&data, &calendar, rule, AFTERNOON, 3));
+            for (index, day_naps, night_naps) in [(0, 1, 0), (1, 2, 2), (2, 0, 1)] {
+                assert_eq!(json[index]["day_naps"], day_naps);
+                assert_eq!(json[index]["night_naps"], night_naps);
+                assert_eq!(json[index]["sleeps"], day_naps + night_naps);
+            }
+        }
+    }
+
+    #[test]
+    fn summary_nap_counts_follow_inverted_day_hours() {
+        use crate::domain::fixtures::sleep;
+        let mut data = dataset();
+        data.sleep = vec![
+            sleep(at("2025-09-21", 20, 0), 1800.0),
+            sleep(at("2025-09-22", 5, 59), 120.0),
+            sleep(at("2025-09-22", 6, 0), 1800.0),
+            sleep(at("2025-09-22", 19, 59), 120.0),
+            sleep(at("2025-09-22", 20, 0), 1800.0),
+        ];
+        let calendar = Calendar::new("America/New_York").unwrap();
+        let rows = summaries::build(
+            &data,
+            &calendar,
+            DayRule::discrete(20.0, 6.0),
+            at("2025-09-22", 23, 0),
+            2,
+        );
+        let json = rows_as_json(&rows);
+        assert_eq!(json[0]["day_naps"], 1);
+        assert_eq!(json[0]["night_naps"], 0);
+        assert_eq!(json[1]["day_naps"], 2);
+        assert_eq!(json[1]["night_naps"], 2);
+    }
+
+    #[test]
+    fn summary_nap_counts_exclude_unfinished_and_zero_duration_sleeps() {
+        use crate::domain::fixtures::sleep;
+        let mut data = dataset();
+        data.sleep = vec![
+            sleep(at("2025-09-22", 8, 0), 0.0),
+            sleep(at("2025-09-22", 13, 0), 7200.0),
+            sleep(at("2025-09-22", 20, 0), 1800.0),
+        ];
+        data.live.sleep_active = true;
+        data.live.sleep_start = Some(at("2025-09-22", 12, 0));
+        let json = summary_json(&data, AFTERNOON, 2);
+        for index in 0..2 {
+            assert_eq!(json[index]["day_naps"], 0);
+            assert_eq!(json[index]["night_naps"], 0);
+            assert_eq!(json[index]["sleeps"], 0);
+        }
     }
 }

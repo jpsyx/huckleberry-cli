@@ -195,7 +195,7 @@ Total feeds sits outside both subcategories:
 | Category | Columns |
 | --- | --- |
 | feed | feeds; bottle feed: milk, formula, breast, daytime milk, night milk, milk ml/feed (or milk oz/feed), % feed daytime; nursed: nursed, daytime nursed, night nursed, nurse/feed |
-| sleep | sleep, night, day, longest, avg sleep, avg night nap, avg day nap |
+| sleep | sleep, night, night naps, day, day naps, longest, avg naps, avg night nap, avg day nap |
 | wake time | wake time, night wake, day wake, avg wake window, avg night wake window, avg day wake window, longest |
 | diaper | wet, dirty |
 
@@ -286,7 +286,14 @@ No new reference ranges are attached to the new metrics.
 Sleep totals merge overlapping intervals and split them at both the day and
 night boundaries, using actual elapsed seconds through daylight saving changes.
 Completed sleep counts and the longest sleep belong to the day the sleep began.
-Average sleep is the mean full duration of completed sleeps that began on the
+`night naps` follows the night duration and `day naps` follows the day duration.
+Each counts completed sleeps by their start time: a nap starting in daytime
+counts only as a day nap even if it ends at night, and a night nap crossing
+`day_start` stays on the preceding family day's row. Daytime includes `day_start`
+and ends just before `day_end`; a start exactly at `day_end` counts as night.
+Like the other count columns, a zero count prints a dash; JSON exposes
+numeric `night_naps` and `day_naps` counts, including zero.
+`avg naps` is the mean full duration of completed sleeps that began on the
 row's family day, including both daytime and nighttime starts. Unfinished live
 sleeps do not contribute. `avg night nap` and `avg day nap` use the same
 full durations: day sleeps start before the configured night start, and night

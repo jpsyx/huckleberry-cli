@@ -175,13 +175,19 @@ pub const COLUMNS: &[Column] = &[
     Column::new("sleep", "night*", Kind::Duration, |row| {
         recorded(row.night_sleep_seconds)
     }),
+    Column::new("sleep", "night naps", Kind::Count, |row| {
+        recorded(row.night_nap_count as f64)
+    }),
     Column::new("sleep", "day", Kind::Duration, |row| {
         recorded(row.day_sleep_seconds)
+    }),
+    Column::new("sleep", "day naps", Kind::Count, |row| {
+        recorded(row.day_nap_count as f64)
     }),
     Column::new("sleep", "longest", Kind::Duration, |row| {
         recorded(row.longest_sleep_seconds)
     }),
-    Column::new("sleep", "avg sleep", Kind::Duration, |row| {
+    Column::new("sleep", "avg naps", Kind::Duration, |row| {
         row.average_sleep_seconds
     }),
     Column::new("sleep", "avg night nap", Kind::Duration, |row| {
@@ -323,7 +329,7 @@ mod tests {
     use super::*;
     use crate::domain::{
         Calendar,
-        fixtures::{AFTERNOON, bottle, dataset, nursing},
+        fixtures::{AFTERNOON, bottle, dataset, nursing, sleep},
         summaries,
         today::DayRule,
         types::FeedEvent,
@@ -372,6 +378,32 @@ mod tests {
                 } else {
                     assert_eq!(column.value(&row, units), None);
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn nap_counts_follow_their_durations_in_table_and_chart() {
+        let calendar = Calendar::new("America/New_York").unwrap();
+        let at = |hour| calendar.at("2025-09-21".parse().unwrap(), hour, 0);
+        let mut data = dataset();
+        data.sleep = vec![
+            sleep(at(8), 3600.0),
+            sleep(at(19), 7200.0),
+            sleep(at(23), 10800.0),
+        ];
+        let rows = summaries::build(&data, &calendar, DayRule::assumed(), AFTERNOON, 2);
+        for (heading, preceding, count) in [("night naps", "night*", "1"), ("day naps", "day", "2")]
+        {
+            let index = COLUMNS
+                .iter()
+                .position(|column| column.heading(Units::Ml) == heading)
+                .expect("a selectable nap count column");
+            assert_eq!(COLUMNS[index - 1].heading(Units::Ml), preceding);
+            for units in [Units::Ml, Units::Oz] {
+                let cells = data_cells(&rows[1], units, index - 1..index + 1);
+                assert_eq!(cells[1].trim(), count);
+                assert_eq!(COLUMNS[index].title(units), format!("sleep / {heading}"));
             }
         }
     }

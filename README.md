@@ -143,8 +143,10 @@ pediatrician note stay in the Now drawer instead of repeating below the table.
 
 Wake totals estimate time outside recorded sleep; wake gaps require two sleeps.
 Rows marked `~` are partial, either today or days with limited snapshot coverage.
-Sleep averages include completed daytime and nighttime sleeps. Wake gaps belong
-to the day waking began, and unfinished gaps are excluded. Feeding day/night
+`avg naps` includes completed daytime and nighttime sleeps. `night naps` and
+`day naps` follow their matching duration columns and count completed sleeps
+by start time, even when a nap crosses a day/night or family-day boundary.
+Wake gaps belong to the day waking began, and unfinished gaps are excluded. Feeding day/night
 splits follow each feed's start time. The chart's dense `···` line averages
 recorded values from the previous seven complete family days, excluding today,
 incomplete snapshot days, and missing values. Its quantity appears in magenta

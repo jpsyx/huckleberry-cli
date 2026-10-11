@@ -86,9 +86,9 @@ either, say which.
 | **day start** | The hour a day begins at. Anything earlier belongs to the day before. Always configured. |
 | **day end** | The hour a day ends at, which is where night begins. Always configured. Was called **night start**, which is the same hour under a name that made it sound like a third setting. |
 | **the night** | The stretch from `day_end` to the next `day_start`. Not configured separately: it is what is left over. |
-| **average sleep** (in summary) | Mean full duration of all completed sleeps starting on a family day, including night sleeps. The `avg day nap` and `avg night nap` columns separate these by start time. |
+| **avg naps** (in summary) | Mean full duration of all completed sleeps starting on a family day, including night sleeps. The `avg day nap` and `avg night nap` columns separate these by start time. |
 | **the 7-day average line** | Dotted horizontal chart line: mean of recorded values in the preceding seven complete family days, excluding today, with its quantity in magenta beside the line. |
-| **a nap** (in summary) | A completed sleep starting in the configured daytime. Its full duration belongs to its start day. |
+| **a nap** (in summary) | A completed sleep. Day naps start in the configured daytime; night naps start in the configured night. Counts and full-duration averages belong to the family day and day/night category where the nap started, even when it crosses a boundary. |
 | **a wake gap**, **a wake window** | A complete span from one sleep ending to the next starting, assigned to the day waking began. `avg wake window` averages these spans; `avg day wake window` and `avg night wake window` classify them by start time. |
 | **bottle feed**, **nursed** (summary subcategories) | The second Feed header row: bottle milk amounts, averages and daytime percentage, then nursing durations and averages. Total feeds belongs to neither. |
 | **% feed daytime** | Recorded daytime milk volume as a percentage of the family day's total milk volume. Follows milk/feed in the bottle feed subcategory. |

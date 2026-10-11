@@ -54,8 +54,10 @@ fn completed_sleeps(
         row.sleep_count += 1;
         row.longest_sleep_seconds = row.longest_sleep_seconds.max(sleep.duration);
         if sleep.start < night_start {
+            row.day_nap_count += 1;
             naps.push(sleep.duration);
         } else {
+            row.night_nap_count += 1;
             night_sleeps.push(sleep.duration);
         }
     }

@@ -73,6 +73,10 @@ pub struct DaySummary {
     pub day_sleep_seconds: f64,
     /// Sleeps that began on this day.
     pub sleep_count: usize,
+    /// Completed sleeps starting in daytime on this family day.
+    pub day_nap_count: usize,
+    /// Completed sleeps starting at night on this family day.
+    pub night_nap_count: usize,
     /// The longest of them.
     pub longest_sleep_seconds: f64,
     /// Mean full duration of all completed sleeps starting on this day.
@@ -158,6 +162,8 @@ impl DaySummary {
             night_sleep_seconds: 0.0,
             day_sleep_seconds: 0.0,
             sleep_count: 0,
+            day_nap_count: 0,
+            night_nap_count: 0,
             longest_sleep_seconds: 0.0,
             average_nap_seconds: None,
             average_sleep_seconds: None,
