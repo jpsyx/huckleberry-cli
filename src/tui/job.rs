@@ -263,13 +263,15 @@ impl Job {
         let Some(forms) = self.forms.as_mut() else {
             return;
         };
-        if forms.phase() != Phase::Collecting {
+        if !matches!(forms.phase(), Phase::Collecting | Phase::Ready) {
             return;
         }
         let size = host::size();
-        self.exchange.show(forms.render(now, size, self.theme));
-        if let Some(input) = self.exchange.take() {
-            forms.apply(input, now, size);
+        if forms.phase() == Phase::Collecting {
+            self.exchange.show(forms.render(now, size, self.theme));
+            if let Some(input) = self.exchange.take() {
+                forms.apply(input, now, size);
+            }
         }
         if let Some(execution) = forms.take_execution() {
             self.exchange = Exchange::default();

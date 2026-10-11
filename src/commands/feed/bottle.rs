@@ -1,44 +1,116 @@
-//! Bottle recording and defaults.
+//! Bottle defaults are read once, before collecting or executing the owned draft.
 use super::{
-    BottleInput, BottleKind, Choice, Context, Huckleberry, Question, Result, Units, ask_for_notes,
-    bail, format, prompt,
+    BottleInput,
+    bottle_form::{self, BottleDefaults, BottleForm, BottleSubmission},
 };
-/// Records a bottle, asking for everything that was not given.
-///
-/// Every question a bottle has, starting with when, then which units,
-/// how much, what was in it, and anything to note. A flag answers its own
-/// question and no others, so the fast path stays one line and the slow path
-/// never leaves a field unrecordable.
+use crate::{
+    cli::{BottleKind, Units},
+    prompt::{self, flow::runner},
+    render::format,
+    session::Context,
+};
+use anyhow::Result;
+use huckleberry_api::Huckleberry;
+
+/// Records a bottle using the same typed form and executor as the shell.
 pub(super) async fn bottle(
     context: &Context,
     client: &Huckleberry,
     cid: &str,
     input: BottleInput<'_>,
 ) -> Result<()> {
-    let BottleInput {
-        amount,
-        bottle_type,
-        units,
-        notes,
-        at,
-    } = input;
-    let at = prompt::time::read_at(context, at)?;
-    // The `units` setting is the default, not the answer: somebody who mostly
-    // records in ounces still gives the odd bottle in millilitres.
-    let configured = Units::from_setting(&context.config.units);
-    let (units, amount) = resolve_volume(context, client, cid, configured, units, amount).await?;
-    if amount.partial_cmp(&0.0) != Some(core::cmp::Ordering::Greater) {
-        bail!("a bottle needs an amount greater than zero, not {amount}");
-    }
-    let kind = match bottle_type {
-        Some(given) => given,
-        None => ask_for_bottle_type(context, client, cid).await?,
-    };
-    let notes = match notes {
-        Some(given) => Some(given.to_owned()),
-        None => ask_for_notes(context)?,
-    };
+    let model = create_model(context, client, cid, input).await?;
+    let answer = runner::read(model, huckleberry_api::client::now_seconds(), context.theme)?;
+    execute(context, client, cid, answer).await
+}
 
+pub(super) async fn create_model(
+    context: &Context,
+    client: &Huckleberry,
+    cid: &str,
+    input: BottleInput<'_>,
+) -> Result<BottleForm> {
+    let at = crate::prompt::time::resolve_at(
+        context,
+        input.at,
+        prompt::available() || prompt::host::hosted(),
+    )?;
+    let units = input
+        .units
+        .unwrap_or_else(|| Units::from_setting(&context.config.units));
+    let defaults = read_defaults(
+        client,
+        cid,
+        units,
+        input.amount.is_none() || input.bottle_type.is_none(),
+    )
+    .await;
+    BottleForm::create_bottle(
+        context.calendar()?,
+        bottle_form::BottleInput {
+            at,
+            amount: input.amount,
+            units: input.units,
+            kind: input.bottle_type,
+            notes: input.notes.map(str::to_owned),
+        },
+        defaults,
+    )
+}
+
+async fn read_defaults(
+    client: &Huckleberry,
+    cid: &str,
+    units: Units,
+    needs_defaults: bool,
+) -> BottleDefaults {
+    let prefs = if needs_defaults {
+        client
+            .feed_document(cid)
+            .await
+            .ok()
+            .flatten()
+            .and_then(|document| document.prefs)
+    } else {
+        None
+    };
+    let amount = offered_amount(
+        prefs
+            .as_ref()
+            .and_then(|prefs| prefs.bottle_amount)
+            .map(huckleberry_api::models::common::Number::as_f64),
+        prefs.as_ref().and_then(|prefs| prefs.bottle_units.as_ref()),
+        units,
+    );
+    let kind = match prefs
+        .as_ref()
+        .and_then(|prefs| prefs.bottle_type.as_ref())
+        .map(huckleberry_api::models::BottleType::as_str)
+    {
+        Some("Breast Milk") => BottleKind::BreastMilk,
+        Some("Cow Milk") => BottleKind::CowMilk,
+        _ => BottleKind::Formula,
+    };
+    BottleDefaults {
+        units,
+        amount,
+        kind,
+    }
+}
+
+pub(super) async fn execute(
+    context: &Context,
+    client: &Huckleberry,
+    cid: &str,
+    answer: BottleSubmission,
+) -> Result<()> {
+    let BottleSubmission {
+        at,
+        amount,
+        units,
+        kind,
+        notes,
+    } = answer;
     client
         .log_bottle_at(
             cid,
@@ -65,88 +137,6 @@ pub(super) async fn bottle(
     Ok(())
 }
 
-/// Which units this bottle is being recorded in.
-///
-/// Asked every time, because the answer is about this bottle and not about the
-/// family: the `units` setting is what Enter takes, and
-/// `h config set units oz` is how somebody changes what Enter takes.
-fn ask_for_units(context: &Context, configured: Units) -> Result<Units> {
-    const CHOICES: [Choice<'static>; 2] = [
-        Choice {
-            value: "ml",
-            hint: "Millilitres",
-        },
-        Choice {
-            value: "oz",
-            hint: "Fluid ounces",
-        },
-    ];
-    let question = Question::new("units", "In which units?", "--units <UNITS>")
-        .with_choices(&CHOICES)
-        .with_default(configured.as_str());
-    Ok(Units::from_setting(&prompt::ask(&question, context.theme)?))
-}
-
-/// How much, and in what.
-///
-/// One question in the shell. The units were never a separate thing to
-/// decide: "how much" is a single answer with a number and a unit in it, and
-/// asking twice made somebody confirm a choice they had already made. The
-/// dial carries both columns, and turning the units changes the wording
-/// rather than the quantity.
-///
-/// Two questions everywhere else, and whenever a flag already answered one of
-/// them, because a flag that is also asked is a flag that was ignored.
-async fn resolve_volume(
-    context: &Context,
-    client: &Huckleberry,
-    cid: &str,
-    configured: Units,
-    given_units: Option<Units>,
-    given_amount: Option<f64>,
-) -> Result<(Units, f64)> {
-    if let (Some(units), Some(amount)) = (given_units, given_amount) {
-        return Ok((units, amount));
-    }
-    let last = last_bottle(client, cid).await;
-    if given_units.is_none() && given_amount.is_none() && prompt::host::hosted() {
-        let offered = offered_amount(last.0, last.1.as_ref(), configured);
-        return prompt::dial::volume::ask("How much?", configured, offered, context.theme);
-    }
-    let units = match given_units {
-        Some(given) => given,
-        None => ask_for_units(context, configured)?,
-    };
-    let amount = match given_amount {
-        Some(given) => given,
-        None => ask_for_amount(context, &last, units)?,
-    };
-    Ok((units, amount))
-}
-
-/// What was in the last bottle, and the units somebody recorded it in.
-async fn last_bottle(
-    client: &Huckleberry,
-    cid: &str,
-) -> (
-    Option<f64>,
-    Option<huckleberry_api::models::feed::VolumeUnits>,
-) {
-    let prefs = client
-        .feed_document(cid)
-        .await
-        .ok()
-        .flatten()
-        .and_then(|document| document.prefs);
-    (
-        prefs
-            .as_ref()
-            .and_then(|prefs| prefs.bottle_amount)
-            .map(huckleberry_api::models::common::Number::as_f64),
-        prefs.and_then(|prefs| prefs.bottle_units),
-    )
-}
-
 /// The last bottle's amount, in the units this one is being recorded in.
 ///
 /// The app stores that amount in whatever units it was recorded in, so
@@ -162,83 +152,4 @@ pub fn offered_amount(
         .and_then(|units| Units::from_stored(units.as_str()))
         .unwrap_or(wanted);
     last.map(|amount| format::convert(amount, recorded_in, wanted))
-}
-
-/// Offers the last bottle's amount as the default, which is almost always the
-/// right answer and saves the typing that matters at 3am.
-fn ask_for_amount(
-    context: &Context,
-    last: &(
-        Option<f64>,
-        Option<huckleberry_api::models::feed::VolumeUnits>,
-    ),
-    units: Units,
-) -> Result<f64> {
-    let last = offered_amount(last.0, last.1.as_ref(), units)
-        .map(|amount| format::amount_in(amount, units));
-
-    let label = format!("How much, in {}?", units.as_str());
-    let mut question = Question::new("amount", &label, "--amount <NUMBER>");
-    if let Some(default) = &last {
-        question = question.with_default(default);
-    }
-    let answer = prompt::ask(&question, context.theme)?;
-    answer
-        .trim()
-        .parse()
-        .map_err(|_| anyhow::anyhow!("`{answer}` is not a number"))
-}
-
-/// Offers the bottle kinds, with the last one used first.
-async fn ask_for_bottle_type(
-    context: &Context,
-    client: &Huckleberry,
-    cid: &str,
-) -> Result<BottleKind> {
-    const CHOICES: [Choice<'static>; 4] = [
-        Choice {
-            value: "formula",
-            hint: "Formula",
-        },
-        Choice {
-            value: "breast-milk",
-            hint: "Expressed breast milk",
-        },
-        Choice {
-            value: "cow-milk",
-            hint: "Cow milk",
-        },
-        Choice {
-            value: "other",
-            hint: "Something else",
-        },
-    ];
-
-    let last = client
-        .feed_document(cid)
-        .await
-        .ok()
-        .flatten()
-        .and_then(|document| document.prefs)
-        .and_then(|prefs| prefs.bottle_type)
-        .map(|kind| kind.as_str().to_owned());
-
-    let default = match last.as_deref() {
-        Some("Breast Milk") => Some("breast-milk"),
-        Some("Cow Milk") => Some("cow-milk"),
-        Some("Formula") => Some("formula"),
-        _ => None,
-    };
-    let mut question =
-        Question::new("bottle type", "What was in it?", "--type <KIND>").with_choices(&CHOICES);
-    if let Some(value) = default {
-        question = question.with_default(value);
-    }
-    let answer = prompt::ask(&question, context.theme)?;
-    Ok(match answer.as_str() {
-        "breast-milk" => BottleKind::BreastMilk,
-        "cow-milk" => BottleKind::CowMilk,
-        "other" => BottleKind::Other,
-        _ => BottleKind::Formula,
-    })
 }

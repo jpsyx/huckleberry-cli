@@ -1,12 +1,10 @@
 //! `feed`: bottles, the nursing timer, and meals.
 
 use anyhow::{Result, bail};
-use huckleberry_api::client::now_seconds;
-use huckleberry_api::models::feed::FeedSide;
+use huckleberry_api::Huckleberry;
 use huckleberry_api::models::solids::FoodReference;
-use huckleberry_api::{Huckleberry, TimerChange};
 
-use crate::cli::{BottleKind, FeedAction, NursingAction, Reaction, Side, Units};
+use crate::cli::{BottleKind, FeedAction, Reaction, Units};
 use crate::prompt::{self, Choice, Question};
 use crate::render::{format, output};
 use crate::session::Context;
@@ -82,7 +80,10 @@ pub async fn run(context: &Context, action: &FeedAction) -> Result<()> {
 }
 
 mod bottle;
+pub mod bottle_form;
 mod nursing;
+pub mod nursing_form;
+pub(crate) mod prepare;
 pub mod solids;
 pub use bottle::offered_amount;
 pub use solids::match_food;

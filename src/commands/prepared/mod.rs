@@ -41,15 +41,24 @@ impl PreparedCommand {
     ) -> Result<Self>
     where
         Form: FormModel + Send + 'static,
+        Form::Output: Send + 'static,
         Execute: FnOnce(Form::Output) -> Work + Send + 'static,
         Work: Future<Output = Result<CommandProgress>> + Send + 'static,
     {
+        let state = if model.route().is_empty() {
+            forms::Collection::Answer(model.complete()?)
+        } else {
+            forms::Collection::Form(FormState::create_form(model, now)?)
+        };
         Ok(Self {
-            form: Box::new(forms::Prepared {
-                state: FormState::create_form(model, now)?,
-                execute,
-            }),
+            form: Box::new(forms::Prepared { state, execute }),
         })
+    }
+
+    /// Whether all inputs were supplied and no collection is necessary.
+    #[must_use]
+    pub fn is_ready(&self) -> bool {
+        self.form.is_ready()
     }
 
     /// Applies one key to the owned form, without performing I/O.

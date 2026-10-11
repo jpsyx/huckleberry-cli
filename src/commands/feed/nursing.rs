@@ -1,86 +1,70 @@
-//! Nursing timer actions.
-use super::{
-    Choice, Context, FeedSide, Huckleberry, NursingAction, Question, Result, Side, TimerChange,
-    format, now_seconds, output, prompt,
+//! Nursing collection and execution share one typed transition across transports.
+use super::nursing_form::{NursingForm, NursingInput, NursingOperation, NursingSubmission};
+use crate::{
+    cli::{NursingAction, Side},
+    prompt::{self, flow::runner},
+    render::{format, output},
+    session::Context,
 };
-/// Runs the nursing timer.
+use anyhow::{Result, bail};
+use huckleberry_api::{Huckleberry, TimerChange, client::now_seconds, models::feed::FeedSide};
+
+/// Runs a nursing action or opens its read-only status view.
 pub(super) async fn nursing(
     context: &Context,
     client: &Huckleberry,
     cid: &str,
     action: &NursingAction,
 ) -> Result<()> {
-    match action {
-        NursingAction::Start { side, start } => {
-            let at = prompt::time::read_start(context, start.as_deref())?;
-            let side = match side {
-                Some(given) => given.to_api(),
-                None => suggested_side(context, client, cid).await?,
-            };
-            client.start_nursing_at(cid, side.clone(), at).await?;
-            context.report(&format!("Nursing started on the {side}."));
-            Ok(())
-        }
-        NursingAction::Pause { at } => {
-            let at = prompt::time::read_at(context, at.as_deref())?;
-            report(
-                context,
-                client.pause_nursing_at(cid, at).await?,
-                "Paused.",
-                "paused",
-            );
-            Ok(())
-        }
-        NursingAction::Resume { side, at } => {
-            let at = prompt::time::read_at(context, at.as_deref())?;
-            report(
-                context,
-                client
-                    .resume_nursing_at(cid, side.map(Side::to_api), at)
-                    .await?,
-                "Resumed.",
-                "running",
-            );
-            Ok(())
-        }
-        NursingAction::Switch { at } => {
-            let at = prompt::time::read_at(context, at.as_deref())?;
-            report(
-                context,
-                client.switch_nursing_side_at(cid, at).await?,
-                "Switched sides.",
-                "running",
-            );
-            Ok(())
-        }
-        NursingAction::Cancel => {
-            report(
-                context,
-                client.cancel_nursing(cid).await?,
-                "Thrown away. Nothing was recorded.",
-                "not running",
-            );
-            Ok(())
-        }
-        NursingAction::Stop { at } => stop_nursing(context, client, cid, at.as_deref()).await,
-        NursingAction::Status => nursing_status(context, client, cid).await,
+    if matches!(action, NursingAction::Status) {
+        return nursing_status(context, client, cid).await;
     }
+    let model = create_model(context, client, cid, action).await?;
+    let answer = runner::read(model, now_seconds(), context.theme)?;
+    execute(context, client, cid, answer).await
 }
 
-/// Which side to offer: the one opposite the last feed, which is what the app
-/// suggests and what a parent half asleep wants pre-filled.
-async fn suggested_side(context: &Context, client: &Huckleberry, cid: &str) -> Result<FeedSide> {
-    const CHOICES: [Choice<'static>; 2] = [
-        Choice {
-            value: "left",
-            hint: "The left side",
+pub(super) async fn create_model(
+    context: &Context,
+    client: &Huckleberry,
+    cid: &str,
+    action: &NursingAction,
+) -> Result<NursingForm> {
+    let (operation, given_at, side) = match action {
+        NursingAction::Start { start, side } => (NursingOperation::Start, start.as_deref(), *side),
+        NursingAction::Pause { at } => (NursingOperation::Pause, at.as_deref(), None),
+        NursingAction::Resume { at, side } => (NursingOperation::Resume, at.as_deref(), *side),
+        NursingAction::Switch { at } => (NursingOperation::Switch, at.as_deref(), None),
+        NursingAction::Stop { at } => (NursingOperation::Stop, at.as_deref(), None),
+        NursingAction::Cancel => (NursingOperation::Cancel, None, None),
+        NursingAction::Status => bail!("nursing status has no form"),
+    };
+    let at = if operation == NursingOperation::Cancel {
+        None
+    } else {
+        crate::prompt::time::resolve_at(
+            context,
+            given_at,
+            prompt::available() || prompt::host::hosted(),
+        )?
+    };
+    let suggested = if operation == NursingOperation::Start && side.is_none() {
+        suggested_side(client, cid).await
+    } else {
+        Side::Left
+    };
+    Ok(NursingForm::create_nursing(
+        context.calendar()?,
+        NursingInput {
+            operation,
+            at,
+            side,
         },
-        Choice {
-            value: "right",
-            hint: "The right side",
-        },
-    ];
+        suggested,
+    ))
+}
 
+async fn suggested_side(client: &Huckleberry, cid: &str) -> Side {
     let last = client
         .feed_document(cid)
         .await
@@ -89,43 +73,68 @@ async fn suggested_side(context: &Context, client: &Huckleberry, cid: &str) -> R
         .and_then(|document| document.prefs)
         .and_then(|prefs| prefs.last_side)
         .map(|side| side.last_side);
-
-    // The app suggests the side opposite the last feed, and so does this.
-    let suggested = if last == Some(FeedSide::Left) {
-        "right"
+    if last == Some(FeedSide::Left) {
+        Side::Right
     } else {
-        "left"
-    };
-    let question = Question::new("side", "Which side?", "--side <SIDE>")
-        .with_choices(&CHOICES)
-        .with_default(suggested);
-    let answer = prompt::ask(&question, context.theme)?;
-    Ok(if answer == "right" {
-        FeedSide::Right
-    } else {
-        FeedSide::Left
-    })
+        Side::Left
+    }
 }
 
-async fn stop_nursing(
+pub(super) async fn execute(
     context: &Context,
     client: &Huckleberry,
     cid: &str,
-    at: Option<&str>,
+    answer: NursingSubmission,
 ) -> Result<()> {
-    let at = prompt::time::read_at(context, at)?;
-    match client.complete_nursing_at(cid, at).await? {
-        Some(completed) => {
-            context.receipt(
-                "🤱 Nursing recorded",
-                &output::nursing_fields(completed.left_seconds, completed.right_seconds),
-                &[
-                    format!("total_seconds\t{:.0}", completed.total_seconds()),
-                    format!("left_seconds\t{:.0}", completed.left_seconds),
-                    format!("right_seconds\t{:.0}", completed.right_seconds),
-                ],
-            );
+    let at = answer.at.unwrap_or_default(); // Cancel is the only operation without a time.
+    match answer.operation {
+        NursingOperation::Start => {
+            let side = answer.side.expect("validated start side").to_api();
+            client.start_nursing_at(cid, side.clone(), at).await?;
+            context.report(&format!("Nursing started on the {side}."));
         }
+        NursingOperation::Pause => report(
+            context,
+            client.pause_nursing_at(cid, at).await?,
+            "Paused.",
+            "paused",
+        ),
+        NursingOperation::Resume => report(
+            context,
+            client
+                .resume_nursing_at(cid, answer.side.map(Side::to_api), at)
+                .await?,
+            "Resumed.",
+            "running",
+        ),
+        NursingOperation::Switch => report(
+            context,
+            client.switch_nursing_side_at(cid, at).await?,
+            "Switched sides.",
+            "running",
+        ),
+        NursingOperation::Cancel => report(
+            context,
+            client.cancel_nursing(cid).await?,
+            "Thrown away. Nothing was recorded.",
+            "not running",
+        ),
+        NursingOperation::Stop => stop_nursing(context, client, cid, at).await?,
+    }
+    Ok(())
+}
+
+async fn stop_nursing(context: &Context, client: &Huckleberry, cid: &str, at: f64) -> Result<()> {
+    match client.complete_nursing_at(cid, at).await? {
+        Some(completed) => context.receipt(
+            "🤱 Nursing recorded",
+            &output::nursing_fields(completed.left_seconds, completed.right_seconds),
+            &[
+                format!("total_seconds\t{:.0}", completed.total_seconds()),
+                format!("left_seconds\t{:.0}", completed.left_seconds),
+                format!("right_seconds\t{:.0}", completed.right_seconds),
+            ],
+        ),
         None => context.warn("No nursing session was running."),
     }
     Ok(())

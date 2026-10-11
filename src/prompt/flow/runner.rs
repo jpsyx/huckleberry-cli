@@ -15,6 +15,14 @@ use crossterm::{
 };
 use huckleberry_api::client::now_seconds;
 
+/// Uses the same form for terminal questions and fully supplied flag inputs.
+pub fn read<Form: FormModel>(model: Form, now: f64, theme: Theme) -> Result<Form::Output> {
+    if model.route().is_empty() || !(prompt::available() || host::hosted()) {
+        return model.complete();
+    }
+    collect(&mut FormState::create_form(model, now)?, theme)
+}
+
 /// Collects a form through a host or the existing standalone terminal transport.
 pub fn collect<Form: FormModel>(form: &mut FormState<Form>, theme: Theme) -> Result<Form::Output> {
     if host::hosted() {

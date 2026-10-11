@@ -1,7 +1,7 @@
 //! Preparation resolves prerequisites and binds each form to its existing operation.
 use super::PreparedCommand;
 use crate::{
-    cli::{Command, actions::DiaperFlags},
+    cli::{Command, FeedAction, NursingAction, actions::DiaperFlags},
     commands::{diaper, diaper_form::DiaperInput},
     session::Context,
 };
@@ -13,7 +13,36 @@ pub async fn prepare(
     command: Command,
     now: f64,
 ) -> Result<Option<PreparedCommand>> {
-    let (input, at) = match command {
+    if let Command::Feed { action } = command {
+        if matches!(
+            action,
+            FeedAction::Nursing {
+                action: NursingAction::Status
+            } | FeedAction::Solids { .. }
+        ) {
+            return Ok(None);
+        }
+        let (client, cid) = crate::commands::client_and_child(&context).await?;
+        return crate::commands::feed::prepare::prepare_with_client(
+            context, client, cid, action, now,
+        )
+        .await
+        .map(Some);
+    }
+    let Some((input, at)) = diaper_input(command) else {
+        return Ok(None);
+    };
+    let (client, cid) = crate::commands::client_and_child(&context).await?;
+    let input = DiaperInput {
+        at: crate::prompt::time::resolve_at(&context, at.as_deref(), true)?,
+        ..input
+    };
+    diaper::prepare_with_client(context, client, cid, input, now).map(Some)
+}
+
+fn diaper_input(command: Command) -> Option<(DiaperInput, Option<String>)> {
+    let mut input = DiaperInput::default();
+    let at = match command {
         Command::Diaper {
             at,
             mode,
@@ -23,21 +52,18 @@ pub async fn prepare(
             consistency,
             rash,
             notes,
-        } => (
-            DiaperInput {
-                mode,
-                flags: DiaperFlags {
-                    pee,
-                    poo,
-                    color,
-                    consistency,
-                    rash,
-                },
-                notes,
-                ..DiaperInput::default()
-            },
-            at,
-        ),
+        } => {
+            input.mode = mode;
+            input.flags = DiaperFlags {
+                pee,
+                poo,
+                color,
+                consistency,
+                rash,
+            };
+            input.notes = notes;
+            at
+        }
         Command::Potty {
             at,
             mode,
@@ -45,29 +71,16 @@ pub async fn prepare(
             color,
             consistency,
             notes,
-        } => (
-            DiaperInput {
-                mode,
-                outcome: how,
-                potty: true,
-                flags: DiaperFlags {
-                    pee: None,
-                    poo: None,
-                    color,
-                    consistency,
-                    rash: false,
-                },
-                notes,
-                at: None,
-            },
-            at,
-        ),
-        _ => return Ok(None),
+        } => {
+            input.potty = true;
+            input.mode = mode;
+            input.outcome = how;
+            input.flags.color = color;
+            input.flags.consistency = consistency;
+            input.notes = notes;
+            at
+        }
+        _ => return None,
     };
-    let (client, cid) = crate::commands::client_and_child(&context).await?;
-    let input = DiaperInput {
-        at: diaper::resolve_at(&context, at.as_deref(), true)?,
-        ..input
-    };
-    diaper::prepare_with_client(context, client, cid, input, now).map(Some)
+    Some((input, at))
 }

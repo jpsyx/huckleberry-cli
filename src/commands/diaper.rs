@@ -70,7 +70,7 @@ pub async fn potty(
 async fn run_input(context: &Context, mut input: DiaperInput, at: Option<&str>) -> Result<()> {
     let (client, cid) = super::client_and_child(context).await?;
     let interactive = prompt::available() || prompt::host::hosted();
-    input.at = resolve_at(context, at, interactive)?;
+    input.at = prompt::time::resolve_at(context, at, interactive)?;
     let model = DiaperForm::create_diaper(context.calendar()?, input);
     let submission = if interactive && !model.route().is_empty() {
         runner::collect(
@@ -81,18 +81,6 @@ async fn run_input(context: &Context, mut input: DiaperInput, at: Option<&str>) 
         model.complete()?
     };
     execute(context, &client, &cid, submission).await
-}
-
-pub(crate) fn resolve_at(
-    context: &Context,
-    at: Option<&str>,
-    interactive: bool,
-) -> Result<Option<f64>> {
-    if at.is_some() || !interactive {
-        prompt::time::read_at(context, at).map(Some)
-    } else {
-        Ok(None)
-    }
 }
 
 /// Binds an owned draft to its prepared client without executing a write.

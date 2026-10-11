@@ -63,7 +63,14 @@ pub trait FormModel {
     /// Validates an answer before updating the draft.
     fn accept(&mut self, id: &ViewId, value: FormValue, now: f64) -> Result<()>;
     /// The following view, or completion after the last applicable answer.
-    fn forward(&self, id: &ViewId) -> Option<ViewId>;
+    fn forward(&self, id: &ViewId) -> Option<ViewId> {
+        let route = self.route();
+        route
+            .iter()
+            .position(|view| view == id)
+            .and_then(|index| route.get(index + 1))
+            .cloned()
+    }
     /// Validates and constructs the submission from applicable answers only.
     fn complete(&self) -> Result<Self::Output>;
 }

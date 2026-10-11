@@ -125,3 +125,35 @@ async fn escaping_a_write_waits_for_its_result() {
     assert_eq!(form.phase(), Phase::Result);
     assert!(form.go_home());
 }
+
+struct Complete;
+impl FormModel for Complete {
+    type Output = ();
+    fn route(&self) -> Vec<ViewId> {
+        Vec::new()
+    }
+    fn create_view(&self, _: &ViewId, _: f64) -> Result<View> {
+        panic!("nothing to ask")
+    }
+    fn accept(&mut self, _: &ViewId, _: FormValue, _: f64) -> Result<()> {
+        panic!("nothing to answer")
+    }
+    fn forward(&self, _: &ViewId) -> Option<ViewId> {
+        None
+    }
+    fn complete(&self) -> Result<()> {
+        Ok(())
+    }
+}
+#[tokio::test]
+async fn complete_inputs_execute_without_an_artificial_question() {
+    let prepared = PreparedCommand::create_prepared(Complete, 1000.0, |()| async {
+        Ok(CommandProgress::Finished { home: true })
+    })
+    .unwrap();
+    let mut form = Forms::create_forms(path("cancel"), prepared);
+    let execution = form.take_execution().expect("no unanswered fields");
+    assert!(form.take_execution().is_none());
+    form.complete(execution.await.unwrap());
+    assert!(form.go_home());
+}

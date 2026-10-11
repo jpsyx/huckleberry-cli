@@ -59,6 +59,15 @@ pub fn read_end(context: &Context, given: Option<&str>) -> Result<f64> {
     read_instant(context, given, "When did it end?", "--at <TIME>")
 }
 
+/// Resolves explicit event-time flags and the noninteractive default without opening a form.
+pub fn resolve_at(context: &Context, at: Option<&str>, interactive: bool) -> Result<Option<f64>> {
+    if at.is_some() || !interactive {
+        read_at(context, at).map(Some)
+    } else {
+        Ok(None)
+    }
+}
+
 /// Reads when an event happened, using the same defaults and parser as sleep starts.
 pub fn read_at(context: &Context, given: Option<&str>) -> Result<f64> {
     read_instant(context, given, "When?", "--at <TIME>")

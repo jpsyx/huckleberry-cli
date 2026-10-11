@@ -280,7 +280,7 @@ in yellow, with no default: all three answers throw something away.
 
 ```sh
 h feed bottle --amount 90 --type formula
-h feed bottle                       # asks when, units, amount, milk, and notes
+h feed bottle                       # asks when, amount and units, milk, and notes
 
 h feed nursing start --side left
 h feed nursing switch
@@ -751,3 +751,9 @@ back. Enter validates the current answer and shows the next applicable question,
 prefilled if already answered. Changing contents hides irrelevant details without
 forgetting them, so switching back restores them. Escape discards the draft and
 returns Home. A completed form records one entry.
+
+Bottle and nursing forms use the same navigation. Bottle defaults and the
+suggested starting side are read before collection and remain stable when going
+back. An accepted bottle quantity keeps its precision across unit changes.
+Nursing transitions retain the chosen time and submit only after the last
+applicable question; cancel has no extra questions.

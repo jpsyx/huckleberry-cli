@@ -7,3 +7,5 @@ pub mod volume;
 
 pub use model::{FormEvent, FormModel, FormState, FormValue, ViewId};
 pub use view::{ControlEvent, View};
+
+pub mod fields;

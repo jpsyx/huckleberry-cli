@@ -282,19 +282,19 @@ Submission owns `at: f64`, `mode: DiaperKind`, `details: DiaperDetails` and
 using FormModel. Bottle submission owns at, units, amount, bottle kind and notes;
 nursing submission owns action, resolved at where applicable and side.
 
-- [ ] Write `bottle_back_retains_volume_kind_and_notes` and
+- [x] Write `bottle_back_retains_volume_kind_and_notes` and
   `nursing_back_retains_time_and_side`. Assert a time correction preserves an
   entered amount and kind; resuming does not refetch the suggested defaults.
   Drive start/pause/resume/switch/stop separately against the local stub and
   assert no timer mutation until Ready, then one invocation of the operation.
-- [ ] Run `cargo test --test form_feed`; observe the navigation failures first.
-- [ ] Prepare suggested bottle values and nursing side before collection.
+- [x] Run `cargo test --test form_feed`; observe the navigation failures first.
+- [x] Prepare suggested bottle values and nursing side before collection.
   Reuse the canonical time/volume controls; keep default suggestions distinct
   from accepted answers. Move only collection and its executor seam, retaining
   existing API calls, timer outcomes and receipts. Update docs and dispatch.
-- [ ] Run `cargo test --test form_feed` and
+- [x] Run `cargo test --test form_feed` and
   `cargo test --test volume_units --test logging_order --test event_times`.
-- [ ] Commit: `refactor: retain bottle and nursing form drafts`.
+- [x] Commit: `refactor: retain bottle and nursing form drafts`.
 
 ### Task 7: Pumping forms and custom duration views
 

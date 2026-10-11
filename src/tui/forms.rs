@@ -33,11 +33,16 @@ pub struct Forms {
 impl Forms {
     /// Begins collecting a prepared command without starting its executor.
     #[must_use]
-    pub const fn create_forms(path: CommandPath, prepared: PreparedCommand) -> Self {
+    pub fn create_forms(path: CommandPath, prepared: PreparedCommand) -> Self {
+        let phase = if prepared.is_ready() {
+            Phase::Ready
+        } else {
+            Phase::Collecting
+        };
         Self {
             path,
             prepared: Some(prepared),
-            phase: Phase::Collecting,
+            phase,
             home: false,
         }
     }
@@ -105,8 +110,12 @@ impl Forms {
     pub fn complete(&mut self, progress: CommandProgress) {
         match progress {
             CommandProgress::Continue(prepared) if !self.home => {
+                self.phase = if prepared.is_ready() {
+                    Phase::Ready
+                } else {
+                    Phase::Collecting
+                };
                 self.prepared = Some(*prepared);
-                self.phase = Phase::Collecting;
             }
             CommandProgress::Continue(_) => self.discard(true),
             CommandProgress::Finished { home } => self.discard(self.home || home),

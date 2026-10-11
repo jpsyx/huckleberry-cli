@@ -1,4 +1,5 @@
 //! Hosted lifecycle and command request journeys.
 mod diaper;
+mod feed;
 mod lifecycle;
 mod support;
