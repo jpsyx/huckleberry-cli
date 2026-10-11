@@ -14,6 +14,7 @@ use crossterm::event::KeyEvent;
 /// A retained amount, canonical in millilitres and displayed in chosen units.
 pub struct VolumeState {
     millilitres: f64,
+    source_amount: (Units, f64),
     units: Units,
     minimum: i32,
     dial: Dial,
@@ -32,6 +33,7 @@ impl VolumeState {
         );
         Self {
             millilitres,
+            source_amount: amount.map_or((Units::Ml, 60.0), |amount| (units, amount)),
             units,
             minimum,
             dial,
@@ -52,8 +54,8 @@ impl VolumeState {
                 ControlEvent::Stay
             }
             DialAction::Turned(_) => {
-                self.millilitres =
-                    format::convert(dial::volume::read(&self.dial).1, self.units, Units::Ml);
+                self.source_amount = dial::volume::read(&self.dial);
+                self.millilitres = format::convert(self.source_amount.1, self.units, Units::Ml);
                 ControlEvent::Stay
             }
             _ => ControlEvent::Stay,
@@ -63,10 +65,14 @@ impl VolumeState {
     /// The exact quantity in the selected units.
     #[must_use]
     pub fn value(&self) -> (Units, f64) {
-        (
-            self.units,
-            format::convert(self.millilitres, Units::Ml, self.units),
-        )
+        if self.units == self.source_amount.0 {
+            self.source_amount
+        } else {
+            (
+                self.units,
+                format::convert(self.millilitres, Units::Ml, self.units),
+            )
+        }
     }
 
     /// Draws the same volume dial as a standalone prompt.

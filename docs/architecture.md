@@ -464,23 +464,22 @@ fields. Edit persistence retains original wire enum values when the correspondin
 field was not changed.
 
 The bare-command session owns navigation and inherits temporary overrides from
-its initial CLI flags. Every command in `interactive/operation` enters dispatch
-on selection, with no Run or options menu. A typed policy identifies read-only
+its initial CLI flags. Every selection enters `interactive/operation` preparation, with no Run or
+options menu. Mutations bind an owned form to a consuming executor; readers
+retain their existing viewer. A typed policy identifies read-only
 views, which offer Back after output and an explicit Retry only after failure.
 This follow-up menu holds static output on screen, replacing the separate pause.
-Listings expose whether they displayed new output or the reader explicitly
-went back. Hosted browsers and entry pickers propagate an explicit exit through
-the existing cancellation path, so the wrapper returns directly to navigation
-without a completion receipt or follow-up prompt. Standalone commands retain
-their existing exit behavior. Empty results and entry details keep the normal
-result hold. Browse-mode Enter stays on rows without details; pickers can
+Hosted Back returns directly to the parent without a completion receipt.
+Escape propagates the typed `prompt::Home` result before cancellation or error
+handling, even from search. Entry details and Help topics hold their parent
+chooser and restore it on Back. Standalone viewers retain their existing exit
+behavior; empty results use the normal result hold. Browse-mode Enter stays on rows without details; pickers can
 still select those rows for an action.
 Writes and exports return through their ordinary completion flow; errors return
 to navigation after a pause and cannot automatically replay a write.
-Each execution opens a fresh Context and calls the same typed dispatch as an
-explicit CLI invocation. Menus release terminal ownership before handlers run,
-cancellation returns to navigation, and failed writes are never automatically
-replayed.
+Preparation opens a fresh Context. The shell and standalone handlers share
+the family collectors and completed-input executors. The shell keeps terminal
+ownership throughout; failed writes are never automatically replayed.
 
 History editing now collects explicit field changes rather than rewriting a
 normalized draft. The CLI maps those selected fields to the API's existing
@@ -489,9 +488,9 @@ values and meal food metadata. A changed meal amount updates only amounts in the
 original food map. Direct edits use the field picker.
 The API crate and its operation semantics are unchanged.
 
-The session installs a Tokio Ctrl-C listener around operations, including picker
-reads. Interruption stops waiting and returns to navigation, with a reminder to
-check logs if a write might already have reached the service. Each selection creates a fresh command draft.
+Legacy standalone interruption support remains in `interactive/interrupt`.
+The shell owns navigation during prepared operations: completed writes cannot
+be reopened by Back, and Escape during execution waits for the actual result.
 
 The shell separates command preparation, collection, suspension and execution.
 A prepared command owns its typed form and a consuming executor. Form input is
@@ -511,3 +510,10 @@ entry's draft. History saves still use sparse explicit field updates; live
 sleep corrections retain the original timer UUID for the API conflict check.
 Delete confirmation is scoped to the selected RowRef and returns to that picker
 on Back. Neither collection path mutates an entry before completion.
+
+Utility collectors live in `commands/utility_form/`; `setup/form.rs` collects
+missing day settings into one validated Config. `prepared/gates.rs` applies
+the standalone prerequisite policy, saves only completed prerequisites, reloads
+Context and continues the owned requested Command. Completed authentication is
+never replayed by navigation through a later form. Bare `h` starts this setup
+inside its panel, and widgets report missing data until it is complete.

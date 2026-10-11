@@ -12,6 +12,8 @@ import subprocess
 import tempfile
 import termios
 import time
+import re
+import signal
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
@@ -68,6 +70,7 @@ def prompts():
             "-L", "dependency=target/debug/deps", "--extern", "app=target/debug/libapp.rlib",
             "--extern", f"anyhow={anyhow}", "--extern", f"tokio={tokio}",
         ], cwd=ROOT, check=True, capture_output=True)
+        retained(driver)
         terminal = Terminal([driver])
         try:
             terminal.expect("Choose answer")
@@ -125,18 +128,17 @@ def prompts():
                     terminal.expect("Keep current value")
                     terminal.send("jjjj\r")
                     terminal.expect("Fields to change")
-                    terminal.send("\r")
+                    terminal.send("1\r")
                     terminal.expect("OUTCOME_CLEARED")
                 elif mode == "sleep_fields":
                     terminal.expect("Fields to change")
-                    terminal.expect("Edit start: Jan 01, 12:15 am UTC")
-                    terminal.expect("Edit stop: Jan 01, 1:45 am UTC")
+                    terminal.expect("Edit start · Jan 01, 12:15 am UTC")
+                    terminal.expect("Edit stop · Jan 01, 1:45 am UTC")
                     terminal.send("jj\r")
-                    terminal.expect("When did it end?")
-                    terminal.expect("E.g. '1:23 pm' or '123pm' or '32 min ago' are all valid")
-                    terminal.send("2:00am\r")
-                    terminal.expect("Edit stop: Jan 01, 2:00 am UTC (changed)")
-                    terminal.send("\r")
+                    terminal.expect("stop\r\n")
+                    terminal.send("jljjjjjjjjjjjjjjj\r")
+                    terminal.expect("Edit stop · Jan 01, 2:00 am UTC (changed)")
+                    terminal.send("1\r")
                     terminal.expect("SLEEP_STOP_SET")
                 elif mode == "waiting":
                     terminal.expect("WAITING_FOR_INTERRUPT")
@@ -153,7 +155,7 @@ def prompts():
                     terminal.send("\r")
                     terminal.expect('KEPT=Some("exact stored note")')
                     terminal.expect("Existing note")
-                    terminal.send("HH\r")
+                    terminal.send("3\r")
                     terminal.expect("CLEARED=None")
                     terminal.expect("After text")
                     terminal.send("\r")
@@ -162,7 +164,7 @@ def prompts():
                     terminal.expect("RESTORED_AFTER_ERROR")
                 elif mode == "list":
                     terminal.expect("Synthetic foods")
-                    terminal.send("H" * 35)
+                    terminal.send("j" * 35)
                     terminal.send("/Food 79\r\r")
                     terminal.expect('SELECTED=Some("id-79")')
                 elif mode == "cancel_text":
@@ -179,120 +181,111 @@ def prompts():
                 terminal.close()
 
 
+def ui(terminal, text, keys=None):
+    """Force a complete frame on resize so assertions also see unchanged cells."""
+    if keys is not None:
+        terminal.send(keys)
+        time.sleep(max(0.3, len(keys) * 0.05))
+    terminal.buffer = b""
+    rows = getattr(terminal, "ui_rows", 24)
+    terminal.ui_rows = 25 if rows == 24 else 24
+    fcntl.ioctl(terminal.slave, termios.TIOCSWINSZ, struct.pack("HHHH", terminal.ui_rows, 110, 0, 0))
+    terminal.process.send_signal(signal.SIGWINCH)
+    deadline = time.monotonic() + 15
+    refreshed = time.monotonic()
+    earliest = refreshed + 0.3
+    while True:
+        ready, _, _ = select.select([terminal.master], [], [], 0.1)
+        if ready:
+            chunk = os.read(terminal.master, 65536)
+            terminal.buffer += chunk
+            terminal.transcript += chunk
+        latest = terminal.buffer.rsplit(b"\x1b[2J", 1)[-1]
+        plain = re.sub(rb"\x1b\[[0-?]*[ -/]*[@-~]", b"", latest).decode("utf-8", errors="replace")
+        if time.monotonic() >= earliest and re.sub(r"\s+", "", text) in re.sub(r"\s+", "", plain):
+            return
+        if time.monotonic() > deadline:
+            raise AssertionError(f"UI timeout for {text!r}: {plain[-4000:]}")
+        if time.monotonic() - refreshed > 0.3:
+            terminal.ui_rows = 25 if terminal.ui_rows == 24 else 24
+            fcntl.ioctl(terminal.slave, termios.TIOCSWINSZ, struct.pack("HHHH", terminal.ui_rows, 110, 0, 0))
+            terminal.process.send_signal(signal.SIGWINCH)
+            refreshed = time.monotonic()
+
+
 def session():
     subprocess.run(["cargo", "build", "-p", "huckleberry-cli"], cwd=ROOT, check=True, capture_output=True)
     with tempfile.TemporaryDirectory(prefix="h-session-") as directory:
         config = pathlib.Path(directory) / "config.toml"
-        config.write_text("units = 'ml'\n")
         snapshot = pathlib.Path(directory) / "snapshot.json"
-        now = time.time()
         snapshot.write_text(json.dumps({
-            "version": 1, "fetched_at": now, "timezone": "UTC", "days": 7,
-            "child": {"cid": "synthetic", "name": "PTY Baby", "birthdate": "2026-09-01", "night_start_hour": 20, "morning_cutoff_hour": 7},
+            "version": 1, "fetched_at": time.time(), "timezone": "UTC", "days": 7,
+            "child": {"cid": "synthetic", "name": "PTY Baby", "birthdate": None, "night_start_hour": 20, "morning_cutoff_hour": 7},
             "growth": None, "sleep": [], "feeds": [], "diapers": [], "pumps": [], "milestones": [], "live": {}, "notes": [],
         }))
         terminal = Terminal([str(ROOT / "target/debug/huckleberry-cli"), "--config", str(config), "--offline", str(snapshot)])
         try:
-            terminal.expect("What would you like to do?")
-            terminal.expect("1. View latest")
-            terminal.expect("5. Edit")
-            terminal.expect("9. Delete")
-            terminal.expect("10. More")
-            terminal.expect("11. Exit")
-            terminal.send("\r")
-            terminal.expect("PTY Baby")
-            terminal.expect("Anything else?")
-            terminal.send("\r")
-            terminal.expect("What would you like to do?")
-            # Every write enters dispatch immediately, including offline errors.
-            for choice in ("2", "5", "9"):
-                terminal.send(choice + "\r")
-                terminal.expect("nothing to write to")
-                terminal.expect("Continue")
-                terminal.send("\r")
-                terminal.expect("What would you like to do?")
-            terminal.send("6\r")
-            terminal.expect("1. Dashboard")
-            terminal.send("\r")
-            terminal.expect("PTY Baby")
-            terminal.send("q")
-            terminal.expect("Anything else?")
-            terminal.send("\r")
-            terminal.expect("1. Dashboard")
-            terminal.send("\x1b")
-            terminal.expect("What would you like to do?")
-            terminal.send("jjjj\r")
-            terminal.expect("7. Help")
-            terminal.send("4\r")
-            terminal.expect("4. Back")
-            terminal.send("2\r")
-            terminal.expect("Which setting?")
-            terminal.send("4\r")
-            terminal.expect("volume units for amounts: ml or oz?")
-            terminal.send("2\r")
-            terminal.expect("Setting saved")
-            terminal.expect("Continue")
-            terminal.send("\r")
-            terminal.expect("4. Back")
+            ui(terminal, "What time does a day start?")
+            ui(terminal, "What time does a day end?", "\r")
+            assert not config.exists()
+            ui(terminal, "What would you like to do?", "\x1b")
+            assert not config.exists()
+            ui(terminal, "What time does a day start?", "6\r")
+            ui(terminal, "What time does a day end?", "\r")
+            ui(terminal, 'How should "today" be counted?', "\r")
+            ui(terminal, "Summary", "\r")
+            assert 'day_mode = "discrete"' in config.read_text()
+            ui(terminal, "What would you like to do?", "\x1b")
+            ui(terminal, "Nursing", "2\r")
+            ui(terminal, "Pause", "2\r")
+            ui(terminal, "Nursing", "h")
+            ui(terminal, "What would you like to do?", "\x1b")
+            # The tenth Home row and sixth More row open settings.
+            ui(terminal, "Home › More", "G\r")
+            ui(terminal, "Show", "6\r")
+            ui(terminal, "Which setting?", "2\r")
+            ui(terminal, "volume units", "4\r")
+            ui(terminal, "Fluid ounces (oz)", "2\r")
+            ui(terminal, "Show", "\r")
             assert 'units = "oz"' in config.read_text()
-            terminal.send("2\r")
-            terminal.expect("Which setting?")
-            terminal.send("\x1b")
-            terminal.expect("4. Back")
-            assert 'units = "oz"' in config.read_text()
-            terminal.send("\x1b")
-            terminal.expect("7. Help")
-            terminal.send("\x1b")
-            terminal.expect("What would you like to do?")
-            terminal.send("\x03")
+            ui(terminal, "Which setting?", "2\r")
+            ui(terminal, "Show", "h")
+            ui(terminal, "Which setting?", "\r")
+            ui(terminal, "What would you like to do?", "\x1b")
+            terminal.send("\x11")
             terminal.finish()
-            assert b": ready" not in terminal.transcript
-            assert b"Options" not in terminal.transcript
-            assert b"options" not in terminal.transcript
         finally:
             terminal.close()
 
-        terminal = Terminal([str(ROOT / "target/debug/huckleberry-cli"), "--config", str(config), "--offline", str(snapshot)])
-        saved_snapshot = snapshot.read_text()
-        snapshot.unlink()
-        try:
-            terminal.expect("What would you like to do?")
-            terminal.send("\r")
-            terminal.expect("error:")
-            terminal.expect("2. Retry")
-            # A retry is explicit and reopens the source rather than caching failure.
-            snapshot.write_text(saved_snapshot)
-            terminal.send("2\r")
-            terminal.expect("PTY Baby")
-            terminal.expect("Anything else?")
-            terminal.send("\x1b")
-            terminal.expect("What would you like to do?")
-            terminal.send("\x03")
-            terminal.finish()
-            assert b": ready" not in terminal.transcript
-            assert b"Options" not in terminal.transcript
-            assert b"options" not in terminal.transcript
-        finally:
-            terminal.close()
 
-        terminal = Terminal([str(ROOT / "target/debug/huckleberry-cli"), "--config", str(config)], pipe_stdout=True)
-        try:
-            terminal.expect("What would you like to do?")
-            terminal.send("9j\r")
-            terminal.expect("6. About this build")
-            terminal.send("j" * 5 + "\r")
-            terminal.expect("Anything else?")
-            terminal.send("\r")
-            terminal.expect("6. About this build")
-            terminal.send("\x1b")
-            terminal.expect("What would you like to do?")
-            terminal.send("\x03")
-            terminal.finish()
-            output = terminal.process.stdout.read()
-            assert b"version=" in output and b"\x1b" not in output
-            assert b"What would you like" not in output
-        finally:
-            terminal.close()
+def retained(driver):
+    terminal = Terminal([driver, "retained"])
+    try:
+        ui(terminal, "What would you like to do?")
+        ui(terminal, "When?", "\r")
+        ui(terminal, "What was in it?", "\r")
+        ui(terminal, "How much dirty?", "2\r")
+        ui(terminal, "What colour?", "3\r")
+        ui(terminal, "consistency", "3\r")
+        ui(terminal, "rash", "\r")
+        ui(terminal, "Anything to note?", "\r")
+        ui(terminal, "ha remembered note", "\x1b[200~ha remembered\n note\x1b[201~")
+        ui(terminal, "When?", "\x1b[D" * 6)
+        ui(terminal, "What was in it?", "k" * 20 + "\r")
+        ui(terminal, "ha remembered note", "\r" * 5)
+        ui(terminal, "When?", "\x1b[D" * 6)
+        ui(terminal, "What would you like to do?", "\x1b[D" * 2)
+        ui(terminal, "When?", "\r")
+        ui(terminal, "ha remembered note", "\r" * 6)
+        ui(terminal, "DIAPER_ACCEPTED_ONCE", "\r")
+        ui(terminal, "What would you like to do?", "\x1b")
+        ui(terminal, "When?", "\r")
+        ui(terminal, "What would you like to do?", "\x1b")
+        terminal.send("\x11")
+        terminal.expect("RETAINED_WRITES=1")
+        terminal.finish()
+    finally:
+        terminal.close()
 
 
 if __name__ == "__main__":

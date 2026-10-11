@@ -259,6 +259,17 @@ impl Job {
                 self.exchange = Exchange::default();
                 self.landing = Some(Landing::Home);
             }
+            Outcome::Continue(_) if self.forms.as_ref().is_some_and(Forms::go_home) => {
+                // A completed prerequisite already changed state. Hold its receipt
+                // before leaving, just as for a completed final submission.
+                self.exchange = Exchange::default();
+                self.handle = Some(work::execute(
+                    Box::pin(async {
+                        Ok(crate::commands::prepared::CommandProgress::Finished { home: true })
+                    }),
+                    self.theme,
+                ));
+            }
             Outcome::Continue(prepared) => {
                 if let Some(forms) = self.forms.as_mut() {
                     forms.complete(crate::commands::prepared::CommandProgress::Continue(

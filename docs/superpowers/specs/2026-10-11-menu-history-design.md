@@ -1,6 +1,6 @@
 # Retained form navigation in the shell
 
-Status: approved on 2026-10-11. Implementation has not started.
+Status: approved on 2026-10-11. Implemented on `refactor/menu-history`; verification complete and final review pending.
 
 ## Purpose and success criteria
 
@@ -19,7 +19,7 @@ The terminal remains the interface, and the existing prompt implementations
 continue to serve both the shell and explicit CLI commands. Flags, API schemas,
 the Now drawer and family-day arithmetic retain their existing semantics.
 
-## Current behavior and cause
+## Original behavior and cause
 
 - `prompt/select/model.rs` gives Left, `h`, `a` and Escape the same Cancel
   result. `prompt/select/terminal.rs` turns it into `prompt::Cancelled`.

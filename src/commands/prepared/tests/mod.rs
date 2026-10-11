@@ -12,3 +12,5 @@ mod measurements;
 mod entries;
 
 mod setup;
+
+mod catalog;

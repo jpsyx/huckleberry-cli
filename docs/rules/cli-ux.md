@@ -84,7 +84,8 @@ highlight the corresponding item in every menu. Enter accepts the
 highlighted item. Zero and numbers beyond the menu's length are ignored; items
 10 and later remain reachable with navigation keys. Optional choices include Skip.
 Optional text offers Skip or Enter text, and existing values can be kept or
-cleared. Esc and Ctrl-C cancel the current question without accepting it.
+cleared. Ctrl-C cancels without accepting. Escape returns Home in the shell;
+standalone Escape cancels the command.
 
 Retained forms distinguish navigation from cancellation: Back retains the
 unfinished value, while Escape returns Home in the shell. Text fields retain

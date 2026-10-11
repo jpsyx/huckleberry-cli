@@ -1091,3 +1091,30 @@ this tool remarks on.
 
 **Revisit when.** A source publishes an upper bound for a count, which none
 currently does.
+
+## Retained form drafts, with a cursor through views
+
+**Decision.** A command owns typed draft answers and stable view identities.
+Back moves the current-view cursor without removing earlier or later controls;
+Escape discards the unfinished draft and returns Home. One draft may remain
+suspended at its launching menu. Reopening that command resumes it; choosing
+another action discards it.
+
+**Why.** Local prompt variables disappeared when a command unwound on Back.
+A stack that pops controls has the same loss of forward values. Keeping control
+state separately from conditional routing lets parents correct a prior answer
+and retain the rest, including unfinished text, skipped values and exact times.
+Hidden answers remain editable if their branch returns but never enter an
+inapplicable payload.
+
+**Consequences.** Commands separate read-only preparation, collection and a
+consuming executor. The shell drives owned forms directly; standalone commands
+use the same forms through the shared terminal runner. Accepted relative times
+remain fixed instants, numeric quantities retain canonical units, and changing
+dependent constraints validates retained answers without silently replacing
+them. Entry identities scope edit/delete drafts and confirmations. Setup saves
+its completed settings together; authentication is a separate completed stage.
+Escape during a write records the destination while its result remains visible.
+
+**Revisit when.** Product requirements call for multiple saved drafts or drafts
+that survive restarting the application. Neither is part of this change.

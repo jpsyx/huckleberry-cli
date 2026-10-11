@@ -95,3 +95,15 @@ fn units_preserve_quantity() {
     assert_eq!(units, Units::Ml);
     assert!((amount - 90.125).abs() < 1e-9);
 }
+
+#[test]
+fn untouched_ounce_amount_keeps_its_original_bits() {
+    let original = 0.07_f64;
+    let mut volume = VolumeState::create_volume(Units::Oz, Some(original), 0.0);
+    assert_eq!(volume.value().1.to_bits(), original.to_bits());
+    volume.apply(press(KeyCode::Right));
+    volume.apply(press(KeyCode::Up));
+    volume.apply(press(KeyCode::Down));
+    assert_eq!(volume.value().0, Units::Oz);
+    assert_eq!(volume.value().1.to_bits(), original.to_bits());
+}

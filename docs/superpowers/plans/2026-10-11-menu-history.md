@@ -1,6 +1,6 @@
 # Retained Form Navigation Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Make Back return one view while retaining all form answers, and make
 Escape abandon the draft and return to Home throughout bare `h`.
@@ -326,20 +326,20 @@ at, PumpAmounts, units, optional duration in seconds and notes. Reuse Task 3 con
 **Interfaces:** Produce SleepForm/SleepSubmission, owning action, resolved
 start/end where applicable and the existing overlap decision.
 
-- [ ] Write `moving_start_revalidates_retained_end`, `back_from_overlap_is_read_only`
+- [x] Write `moving_start_revalidates_retained_end`, `back_from_overlap_is_read_only`
   and `partial_overlap_failure_is_never_replayed`. Use start=1_000/end=1_600;
   change start to 1_700 and verify the retained 1_600 is shown as invalid until
   corrected. A stub fails manual logging after the overlap timer operation;
   subsequent Back/Enter must not issue either operation again.
-- [ ] Run `cargo test --test form_sleep`; verify the old cancellation behavior and
+- [x] Run `cargo test --test form_sleep`; verify the old cancellation behavior and
   missing retained end handling fail for the expected reasons.
-- [ ] Load overlap context before offering its choice. Collect all questions
+- [x] Load overlap context before offering its choice. Collect all questions
   before calling resolve_overlap or log_sleep. Keep existing live-state checks,
   typed API conflicts and partial-failure reporting; no new rollback policy.
   Route timer actions through the same resolved-time form. Update docs.
-- [ ] Run `cargo test --test form_sleep` and
+- [x] Run `cargo test --test form_sleep` and
   `cargo test --test event_times --test edit_preservation --test logging_order`.
-- [ ] Commit: `refactor: retain sleep forms before executing timer changes`.
+- [x] Commit: `refactor: retain sleep forms before executing timer changes`.
 
 ### Task 9: Solids and growth, including nested and repeated questions
 
@@ -351,22 +351,22 @@ modify `src/commands/feed/{mod,solids}.rs`, `src/commands/{mod,growth}.rs`,
 Solids owns at, selected FoodReferences, amount, reaction and notes; growth owns
 at, GrowthMeasurements and System. Use distinct owned view IDs for food items.
 
-- [ ] Write `food_custom_entry_returns_to_selection`, `food_selection_retains_items`,
+- [x] Write `food_custom_entry_returns_to_selection`, `food_selection_retains_items`,
   `growth_units_preserve_measurements` and `optional_measurements_stay_cleared`.
   Select Avocado and Pear, revisit the custom food editor, and assert each item
   stays associated with its value. For growth, change units and return; compare
   physical quantities within 1e-9, preserving Skip: 2.54 cm becomes 1 inch,
   and 0.45359237 kg becomes 1 pound; returning restores the canonical values.
-- [ ] Run `cargo test --test form_measurements`; observe missing nested navigation.
-- [ ] Prepare food catalogs once; make list, custom-name and custom-helping views
+- [x] Run `cargo test --test form_measurements`; observe missing nested navigation.
+- [x] Prepare food catalogs once; make list, custom-name and custom-helping views
   part of the same form. Retain the existing FoodSelection semantics. Canonical
   growth values are held in kg/cm, with the exact conversions above and rounding
   only for display. Unfinished invalid numeric text keeps its original unit
   context and requires correction before acceptance in another unit. Retain
   configured defaults and flag omission behavior. Register execution and docs.
-- [ ] Run `cargo test --test form_measurements`, existing `commands::feed` tests and
+- [x] Run `cargo test --test form_measurements`, existing `commands::feed` tests and
   `cargo test --test one_hand_forms --test logging_order`.
-- [ ] Commit: `refactor: retain food and growth inputs across nested views`.
+- [x] Commit: `refactor: retain food and growth inputs across nested views`.
 
 ### Task 10: Entry pickers, history edits and deletion
 
@@ -381,22 +381,22 @@ EditForm/EditSubmission and DeleteForm/DeleteSubmission. Edit submission owns
 the selected token, original target identity and explicit field changes; delete
 owns RowRef, started_at and an accepted confirmation tied to that RowRef.
 
-- [ ] Write `back_from_field_keeps_other_changes`, `back_to_picker_keeps_selection`,
+- [x] Write `back_from_field_keeps_other_changes`, `back_to_picker_keeps_selection`,
   `another_entry_has_another_draft`, `deleted_row_is_not_retargeted` and
   `delete_confirmation_is_bound_to_entry`. Select entry A, change notes, return
   to picker and choose B: B must show B's data and no accepted A confirmation.
   Remove A from refreshed rows and assert no automatic acceptance of B.
-- [ ] Run `cargo test --test form_entries`; confirm current field/picker cancellation
+- [x] Run `cargo test --test form_entries`; confirm current field/picker cancellation
   loses the containing view before changing those paths.
-- [ ] Extract an owned listing control reusing the existing state/layout. Keep
+- [x] Extract an owned listing control reusing the existing state/layout. Keep
   query, selected token and scroll on return. Edit's route is picker, field menu,
   chosen field, nested field view; field acceptance returns to the field menu.
   Reuse explicit-change construction, stored enum preservation and live sleep
   conflict checks. Deletion executes only after its current target is confirmed.
   Register collectors/executors and document the ownership boundary.
-- [ ] Run `cargo test --test form_entries` and
+- [x] Run `cargo test --test form_entries` and
   `cargo test --test edit_preservation --test pump_edit --test interactive_options`.
-- [ ] Commit: `refactor: retain entry pickers and field edits until submission`.
+- [x] Commit: `refactor: retain entry pickers and field edits until submission`.
 
 ### Task 11: Utility forms, authentication and setup continuations
 
@@ -411,7 +411,7 @@ operation behind the Task 4 execution guard. SetupForm output
 is a validated Config. Continue carries the pending requested Command and the
 reloaded Context into its next prepared form after a prerequisite completes.
 
-- [ ] Write `setup_back_does_not_save`, `setup_saves_one_completed_draft`,
+- [x] Write `setup_back_does_not_save`, `setup_saves_one_completed_draft`,
   `login_back_keeps_masked_credentials`, `settings_values_are_scoped_by_key`
   `prerequisite_completion_resumes_requested_command_once` and
   `first_use_escape_returns_to_home`. With temporary
@@ -420,9 +420,9 @@ reloaded Context into its next prepared form after a prerequisite completes.
   Count authentication and requested-command execution independently. Bare `h`
   with missing settings opens a hosted setup form; Escape returns to Home with
   no configuration write, and the next command still goes through setup.
-- [ ] Run `cargo test --test form_setup`; confirm incremental setup saves and local
+- [x] Run `cargo test --test form_setup`; confirm incremental setup saves and local
   prompt state fail the relevant assertions before modifying implementation.
-- [ ] Collect missing settings into a Config copy, validate, save once and
+- [x] Collect missing settings into a Config copy, validate, save once and
   reload Context. Model authentication as its own completed prerequisite; Back
   within the subsequent form never reruns it. Move bare-command setup collection
   inside the shell instead of calling it before `tui::run`; show missing-data
@@ -430,9 +430,9 @@ reloaded Context into its next prepared form after a prerequisite completes.
   through these forms without bypassing dispatch's setup policy. Isolate each
   setting key's retained value; preserve environment-password handling and
   explicit flag behavior. Register remaining utility forms and update docs.
-- [ ] Run `cargo test --test form_setup` and
+- [x] Run `cargo test --test form_setup` and
   `cargo test --test interactive_entry --test interactive_catalog --test public_api`.
-- [ ] Commit: `refactor: retain utility and setup forms across navigation`.
+- [x] Commit: `refactor: retain utility and setup forms across navigation`.
 
 ### Task 12: Home routing for viewers and completed results
 
@@ -444,23 +444,23 @@ create `tests/form_viewers.rs`.
 return-to-Home result recognized before cancellation/error handling, so legacy
 read-only loops can unwind to Home without an error or follow-up question.
 
-- [ ] Write `escape_leaves_search_and_goes_home`, `viewer_back_returns_to_parent`,
+- [x] Write `escape_leaves_search_and_goes_home`, `viewer_back_returns_to_parent`,
   `result_navigation_never_reopens_a_submission` and `home_is_not_swallowed_by_read_retry`.
   Open View logs, Foods List, Summary, Dashboard, Help and Version from nested
   menus: Escape reaches Home; Back reaches the containing view. A focused
   search still accepts h/a as letters. No extra Continue question appears.
   Back from a Help topic restores its topic chooser and prior selection.
-- [ ] Run `cargo test --test form_viewers`; confirm Escape currently behaves
+- [x] Run `cargo test --test form_viewers`; confirm Escape currently behaves
   as ordinary Back or only leaves the search editor.
-- [ ] Distinguish hosted Escape/Home from search/menu Back without changing
+- [x] Distinguish hosted Escape/Home from search/menu Back without changing
   standalone viewer behavior. Close overlays and cancel their pending reads.
   Retain Help's chooser and rendered topic as two views in `interactive/mod.rs`;
   generate topic text from the same clap metadata as the existing helper.
   Keep submitted and failed forms closed, preserve read-only explicit Retry,
   and report the outcome if Home was requested during execution. Update hints.
-- [ ] Run `cargo test --test form_viewers --test version_modal --test tui_shell`
+- [x] Run `cargo test --test form_viewers --test version_modal --test tui_shell`
   and existing `interactive::operation` tests.
-- [ ] Commit: `fix: route Escape to Home across hosted viewers and results`.
+- [x] Commit: `fix: route Escape to Home across hosted viewers and results`.
 
 ### Task 13: Complete coverage, terminal journeys and final review
 
@@ -471,19 +471,19 @@ read-only loops can unwind to Home without an error or follow-up question.
 **Interfaces:** Consume the completed prepared-command registry and all forms.
 Use existing local Firestore stub support without changing the API crate.
 
-- [ ] Write `every_prompting_command_has_a_retained_form` against the clap/menu
+- [x] Write `every_prompting_command_has_a_retained_form` against the clap/menu
   catalog, classifying each leaf as a retained form, immediate action or reader.
   Fail on unclassified new leaves. Add `fast_navigation_keeps_paste_but_clears_exit_queue`
   and a bounded offline/synthetic PTY journey for the diaper correction, text,
   a nested submenu, suspension/resumption and Escape/Home.
-- [ ] Run `cargo test --test form_journeys`; confirm failures for any uncovered routing
+- [x] Run `cargo test --test form_journeys`; confirm failures for any uncovered routing
   and key-queue leaks before fixing them. Run the PTY journey in its new mode
   and verify failures reflect navigation rather than missing credentials.
-- [ ] Close only navigation coverage gaps. Update docs to describe the final
+- [x] Close only navigation coverage gaps. Update docs to describe the final
   module names, no duplicate prompt implementations, conditional values, fixed
   times and save boundary. Record the retained-draft choice in decisions.
   Mark task checkboxes only for observed completed work and passing checks.
-- [ ] Run `just check` and
+- [x] Run `just check` and
   `python3 tests/support/interactive_pty.py --scenario all`.
   If just is unavailable, run `cargo fmt --check`,
   `cargo clippy --all-targets -- -D warnings`, `cargo test`, and

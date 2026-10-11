@@ -273,7 +273,8 @@ impl View {
         }
         let height = size
             .1
-            .saturating_sub(u16::try_from(lines.len()).unwrap_or(u16::MAX));
+            .saturating_sub(u16::try_from(lines.len()).unwrap_or(u16::MAX))
+            .saturating_sub(1);
         lines.extend(match &self.control {
             Control::Listing(listing) => listing.render(size, theme),
             Control::Choice {

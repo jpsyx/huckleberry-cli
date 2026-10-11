@@ -108,3 +108,26 @@ fn control_chords_do_not_become_navigation_letters() {
         ControlEvent::Cancel
     );
 }
+
+#[test]
+fn retained_choice_keeps_its_question_inside_the_panel() {
+    use app::prompt::flow::{FormValue, View};
+    let view = View::create_choices(
+        "Which setting?",
+        (0..10)
+            .map(|index| {
+                (
+                    format!("Setting {index}"),
+                    FormValue::Choice(index.to_string()),
+                )
+            })
+            .collect(),
+        0,
+    );
+    let lines = view.render(10000.0, (80, 10), app::theme::Theme::dark(false));
+    assert!(
+        lines.len() <= 10,
+        "a second footer must not push the question out of the panel: {lines:?}"
+    );
+    assert!(lines[0].contains("Which setting?"));
+}

@@ -136,3 +136,45 @@ async fn drive_until(job: &mut Job, done: impl Fn(&Job) -> bool) {
         tokio::time::sleep(std::time::Duration::from_millis(1)).await;
     }
 }
+
+#[test]
+fn escape_during_a_prerequisite_keeps_its_completed_result_visible() {
+    let _serial = host::one_at_a_time();
+    tokio::runtime::Runtime::new().unwrap().block_on(async {
+        let (release, wait) = tokio::sync::oneshot::channel();
+        let prepared =
+            PreparedCommand::create_prepared(Note(String::new()), 1000.0, move |_| async move {
+                wait.await.unwrap();
+                crate::render::note("Prerequisite saved once");
+                let following = PreparedCommand::create_prepared(
+                    Note("following draft".into()),
+                    1000.0,
+                    |_| async { panic!("Home must discard the next stage") },
+                )?;
+                Ok(CommandProgress::Continue(Box::new(following)))
+            })
+            .unwrap();
+        let mut job = job(prepared);
+        job.feed(key(KeyCode::Enter), 1000.0);
+        job.collect(1000.0).await;
+        job.feed(key(KeyCode::Esc), 1000.0);
+        release.send(()).unwrap();
+        drive_until(&mut job, |job| {
+            job.finished() || job.visible(24).join("\n").contains("Ready?")
+        })
+        .await;
+        assert!(
+            !job.finished(),
+            "the completed prerequisite needs time to be read"
+        );
+        assert!(
+            job.visible(24)
+                .join("\n")
+                .contains("Prerequisite saved once")
+        );
+        assert!(!job.visible(24).join("\n").contains("following draft"));
+        job.feed(key(KeyCode::Enter), 1000.0);
+        drive_until(&mut job, Job::finished).await;
+        assert_eq!(job.finish().0, Landing::Home);
+    });
+}
