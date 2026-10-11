@@ -757,3 +757,9 @@ suggested starting side are read before collection and remain stable when going
 back. An accepted bottle quantity keeps its precision across unit changes.
 Nursing transitions retain the chosen time and submit only after the last
 applicable question; cancel has no extra questions.
+
+Pumping forms keep total, left, and right amounts separately while switching
+between recording modes. Only the chosen mode is submitted, and a recorded zero
+remains distinct from an omitted amount. Custom duration is a child of the
+preset duration view: Back returns to the presets and preserves typed minutes.
+Stopping a pump timer still records its original start and actual duration.

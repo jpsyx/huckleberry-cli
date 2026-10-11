@@ -1,7 +1,7 @@
 //! Preparation resolves prerequisites and binds each form to its existing operation.
 use super::PreparedCommand;
 use crate::{
-    cli::{Command, FeedAction, NursingAction, actions::DiaperFlags},
+    cli::{Command, FeedAction, NursingAction, PumpAction, actions::DiaperFlags},
     commands::{diaper, diaper_form::DiaperInput},
     session::Context,
 };
@@ -13,22 +13,51 @@ pub async fn prepare(
     command: Command,
     now: f64,
 ) -> Result<Option<PreparedCommand>> {
-    if let Command::Feed { action } = command {
-        if matches!(
-            action,
-            FeedAction::Nursing {
-                action: NursingAction::Status
-            } | FeedAction::Solids { .. }
-        ) {
-            return Ok(None);
-        }
-        let (client, cid) = crate::commands::client_and_child(&context).await?;
-        return crate::commands::feed::prepare::prepare_with_client(
-            context, client, cid, action, now,
-        )
-        .await
-        .map(Some);
+    match command {
+        Command::Pump { action } => prepare_pump(context, action, now).await,
+        Command::Feed { action } => prepare_feed(context, action, now).await,
+        command => prepare_diaper(context, command, now).await,
     }
+}
+
+async fn prepare_pump(
+    context: Context,
+    action: PumpAction,
+    now: f64,
+) -> Result<Option<PreparedCommand>> {
+    if matches!(action, PumpAction::Status) {
+        return Ok(None);
+    }
+    let (client, cid) = crate::commands::client_and_child(&context).await?;
+    crate::commands::pump::prepare::prepare_with_client(context, client, cid, action, now)
+        .await
+        .map(Some)
+}
+
+async fn prepare_feed(
+    context: Context,
+    action: FeedAction,
+    now: f64,
+) -> Result<Option<PreparedCommand>> {
+    if matches!(
+        action,
+        FeedAction::Nursing {
+            action: NursingAction::Status
+        } | FeedAction::Solids { .. }
+    ) {
+        return Ok(None);
+    }
+    let (client, cid) = crate::commands::client_and_child(&context).await?;
+    crate::commands::feed::prepare::prepare_with_client(context, client, cid, action, now)
+        .await
+        .map(Some)
+}
+
+async fn prepare_diaper(
+    context: Context,
+    command: Command,
+    now: f64,
+) -> Result<Option<PreparedCommand>> {
     let Some((input, at)) = diaper_input(command) else {
         return Ok(None);
     };

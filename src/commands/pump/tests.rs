@@ -6,7 +6,6 @@ use anyhow::Result;
 use huckleberry_api::{Huckleberry, Session, Zone};
 use serde_json::{Value, json};
 
-use super::logging;
 use crate::cli::{PumpLogOptions, PumpValues, Units};
 use crate::prompt::host::{self, Reply, Request};
 use crate::session::Context;
@@ -97,7 +96,13 @@ fn manual_log_preserves_the_explicit_time_and_converts_minutes_to_seconds() {
                     duration: Some(1.25),
                     values: values(),
                 };
-                logging::log(&context(), &client(&stub), "c1", &options).await?;
+                super::act(
+                    &context(),
+                    &client(&stub),
+                    "c1",
+                    &crate::cli::PumpAction::Log { options },
+                )
+                .await?;
                 Ok(stub.requests().await)
             })
     });
@@ -124,7 +129,7 @@ fn stopping_records_at_the_timer_start_and_receipts_its_actual_duration() {
         tokio::runtime::Runtime::new().expect("runtime").block_on(async {
         let timer = document(&json!({"timer": {"active": true, "paused": false, "startTime": started * 1000.0, "uuid": "pump-session", "units": "oz"}}));
         let stub = support::Stub::start(vec![timer.clone(), timer, json!({}), json!({}), json!({})]).await;
-        logging::stop(&context(), &client(&stub), "c1", Some("12:20 am"), &values()).await?;
+        super::act(&context(), &client(&stub), "c1", &crate::cli::PumpAction::Stop { at: Some("12:20 am".into()), values: values() }).await?;
         Ok(stub.requests().await)
     })
     });

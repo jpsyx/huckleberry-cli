@@ -658,3 +658,8 @@ disabled and never starts a request. Closing or quitting cancels the request;
 reopening starts fresh, so an old result cannot replace a new check. Each
 request has a five-second timeout. The same report is scriptable with
 `h info --check-update`; plain `h info` stays local.
+
+Pumping keeps a draft for each amount mode. Returning from a side amount to
+Total restores the earlier total; switching back restores both sides, including
+zero. Back from custom minutes returns to duration presets without clearing the
+custom text. Enter moves through the applicable questions before recording.

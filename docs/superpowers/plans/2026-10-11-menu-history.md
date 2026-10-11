@@ -304,19 +304,19 @@ nursing submission owns action, resolved at where applicable and side.
 **Interfaces:** Produce PumpForm/PumpSubmission. Submission owns action, resolved
 at, PumpAmounts, units, optional duration in seconds and notes. Reuse Task 3 controls.
 
-- [ ] Write `pump_modes_keep_separate_answers`, `pump_zero_side_survives_back`,
+- [x] Write `pump_modes_keep_separate_answers`, `pump_zero_side_survives_back`,
   `custom_duration_returns_to_presets` and `stop_keeps_timer_start`.
   Enter total=90 ml; switch to sides left=0/right=60; switch back and assert 90.
   Final submission includes only the selected mode. Back from custom duration
   preserves its buffer while returning to presets. Timer stop retains its API
   start/duration semantics after editing the end time.
-- [ ] Run `cargo test --test form_pump`; confirm existing cancellation loses this state.
-- [ ] Replace local collection with a typed form using distinct total/left/right
+- [x] Run `cargo test --test form_pump`; confirm existing cancellation loses this state.
+- [x] Replace local collection with a typed form using distinct total/left/right
   IDs. Keep the optional custom duration as a child view. Register all pumping
   actions, with no artificial questions for actions needing none. Update docs.
-- [ ] Run `cargo test --test form_pump` and
+- [x] Run `cargo test --test form_pump` and
   `cargo test --test pump_cli --test pump_edit`, plus existing `commands::pump` tests.
-- [ ] Commit: `refactor: retain pumping modes amounts and duration views`.
+- [x] Commit: `refactor: retain pumping modes amounts and duration views`.
 
 ### Task 8: Sleep collection and overlap execution boundary
 

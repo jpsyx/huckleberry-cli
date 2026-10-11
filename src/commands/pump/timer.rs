@@ -1,53 +1,42 @@
 //! Pump timer transitions and current status.
-
+use super::form::{PumpOperation, PumpSubmission};
+use crate::{
+    render::{format, output},
+    session::Context,
+};
 use anyhow::Result;
 use huckleberry_api::{Huckleberry, TimerChange, client::now_seconds};
 
-use crate::cli::PumpAction;
-use crate::prompt;
-use crate::render::{format, output};
-use crate::session::Context;
-
-/// Dispatches a timer action through explicit event times.
-pub(super) async fn run(
+pub(super) async fn execute(
     context: &Context,
     client: &Huckleberry,
     cid: &str,
-    action: &PumpAction,
+    answer: PumpSubmission,
 ) -> Result<()> {
-    let (change, done, already) = match action {
-        PumpAction::Start { start } => {
-            let at = prompt::time::read_start(context, start.as_deref())?;
-            (
-                client.start_pump_at(cid, at).await?,
-                "Pumping started.",
-                "running",
-            )
-        }
-        PumpAction::Pause { at } => {
-            let at = prompt::time::read_at(context, at.as_deref())?;
-            (
-                client.pause_pump_at(cid, at).await?,
-                "Pumping paused.",
-                "paused",
-            )
-        }
-        PumpAction::Resume { at } => {
-            let at = prompt::time::read_at(context, at.as_deref())?;
-            (
-                client.resume_pump_at(cid, at).await?,
-                "Pumping resumed.",
-                "running",
-            )
-        }
-        PumpAction::Cancel => (
+    let at = answer.at.unwrap_or_default(); // Cancel is the only operation without a time.
+    let (change, done, already) = match answer.operation {
+        PumpOperation::Start => (
+            client.start_pump_at(cid, at).await?,
+            "Pumping started.",
+            "running",
+        ),
+        PumpOperation::Pause => (
+            client.pause_pump_at(cid, at).await?,
+            "Pumping paused.",
+            "paused",
+        ),
+        PumpOperation::Resume => (
+            client.resume_pump_at(cid, at).await?,
+            "Pumping resumed.",
+            "running",
+        ),
+        PumpOperation::Cancel => (
             client.cancel_pump(cid).await?,
             "Thrown away. Nothing was recorded.",
             "not running",
         ),
-        PumpAction::Status => return status(context, client, cid).await,
-        PumpAction::Log { .. } | PumpAction::Stop { .. } => {
-            unreachable!("recordings have their own handler")
+        PumpOperation::Log | PumpOperation::Stop => {
+            unreachable!("recordings have their own executor")
         }
     };
     report(context, change, done, already);
@@ -66,7 +55,7 @@ fn report(context: &Context, change: TimerChange, done: &str, already: &str) {
 }
 
 /// Shows whether the timer is running, when it started, and elapsed time.
-async fn status(context: &Context, client: &Huckleberry, cid: &str) -> Result<()> {
+pub(super) async fn status(context: &Context, client: &Huckleberry, cid: &str) -> Result<()> {
     let document = client.pump_document(cid).await?;
     let Some(timer) = document
         .as_ref()

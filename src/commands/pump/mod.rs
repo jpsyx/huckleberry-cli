@@ -1,6 +1,8 @@
 //! Pump logging and timer actions.
 
+pub mod form;
 mod logging;
+pub(crate) mod prepare;
 mod prompts;
 mod timer;
 
@@ -36,11 +38,25 @@ async fn act(
     cid: &str,
     action: &PumpAction,
 ) -> Result<()> {
-    match action {
-        PumpAction::Log { options } => logging::log(context, client, cid, options).await,
-        PumpAction::Stop { at, values } => {
-            logging::stop(context, client, cid, at.as_deref(), values).await
-        }
-        _ => timer::run(context, client, cid, action).await,
+    if matches!(action, PumpAction::Status) {
+        return timer::status(context, client, cid).await;
+    }
+    let answer = prepare::collect(context, client, cid, action).await?;
+    execute(context, client, cid, answer).await
+}
+
+async fn execute(
+    context: &Context,
+    client: &Huckleberry,
+    cid: &str,
+    answer: form::PumpSubmission,
+) -> Result<()> {
+    if matches!(
+        answer.operation,
+        form::PumpOperation::Log | form::PumpOperation::Stop
+    ) {
+        logging::execute(context, client, cid, answer).await
+    } else {
+        timer::execute(context, client, cid, answer).await
     }
 }

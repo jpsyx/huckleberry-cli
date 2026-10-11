@@ -1,54 +1,60 @@
-//! Recording a completed pump, manually or from the live timer.
-
+//! Recording a completed pump from validated form answers.
+use super::{
+    form::{PumpOperation, PumpSubmission},
+    prompts::Volumes,
+};
+use crate::{
+    render::{format, output},
+    session::Context,
+};
 use anyhow::Result;
-use huckleberry_api::Huckleberry;
-use huckleberry_api::models::pump::PumpAmounts;
-use huckleberry_api::ops::pump::PumpEntry;
+use huckleberry_api::{Huckleberry, models::pump::PumpAmounts, ops::pump::PumpEntry};
 
-use super::prompts::{self, Volumes};
-use crate::cli::{PumpLogOptions, PumpValues};
-use crate::prompt;
-use crate::render::{format, output};
-use crate::session::Context;
-
-/// Records a completed session after asking when first.
-pub(super) async fn log(
+pub(super) async fn execute(
     context: &Context,
     client: &Huckleberry,
     cid: &str,
-    options: &PumpLogOptions,
+    answer: PumpSubmission,
 ) -> Result<()> {
-    let at = prompt::time::read_at(context, options.at.as_deref())?;
-    let volumes = prompts::volumes(context, client, cid, &options.values).await?;
-    let duration = prompts::duration(context, options.duration)?;
-    let notes = prompts::notes(context, options.values.notes.as_deref())?;
-    let entry = PumpEntry {
-        amounts: volumes.amounts,
-        duration,
-        units: volumes.units.to_api(),
-        notes: notes.as_deref(),
+    let at = answer.at.expect("validated event time");
+    let volumes = Volumes {
+        amounts: answer.amounts.expect("validated amounts"),
+        units: answer.units,
     };
-    client.log_pump_at(cid, entry, at).await?;
-    recorded(context, at, duration, &volumes, notes.as_deref())
+    if answer.operation == PumpOperation::Log {
+        let entry = PumpEntry {
+            amounts: volumes.amounts,
+            duration: answer.duration,
+            units: volumes.units.to_api(),
+            notes: answer.notes.as_deref(),
+        };
+        client.log_pump_at(cid, entry, at).await?;
+        recorded(
+            context,
+            at,
+            answer.duration,
+            &volumes,
+            answer.notes.as_deref(),
+        )
+    } else {
+        stop(context, client, cid, at, &volumes, answer.notes.as_deref()).await
+    }
 }
 
-/// Finishes the timer with the amounts expressed.
-pub(super) async fn stop(
+async fn stop(
     context: &Context,
     client: &Huckleberry,
     cid: &str,
-    at: Option<&str>,
-    values: &PumpValues,
+    at: f64,
+    volumes: &Volumes,
+    notes: Option<&str>,
 ) -> Result<()> {
-    let at = prompt::time::read_end(context, at)?;
-    let volumes = prompts::volumes(context, client, cid, values).await?;
-    let notes = prompts::notes(context, values.notes.as_deref())?;
     let completed = client
         .complete_pump_at(
             cid,
             volumes.amounts,
             Some(volumes.units.to_api()),
-            notes.as_deref(),
+            notes,
             at,
         )
         .await?;
@@ -57,8 +63,8 @@ pub(super) async fn stop(
             context,
             completed.start,
             Some(completed.duration),
-            &volumes,
-            notes.as_deref(),
+            volumes,
+            notes,
         )?;
     } else {
         context.warn("No pumping session was running.");

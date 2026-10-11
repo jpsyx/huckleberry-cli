@@ -2,4 +2,5 @@
 mod diaper;
 mod feed;
 mod lifecycle;
+mod pump;
 mod support;
