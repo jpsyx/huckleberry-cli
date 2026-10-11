@@ -1,7 +1,6 @@
 //! Request-level checks for the CLI's explicit values and completion receipts.
 
-#[path = "../../../crates/huckleberry-api/tests/support/mod.rs"]
-mod support;
+use crate::commands::test_support as support;
 
 use anyhow::Result;
 use huckleberry_api::{Huckleberry, Session, Zone};

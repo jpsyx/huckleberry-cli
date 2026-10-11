@@ -257,20 +257,20 @@ and execution phase. Add `Motion::Home` for Escape, distinct from Back/Cancel.
 Submission owns `at: f64`, `mode: DiaperKind`, `details: DiaperDetails` and
 `potty: Option<PottyOutcome>`. Existing diaper/potty entry points share this form.
 
-- [ ] Write `diaper_back_edits_time_and_prefills_later_views`,
+- [x] Write `diaper_back_edits_time_and_prefills_later_views`,
   `wet_submission_omits_remembered_dirty_details`, `dirty_restores_hidden_answers`
   and `potty_preserves_outcome_without_rash`. Assert the approved journey with
   changed at=8_800 and colour=brown; inspect the actual local-stub request and
   assert one entry mutation. Back or Escape before completion must produce zero.
-- [ ] Run `cargo test --test form_diaper`; confirm the old flow cancels on Back before
+- [x] Run `cargo test --test form_diaper`; confirm the old flow cancels on Back before
   converting its collection code. Keep that regression as the acceptance anchor.
-- [ ] Move question definitions and typed answers into the form. Reuse
+- [x] Move question definitions and typed answers into the form. Reuse
   `cli::actions::unanswered` for applicability, preserve explicit flags, and
   construct details from applicable fields. Register preparation and execution;
   preserve receipt content and use the existing API methods. Update CLI docs.
-- [ ] Run `cargo test --test form_diaper` and
+- [x] Run `cargo test --test form_diaper` and
   `cargo test --test mixed_diapers --test logging_order --test event_times`.
-- [ ] Commit: `fix: retain diaper and potty answers when navigating back`.
+- [x] Commit: `fix: retain diaper and potty answers when navigating back`.
 
 ### Task 6: Bottle and nursing forms
 

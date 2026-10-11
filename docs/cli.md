@@ -743,3 +743,11 @@ Clear removes just the chosen optional field. During network waits, Ctrl-C
 returns to navigation. A submitted write may already have completed, so the
 session asks you to check logs before retrying. Long text input scrolls to keep
 the insertion point visible.
+
+In the shell, diaper and potty questions retain their answers while navigating.
+Left, `h` or `a` returns to the preceding question; inside a dial these move to
+the first column before leaving it. Text retains letters and uses Left to go
+back. Enter validates the current answer and shows the next applicable question,
+prefilled if already answered. Changing contents hides irrelevant details without
+forgetting them, so switching back restores them. Escape discards the draft and
+returns Home. A completed form records one entry.

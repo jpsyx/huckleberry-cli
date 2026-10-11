@@ -10,6 +10,7 @@ pub mod child;
 pub mod dash;
 pub mod delete;
 pub mod diaper;
+pub mod diaper_form;
 pub mod edit;
 pub mod export;
 pub mod feed;
@@ -328,3 +329,7 @@ pub async fn client_and_child(context: &Context) -> Result<(Huckleberry, String)
     let cid = which_child(context, &client).await?;
     Ok((client, cid))
 }
+
+#[cfg(test)]
+#[path = "../../crates/huckleberry-api/tests/support/mod.rs"]
+pub(crate) mod test_support;
