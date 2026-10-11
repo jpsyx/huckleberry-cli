@@ -14,6 +14,22 @@ pub async fn prepare(
     now: f64,
 ) -> Result<Option<PreparedCommand>> {
     match command {
+        Command::Edit { options } if !options.list => {
+            let (client, cid) = crate::commands::client_and_child(&context).await?;
+            Box::pin(crate::commands::edit::prepare::prepare_with_client(
+                context, client, cid, options, now,
+            ))
+            .await
+            .map(Some)
+        }
+        Command::Delete { options } if !options.list => {
+            let (client, cid) = crate::commands::client_and_child(&context).await?;
+            Box::pin(crate::commands::delete::prepare_with_client(
+                context, client, cid, options, now,
+            ))
+            .await
+            .map(Some)
+        }
         Command::Growth {
             weight,
             height,

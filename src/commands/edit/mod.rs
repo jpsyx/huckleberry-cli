@@ -18,6 +18,7 @@ mod form_pump;
 mod history;
 mod live;
 pub mod pick;
+pub(crate) mod prepare;
 pub mod save;
 mod save_foods;
 mod save_pump;
@@ -39,8 +40,8 @@ use crate::session::Context;
 /// Runs the command.
 pub async fn run(context: &Context, options: &EditOptions) -> Result<()> {
     let (client, cid) = super::client_and_child(context).await?;
-    if options.id.as_deref() == Some(live::TOKEN) && !options.list {
-        return live::run(context, &client, &cid, &options.set).await;
+    if !options.list {
+        return prepare::run(context, &client, &cid, options).await;
     }
     let window = context.days(options.days);
     context.narrate(&format!("Reading {window} days from Huckleberry..."));
@@ -66,35 +67,8 @@ pub async fn run(context: &Context, options: &EditOptions) -> Result<()> {
         shown.insert(0, ongoing);
     }
 
-    if options.list {
-        list(context, &shown, &calendar);
-        return Ok(());
-    }
-
-    let picked = match options.id.as_deref() {
-        Some(token) => Some(token.to_owned()),
-        None => choose(context, &shown, &calendar)?,
-    };
-    // Leaving the list without picking is not a failure: nothing was asked
-    // for, so nothing happened and nothing is reported as having gone wrong.
-    let Some(token) = picked else {
-        context.report("Nothing changed.");
-        return Ok(());
-    };
-
-    if token == live::TOKEN {
-        return live::run(context, &client, &cid, &options.set).await;
-    }
-    history::run(
-        context,
-        &client,
-        &cid,
-        &dataset,
-        &entries,
-        &token,
-        &options.set,
-    )
-    .await
+    list(context, &shown, &calendar);
+    Ok(())
 }
 
 /// Prints the entries, one `key<TAB>value` row each, for a script to read.
@@ -248,3 +222,5 @@ mod tests {
         assert!(entry.description.contains("paused"));
     }
 }
+
+pub mod retained;

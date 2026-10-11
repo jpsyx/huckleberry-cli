@@ -1,7 +1,6 @@
 //! Solid foods and meal selection.
 use super::{
-    Context, FoodReference, Huckleberry, MealInput, Question, Reaction, Result, bail, format,
-    output, prompt,
+    Context, FoodReference, Huckleberry, MealInput, Reaction, Result, bail, format, output, prompt,
 };
 /// Records a meal, asking for everything that was not given.
 pub(super) async fn solids(
@@ -162,62 +161,9 @@ pub async fn ask_for_foods(
         bail!("no foods: pass --food <NAME>");
     }
     let known = client.custom_foods(cid, false).await.unwrap_or_default();
-    let names: Vec<String> = known.into_iter().map(|food| food.name).collect();
-    let mut selection = FoodSelection {
-        selected: current.to_vec(),
-    };
-    loop {
-        let items = food_items(&selection, &names);
-        let title = format!("Foods: {}", selection.selected.join(", "));
-        let index = prompt::select::choose(&title, &items, 0, context.theme)?;
-        let action = food_action(context, index, &selection, &names)?;
-        if selection.apply(action) {
-            return Ok(selection.selected);
-        }
-    }
-}
-
-fn food_items(selection: &FoodSelection, known: &[String]) -> Vec<prompt::select::MenuItem> {
-    let mut labels = if selection.selected.is_empty() {
-        vec![]
-    } else {
-        vec!["Done".into()]
-    };
-    labels.extend(known.iter().map(|name| format!("Add {name}")));
-    labels.push("Enter a new food name".into());
-    labels.extend(
-        selection
-            .selected
-            .iter()
-            .map(|name| format!("Remove {name}")),
-    );
-    labels
-        .into_iter()
-        .map(|label| prompt::select::MenuItem {
-            label,
-            detail: None,
-        })
-        .collect()
-}
-
-fn food_action(
-    context: &Context,
-    index: usize,
-    selection: &FoodSelection,
-    known: &[String],
-) -> Result<FoodAction> {
-    if !selection.selected.is_empty() && index == 0 {
-        return Ok(FoodAction::Done);
-    }
-    let index = index - usize::from(!selection.selected.is_empty());
-    if let Some(name) = known.get(index) {
-        return Ok(FoodAction::Add(name.clone()));
-    }
-    if index == known.len() {
-        return Ok(FoodAction::Add(prompt::ask(
-            &Question::new("food", "Food name?", "--food <NAME>"),
-            context.theme,
-        )?));
-    }
-    Ok(FoodAction::Remove(index - known.len() - 1))
+    crate::prompt::flow::runner::read(
+        super::solids_form::FoodForm::create_foods(context.calendar()?, current.to_vec(), known),
+        huckleberry_api::client::now_seconds(),
+        context.theme,
+    )
 }

@@ -43,7 +43,10 @@ impl TimeState {
     /// Reads the exact instant, checking the current form's bounds.
     pub fn value(&self, now: f64) -> Result<f64> {
         let at = if self.floating_now { now } else { self.at };
-        if !at.is_finite() || at < 0.0 || at > now {
+        let unchanged = self
+            .recorded
+            .is_some_and(|recorded| recorded.to_bits() == at.to_bits());
+        if !unchanged && (!at.is_finite() || at < 0.0 || at > now) {
             bail!("Choose a time between the Unix epoch and now");
         }
         if self.not_before.is_some_and(|start| at < start) {

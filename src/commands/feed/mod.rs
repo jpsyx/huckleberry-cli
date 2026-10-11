@@ -5,7 +5,7 @@ use huckleberry_api::Huckleberry;
 use huckleberry_api::models::solids::FoodReference;
 
 use crate::cli::{BottleKind, FeedAction, Reaction, Units};
-use crate::prompt::{self, Question};
+use crate::prompt;
 use crate::render::{format, output};
 use crate::session::Context;
 

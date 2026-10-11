@@ -250,3 +250,42 @@ impl FormModel for SolidsForm {
         })
     }
 }
+
+/// The same food list used on its own inside an entry's field editor.
+pub struct FoodForm(SolidsForm);
+impl FoodForm {
+    /// Opens the shared food controls with the entry's existing selection.
+    #[must_use]
+    pub fn create_foods(calendar: Calendar, selected: Vec<String>, known: Vec<CustomFood>) -> Self {
+        let mut meal = SolidsForm::create_solids(calendar, SolidsInput::default(), known);
+        meal.selection.selected = selected;
+        Self(meal)
+    }
+}
+impl FormModel for FoodForm {
+    type Output = Vec<String>;
+    fn route(&self) -> Vec<ViewId> {
+        self.0
+            .route()
+            .into_iter()
+            .filter(|id| matches!(id.field, "foods" | "food-name"))
+            .collect()
+    }
+    fn create_view(&self, id: &ViewId, now: f64) -> Result<View> {
+        self.0.create_view(id, now)
+    }
+    fn accept(&mut self, id: &ViewId, value: FormValue, now: f64) -> Result<()> {
+        self.0.accept(id, value, now)
+    }
+    fn forward(&self, id: &ViewId) -> Option<ViewId> {
+        self.0
+            .forward(id)
+            .filter(|id| matches!(id.field, "foods" | "food-name"))
+    }
+    fn complete(&self) -> Result<Vec<String>> {
+        if self.0.selection.selected.is_empty() {
+            bail!("choose at least one food");
+        }
+        Ok(self.0.selection.selected.clone())
+    }
+}

@@ -1,13 +1,12 @@
 //! A shared field picker records explicit changes; Keep never normalizes stored data.
-use super::form_pump::{can_clear, keep_field, uses_pump_prompt, visible_amount};
+#[cfg(test)]
+use super::form_pump::keep_field;
+use super::form_pump::visible_amount;
 use crate::{
     domain::time::Calendar,
     edit::Draft,
     interactive::options::fields,
-    prompt::{
-        self, Question,
-        select::{self, MenuItem},
-    },
+    prompt::{self, select::MenuItem},
     render::format,
     session::Context,
 };
@@ -16,92 +15,65 @@ use anyhow::Result;
 /// The stored field a sleep's stop time is saved as.
 const SLEEP_LENGTH: &str = "duration";
 
-/// What one answered field contributes to the pending changes.
-pub(super) enum Answer {
-    /// A new stored value for the field.
-    Value(String),
-    /// The instant the entry now starts at.
-    Start(f64),
-    /// The instant a sleep now ends at.
-    Stop(f64),
-    /// One pump volume answer, retaining the side it belongs to.
-    PumpVolume {
-        field: String,
-        amount: f64,
-        units: crate::cli::Units,
-    },
-    /// An amount and the units it is in, which are one answer.
-    Volume {
-        /// The amount, as it is stored.
-        amount: String,
-        /// The units it is in.
-        units: String,
-    },
-}
-
-/// Collects only deliberate changes, starting on Done and keeping every other field.
+/// Collects the same owned field draft used by the shell's entry editor.
 pub async fn collect(
     context: &Context,
     draft: Option<&Draft>,
     started: f64,
     live: bool,
-    mut changes: Vec<String>,
+    changes: Vec<String>,
 ) -> Result<Vec<String>> {
     if !prompt::available() {
         anyhow::bail!("no changes supplied: pass --set at=<TIME> or --set <FIELD=VALUE>");
     }
     let calendar = context.calendar()?;
-    let original = started;
-    let mut started = started;
-    let mut stopped = None;
-    loop {
-        let shown = shown_draft(draft, &changes);
-        let field_names = visible_fields(shown.as_ref(), live);
-        let items = menu_items(draft, &field_names, &changes, started, &calendar);
-        let index = choose(context, "Fields to change", &items)?;
-        if index == 0 {
-            return Ok(changes);
-        }
-        let field = field_names[index - 1];
-        match read(context, field, draft, shown.as_ref(), started).await? {
-            None => keep_field(&mut changes, draft, shown.as_ref(), field)?,
-            Some(Answer::Value(value)) => {
-                record_value(&mut changes, shown.as_ref(), field, &value)?;
-            }
-            Some(Answer::Start(instant)) => {
-                started = instant;
-                let moved = (instant.to_bits() != original.to_bits())
-                    .then(|| calendar.zoned(instant).datetime().to_string());
-                fields::update_change(&mut changes, field, moved.as_deref());
-                keep_stop(context, &mut changes, &mut stopped, draft, started);
-            }
-            Some(Answer::Stop(instant)) => {
-                stopped = Some(instant);
-                set_stop(&mut changes, draft, started, instant);
-            }
-            Some(Answer::PumpVolume {
-                field,
-                amount,
-                units,
-            }) => {
-                if let Some(Draft::Pump(pump)) = &shown {
-                    super::form_pump::record_volume(&mut changes, pump, &field, amount, units)?;
-                }
-            }
-            Some(Answer::Volume { amount, units }) => {
-                if let Some(mut checked) = draft.cloned() {
-                    checked.set("amount", &amount)?;
-                    checked.set("units", &units)?;
-                }
-                fields::update_change(&mut changes, "amount", Some(&amount));
-                fields::update_change(&mut changes, "units", Some(&units));
-            }
-        }
+    let token = if live { super::live::TOKEN } else { "draft" };
+    let target = super::retained::EditTarget {
+        token: token.into(),
+        started,
+        draft: draft.cloned(),
+        timer: None,
+    };
+    let time = changes
+        .iter()
+        .filter_map(|change| change.split_once('='))
+        .find(|(field, _)| matches!(*field, "at" | "start"))
+        .map(|(_, value)| prompt::time::read_edit_at(context, Some(value), started))
+        .transpose()?
+        .unwrap_or(started);
+    let changes = changes
+        .into_iter()
+        .filter(|change| !change.starts_with("at=") && !change.starts_with("start="))
+        .collect();
+    let model = super::retained::EditForm::create_edit(
+        calendar.clone(),
+        vec![],
+        vec![target],
+        Some(token.into()),
+        vec![],
+    )?
+    .with_changes(changes, time);
+    let model = if matches!(draft, Some(Draft::Solids(_))) {
+        let (client, cid) = crate::commands::client_and_child(context).await?;
+        model.with_foods(&client.custom_foods(&cid, false).await.unwrap_or_default())
+    } else {
+        model
+    };
+    let answer =
+        prompt::flow::runner::read(model, huckleberry_api::client::now_seconds(), context.theme)?;
+    let mut changes = answer.changes;
+    if let Some(at) = answer.started {
+        fields::update_change(
+            &mut changes,
+            if live { "start" } else { "at" },
+            Some(&calendar.zoned(at).datetime().to_string()),
+        );
     }
+    Ok(changes)
 }
 
 /// Validates and records an answer from a choice or typed field.
-fn record_value(
+pub(super) fn record_value(
     changes: &mut Vec<String>,
     shown: Option<&Draft>,
     field: &str,
@@ -120,7 +92,7 @@ fn record_value(
 }
 
 /// The fields this entry offers in the menu.
-fn visible_fields(draft: Option<&Draft>, live: bool) -> Vec<&'static str> {
+pub(super) fn visible_fields(draft: Option<&Draft>, live: bool) -> Vec<&'static str> {
     let time_key = if live { "start" } else { "at" };
     let mut field_names = vec![time_key];
     if let Some(draft) = draft {
@@ -141,7 +113,7 @@ fn visible_fields(draft: Option<&Draft>, live: bool) -> Vec<&'static str> {
 ///
 /// Showing the value is what the old "keep current" said, except that it says
 /// what current is, and a field nobody touched needs no words at all.
-fn menu_items(
+pub(super) fn menu_items(
     draft: Option<&Draft>,
     field_names: &[&str],
     changes: &[String],
@@ -174,7 +146,7 @@ fn menu_items(
 ///
 /// A sleep is a stretch of time, so it reads as a start and a stop rather than
 /// as the instant it is filed under and the length it lasted.
-fn label_for<'a>(draft: Option<&Draft>, field: &'a str) -> &'a str {
+pub(super) fn label_for<'a>(draft: Option<&Draft>, field: &'a str) -> &'a str {
     let sleeping = matches!(draft, Some(Draft::Sleep(_)));
     match field {
         "at" if sleeping => "start",
@@ -185,7 +157,7 @@ fn label_for<'a>(draft: Option<&Draft>, field: &'a str) -> &'a str {
 }
 
 /// The entry as it would be saved: what is stored, with the pending changes on top.
-fn shown_draft(draft: Option<&Draft>, changes: &[String]) -> Option<Draft> {
+pub(super) fn shown_draft(draft: Option<&Draft>, changes: &[String]) -> Option<Draft> {
     let mut shown = draft.cloned()?;
     if matches!(shown, Draft::Pump(_)) {
         return Some(super::form_pump::shown_draft(shown, changes));
@@ -219,32 +191,17 @@ fn shown_value(draft: Option<&Draft>, field: &str, started: f64, calendar: &Cale
 ///
 /// A stop that lands exactly where the entry already ends is no change at all,
 /// so nothing is written for it.
-fn set_stop(changes: &mut Vec<String>, draft: Option<&Draft>, started: f64, stopped: f64) {
+pub(super) fn set_stop(
+    changes: &mut Vec<String>,
+    draft: Option<&Draft>,
+    started: f64,
+    stopped: f64,
+) {
     let minutes = minutes_of(stopped - started);
     let unchanged =
         stored_minutes(draft).is_some_and(|stored| stored.to_bits() == minutes.to_bits());
     let value = (!unchanged).then(|| minutes_text(minutes));
     fields::update_change(changes, SLEEP_LENGTH, value.as_deref());
-}
-
-/// A stop a parent already chose stays where they put it when the start moves.
-fn keep_stop(
-    context: &Context,
-    changes: &mut Vec<String>,
-    stopped: &mut Option<f64>,
-    draft: Option<&Draft>,
-    started: f64,
-) {
-    let Some(stop) = *stopped else {
-        return;
-    };
-    if stop > started {
-        set_stop(changes, draft, started, stop);
-    } else {
-        *stopped = None;
-        fields::update_change(changes, SLEEP_LENGTH, None);
-        context.warn("That start is after the stop you chose: choose Edit stop again.");
-    }
 }
 
 /// The length a sleep is on the record for, in minutes.
@@ -270,12 +227,12 @@ fn minutes_text(minutes: f64) -> String {
 }
 
 /// Whether this field is the sleep length a parent answers as a stop time.
-fn is_stop(draft: Option<&Draft>, field: &str) -> bool {
+pub(super) fn is_stop(draft: Option<&Draft>, field: &str) -> bool {
     field == SLEEP_LENGTH && matches!(draft, Some(Draft::Sleep(_)))
 }
 
 /// Where a sleep currently ends, for the stop question's default.
-fn stop_of(draft: Option<&Draft>, started: f64) -> f64 {
+pub(super) fn stop_of(draft: Option<&Draft>, started: f64) -> f64 {
     match draft {
         Some(Draft::Sleep(sleep)) => started + sleep.minutes * 60.0,
         _ => started,
@@ -284,106 +241,7 @@ fn stop_of(draft: Option<&Draft>, started: f64) -> f64 {
 
 /// Whether a field is answered by another question rather than on its own.
 fn folded_into_amount(draft: &Draft, field: &str) -> bool {
-    field == "units" && matches!(draft, Draft::Bottle(_) | Draft::Pump(_)) && prompt::host::hosted()
-}
-
-/// Asks for one field. Times are asked outright: their default already keeps.
-async fn read(
-    context: &Context,
-    field: &str,
-    draft: Option<&Draft>,
-    shown: Option<&Draft>,
-    started: f64,
-) -> Result<Option<Answer>> {
-    if matches!(field, "at" | "start") {
-        return Ok(Some(Answer::Start(if field == "at" {
-            prompt::time::read_edit_at(context, None, started)?
-        } else {
-            prompt::time::read_edit_start(context, None, Some(started))?.unwrap_or(started)
-        })));
-    }
-    if let Some(Draft::Pump(pump)) = shown
-        && uses_pump_prompt(field, prompt::host::hosted())
-    {
-        return super::form_pump::read(context, pump, field);
-    }
-    // A volume is one question. The units column travels with the amount, so
-    // there is no second field to pick and no second answer to keep in step.
-    if field == "amount"
-        && prompt::host::hosted()
-        && let Some(Draft::Bottle(bottle)) = shown
-    {
-        let (units, amount) = prompt::dial::volume::ask(
-            "How much?",
-            bottle.units,
-            Some(bottle.amount),
-            context.theme,
-        )?;
-        return Ok(Some(Answer::Volume {
-            amount: format::amount_in(amount, units),
-            units: units.as_str().to_owned(),
-        }));
-    }
-    if is_stop(draft, field) {
-        let stopped =
-            prompt::time::read_edit_stop(context, None, started, stop_of(shown, started))?;
-        return Ok(Some(Answer::Stop(stopped)));
-    }
-    let mut labels = vec!["Keep current value".into()];
-    let choices = fields::choices(field);
-    labels.extend(choices.iter().map(|(_, label)| label.clone()));
-    if choices.is_empty() {
-        labels.push("Enter a new value".into());
-    }
-    if can_clear(draft, field) {
-        labels.push("Clear value".into());
-    }
-    let index = choose(context, label_for(draft, field), &items(&labels))?;
-    if index == 0 {
-        return Ok(None);
-    }
-    if labels[index] == "Clear value" {
-        return Ok(Some(Answer::Value(String::new())));
-    }
-    if let Some((value, _)) = choices.get(index - 1) {
-        return Ok(Some(Answer::Value(value.clone())));
-    }
-    if field == "foods" {
-        return food_value(context, draft)
-            .await
-            .map(Answer::Value)
-            .map(Some);
-    }
-    let question = Question::new("field value", "New value?", "--set <KEY=VALUE>");
-    Ok(Some(Answer::Value(prompt::ask(&question, context.theme)?)))
-}
-
-async fn food_value(context: &Context, draft: Option<&Draft>) -> Result<String> {
-    let current = match draft {
-        Some(Draft::Solids(meal)) => meal.foods.clone(),
-        _ => vec![],
-    };
-    let (client, cid) = crate::commands::client_and_child(context).await?;
-    Ok(
-        crate::commands::feed::solids::ask_for_foods(context, &client, &cid, &current)
-            .await?
-            .join(", "),
-    )
-}
-
-/// Plain menu entries, for the lists that are only labels.
-fn items(labels: &[String]) -> Vec<MenuItem> {
-    labels
-        .iter()
-        .map(|label| MenuItem {
-            label: label.clone(),
-            detail: None,
-        })
-        .collect()
-}
-
-fn choose(context: &Context, title: &str, items: &[MenuItem]) -> Result<usize> {
-    select::choose(title, items, 0, context.theme)
+    field == "units" && matches!(draft, Draft::Bottle(_) | Draft::Pump(_))
 }
 
 /// Compatibility entry for callers collecting a complete history form.
@@ -506,64 +364,56 @@ mod pump_form {
         })
     }
 
-    fn context() -> Context {
-        Context {
-            config: crate::config::Config::default(),
-            config_path: "unused.toml".into(),
-            credentials_path: "unused.json".into(),
-            theme: Theme::dark(false),
-            verbose: false,
-            child_override: None,
-            offline: None,
-        }
-    }
-
-    /// Exercises the field prompt through the host, without terminal or network access.
     fn answer(
         field: &'static str,
         expected: &'static str,
         keys: Vec<KeyCode>,
-    ) -> Result<Option<Answer>> {
-        let _one = host::one_at_a_time();
-        let channel = host::install();
-        let worker = std::thread::spawn(move || {
-            let runtime = tokio::runtime::Builder::new_current_thread()
-                .build()
-                .unwrap();
-            let draft = pump();
-            runtime.block_on(read(&context(), field, Some(&draft), Some(&draft), 1000.0))
-        });
-        let mut keys = keys.into_iter();
-        let mut saw_expected = false;
-        while let Ok((request, reply)) = channel
-            .requests
-            .recv_timeout(std::time::Duration::from_millis(100))
-        {
-            match request {
-                host::Request::Frame(lines) => {
-                    saw_expected |= lines.iter().any(|line| line.contains(expected));
-                    let key = keys.next().unwrap_or(KeyCode::Esc);
-                    reply
-                        .send(host::Reply::Input(host::Input::Key(KeyEvent::new(
-                            key,
-                            KeyModifiers::NONE,
-                        ))))
-                        .unwrap();
-                }
-                host::Request::Step(_) => {
-                    reply
-                        .send(host::Reply::Stepped { interrupted: true })
-                        .unwrap();
-                }
-                host::Request::Show(_) => {
-                    reply.send(host::Reply::Shown).unwrap();
-                }
-            }
+    ) -> Result<Option<String>> {
+        use crate::prompt::flow::FormState;
+        let model = super::super::retained::EditForm::create_edit(
+            Calendar::new("UTC")?,
+            vec![],
+            vec![super::super::retained::EditTarget {
+                token: "pump/entry".into(),
+                started: 1000.0,
+                draft: Some(pump()),
+                timer: None,
+            }],
+            Some("pump/entry".into()),
+            vec![],
+        )?;
+        let mut form = FormState::create_form(model, 10000.0)?;
+        let index = visible_fields(Some(&pump()), false)
+            .iter()
+            .position(|name| *name == field)
+            .unwrap()
+            + 1;
+        let press = |form: &mut FormState<_>, code| {
+            form.apply(
+                host::Input::Key(KeyEvent::new(code, KeyModifiers::NONE)),
+                10000.0,
+                (80, 24),
+            )
+        };
+        for _ in 0..index {
+            press(&mut form, KeyCode::Down);
         }
-        host::remove();
-        let result = worker.join().unwrap();
-        assert!(saw_expected, "the {field} form did not show {expected}");
-        result
+        press(&mut form, KeyCode::Enter);
+        assert!(
+            form.render(10000.0, (80, 24), Theme::dark(false))
+                .join("\n")
+                .contains(expected)
+        );
+        for code in keys {
+            press(&mut form, code);
+        }
+        Ok(form
+            .complete()?
+            .changes
+            .iter()
+            .filter_map(|change| change.split_once('='))
+            .find(|(name, _)| *name == field)
+            .map(|(_, value)| value.to_owned()))
     }
 
     #[test]
@@ -574,7 +424,7 @@ mod pump_form {
             vec![KeyCode::Char('3'), KeyCode::Enter],
         )
         .unwrap();
-        assert!(matches!(result, Some(Answer::Value(value)) if value == "leftright"));
+        assert!(matches!(result, Some(value) if value == "leftright"));
     }
 
     #[test]
@@ -587,7 +437,7 @@ mod pump_form {
             vec![KeyCode::Char('3'), KeyCode::Enter],
         )
         .unwrap();
-        assert!(matches!(cleared, Some(Answer::Value(value)) if value.is_empty()));
+        assert!(matches!(cleared, Some(value) if value.is_empty()));
     }
 
     #[test]
@@ -598,7 +448,7 @@ mod pump_form {
             vec![KeyCode::Char('7'), KeyCode::Enter],
         )
         .unwrap();
-        assert!(matches!(result, Some(Answer::Value(value)) if value == "20"));
+        assert!(matches!(result, Some(value) if value == "20"));
     }
     #[test]
     fn total_pump_fields_hide_artificial_side_amounts() {
@@ -638,17 +488,6 @@ mod pump_form {
         assert!(fields.contains(&"right"));
     }
 
-    #[test]
-    fn standalone_pump_volumes_use_text_with_clear_while_shell_uses_the_dial() {
-        for field in ["amount", "left", "right"] {
-            assert!(!uses_pump_prompt(field, false));
-            assert!(uses_pump_prompt(field, true));
-            assert!(can_clear(Some(&pump()), field));
-        }
-        for field in ["mode", "duration"] {
-            assert!(uses_pump_prompt(field, false));
-        }
-    }
     /// Runs the same pending-value path used by standalone Edit answers.
     fn typed_changes(original: &Draft, answers: &[(&str, &str)]) -> Draft {
         let mut changes = Vec::new();

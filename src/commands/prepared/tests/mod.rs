@@ -8,3 +8,5 @@ mod support;
 mod sleep;
 
 mod measurements;
+
+mod entries;

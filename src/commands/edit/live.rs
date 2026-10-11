@@ -32,22 +32,21 @@ pub fn entry(state: &LiveState, now: f64) -> Option<Entry> {
     })
 }
 
-/// Changes the selected session after asking for its corrected start.
-pub async fn run(
+/// Saves against the original live timer UUID, preserving the API conflict check.
+pub(super) async fn execute(
     context: &Context,
     client: &Huckleberry,
     cid: &str,
-    changes: &[String],
+    answer: super::retained::EditSubmission,
 ) -> Result<()> {
-    let given = start_value(changes)?;
-    let timer = client
-        .sleep_document(cid)
-        .await?
-        .and_then(|document| document.timer)
-        .filter(|timer| timer.active)
-        .ok_or_else(|| anyhow::anyhow!("no ongoing sleep to edit"))?;
-    let Some(started) = crate::prompt::time::read_edit_start(context, given, timer.started_at())?
-    else {
+    let timer = answer.target.timer.expect("live target");
+    let given = start_value(&answer.changes)?;
+    let started = if let Some(given) = given {
+        crate::prompt::time::read_edit_start(context, Some(given), timer.started_at())?
+    } else {
+        answer.started
+    };
+    let Some(started) = started else {
         super::super::persist_session(context, client).await?;
         context.report("The ongoing sleep is unchanged.");
         return Ok(());

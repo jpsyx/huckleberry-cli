@@ -501,3 +501,13 @@ starting another action or pressing Escape discards it. Execution consumes the
 draft once, and Escape during a write records a Home destination while its
 actual result is still collected and shown. Menu selection is retained by menu
 identity when revisiting a submenu.
+
+Entry editing and deletion now prepare owned picker rows and targets before
+collection. Picker state retains its query, cursor and scroll; refreshed rows
+are matched by token, and a missing selected token requires another selection.
+Each edit target owns its pending field changes and nested controls. Field
+acceptance returns to Fields to change, while Done consumes only the selected
+entry's draft. History saves still use sparse explicit field updates; live
+sleep corrections retain the original timer UUID for the API conflict check.
+Delete confirmation is scoped to the selected RowRef and returns to that picker
+on Back. Neither collection path mutates an entry before completion.

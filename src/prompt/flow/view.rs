@@ -34,6 +34,7 @@ pub struct View {
 }
 
 enum Control {
+    Listing(super::listing::ListingControl),
     Choice {
         rows: Vec<MenuItem>,
         values: Vec<FormValue>,
@@ -49,6 +50,16 @@ enum Control {
 }
 
 impl View {
+    /// Creates a retained searchable list using the shared listing renderer.
+    #[must_use]
+    pub const fn create_listing(listing: super::listing::ListingControl) -> Self {
+        Self {
+            label: String::new(),
+            description: None,
+            control: Control::Listing(listing),
+        }
+    }
+
     /// Creates a number input whose buffer retains its physical units.
     #[must_use]
     pub fn create_measurement(label: impl Into<String>, measurement: MeasurementState) -> Self {
@@ -134,6 +145,7 @@ impl View {
         self.label = fresh.label;
         self.description = fresh.description;
         match (&mut self.control, fresh.control) {
+            (Control::Listing(listing), Control::Listing(fresh)) => listing.refresh(fresh),
             (Control::Time(time), Control::Time(fresh_time)) => {
                 time.refresh_constraints(&fresh_time);
             }
@@ -166,6 +178,9 @@ impl View {
 
     /// Applies input using the shared control implementations.
     pub fn apply(&mut self, input: Input, now: f64, size: (u16, u16)) -> ControlEvent {
+        if let Control::Listing(listing) = &mut self.control {
+            return listing.apply(input, size);
+        }
         match input {
             Input::Pasted(pasted) => {
                 match &mut self.control {
@@ -211,13 +226,14 @@ impl View {
                     text::Typing::Cancel => ControlEvent::Cancel,
                 }
             }
-            Control::Time(_) | Control::Volume(_) => ControlEvent::Stay,
+            Control::Time(_) | Control::Volume(_) | Control::Listing(_) => ControlEvent::Stay,
         }
     }
 
     /// Reads the control's value without altering it.
     pub fn value(&self, now: f64) -> Result<FormValue> {
         match &self.control {
+            Control::Listing(listing) => listing.value(),
             Control::Choice {
                 values, selection, ..
             } => values
@@ -244,6 +260,9 @@ impl View {
     /// Draws through the same functions used by the corresponding prompt.
     #[must_use]
     pub fn render(&self, now: f64, size: (u16, u16), theme: Theme) -> Vec<String> {
+        if let Control::Listing(listing) = &self.control {
+            return listing.render(size, theme);
+        }
         let mut lines = Vec::new();
         if let Some((description, tone)) = &self.description {
             lines.extend(
@@ -256,6 +275,7 @@ impl View {
             .1
             .saturating_sub(u16::try_from(lines.len()).unwrap_or(u16::MAX));
         lines.extend(match &self.control {
+            Control::Listing(listing) => listing.render(size, theme),
             Control::Choice {
                 rows, selection, ..
             } => select::render(&self.label, rows, selection, size.0, height, theme),

@@ -2,99 +2,11 @@
 use anyhow::Result;
 use huckleberry_api::models::pump::PumpEntryMode;
 
-use super::form::Answer;
 use crate::{
     cli::Units,
     edit::{Draft, PumpDraft},
     interactive::options::fields,
-    prompt::{
-        self, Question,
-        select::{self, MenuItem},
-    },
-    session::Context,
 };
-
-pub(super) fn read(context: &Context, pump: &PumpDraft, field: &str) -> Result<Option<Answer>> {
-    match field {
-        "mode" => {
-            let index = choose(
-                context,
-                "Record amounts as",
-                &["Keep current value", "Total", "Left and right"],
-            )?;
-            Ok(match index {
-                1 => Some(Answer::Value("total".into())),
-                2 => Some(Answer::Value("leftright".into())),
-                _ => None,
-            })
-        }
-        "duration" => duration(context, pump),
-        _ => volume(context, pump, field),
-    }
-}
-
-fn volume(context: &Context, pump: &PumpDraft, field: &str) -> Result<Option<Answer>> {
-    let title = match field {
-        "left" => "Left amount",
-        "right" => "Right amount",
-        _ => "Total amount",
-    };
-    match choose(
-        context,
-        title,
-        &["Keep current value", "Change amount", "Clear value"],
-    )? {
-        1 => {
-            let current = match field {
-                "left" => pump.left_amount,
-                "right" => pump.right_amount,
-                _ => pump.total_amount(),
-            };
-            let (units, amount) =
-                prompt::dial::volume::ask_nonnegative(title, pump.units, current, context.theme)?;
-            Ok(Some(Answer::PumpVolume {
-                field: field.into(),
-                amount,
-                units,
-            }))
-        }
-        2 => Ok(Some(Answer::Value(String::new()))),
-        _ => Ok(None),
-    }
-}
-
-fn duration(context: &Context, pump: &PumpDraft) -> Result<Option<Answer>> {
-    let choices = [
-        "Keep current value",
-        "Clear value",
-        "0 minutes",
-        "5 minutes",
-        "10 minutes",
-        "15 minutes",
-        "20 minutes",
-        "30 minutes",
-        "Other duration",
-    ];
-    let index = choose(context, "Duration", &choices)?;
-    let value = match index {
-        0 => return Ok(None),
-        1 => String::new(),
-        8 => {
-            let current = pump.duration_minutes.unwrap_or_default().to_string();
-            prompt::ask(
-                &Question::new("duration", "How many minutes?", "--set duration=<MINUTES>")
-                    .with_default(&current),
-                context.theme,
-            )?
-        }
-        _ => choices[index]
-            .split_once(' ')
-            .expect("a duration preset")
-            .0
-            .to_owned(),
-    };
-    Ok(Some(Answer::Value(value)))
-}
 
 /// Rebuilds pending amounts in one unit system, including earlier side answers.
 /// Reopening the other side after turning units must not reinterpret its number.
@@ -177,17 +89,6 @@ fn replace_amount(changes: &mut Vec<String>, field: &str, amount: Option<f64>) {
     fields::update_change(changes, field, Some(&value));
 }
 
-fn choose(context: &Context, title: &str, labels: &[&str]) -> Result<usize> {
-    let items = labels
-        .iter()
-        .map(|label| MenuItem {
-            label: (*label).into(),
-            detail: None,
-        })
-        .collect::<Vec<_>>();
-    select::choose(title, &items, 0, context.theme)
-}
-
 /// A total's stored halves are not separate measurements to display.
 pub(super) fn visible_amount(draft: &Draft, field: &str) -> bool {
     use huckleberry_api::models::pump::PumpEntryMode;
@@ -199,11 +100,6 @@ pub(super) fn visible_amount(draft: &Draft, field: &str) -> bool {
         },
         _ => true,
     }
-}
-
-/// Pump choices whose questions differ from the generic edit field.
-pub(super) fn uses_pump_prompt(field: &str, hosted: bool) -> bool {
-    matches!(field, "mode" | "duration") || (hosted && matches!(field, "amount" | "left" | "right"))
 }
 
 /// Whether the field's value can be removed.

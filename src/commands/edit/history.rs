@@ -5,10 +5,7 @@ use huckleberry_api::models::health::HealthEntry;
 use huckleberry_api::{Huckleberry, Located, RowRef, Window, client::now_seconds};
 
 use crate::cli::Units;
-use crate::domain::{
-    log::{Entry, Kind},
-    types::Dataset,
-};
+use crate::domain::log::{Entry, Kind};
 use crate::edit::{self, Draft};
 use crate::render::format;
 use crate::session::Context;
@@ -91,27 +88,23 @@ fn health_description(row: &HealthEntry, display_units: Units) -> String {
     .join(" · ")
 }
 
-/// Edits the selected row, returning a receipt with its possibly changed reference.
-pub async fn run(
+/// Saves validated explicit changes while preserving the original target identity.
+pub(super) async fn execute(
     context: &Context,
     client: &Huckleberry,
     cid: &str,
-    dataset: &Dataset,
-    entries: &[Entry],
-    token: &str,
-    changes: &[String],
+    answer: super::retained::EditSubmission,
 ) -> Result<()> {
-    let at = edit::parse_token(token)?;
-    let current = started_at(client, cid, entries, &at).await?;
+    let at = edit::parse_token(&answer.target.token)?;
+    let current = answer.target.started;
     let mut started = current;
-    let mut draft = edit::draft_for(dataset, &at, Units::from_setting(&context.config.units));
+    let mut draft = answer.target.draft.clone();
     let before = draft.clone();
-    let changes = if changes.is_empty() {
-        super::form::collect(context, draft.as_ref(), started, false, vec![]).await?
-    } else {
-        changes.to_vec()
-    };
+    let changes = answer.changes;
     fill(context, &changes, &mut draft, &mut started)?;
+    if let Some(corrected) = answer.started {
+        started = corrected;
+    }
     let explicit_details = changes.iter().any(|change| !change.starts_with("at="));
     if draft == before && !explicit_details && started.to_bits() == current.to_bits() {
         context.report("The entry is unchanged.");
@@ -156,7 +149,7 @@ fn fill(
 }
 
 /// Finds the stored instant even when an explicit selector is outside the picker window.
-async fn started_at(
+pub(super) async fn started_at(
     client: &Huckleberry,
     cid: &str,
     entries: &[Entry],

@@ -284,7 +284,12 @@ impl<'a> Listing<'a> {
     }
 
     /// The head lines and the body lines for one pass.
-    fn frame(&self, query: &str, searching: bool, width: Option<usize>) -> (Vec<Line>, Vec<Line>) {
+    pub(crate) fn frame(
+        &self,
+        query: &str,
+        searching: bool,
+        width: Option<usize>,
+    ) -> (Vec<Line>, Vec<Line>) {
         let filtered = model::filter(&self.rows, query);
         let widths = layout::widths(self.columns, &filtered, width);
         let status = model::status(self.noun, filtered.len(), self.rows.len(), query, searching);
@@ -431,7 +436,7 @@ fn draw(frame: &mut Frame, head: &[Line], body: &[Line], state: &State, verb: &'
 ///
 /// The same window, the same cursor and the same foot as the browsable
 /// version draws, painted rather than turned into widgets.
-fn rendered(
+pub(crate) fn rendered(
     head: &[Line],
     body: &[Line],
     state: &State,
