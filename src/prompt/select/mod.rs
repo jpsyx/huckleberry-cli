@@ -26,3 +26,5 @@ pub fn answer(
     }
 }
 pub(crate) use draw::clipped as clip;
+
+pub(crate) use draw::wrapped;

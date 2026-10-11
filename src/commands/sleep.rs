@@ -5,77 +5,69 @@ use huckleberry_api::client::now_seconds;
 use huckleberry_api::{Huckleberry, TimerChange};
 
 use crate::cli::{Overlap, SleepAction};
-use crate::domain::clock;
 use crate::domain::time::format_duration;
-use crate::prompt::{self, Choice, Question};
+use crate::prompt::Choice;
 use crate::render::{format, output};
 use crate::session::Context;
 
-/// Runs the chosen action.
+pub(crate) mod prepare;
+use super::sleep_form::{SleepOperation, SleepSubmission};
+
+/// Runs the same retained form as the shell, then consumes its submission.
 pub async fn run(context: &Context, action: &SleepAction) -> Result<()> {
     let (client, cid) = super::client_and_child(context).await?;
-    let outcome = match action {
-        SleepAction::Start { start: given } => {
-            start(context, &client, &cid, given.as_deref()).await
-        }
-        SleepAction::Manual {
-            start,
-            end,
-            overlap,
-        } => {
-            manual(
-                context,
-                &client,
-                &cid,
-                start.as_deref(),
-                end.as_deref(),
-                *overlap,
-            )
-            .await
-        }
-        SleepAction::Pause { at } => {
-            let at = prompt::time::read_at(context, at.as_deref())?;
-            report(
-                context,
-                client.pause_sleep_at(&cid, at).await?,
-                "😴 Sleep paused.",
-                "paused",
-            );
-            Ok(())
-        }
-        SleepAction::Resume { at } => {
-            let at = prompt::time::read_at(context, at.as_deref())?;
-            report(
-                context,
-                client.resume_sleep_at(&cid, at).await?,
-                "😴 Sleep resumed.",
-                "running",
-            );
-            Ok(())
-        }
-        SleepAction::Cancel => {
-            report(
-                context,
-                client.cancel_sleep(&cid).await?,
-                "Thrown away. Nothing was recorded.",
-                "not running",
-            );
-            Ok(())
-        }
-        SleepAction::Stop { at } => stop(context, &client, &cid, at.as_deref()).await,
-        SleepAction::Status => status(context, &client, &cid).await,
+    let outcome = if matches!(action, SleepAction::Status) {
+        status(context, &client, &cid).await
+    } else {
+        let answer = prepare::collect(context, &client, &cid, action).await?;
+        execute(context, &client, &cid, answer).await
     };
     super::persist_session(context, &client).await?;
     outcome
 }
 
-async fn start(
+async fn execute(
     context: &Context,
     client: &Huckleberry,
     cid: &str,
-    given: Option<&str>,
+    answer: SleepSubmission,
 ) -> Result<()> {
-    let began = prompt::time::read_start(context, given)?;
+    let at = answer.start.unwrap_or_default();
+    match answer.operation {
+        SleepOperation::Start => start(context, client, cid, at).await,
+        SleepOperation::Manual => manual(context, client, cid, answer).await,
+        SleepOperation::Stop => stop(context, client, cid, at).await,
+        SleepOperation::Pause => {
+            report(
+                context,
+                client.pause_sleep_at(cid, at).await?,
+                "😴 Sleep paused.",
+                "paused",
+            );
+            Ok(())
+        }
+        SleepOperation::Resume => {
+            report(
+                context,
+                client.resume_sleep_at(cid, at).await?,
+                "😴 Sleep resumed.",
+                "running",
+            );
+            Ok(())
+        }
+        SleepOperation::Cancel => {
+            report(
+                context,
+                client.cancel_sleep(cid).await?,
+                "Thrown away. Nothing was recorded.",
+                "not running",
+            );
+            Ok(())
+        }
+    }
+}
+
+async fn start(context: &Context, client: &Huckleberry, cid: &str, began: f64) -> Result<()> {
     // Check after prompting: another caregiver may start a timer while the
     // question is open.
     // Starting a second sleep would leave the first unrecorded, which is the
@@ -101,70 +93,29 @@ async fn start(
     Ok(())
 }
 
-/// Records a sleep that has already happened.
-///
-/// Two questions, because that is all a sleep is: when it began and when it
-/// ended. Neither carries a date. A bare time is the most recent one, so at
-/// 3am `11:30pm` is last night, and the end is the first such time after the
-/// start, so a sleep across midnight needs nobody to say so. Relative answers
-/// use elapsed minutes before the moment each answer is read.
-///
-/// A sleep in progress is not in the way: the entry is history and the timer
-/// is a timer. They only meet when the entry runs into the running sleep, and
-/// then the person says which of the two to keep, because all three answers
-/// throw something away and none of them is a default.
+/// Validates current timer identity before applying an already collected overlap decision.
 async fn manual(
     context: &Context,
     client: &Huckleberry,
     cid: &str,
-    start: Option<&str>,
-    end: Option<&str>,
-    overlap: Option<Overlap>,
+    answer: SleepSubmission,
 ) -> Result<()> {
     let calendar = context.calendar()?;
-    let began = prompt::time::read_manual_start(context, start)?;
-    let ended = prompt::time::read_manual_end(context, end, began)?;
-    let now = now_seconds();
-
-    let duration = ended - began;
-    if duration <= 0.0 {
-        bail!("a sleep's end must be after its start");
-    }
-    if ended > now {
-        bail!(
-            "that sleep ends at {}, which is still to come: record it when it has finished",
-            format::clock(ended, &calendar)
-        );
-    }
-
-    // A paused sleep ends at the moment it was paused, not now, which is the
-    // same rule `complete_sleep` records it by.
-    let running = client
+    let began = answer.start.expect("validated start");
+    let ended = answer.end.expect("validated end");
+    let current = client
         .sleep_document(cid)
         .await?
-        .and_then(|document| document.timer)
-        .filter(|timer| timer.active)
-        .and_then(|timer| {
-            let started = timer.started_at()?;
-            let finished = if timer.paused {
-                timer.paused_at().unwrap_or(now)
-            } else {
-                now
-            };
-            Some((started, finished))
-        });
-    if let Some((running_start, running_end)) = running
-        && clock::overlaps(began, ended, running_start, running_end)
-    {
-        let answer = match overlap {
-            Some(given) => given,
-            None => ask_about_overlap(context, running_start, now, &calendar)?,
-        };
-        if !resolve_overlap(context, client, cid, answer).await? {
-            return Ok(());
-        }
+        .and_then(|document| document.timer);
+    if current != answer.running {
+        bail!("The sleep timer changed while this entry was open. Start again to review it.");
     }
-
+    if let Some(overlap) = answer.overlap
+        && !resolve_overlap(context, client, cid, overlap).await?
+    {
+        return Ok(());
+    }
+    let duration = ended - began;
     client.log_sleep(cid, began, duration).await?;
     context.receipt(
         "😴 Sleep recorded",
@@ -208,54 +159,13 @@ async fn resolve_overlap(
     }
 }
 
-/// Asks what to do about an entry that runs into the running sleep.
-///
-/// The warning is `attention`, not `error`: nothing has gone wrong, and this
-/// is a screen about somebody's baby. Every answer says what it throws away,
-/// because that is the part worth reading twice at 3am.
-fn ask_about_overlap(
-    context: &Context,
-    running_start: f64,
-    now: f64,
-    calendar: &crate::domain::Calendar,
-) -> Result<Overlap> {
-    context.attention(&format!(
-        "That overlaps the sleep in progress, which started at {} and has run {}.",
-        format::clock(running_start, calendar),
-        format_duration(now - running_start)
-    ));
-    let question = Question::new(
-        "what to do about the overlap",
-        "Which one do you want to keep?",
-        "--overlap <CHOICE>",
-    )
-    .with_choices(overlap_choices());
-    Ok(match prompt::ask(&question, context.theme)?.as_str() {
-        "cancel" => return Err(prompt::Cancelled.into()),
-        "discard-manual" => Overlap::DiscardManual,
-        "record-sleep" => Overlap::RecordSleep,
-        _ => Overlap::DiscardSleep,
-    })
-}
-
 async fn stop(
     context: &Context,
     client: &huckleberry_api::Huckleberry,
     cid: &str,
-    at: Option<&str>,
+    at: f64,
 ) -> Result<()> {
     let calendar = context.calendar()?;
-    let document = client.sleep_document(cid).await?;
-    if let Some(message) = output::sleep_start_context(
-        document
-            .as_ref()
-            .and_then(|document| document.timer.as_ref()),
-        now_seconds(),
-        &calendar,
-    ) {
-        context.narrate(&message);
-    }
-    let at = prompt::time::read_end(context, at)?;
     if let Some(completed) = client.complete_sleep_at(cid, at).await? {
         context.receipt(
             "😴 Sleep recorded",

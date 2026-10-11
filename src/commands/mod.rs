@@ -21,6 +21,7 @@ pub mod prepared;
 pub mod pump;
 pub mod settings;
 pub mod sleep;
+pub mod sleep_form;
 pub mod views;
 
 use anyhow::{Result, bail};

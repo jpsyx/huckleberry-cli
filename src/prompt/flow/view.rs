@@ -9,7 +9,7 @@ use crate::prompt::{
     select::{self, MenuItem, Selection, SelectionAction},
     text,
 };
-use crate::theme::Theme;
+use crate::theme::{Theme, Tone};
 
 /// Navigation is distinct from accepting the value currently being edited.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,6 +29,7 @@ pub enum ControlEvent {
 /// A view with its retained, editable control state.
 pub struct View {
     label: String,
+    description: Option<(String, Tone)>,
     control: Control,
 }
 
@@ -52,6 +53,7 @@ impl View {
     pub fn create_time(label: impl Into<String>, time: TimeState) -> Self {
         Self {
             label: label.into(),
+            description: None,
             control: Control::Time(time),
         }
     }
@@ -61,6 +63,7 @@ impl View {
     pub fn create_volume(label: impl Into<String>, volume: VolumeState) -> Self {
         Self {
             label: label.into(),
+            description: None,
             control: Control::Volume(volume),
         }
     }
@@ -86,6 +89,7 @@ impl View {
             .unzip();
         Self {
             label: label.into(),
+            description: None,
             control: Control::Choice {
                 rows,
                 values,
@@ -99,10 +103,28 @@ impl View {
     pub fn create_text(label: impl Into<String>, value: &str, secret: bool) -> Self {
         Self {
             label: label.into(),
+            description: None,
             control: Control::Text {
                 typed: value.into(),
                 secret,
             },
+        }
+    }
+
+    /// Keeps contextual explanations with their view across suspension.
+    #[must_use]
+    pub fn with_description(mut self, description: String, tone: Tone) -> Self {
+        self.description = Some((description, tone));
+        self
+    }
+
+    /// Refreshes model-owned constraints without replacing an unfinished answer.
+    pub(super) fn refresh(&mut self, fresh: Self) {
+        self.label = fresh.label;
+        self.description = fresh.description;
+        if let (Control::Time(time), Control::Time(fresh_time)) = (&mut self.control, fresh.control)
+        {
+            time.refresh_constraints(&fresh_time);
         }
     }
 
@@ -181,10 +203,21 @@ impl View {
     /// Draws through the same functions used by the corresponding prompt.
     #[must_use]
     pub fn render(&self, now: f64, size: (u16, u16), theme: Theme) -> Vec<String> {
-        let mut lines = match &self.control {
+        let mut lines = Vec::new();
+        if let Some((description, tone)) = &self.description {
+            lines.extend(
+                select::wrapped(description, usize::from(size.0), 0)
+                    .into_iter()
+                    .map(|line| theme.paint(*tone, &line)),
+            );
+        }
+        let height = size
+            .1
+            .saturating_sub(u16::try_from(lines.len()).unwrap_or(u16::MAX));
+        lines.extend(match &self.control {
             Control::Choice {
                 rows, selection, ..
-            } => select::render(&self.label, rows, selection, size.0, size.1, theme),
+            } => select::render(&self.label, rows, selection, size.0, height, theme),
             Control::Text { typed, secret } => text::lines(
                 &Question::new("value", &self.label, ""),
                 typed,
@@ -193,7 +226,7 @@ impl View {
             ),
             Control::Time(time) => time.render(&self.label, now, size.0, theme),
             Control::Volume(volume) => volume.render(&self.label, size.0, theme),
-        };
+        });
         let back = if matches!(self.control, Control::Text { .. }) {
             "← back"
         } else {

@@ -64,6 +64,11 @@ impl TimeState {
         self.not_before = not_before;
     }
 
+    /// Retains the answer while updating its model-owned constraints.
+    pub(super) const fn refresh_constraints(&mut self, fresh: &Self) {
+        self.not_before = fresh.not_before;
+    }
+
     /// Applies a dial key, leaving the form only from the first column.
     pub fn apply(&mut self, key: KeyEvent, now: f64) -> ControlEvent {
         if let Some(event) = navigation(key, self.dial.column == 0, true) {
@@ -145,17 +150,14 @@ impl TimeState {
     /// Draws a current relative display without changing the stored instant.
     #[must_use]
     pub fn render(&self, label: &str, now: f64, width: u16, theme: Theme) -> Vec<String> {
-        let dial = create_dial(
-            &self.calendar,
-            self.effective_at(now),
-            now,
-            self.mode,
-            self.not_before,
-        )
-        .opening_on(self.dial.column);
+        let dial = create_dial(&self.calendar, self.effective_at(now), now, self.mode, None)
+            .opening_on(self.dial.column);
         let mut lines = dial::draw::render(label, &dial, width, theme);
         for line in &mut lines {
             *line = line.replace("Esc back", "Esc home");
+        }
+        if let Err(error) = self.value(now) {
+            lines.push(theme.warning(&error.to_string()));
         }
         lines
     }

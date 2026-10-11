@@ -117,6 +117,7 @@ impl<Form: FormModel> FormState<Form> {
         };
         match result {
             Ok(event) => event,
+            Err(error) if crate::prompt::is_cancelled(&error) => FormEvent::Cancel,
             Err(error) => {
                 self.trouble = Some(format!("{error:#}"));
                 FormEvent::Stay
@@ -155,9 +156,12 @@ impl<Form: FormModel> FormState<Form> {
     }
 
     fn open(&mut self, id: ViewId, now: f64) -> Result<()> {
-        if !self.views.contains_key(&id) {
-            self.views
-                .insert(id.clone(), self.model.create_view(&id, now)?);
+        let fresh = self.model.create_view(&id, now)?;
+        match self.views.get_mut(&id) {
+            Some(view) => view.refresh(fresh),
+            None => {
+                self.views.insert(id.clone(), fresh);
+            }
         }
         self.current = id;
         Ok(())

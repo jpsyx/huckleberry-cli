@@ -232,6 +232,28 @@ pub fn read_edit_start(
     )
 }
 
+/// Resolves an explicit time with a supplied clock and caller's calendar-date rule.
+pub fn parse_explicit(
+    calendar: &Calendar,
+    text: &str,
+    now: f64,
+    resolve_clock: impl FnOnce(TimeOfDay, f64, &Calendar) -> f64,
+) -> Result<f64> {
+    if let Some(at) = clock::parse_relative(text, now) {
+        if at < 0.0 {
+            bail!("choose a time between the Unix epoch and now");
+        }
+        return Ok(at);
+    }
+    match clock::parse(text) {
+        Some(Typed::Certain(time)) => Ok(resolve_clock(time, now, calendar)),
+        Some(Typed::Ambiguous { .. }) => {
+            bail!("`{text}` is either half of the day: say `{text}am` or `{text}pm`")
+        }
+        None => bail!(unreadable_message(text)),
+    }
+}
+
 /// Parses all activity times; callers supply only the date rule for clock-only answers.
 fn parse_instant(
     context: &Context,
@@ -240,6 +262,9 @@ fn parse_instant(
     resolve_clock: impl FnOnce(TimeOfDay, f64, &Calendar) -> f64,
 ) -> Result<Option<f64>> {
     let now = now_seconds();
+    if !interactive {
+        return parse_explicit(&context.calendar()?, text, now, resolve_clock).map(Some);
+    }
     if let Some(started) = clock::parse_relative(text, now) {
         if started < 0.0 {
             bail!("choose a time between the Unix epoch and now");

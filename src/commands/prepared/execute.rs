@@ -1,7 +1,7 @@
 //! Preparation resolves prerequisites and binds each form to its existing operation.
 use super::PreparedCommand;
 use crate::{
-    cli::{Command, FeedAction, NursingAction, PumpAction, actions::DiaperFlags},
+    cli::{Command, FeedAction, NursingAction, PumpAction, SleepAction, actions::DiaperFlags},
     commands::{diaper, diaper_form::DiaperInput},
     session::Context,
 };
@@ -14,6 +14,7 @@ pub async fn prepare(
     now: f64,
 ) -> Result<Option<PreparedCommand>> {
     match command {
+        Command::Sleep { action } => prepare_sleep(context, action, now).await,
         Command::Pump { action } => prepare_pump(context, action, now).await,
         Command::Feed { action } => prepare_feed(context, action, now).await,
         command => prepare_diaper(context, command, now).await,
@@ -112,4 +113,18 @@ fn diaper_input(command: Command) -> Option<(DiaperInput, Option<String>)> {
         _ => return None,
     };
     Some((input, at))
+}
+
+async fn prepare_sleep(
+    context: Context,
+    action: SleepAction,
+    now: f64,
+) -> Result<Option<PreparedCommand>> {
+    if matches!(action, SleepAction::Status) {
+        return Ok(None);
+    }
+    let (client, cid) = crate::commands::client_and_child(&context).await?;
+    crate::commands::sleep::prepare::prepare_with_client(context, client, cid, action, now)
+        .await
+        .map(Some)
 }

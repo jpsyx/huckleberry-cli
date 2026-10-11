@@ -60,7 +60,7 @@ pub fn render(
     lines
 }
 
-fn wrapped(text: &str, width: usize, indent: usize) -> Vec<String> {
+pub fn wrapped(text: &str, width: usize, indent: usize) -> Vec<String> {
     let continuation = " ".repeat(indent.min(width.saturating_sub(1)));
     let mut lines = Vec::new();
     let mut line = String::new();

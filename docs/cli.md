@@ -763,3 +763,10 @@ between recording modes. Only the chosen mode is submitted, and a recorded zero
 remains distinct from an omitted amount. Custom duration is a child of the
 preset duration view: Back returns to the presets and preserves typed minutes.
 Stopping a pump timer still records its original start and actual duration.
+
+Sleep forms retain both accepted times while moving backward. Changing the start
+revalidates the retained end instead of moving it silently. The overlap choice is
+collected before any timer mutation; the timer is checked again before executing
+that decision. If it changed while the form was open, restart the entry to review
+the current timer. A failed write shows its actual result and never replays a
+previous overlap operation when the result is dismissed.
