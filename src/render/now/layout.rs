@@ -55,9 +55,11 @@ impl Columns {
             Self::Two(widths) => {
                 let mut left = wrap_rows(stack(facts, ranges), widths[0]);
                 let freshness = wrap_rows(freshness, widths[0]);
-                let footer_start = tables.len().saturating_sub(freshness.len());
-                left.resize(footer_start.max(left.len() + 1), Row::new());
-                left.extend(freshness);
+                if !freshness.is_empty() {
+                    let footer_start = tables.len().saturating_sub(freshness.len());
+                    left.resize(footer_start.max(left.len() + 1), Row::new());
+                    left.extend(freshness);
+                }
                 beside(&[left, tables], &widths)
             }
         }

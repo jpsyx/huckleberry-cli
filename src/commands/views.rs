@@ -24,7 +24,12 @@ pub async fn now(context: &Context, json: bool) -> Result<()> {
         crate::render::print(&[serde_json::to_string_pretty(&as_json(&view, &dataset, at))?]);
         return Ok(());
     }
-    render::print(&render::now::lines(
+    let render_lines = if crate::prompt::host::hosted() {
+        render::now::panel_lines
+    } else {
+        render::now::lines
+    };
+    render::print(&render_lines(
         &view,
         &dataset,
         &calendar,

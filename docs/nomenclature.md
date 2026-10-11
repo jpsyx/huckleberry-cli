@@ -62,7 +62,7 @@ either, say which.
 | **an entry**, **a row of history** | One recorded thing: a feed, a sleep, a diaper. |
 | **a tracker** | One kind of thing Huckleberry records. Sleep, feeding, diapers, pumping, milestones. |
 | **pumping**, **a pump session** | Milk expressed, recorded as a total or separate left/right amounts. It is separate from milk fed to the child. The Home row is **Log pumping**; the command is `pump`. |
-| **as of** | How stale what is on screen is. Every screen carries one. |
+| **as of** | How old a reading is. Inside the shell, only the Now drawer shows this timer; standalone views retain their own. |
 
 ## Software information
 

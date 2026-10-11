@@ -335,7 +335,7 @@ fn chart_fills_the_space_after_the_table_and_notes_when_the_panel_grows() {
             );
             plot_heights.push(plot_height);
             assert_eq!(lines.len(), usize::from(height));
-            let navigation = &lines[lines.len() - 2];
+            let navigation = &lines[lines.len() - if is_hosted { 1 } else { 2 }];
             for hint in [
                 "Tab/S-Tab",
                 "g/G first/last",
@@ -345,7 +345,11 @@ fn chart_fills_the_space_after_the_table_and_notes_when_the_panel_grows() {
             ] {
                 assert!(navigation.contains(hint), "{navigation}");
             }
-            assert_eq!(lines.last().unwrap(), "as of just now");
+            if is_hosted {
+                assert!(!lines.join("\n").contains("as of"));
+            } else {
+                assert_eq!(lines.last().unwrap(), "as of just now");
+            }
         }
         assert_eq!(plot_heights[1] - plot_heights[0], 20);
     }

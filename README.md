@@ -136,7 +136,8 @@ only nursing sessions. `% feed daytime`, after milk/feed, shows the share of
 recorded milk volume received during the configured daytime, rounded to a whole
 percentage. Six ounces in daytime and four at night give 60%; no milk volume
 gives a dash. The night note shows the configured hours. The header
-includes the child's age; freshness stays at the bottom of the panel. The same
+includes the child's age. Standalone Summary keeps freshness at the bottom;
+inside the shell, only the Now drawer shows a freshness timer. The same
 view is in the shell under Home > Summary, where reference ranges and their
 pediatrician note stay in the Now drawer instead of repeating below the table.
 

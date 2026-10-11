@@ -13,7 +13,8 @@
 //! - **A number nobody recorded prints as a dash.** `0 ml` is a claim about
 //!   the baby; `—` is a claim about the record.
 //! - **Every "time ago" carries an honest "as of".** A stale reading can send
-//!   somebody to wake a sleeping baby.
+//!   somebody to wake a sleeping baby. Inside the shell, only the permanent
+//!   Now drawer displays this timer; standalone views retain their own.
 
 pub mod format;
 pub mod log;

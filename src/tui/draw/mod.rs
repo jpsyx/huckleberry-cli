@@ -319,6 +319,19 @@ mod frames {
     }
 
     #[test]
+    fn only_the_now_drawer_shows_freshness_with_any_dashboard_tab_open() {
+        let mut app = loaded();
+        app.open_dashboard(7);
+        for tab in app.dashboard.as_ref().unwrap().tabs() {
+            app.dashboard.as_mut().unwrap().tab = *tab;
+            let drawn = screen(&app, 120, 80);
+            assert_eq!(drawn.matches("as of just now").count(), 1, "{drawn}");
+            let dashboard = drawn.split("Dashboard").last().unwrap();
+            assert!(!dashboard.contains("as of"), "{dashboard}");
+        }
+    }
+
+    #[test]
     fn the_now_widget_leads_with_the_last_feed() {
         let drawn = screen(&loaded(), 100, 30);
         assert!(drawn.contains("Last fed"), "{drawn}");

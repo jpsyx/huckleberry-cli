@@ -99,20 +99,22 @@ fn tab_bar(state: &State) -> Tabs<'_> {
 /// The line along the bottom: what is stale, what went wrong, and the keys.
 fn status_bar(state: &State, at: f64) -> Paragraph<'_> {
     let mut spans = vec![Span::styled(
-        format!(" {} · ", state.dataset.child.name),
+        format!(" {}", state.dataset.child.name),
         Style::default().fg(tone(Tone::Accent)),
     )];
 
     if state.refreshing {
         spans.push(Span::styled(
-            "reading… ",
+            " · reading…",
             Style::default().fg(tone(Tone::Info)),
         ));
     }
-    spans.push(Span::styled(
-        crate::render::now::as_of(&state.dataset, at),
-        Style::default().fg(tone(Tone::Muted)),
-    ));
+    if !state.in_panel {
+        spans.push(Span::styled(
+            format!(" · {}", crate::render::now::as_of(&state.dataset, at)),
+            Style::default().fg(tone(Tone::Muted)),
+        ));
+    }
 
     if let Some(trouble) = &state.trouble {
         spans.push(Span::styled(
@@ -213,8 +215,10 @@ mod frames {
     }
 
     #[test]
-    fn the_status_bar_always_says_how_stale_the_screen_is() {
-        assert!(screen(Tab::Now, populated()).contains("as of"));
+    fn every_standalone_tab_says_how_stale_the_screen_is() {
+        for tab in Tab::ALL {
+            assert!(screen(tab, populated()).contains("as of"));
+        }
     }
 
     #[test]

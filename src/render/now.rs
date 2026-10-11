@@ -47,6 +47,19 @@ pub fn screen(
     now: f64,
     width: Option<usize>,
 ) -> Vec<Row> {
+    screen_with_freshness(view, dataset, calendar, units, now, width, true)
+}
+
+/// Builds the shared layout with freshness selected by the owning view.
+fn screen_with_freshness(
+    view: &NowView,
+    dataset: &Dataset,
+    calendar: &Calendar,
+    units: Units,
+    now: f64,
+    width: Option<usize>,
+    show_freshness: bool,
+) -> Vec<Row> {
     let ranges = ranges(view, &dataset.child, calendar, now);
     let columns = layout::Columns::for_width(width);
     let tables = totals_rows(view, units, now, columns.table_width());
@@ -54,7 +67,7 @@ pub fn screen(
         facts(view, dataset, calendar, units, now),
         tables,
         ranges,
-        freshness(dataset, now),
+        freshness(dataset, now, show_freshness),
     )
 }
 
@@ -127,9 +140,12 @@ fn wake_line(view: &NowView, calendar: &Calendar, now: f64) -> String {
     )
 }
 
-/// Freshness and read failures travel together so stale data stays explicit.
-fn freshness(dataset: &Dataset, now: f64) -> Vec<Row> {
-    let mut rows = vec![vec![Piece::new(as_of(dataset, now), Tone::Muted)]];
+/// Read failures remain visible even when the shell suppresses a repeated timer.
+fn freshness(dataset: &Dataset, now: f64, show_freshness: bool) -> Vec<Row> {
+    let mut rows = Vec::new();
+    if show_freshness {
+        rows.push(vec![Piece::new(as_of(dataset, now), Tone::Muted)]);
+    }
     for note in &dataset.notes {
         rows.push(vec![Piece::new(
             format!("  {} could not be read: {}", note.collection, note.problem),
@@ -154,8 +170,28 @@ pub fn lines(
     now: f64,
     width: Option<usize>,
 ) -> Vec<String> {
-    screen(view, dataset, calendar, units, now, width)
-        .into_iter()
+    paint_rows(screen(view, dataset, calendar, units, now, width), theme)
+}
+
+/// Current status inside the shell: the permanent Now drawer owns the timer.
+#[must_use]
+pub fn panel_lines(
+    view: &NowView,
+    dataset: &Dataset,
+    calendar: &Calendar,
+    theme: Theme,
+    units: Units,
+    now: f64,
+    width: Option<usize>,
+) -> Vec<String> {
+    paint_rows(
+        screen_with_freshness(view, dataset, calendar, units, now, width, false),
+        theme,
+    )
+}
+
+fn paint_rows(rows: Vec<Row>, theme: Theme) -> Vec<String> {
+    rows.into_iter()
         .map(|row| {
             row.into_iter()
                 .map(|piece| theme.paint(piece.tone, &piece.text))

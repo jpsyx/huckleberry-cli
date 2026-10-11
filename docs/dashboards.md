@@ -58,7 +58,8 @@ enforced by tests rather than by good intentions.
   feed and contributes no volume.
 - **Every "time ago" carries an honest "as of".** A stale "last fed two hours
   ago" can send somebody to wake a sleeping baby, so the screen always says
-  when it last looked.
+  when it last looked. Inside the shell, only the permanent Now drawer displays
+  that timer; other panels omit their duplicates.
 - **Averages skip today and skip empty days.** Today is half finished. A day
   before the parents started logging is not a day the baby had no wet diapers,
   and averaging it in shows a number under the typical range for no reason but
@@ -231,7 +232,8 @@ This is the default behavior, with no scrolling-mode toggle.
 
 A bar chart below the table shows the selected metric across the entire requested
 window, oldest to newest, with a blank column between bars. The chart expands
-into all height left after the table, wrapped notes, navigation and freshness;
+into all height left after the table, wrapped notes, navigation and, outside
+the shell, freshness;
 one blank line separates the notes from the chart, without padding the table
 with empty rows. Long tables scroll with room reserved
 for the chart. Durations use hours;
@@ -254,9 +256,10 @@ If the window cannot fit separated bars, the
 chart asks for a wider panel or fewer days instead of merging days together.
 Up/down, J/K, W/S, PageUp/PageDown, and Home/End scroll the rows and notes while
 the graph stays visible. The header includes the child's age when known, between
-the name and selected-column position. Freshness stays on the panel's bottom line,
-below a single navigation line combining column controls, scrolling and scroll
-position, independent of scrolling. Narrow panels shorten the navigation wording.
+the name and selected-column position. A single navigation line combines column
+controls, scrolling and scroll position, independent of scrolling. It occupies
+the bottom line inside the shell; standalone Summary keeps freshness below it.
+Narrow panels shorten the navigation wording.
 Short panels omit the title to retain a data row; panels under ten lines omit the
 chart gap, and panels under six lines ask for more space. Calculation explanations live here and in the README,
 rather than in the Summary footer.
@@ -297,8 +300,9 @@ The splits always add back to the daily totals.
 
 Summary rows are rebuilt on opening from the latest settings and raw history.
 Summary fetches its own snapshot, independently of the shell's Now drawer and
-embedded Dashboard view, which share one reading. Its freshness line is retained
-inside the shell because those snapshots can be from different reads.
+embedded Dashboard view, which share one reading. Summary omits its freshness
+line inside the shell, where only the Now drawer displays the timer. The timer
+describes the Now drawer's reading, not Summary's separate snapshot.
 After any shell command, retained Now/dashboard history receives the current day
 rule immediately, before the background refresh returns. Changing hours or mode
 therefore updates calculations even if that refresh fails; derived totals are not
@@ -394,6 +398,9 @@ presentation converts them once for the reader.
 
 The full-screen version, five tabs, redrawing every second so the live timers
 count up, and re-reading on the `refresh` setting.
+
+When embedded in the shell, the Dashboard omits the `as of` timer on every tab;
+the permanent Now drawer already shows it. Standalone `h dash` retains the timer.
 
 | Key | Does |
 | --- | --- |

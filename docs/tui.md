@@ -489,7 +489,7 @@ line reads as an overlay without dark gaps in the bars. All occupied bar cells
 share that cyan background, keeping the top edge level through the dots. The
 default table and chart include those seven days plus partial today. The table
 uses only the height its rows and wrapped notes need; the chart fills the
-remaining space above the keys and freshness line. Long tables scroll while
+remaining space above the keys. Long tables scroll while
 leaving a visible chart. One blank line separates the rows and notes from the
 chart, except in panels under ten rows where the data and bars take priority.
 Left stays in this control even at the first column; Esc or Q closes it directly.
@@ -498,7 +498,8 @@ but not reference ranges or their pediatrician note, which the Now drawer
 already shows. Standalone summary retains those lines. Calculation explanations
 and configuration commands live
 in the README and screen documentation. The title includes the child's age when
-known; freshness stays at the very bottom, below the keys, even while scrolling.
+known. In the shell, the Now drawer is the only panel with an `as of` timer;
+standalone Summary keeps its freshness line below the keys.
 Column navigation, row scrolling and the scroll position share one help line,
 with shorter wording when the panel is narrow.
 The selected heading has brackets as well as
@@ -543,9 +544,13 @@ very thing a widget is showing.
 
 Hosted commands such as Summary load their own snapshots when opened. Those
 snapshots can differ from the Now drawer's reading and are not replaced by a
-shell refresh. Their keys belong to the command while it is open. Summary
-therefore retains its own freshness line; the Now drawer's timestamp cannot
-describe every panel's data.
+shell refresh. Their keys belong to the command while it is open.
+
+Only the Now drawer displays an `as of` timer inside the shell. Summary, the
+embedded Dashboard and More > Current status omit their copies. This display
+rule does not synchronize their reads: the timer describes the Now drawer's
+reading. Standalone commands retain their freshness labels, and read failures
+remain visible in either mode.
 
 Refreshing never moves the cursor or changes the menu: `r` is not navigation.
 

@@ -144,3 +144,47 @@ fn stacked_freshness_stays_between_facts_and_totals() {
         assert!(freshness.0 < position(&rows, "In last 4h").0);
     }
 }
+
+#[test]
+fn hosted_status_omits_the_timer_without_dropping_read_failures_or_leaving_a_blank_footer() {
+    let calendar = Calendar::new("America/New_York").unwrap();
+    for has_failure in [false, true] {
+        let mut data = sample();
+        if has_failure {
+            data.notes.push(crate::domain::types::CollectionNote {
+                collection: "sleep".into(),
+                problem: "offline".into(),
+            });
+        }
+        let view = now::build(&data, &calendar, DayRule::default(), AFTERNOON);
+        for width in [40, 80, 120] {
+            let rows = panel_lines(
+                &view,
+                &data,
+                &calendar,
+                Theme::dark(false),
+                Units::Ml,
+                AFTERNOON,
+                Some(width),
+            );
+            let drawn = rows.join("\n");
+            assert!(!drawn.contains("as of"), "{drawn}");
+            assert_eq!(
+                drawn.contains("sleep could not be read: offline"),
+                has_failure,
+                "{drawn}"
+            );
+            assert!(drawn.contains("Last fed"), "{drawn}");
+            assert!(
+                !rows
+                    .last()
+                    .unwrap()
+                    .trim_matches(|character: char| {
+                        character.is_whitespace() || character == '│'
+                    })
+                    .is_empty(),
+                "{drawn}"
+            );
+        }
+    }
+}

@@ -22,6 +22,7 @@ fn summary_column_boundaries_and_shortcuts_stay_in_the_host_until_escape() {
     std::fs::remove_dir_all(directory).unwrap();
     result.unwrap();
     for frame in &frames {
+        assert!(!frame.contains("as of"), "{frame}");
         assert!(!frame.contains("typical feed"), "{frame}");
         assert!(!frame.contains("typical sleep"), "{frame}");
         assert!(!frame.contains("typical diapers"), "{frame}");

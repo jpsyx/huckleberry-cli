@@ -152,6 +152,39 @@ mod tests {
         assert!(output.contains("nothing logged"), "{output}");
     }
 
+    #[test]
+    fn hosted_current_status_omits_freshness_but_keeps_the_facts() {
+        use crate::prompt::host;
+        let _serial = host::one_at_a_time();
+        let directory = std::env::temp_dir().join(format!("h-now-host-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).unwrap();
+        let globals = log_fixture(&directory, false);
+        std::fs::write(
+            globals.config.as_ref().unwrap(),
+            "timezone = 'America/New_York'\nday_start = '07:00'\nday_end = '20:00'\nday_mode = 'discrete'\n",
+        ).unwrap();
+        let channel = host::install();
+        host::set_size(120, 60);
+        let worker = std::thread::spawn(move || {
+            tokio::runtime::Runtime::new().unwrap().block_on(super::run(
+                &super::CommandPath(vec!["now".into()]),
+                &globals,
+                crate::theme::Theme::dark(false),
+            ))
+        });
+        let (_, output) = drive_log(&channel, &worker, crossterm::event::KeyCode::Esc);
+        host::remove();
+        let result = worker.join().unwrap();
+        std::fs::remove_dir_all(directory).unwrap();
+        assert!(
+            matches!(result, Ok(false)) || result.as_ref().is_err_and(crate::prompt::is_cancelled),
+            "{result:?}"
+        );
+        assert!(output.contains("Last fed"), "{output}");
+        assert!(output.contains("90 ml of Formula"), "{output}");
+        assert!(!output.contains("as of"), "{output}");
+    }
+
     fn log_journey(first_key: crossterm::event::KeyCode, empty: bool) -> (Vec<String>, String) {
         use crate::prompt::host;
         let _serial = host::one_at_a_time();

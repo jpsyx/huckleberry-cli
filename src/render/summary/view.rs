@@ -75,7 +75,7 @@ impl State {
 
 /// The data shown by either interactive host, with an explicit reading time.
 pub struct View<'a> {
-    /// The shell already displays reference ranges and their note in the Now drawer.
+    /// The shell's Now drawer already displays freshness, reference ranges and their note.
     pub is_hosted: bool,
     /// Newest-first daily aggregates.
     pub rows: &'a [DaySummary],
@@ -106,7 +106,10 @@ impl View<'_> {
         let head_height = if height < 12 { 3 } else { 4 };
         // Below ten rows, the gap would displace the last visible data row or bars.
         let chart_gap = u16::from(height >= 10);
-        let content_height = size.1.saturating_sub(head_height + 2 + chart_gap);
+        let footer_height = 1 + u16::from(!self.is_hosted);
+        let content_height = size
+            .1
+            .saturating_sub(head_height + footer_height + chart_gap);
         let minimum_chart_height = (size.1 / 3)
             .clamp(4, 9)
             .min(content_height.saturating_sub(1));
@@ -137,13 +140,11 @@ impl View<'_> {
     }
 
     fn status(&self, state: &State, width: usize, theme: Theme) -> Vec<String> {
-        [
-            build_hints(state, width),
-            crate::render::now::as_of(self.dataset, self.now),
-        ]
-        .into_iter()
-        .map(|line| theme.muted(&line))
-        .collect()
+        let mut lines = vec![theme.muted(&build_hints(state, width))];
+        if !self.is_hosted {
+            lines.push(theme.muted(&crate::render::now::as_of(self.dataset, self.now)));
+        }
+        lines
     }
 
     fn head(
