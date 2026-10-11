@@ -5,7 +5,7 @@ It asks for both the first time it needs them, and never asks twice.
 
 ## What it asks, and when
 
-Every command goes through the gate in `src/setup/`. `--help` and `--version`
+Every command follows the prerequisite policy in `src/setup/`. `--help` and `--version`
 never reach it, because clap answers those and exits before this program runs.
 
 1. **An account.** With no usable credentials, `auth login` runs first: email,
@@ -15,6 +15,18 @@ never reach it, because clap answers those and exits before this program runs.
    drawn between these two hours.
 3. **How "today" is counted** for the running totals (`day_mode`), which
    decides only whether those totals use the hours or ignore them.
+
+Bare `h` asks inside the shell panel. Back revisits the previous question with
+its answer retained; Escape returns to Home. Missing day settings remain in an
+in-memory draft and are saved together only after the final answer. Leaving
+setup does not bypass the gate: the next command that needs these settings asks
+again. Widgets show missing data until setup is complete.
+
+Sign-in is a separate completed prerequisite. Once it succeeds, navigating Back
+through day settings does not authenticate again. Completing a prerequisite
+reloads the configuration and continues the originally selected command once.
+Child selection and its remember question also collect a complete draft before
+saving the choice.
 
 Three families of command are exempt from all of it, and all for the same
 reason: they are how somebody gets out of an unconfigured state, and a gate in

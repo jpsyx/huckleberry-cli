@@ -4,7 +4,7 @@ use anyhow::Result;
 
 use crate::cli::ConfigAction;
 use crate::config::Config;
-use crate::prompt::{self, Choice, Question};
+use crate::prompt::Choice;
 use crate::session::Context;
 
 /// Runs the chosen action.
@@ -58,15 +58,21 @@ pub fn lines(config: &Config) -> Vec<String> {
 
 /// Changes one setting, asking for whatever was not given.
 fn set(context: &Context, key: Option<String>, value: Option<String>) -> Result<()> {
-    let key = match key {
-        Some(given) => given,
-        None => ask_for_key(context)?,
-    };
-    let value = match value {
-        Some(given) => given,
-        None => ask_for_value(context, &key)?,
-    };
+    let model =
+        super::utility_form::SettingsForm::create_settings(context.config.clone(), key, value)?;
+    let answer = crate::prompt::flow::runner::read(
+        model,
+        huckleberry_api::client::now_seconds(),
+        context.theme,
+    )?;
+    execute(context, answer)
+}
 
+pub(crate) fn execute(
+    context: &Context,
+    answer: super::utility_form::SettingsSubmission,
+) -> Result<()> {
+    let super::utility_form::SettingsSubmission { key, value } = answer;
     let mut config = context.config.clone();
     config.set(&key, &value)?;
     crate::config::save(&context.config_path, &config)?;
@@ -84,30 +90,6 @@ fn set(context: &Context, key: Option<String>, value: Option<String>) -> Result<
         context.config_path.display()
     ));
     Ok(())
-}
-
-fn ask_for_key(context: &Context) -> Result<String> {
-    let choices: Vec<Choice<'_>> = Config::KEYS
-        .iter()
-        .map(|key| Choice {
-            value: key,
-            hint: Config::describe(key).unwrap_or(""),
-        })
-        .collect();
-    let question =
-        Question::new("setting to change", "Which setting?", "<KEY>").with_choices(&choices);
-    prompt::ask(&question, context.theme)
-}
-
-fn ask_for_value(context: &Context, key: &str) -> Result<String> {
-    let current = context.config.get(key).unwrap_or_default();
-    let label = format!("{}?", Config::describe(key).unwrap_or("the new value"));
-    let choices = value_choices(key);
-    let mut question = Question::new("value", &label, "<VALUE>").with_choices(&choices);
-    if !current.is_empty() {
-        question = question.with_default(&current);
-    }
-    prompt::ask(&question, context.theme)
 }
 
 /// Finite setting values use the same lists as recording prompts.

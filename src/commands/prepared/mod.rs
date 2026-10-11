@@ -1,7 +1,9 @@
 //! Owned collection and execution boundaries for shell commands.
 mod execute;
 mod forms;
-pub use execute::prepare;
+mod gates;
+mod utilities;
+pub use gates::{prepare, startup};
 
 use crate::{
     prompt::{

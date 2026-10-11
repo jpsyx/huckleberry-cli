@@ -61,7 +61,7 @@ async fn navigate(
     // The widgets open empty and fill themselves in, so the menu is on screen
     // and usable before the network has answered.
     let mut reading = Some(begin(app, globals, theme));
-    let mut job: Option<Job> = None;
+    let mut job = Some(Job::startup(globals, theme));
     let mut suspended: Option<forms::Forms> = None;
     let mut version_check = version_task::VersionTask::default();
     loop {

@@ -51,7 +51,10 @@ pub async fn prepare(
         Command::Sleep { action } => prepare_sleep(context, action, now).await,
         Command::Pump { action } => prepare_pump(context, action, now).await,
         Command::Feed { action } => prepare_feed(context, action, now).await,
-        command => prepare_diaper(context, command, now).await,
+        command @ (Command::Diaper { .. } | Command::Potty { .. }) => {
+            prepare_diaper(context, command, now).await
+        }
+        command => super::utilities::prepare(context, command, now).await,
     }
 }
 

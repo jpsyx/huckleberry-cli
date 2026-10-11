@@ -4,7 +4,6 @@ use anyhow::Result;
 
 use crate::cli::FoodsAction;
 use crate::listing::{Column, Listing, Role, Row};
-use crate::prompt::{self, Question};
 use crate::render::format;
 use crate::session::Context;
 use crate::theme::Tone;
@@ -98,15 +97,22 @@ const COLUMNS: [Column; 3] = [
 /// Adds a food to the family's own list.
 async fn add(context: &Context, name: Option<String>) -> Result<()> {
     let (client, cid) = super::client_and_child(context).await?;
-    let name = match name {
-        Some(given) => given,
-        None => prompt::ask(
-            &Question::new("food name", "What is it called?", "<NAME>"),
-            context.theme,
-        )?,
-    };
+    let model = super::utility_form::FoodForm::create_food(name);
+    let name = crate::prompt::flow::runner::read(
+        model,
+        huckleberry_api::client::now_seconds(),
+        context.theme,
+    )?;
+    execute(context, &client, &cid, name).await
+}
 
-    let existing = client.custom_foods(&cid, true).await.unwrap_or_default();
+pub(crate) async fn execute(
+    context: &Context,
+    client: &huckleberry_api::Huckleberry,
+    cid: &str,
+    name: String,
+) -> Result<()> {
+    let existing = client.custom_foods(cid, true).await.unwrap_or_default();
     if let Some(already) = existing
         .iter()
         .find(|food| food.name.eq_ignore_ascii_case(name.trim()))
@@ -119,8 +125,8 @@ async fn add(context: &Context, name: Option<String>) -> Result<()> {
         return Ok(());
     }
 
-    let food = client.create_custom_food(&cid, &name, "").await?;
-    super::persist_session(context, &client).await?;
+    let food = client.create_custom_food(cid, &name, "").await?;
+    super::persist_session(context, client).await?;
     context.receipt(
         "🥑 Food added",
         &[("Food", food.name.clone()), ("Food ID", food.id.clone())],

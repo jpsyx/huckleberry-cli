@@ -29,6 +29,10 @@ pub async fn read(
     // Reopened every time, so a settings change made from the menu takes
     // effect on the next refresh rather than on the next session.
     let context = load_context(globals, theme)?;
+    let missing = crate::setup::missing(&context.config);
+    if !missing.is_empty() {
+        crate::setup::refuse(&missing)?;
+    }
     let units = Units::from_setting(&context.config.units);
     let rule = context.config.day_rule();
     if let Some(path) = &context.offline {

@@ -1,10 +1,9 @@
 //! `child`: who the tool is tracking.
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 
 use crate::cli::ChildAction;
 use crate::domain::normalize;
-use crate::prompt::{self, Choice, Question};
 use crate::render::format;
 use crate::session::Context;
 
@@ -82,53 +81,43 @@ async fn choose(context: &Context, cid: Option<String>) -> Result<()> {
     let user = client.user().await?;
     super::persist_session(context, &client).await?;
 
-    if user.child_list.is_empty() {
-        bail!("this account has no children on it");
-    }
+    let model = super::utility_form::ChildForm::create_child(labels(&user.child_list), cid, false)?;
+    let answer = crate::prompt::flow::runner::read(
+        model,
+        huckleberry_api::client::now_seconds(),
+        context.theme,
+    )?;
+    execute(context, answer)
+}
 
-    let labels: Vec<(String, String)> = user
-        .child_list
+pub(crate) fn labels(
+    children: &[huckleberry_api::models::user::UserChildRef],
+) -> Vec<(String, String)> {
+    children
         .iter()
-        .map(|entry| {
+        .map(|child| {
             (
-                entry.cid.clone(),
-                entry.nickname.clone().unwrap_or_else(|| entry.cid.clone()),
+                child.cid.clone(),
+                child.nickname.clone().unwrap_or_else(|| child.cid.clone()),
             )
         })
-        .collect();
+        .collect()
+}
 
-    let chosen = if let Some(named) = cid {
-        if !labels.iter().any(|(cid, _)| *cid == named) {
-            bail!(unknown_child_message(&named, &labels));
-        }
-        named
-    } else {
-        {
-            let choices: Vec<Choice<'_>> = labels
-                .iter()
-                .map(|(cid, name)| Choice {
-                    value: cid,
-                    hint: name,
-                })
-                .collect();
-            let question =
-                Question::new("child to use", "Which child?", "<CID>").with_choices(&choices);
-            prompt::ask(&question, context.theme)?
-        }
-    };
-
-    let mut config = context.config.clone();
-    config.set("child", &chosen)?;
-    crate::config::save(&context.config_path, &config)?;
-    let name = labels
-        .iter()
-        .find(|(cid, _)| *cid == chosen)
-        .map_or(chosen.as_str(), |(_, name)| name.as_str());
-    context.receipt(
-        "👶 Child selected",
-        &[("Name", name.into()), ("Child ID", chosen)],
-        &[],
-    );
+pub(crate) fn execute(
+    context: &Context,
+    answer: super::utility_form::ChildSubmission,
+) -> Result<()> {
+    if answer.remember {
+        let mut config = context.config.clone();
+        config.set("child", &answer.cid)?;
+        crate::config::save(&context.config_path, &config)?;
+        context.receipt(
+            "👶 Child selected",
+            &[("Name", answer.name), ("Child ID", answer.cid)],
+            &[],
+        );
+    }
     Ok(())
 }
 

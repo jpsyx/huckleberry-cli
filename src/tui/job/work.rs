@@ -52,3 +52,20 @@ fn executed(result: Result<CommandProgress>, theme: Theme) -> Outcome {
         Err(error) => Outcome::Finished(settle(Err(error), theme)),
     }
 }
+
+/// Prepares first-use questions while the shell already owns the terminal.
+pub(super) fn startup(globals: SessionOptions, theme: Theme) -> JoinHandle<Outcome> {
+    tokio::spawn(async move {
+        let result = async {
+            let context = crate::interactive::session::load_context(&globals, theme)?;
+            crate::commands::prepared::startup(context, huckleberry_api::client::now_seconds())
+                .await
+        }
+        .await;
+        match result {
+            Ok(Some(prepared)) => Outcome::Continue(Box::new(prepared)),
+            Ok(None) => Outcome::Finished(Landing::Home),
+            Err(error) => Outcome::Finished(settle(Err(error), theme)),
+        }
+    })
+}

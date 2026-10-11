@@ -4,9 +4,9 @@ use anyhow::Result;
 use huckleberry_api::client::now_seconds;
 use huckleberry_api::{Credentials, Huckleberry, auth};
 
+use super::utility_form::{LoginForm, LoginInput, LoginSubmission};
 use crate::cli::AuthAction;
 use crate::credentials::PASSWORD_ENV;
-use crate::prompt::{self, Question};
 use crate::render::output;
 use crate::session::Context;
 
@@ -30,12 +30,36 @@ async fn login(
     password: Option<String>,
     timezone: Option<String>,
 ) -> Result<()> {
+    let model = create_model(context, email, password, timezone)?;
+    let answer = crate::prompt::flow::runner::read(model, now_seconds(), context.theme)?;
+    execute(context, answer).await
+}
+
+pub(crate) fn create_model(
+    context: &Context,
+    email: Option<String>,
+    password: Option<String>,
+    timezone: Option<String>,
+) -> Result<LoginForm> {
+    let existing = context.credentials()?;
+    LoginForm::create_login(LoginInput {
+        email: email.or(existing.email),
+        password: password.or(existing.password),
+        timezone: timezone.or_else(|| {
+            (context.config.timezone != "UTC").then(|| context.config.timezone.clone())
+        }),
+    })
+}
+
+pub(crate) async fn execute(context: &Context, answer: LoginSubmission) -> Result<()> {
+    let LoginSubmission {
+        email,
+        password,
+        timezone,
+    } = answer;
     let from_environment = std::env::var(PASSWORD_ENV)
         .ok()
         .is_some_and(|value| !value.is_empty());
-    let (email, password) = context.ask_for_credentials(email, password)?;
-    let timezone = resolve_timezone(context, timezone)?;
-
     context.narrate(&format!("Signing in as {email}..."));
     let client = Huckleberry::new(Credentials::new(&email, &password), &timezone)?;
     let session = client.authenticate().await?;
@@ -72,7 +96,7 @@ async fn login(
     if context.config.child().is_none()
         && let [only] = user.child_list.as_slice()
     {
-        let mut config = context.config.clone();
+        let mut config = crate::config::load(&context.config_path)?;
         config.set("child", &only.cid)?;
         crate::config::save(&context.config_path, &config)?;
         context.report(&format!(
@@ -137,27 +161,4 @@ fn logout(context: &Context) -> Result<()> {
     context.report("Signed out. The saved session and password are gone.");
     context.detail(&format!("removed {}", context.credentials_path.display()));
     Ok(())
-}
-
-/// Which timezone to sign in with: the flag, then the setting, then a
-/// question, then UTC.
-fn resolve_timezone(context: &Context, flag: Option<String>) -> Result<String> {
-    if let Some(named) = flag {
-        crate::domain::Calendar::new(&named)?;
-        return Ok(named);
-    }
-    if context.config.timezone != "UTC" {
-        return Ok(context.config.timezone.clone());
-    }
-    // Only asked once, on the first sign-in, and it is the one setting that
-    // makes every day boundary in the tool right or wrong.
-    let question = Question::new(
-        "timezone",
-        "Which timezone does the family keep? (e.g. America/New_York)",
-        "--timezone <ZONE>",
-    )
-    .with_default("UTC");
-    let answer = prompt::ask(&question, context.theme)?;
-    crate::domain::Calendar::new(&answer)?;
-    Ok(answer)
 }

@@ -20,7 +20,6 @@ use crate::cli::Cli;
 use crate::config::Config;
 use crate::credentials::{self, EMAIL_ENV, PASSWORD_ENV, Resolved};
 use crate::domain::Calendar;
-use crate::prompt::{self, Question};
 use crate::theme::Theme;
 
 /// Everything a command needs before it does anything.
@@ -150,30 +149,19 @@ impl Context {
         password: Option<String>,
     ) -> Result<(String, String)> {
         let existing = self.credentials()?;
-        let email = if let Some(known) = email.or(existing.email) {
-            known
-        } else {
-            prompt::ask(
-                &Question::new(
-                    "email address",
-                    "Which email is the Huckleberry account under?",
-                    "--email <ADDRESS>",
-                ),
-                self.theme,
-            )?
-        };
-        let password = match password.or(existing.password) {
-            Some(known) => known,
-            None => prompt::ask_secret(
-                &Question::new(
-                    "password",
-                    "Password:",
-                    &format!("--password <PASSWORD> or {PASSWORD_ENV}"),
-                ),
-                self.theme,
-            )?,
-        };
-        Ok((email, password))
+        let model = crate::commands::utility_form::LoginForm::create_login(
+            crate::commands::utility_form::LoginInput {
+                email: email.or(existing.email),
+                password: password.or(existing.password),
+                timezone: Some(self.config.timezone.clone()),
+            },
+        )?;
+        let answer = crate::prompt::flow::runner::read(
+            model,
+            huckleberry_api::client::now_seconds(),
+            self.theme,
+        )?;
+        Ok((answer.email, answer.password))
     }
 
     /// Says what the tool is about to do, on stderr, always.

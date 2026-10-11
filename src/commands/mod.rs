@@ -22,6 +22,7 @@ pub mod pump;
 pub mod settings;
 pub mod sleep;
 pub mod sleep_form;
+pub mod utility_form;
 pub mod views;
 
 use anyhow::{Result, bail};
@@ -32,7 +33,7 @@ use huckleberry_api::client::now_seconds;
 use crate::cli::{Cli, Command};
 use crate::domain::Calendar;
 use crate::domain::types::Dataset;
-use crate::prompt::{self, Choice, Question};
+use crate::prompt;
 use crate::session::Context;
 use crate::theme::Theme;
 
@@ -42,18 +43,6 @@ pub async fn run(cli: &Cli, theme: Theme) -> Result<()> {
         return dispatch(&Context::open(cli, theme)?, command).await;
     }
     if prompt::available() {
-        // The shell draws its widgets before it dispatches anything, so what
-        // setup would otherwise ask on the first keystroke is asked here,
-        // while the full screen is not yet in the way of the question.
-        let context = Context::open(cli, theme)?;
-        crate::setup::run::ensure(
-            &context,
-            crate::setup::Needs {
-                credentials: cli.offline.is_none(),
-                settings: true,
-            },
-        )
-        .await?;
         return Box::pin(crate::tui::run(cli, theme)).await;
     }
     Cli::command().print_help()?;
@@ -180,43 +169,10 @@ pub async fn which_child(context: &Context, client: &Huckleberry) -> Result<Stri
         return Ok(only.cid.clone());
     }
 
-    let labels: Vec<(String, String)> = user
-        .child_list
-        .iter()
-        .map(|entry| {
-            (
-                entry.cid.clone(),
-                entry.nickname.clone().unwrap_or_else(|| entry.cid.clone()),
-            )
-        })
-        .collect();
-    let choices: Vec<Choice<'_>> = labels
-        .iter()
-        .map(|(cid, name)| Choice {
-            value: cid,
-            hint: name,
-        })
-        .collect();
-    let question = Question::new(
-        "child to act on",
-        "Which child?",
-        "--child <CID> (or `child use`)",
-    )
-    .with_choices(&choices);
-    let chosen = prompt::ask(&question, context.theme)?;
-
-    if prompt::confirm("Remember this child?", true, context.theme)? {
-        let mut config = context.config.clone();
-        config.set("child", &chosen)?;
-        crate::config::save(&context.config_path, &config)?;
-        let name = user
-            .child_list
-            .iter()
-            .find(|child| child.cid == chosen)
-            .and_then(|child| child.nickname.as_deref())
-            .unwrap_or(&chosen);
-        context.report(&format!("Now tracking {name}."));
-    }
+    let model = utility_form::ChildForm::create_child(child::labels(&user.child_list), None, true)?;
+    let answer = crate::prompt::flow::runner::read(model, now_seconds(), context.theme)?;
+    let chosen = answer.cid.clone();
+    child::execute(context, answer)?;
     Ok(chosen)
 }
 

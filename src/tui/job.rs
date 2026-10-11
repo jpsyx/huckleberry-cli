@@ -145,6 +145,20 @@ impl Job {
         Self::create_job(title, path.clone(), theme, channel, Some(handle))
     }
 
+    /// Collects first-use settings inside the shell, with Home available immediately.
+    #[must_use]
+    pub fn startup(globals: &SessionOptions, theme: Theme) -> Self {
+        let channel = host::install();
+        let handle = work::startup(globals.clone(), theme);
+        Self::create_job(
+            "Setup".into(),
+            CommandPath(vec!["setup".into()]),
+            theme,
+            channel,
+            Some(handle),
+        )
+    }
+
     fn create_job(
         title: String,
         path: CommandPath,

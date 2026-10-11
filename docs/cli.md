@@ -776,3 +776,10 @@ views. Returning from a custom name reaches the food list; each new name has its
 own buffer. The food catalog is loaded once per draft. Growth forms retain exact
 physical quantities across unit changes, including skipped optional values.
 Unfinished numeric text keeps the units in which it was typed until corrected.
+
+Sign-in, child selection, food creation, settings changes, and first-use setup
+use the same retained form controls. Passwords remain masked when revisited.
+Each setting key retains its own unfinished value. Day setup saves all missing
+settings together on completion; Escape leaves the unfinished draft unsaved
+and returns to Home. A completed sign-in is retained while subsequent setup
+questions are edited, and completion continues the originally chosen command.

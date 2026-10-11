@@ -10,6 +10,7 @@
 //! An agent, a pipe or a CI job is not: it fails naming the command that would
 //! have answered, so nothing ever blocks on a question nobody can see.
 
+pub mod form;
 pub mod run;
 
 use anyhow::{Result, bail};
