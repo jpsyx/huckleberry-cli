@@ -7,6 +7,7 @@ mod question;
 mod terminal;
 pub use question::{Answer, QuestionMenu, question_menu};
 pub use terminal::choose;
+pub(crate) use terminal::redraw;
 
 /// Asks a prepared question and interprets its selection.
 pub fn answer(

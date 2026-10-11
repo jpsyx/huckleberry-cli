@@ -173,22 +173,22 @@ selection/text controls; subsequent tasks add their other variants.
 -> Result<Form::Output>` for standalone collection. Use existing renderers and
 the same View methods in both transport paths.
 
-- [ ] Write `choice_back_and_home_are_distinct`, `dial_back_leaves_only_column_zero`,
+- [x] Write `choice_back_and_home_are_distinct`, `dial_back_leaves_only_column_zero`,
   `text_back_keeps_letters_and_paste` and `reopened_secret_is_masked`.
   Table-test Left/h/a/H/A; at dial column 1 expect Stay/column 0, then Back.
   In text, insert `haha quiet`, paste `first\nsecond`, press Left, reopen and
   assert the buffer is `haha quietfirstsecond`. Escape emits Home, Ctrl-C Cancel.
-- [ ] Run `cargo test --test form_controls`; confirm existing cancellation or
+- [x] Run `cargo test --test form_controls`; confirm existing cancellation or
   fresh-buffer behavior fails the assertions before changing the controls.
-- [ ] Extract pure text state and reuse current selection/dial state and renderers.
+- [x] Extract pure text state and reuse current selection/dial state and renderers.
   Retain raw buffers and dial positions on Back; never substitute an old default
   for an explicitly cleared field. Keep secret state out of Debug/log output.
   Make digit shortcuts highlight only; keep shifted aliases and Tab semantics.
   Update hosted hints to distinguish `back` and `Esc home`; standalone adapters
   keep existing cancellation behavior and terminal restoration.
-- [ ] Run `cargo test --test form_controls --test menu_choices --test one_hand_forms`.
+- [x] Run `cargo test --test form_controls --test menu_choices --test one_hand_forms`.
   Check masking, required-text validation, empty optional fields and rendered hints.
-- [ ] Commit: `feat: share retained prompt controls with explicit navigation`.
+- [x] Commit: `feat: share retained prompt controls with explicit navigation`.
 
 ### Task 3: Resolved time and volume controls
 
@@ -201,21 +201,21 @@ opening: dial::time::Opening, now: f64) -> Self`,
 `VolumeState::create_volume(units: Units, amount: Option<f64>, minimum: f64)
 -> Self`; integrate them as Control variants. Retain existing public readers.
 
-- [ ] Write `accepted_relative_time_does_not_move`, `untouched_time_keeps_precision`,
+- [x] Write `accepted_relative_time_does_not_move`, `untouched_time_keeps_precision`,
   `explicit_now_updates_time`, `clock_switch_keeps_instant` and
   `units_preserve_quantity`. At now=10_000 accept 20 minutes ago as 8_800;
   revisit at 10_300 and assert 8_800, then press `n` and assert 10_300.
   Repeat with a `.125` instant, local midnight and both occurrences of the
   America/New_York DST fallback hour. Tab/column focus must not dirty a value.
-- [ ] Run `cargo test --test form_values`; confirm relative reparsing and
+- [x] Run `cargo test --test form_values`; confirm relative reparsing and
   rounding would fail before adding retained resolved values.
-- [ ] Keep canonical instants/quantities separate from display wheels. Reuse
+- [x] Keep canonical instants/quantities separate from display wheels. Reuse
   existing date rules and unit conversions with explicit now. A real value
   edit replaces the canonical value; navigation and redraw do not. New bounds
   mark a retained answer invalid rather than silently clamping it. Bottle
   retains its positive minimum; pumping allows zero. Document the state split.
-- [ ] Run `cargo test --test form_values --test event_times --test volume_units`.
-- [ ] Commit: `fix: preserve accepted times and quantities while revisiting forms`.
+- [x] Run `cargo test --test form_values --test event_times --test volume_units`.
+- [x] Commit: `fix: preserve accepted times and quantities while revisiting forms`.
 
 ### Task 4: Shell lifecycle, suspension and one-time execution
 

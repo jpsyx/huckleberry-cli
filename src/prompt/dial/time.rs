@@ -142,7 +142,7 @@ const fn other(mode: Mode) -> Mode {
 }
 
 /// How many whole minutes ago an instant was, never fewer than none.
-fn ago(now: f64, at: f64) -> i64 {
+pub(crate) fn ago(now: f64, at: f64) -> i64 {
     (((now - at) / 60.0).round() as i64).max(0)
 }
 
@@ -152,7 +152,7 @@ fn ago(now: f64, at: f64) -> i64 {
 /// where a start is already fixed the dial simply does not offer anything
 /// earlier. Refusing afterwards would be a worse answer to the same problem:
 /// it makes somebody undo a turn they were never meant to be able to make.
-fn furthest_back(now: f64, not_before: Option<f64>) -> i64 {
+pub(crate) fn furthest_back(now: f64, not_before: Option<f64>) -> i64 {
     let unbounded = MOST_HOURS_AGO * 60 + 59;
     not_before.map_or(unbounded, |earliest| {
         (((now - earliest) / 60.0).floor() as i64).clamp(0, unbounded)
@@ -171,7 +171,7 @@ fn said(minutes: i64) -> String {
 // -- Saying it as how long ago ----------------------------------------------
 
 /// Hours and minutes ago, reaching no further than `furthest`.
-fn relative_dial(minutes: i64, furthest: i64) -> Dial {
+pub(crate) fn relative_dial(minutes: i64, furthest: i64) -> Dial {
     let hours = (minutes / 60).min(furthest / 60);
     Dial::new(vec![
         hours_wheel(furthest, hours),
@@ -229,7 +229,7 @@ fn minutes_wheel(most: i64, standing: i64) -> Wheel {
 /// Turning the hours to the furthest back the dial reaches leaves fewer than
 /// sixty minutes on offer, so the minutes column is rebuilt to just those.
 /// Turning the hours back again gives them back.
-fn settling(furthest: i64) -> impl FnMut(&mut Dial, usize) {
+pub(crate) fn settling(furthest: i64) -> impl FnMut(&mut Dial, usize) {
     move |dial, column| {
         if column != HOURS_AGO {
             return;
@@ -243,7 +243,7 @@ fn settling(furthest: i64) -> impl FnMut(&mut Dial, usize) {
 }
 
 /// How many minutes ago the relative dial is standing on.
-fn read_relative(dial: &Dial) -> i64 {
+pub(crate) fn read_relative(dial: &Dial) -> i64 {
     read_number(dial.value(HOURS_AGO)) * 60 + read_number(dial.value(MINUTES_AGO))
 }
 
@@ -282,7 +282,7 @@ const fn split(time: TimeOfDay) -> (i8, bool) {
 }
 
 /// The three wheels, standing at a time, pointing out the current one.
-fn clock_dial(time: TimeOfDay, now: TimeOfDay) -> Dial {
+pub(crate) fn clock_dial(time: TimeOfDay, now: TimeOfDay) -> Dial {
     let (hour, afternoon) = split(time);
     Dial::new(vec![
         Wheel::new(
@@ -309,7 +309,7 @@ fn clock_dial(time: TimeOfDay, now: TimeOfDay) -> Dial {
 }
 
 /// The time the clock dial is standing on.
-fn read_clock(dial: &Dial) -> TimeOfDay {
+pub(crate) fn read_clock(dial: &Dial) -> TimeOfDay {
     let hour: i8 = dial.value(HOUR).parse().unwrap_or(12);
     let minute: i8 = dial.value(MINUTE).parse().unwrap_or_default();
     let hour = match (hour, dial.value(HALF)) {

@@ -2,7 +2,7 @@
 use anyhow::{Result, anyhow};
 use crossterm::event::{KeyCode, KeyEventKind, KeyModifiers};
 
-use super::FormValue;
+use super::{FormValue, time::TimeState, volume::VolumeState};
 use crate::prompt::{
     Question,
     host::Input,
@@ -42,9 +42,28 @@ enum Control {
         typed: String,
         secret: bool,
     },
+    Time(TimeState),
+    Volume(VolumeState),
 }
 
 impl View {
+    /// Creates a time view retaining the exact accepted instant.
+    #[must_use]
+    pub fn create_time(label: impl Into<String>, time: TimeState) -> Self {
+        Self {
+            label: label.into(),
+            control: Control::Time(time),
+        }
+    }
+
+    /// Creates a volume view retaining quantity across unit changes.
+    #[must_use]
+    pub fn create_volume(label: impl Into<String>, volume: VolumeState) -> Self {
+        Self {
+            label: label.into(),
+            control: Control::Volume(volume),
+        }
+    }
     /// Creates a finite-choice view, retaining values independently of labels.
     #[must_use]
     pub fn create_choices(
@@ -88,7 +107,7 @@ impl View {
     }
 
     /// Applies input using the shared control implementations.
-    pub fn apply(&mut self, input: Input, _now: f64, size: (u16, u16)) -> ControlEvent {
+    pub fn apply(&mut self, input: Input, now: f64, size: (u16, u16)) -> ControlEvent {
         match input {
             Input::Pasted(pasted) => {
                 if let Control::Text { typed, .. } = &mut self.control {
@@ -97,22 +116,15 @@ impl View {
                 ControlEvent::Stay
             }
             Input::Key(key) => {
-                if key.kind != KeyEventKind::Press {
-                    return ControlEvent::Stay;
+                match &mut self.control {
+                    Control::Time(time) => return time.apply(key, now),
+                    Control::Volume(volume) => return volume.apply(key),
+                    _ => {}
                 }
-                if key.code == KeyCode::Esc {
-                    return ControlEvent::Home;
-                }
-                if key.modifiers.contains(KeyModifiers::CONTROL)
-                    && matches!(key.code, KeyCode::Char('c' | 'd'))
+                if let Some(event) =
+                    navigation(key, true, matches!(self.control, Control::Choice { .. }))
                 {
-                    return ControlEvent::Cancel;
-                }
-                if key.code == KeyCode::Left
-                    || (matches!(self.control, Control::Choice { .. })
-                        && matches!(key.code, KeyCode::Char('h' | 'H' | 'a' | 'A')))
-                {
-                    return ControlEvent::Back;
+                    return event;
                 }
                 self.apply_control(key, size)
             }
@@ -123,7 +135,11 @@ impl View {
         match &mut self.control {
             Control::Choice {
                 rows, selection, ..
-            } => match selection.apply(key, rows.len(), usize::from(size.1).saturating_sub(2)) {
+            } => match selection.apply(
+                forward_key(key),
+                rows.len(),
+                usize::from(size.1).saturating_sub(2),
+            ) {
                 SelectionAction::Submit(_) => ControlEvent::Accept,
                 SelectionAction::Cancel => ControlEvent::Cancel,
                 SelectionAction::Stay => ControlEvent::Stay,
@@ -133,11 +149,12 @@ impl View {
                 text::Typing::Stay => ControlEvent::Stay,
                 text::Typing::Cancel => ControlEvent::Cancel,
             },
+            Control::Time(_) | Control::Volume(_) => ControlEvent::Stay,
         }
     }
 
     /// Reads the control's value without altering it.
-    pub fn value(&self, _now: f64) -> Result<FormValue> {
+    pub fn value(&self, now: f64) -> Result<FormValue> {
         match &self.control {
             Control::Choice {
                 values, selection, ..
@@ -146,13 +163,25 @@ impl View {
                 .cloned()
                 .ok_or_else(|| anyhow!("there are no choices available")),
             Control::Text { typed, .. } => Ok(FormValue::Text(typed.clone())),
+            Control::Time(time) => time.value(now).map(FormValue::Instant),
+            Control::Volume(volume) => {
+                let (units, amount) = volume.value();
+                Ok(FormValue::Volume { units, amount })
+            }
+        }
+    }
+
+    /// Freezes time defaults only after the form has accepted the answer.
+    pub(super) fn accepted(&mut self, now: f64) {
+        if let Control::Time(time) = &mut self.control {
+            let _ = time.accept(now);
         }
     }
 
     /// Draws through the same functions used by the corresponding prompt.
     #[must_use]
-    pub fn render(&self, _now: f64, size: (u16, u16), theme: Theme) -> Vec<String> {
-        match &self.control {
+    pub fn render(&self, now: f64, size: (u16, u16), theme: Theme) -> Vec<String> {
+        let mut lines = match &self.control {
             Control::Choice {
                 rows, selection, ..
             } => select::render(&self.label, rows, selection, size.0, size.1, theme),
@@ -162,6 +191,47 @@ impl View {
                 *secret,
                 theme,
             ),
-        }
+            Control::Time(time) => time.render(&self.label, now, size.0, theme),
+            Control::Volume(volume) => volume.render(&self.label, size.0, theme),
+        };
+        let back = if matches!(self.control, Control::Text { .. }) {
+            "← back"
+        } else {
+            "← h/a back"
+        };
+        lines.push(theme.muted(&format!("{back} · Enter set · Esc home")));
+        lines
     }
+}
+
+/// Navigation before the control interprets ordinary input.
+pub(super) fn navigation(
+    key: crossterm::event::KeyEvent,
+    back: bool,
+    letters: bool,
+) -> Option<ControlEvent> {
+    if key.kind != KeyEventKind::Press {
+        return Some(ControlEvent::Stay);
+    }
+    if key.modifiers.contains(KeyModifiers::CONTROL) {
+        return matches!(key.code, KeyCode::Char('c' | 'd')).then_some(ControlEvent::Cancel);
+    }
+    match key.code {
+        KeyCode::Esc => Some(ControlEvent::Home),
+        KeyCode::Left if back => Some(ControlEvent::Back),
+        KeyCode::Char('h' | 'H' | 'a' | 'A') if back && letters => Some(ControlEvent::Back),
+        _ => None,
+    }
+}
+
+const fn forward_key(mut key: crossterm::event::KeyEvent) -> crossterm::event::KeyEvent {
+    if !key.modifiers.contains(KeyModifiers::CONTROL)
+        && matches!(
+            key.code,
+            KeyCode::Right | KeyCode::Char('l' | 'L' | 'd' | 'D' | ' ')
+        )
+    {
+        key.code = KeyCode::Enter;
+    }
+    key
 }

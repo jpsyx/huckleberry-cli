@@ -134,6 +134,10 @@ impl<Form: FormModel> FormState<Form> {
     fn accept(&mut self, now: f64) -> Result<FormEvent> {
         let value = self.views[&self.current].value(now)?;
         self.model.accept(&self.current, value, now)?;
+        self.views
+            .get_mut(&self.current)
+            .expect("current view exists")
+            .accepted(now);
         if let Some(following) = self.model.forward(&self.current) {
             self.open(following, now)?;
             Ok(FormEvent::Stay)

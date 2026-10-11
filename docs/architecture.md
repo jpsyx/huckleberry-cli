@@ -256,6 +256,14 @@ see dates, durations and units. No API storage or operation semantics change.
 
 ## How a value is resolved
 
+`prompt/flow` holds form answers separately from the view currently being
+edited. Views reuse the selection, text and dial models and renderers. Their
+Back and Home outcomes are separate from validation and acceptance. Retained
+time controls store resolved instants, and volume controls store an unrounded
+quantity: moving between views, switching clock modes or changing display units
+cannot change an already accepted value. The standalone form runner owns only
+input transport and terminal restoration; form decisions take an explicit clock.
+
 Every value a command needs is looked for in the same order:
 
 1. the flag (`--amount 90`), which is what an agent or a script passes;

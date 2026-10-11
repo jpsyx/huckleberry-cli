@@ -97,7 +97,7 @@ fn settle(dial: &mut Dial, column: usize, minimum: i32) {
 ///
 /// Millilitres are whole numbers and turn one at a time, leaping five.
 /// Ounces are quarters, and leap four of them, which is a whole ounce.
-fn amounts(units: Units, wanted: f64, minimum: i32) -> Wheel {
+pub(crate) fn amounts(units: Units, wanted: f64, minimum: i32) -> Wheel {
     let (labels, leap): (Vec<String>, usize) = match units {
         Units::Ml => ((minimum..=MOST_ML).map(|ml| ml.to_string()).collect(), 5),
         Units::Oz => (
@@ -113,7 +113,7 @@ fn amounts(units: Units, wanted: f64, minimum: i32) -> Wheel {
 }
 
 /// The units column, which is a toggle between the only two there are.
-fn units_wheel(units: Units) -> Wheel {
+pub(crate) fn units_wheel(units: Units) -> Wheel {
     Wheel::new(
         vec![Units::Ml.as_str().to_owned(), Units::Oz.as_str().to_owned()],
         usize::from(matches!(units, Units::Oz)),
@@ -131,7 +131,7 @@ const fn other(units: Units) -> Units {
 }
 
 /// Which units the dial is standing on.
-fn read_units(dial: &Dial) -> Units {
+pub(crate) fn read_units(dial: &Dial) -> Units {
     if dial.value(UNITS) == Units::Oz.as_str() {
         Units::Oz
     } else {
@@ -140,7 +140,7 @@ fn read_units(dial: &Dial) -> Units {
 }
 
 /// The amount and the units it is standing on.
-fn read(dial: &Dial) -> (Units, f64) {
+pub(crate) fn read(dial: &Dial) -> (Units, f64) {
     (
         read_units(dial),
         dial.value(AMOUNT).parse().unwrap_or_default(),

@@ -41,6 +41,12 @@ because a thumb finds the space bar without looking.
 Text fields and search filters still accept these keys as letters. Shifted
 `W`/`S` leap on dials just like shifted `K`/`J`.
 
+In a retained form, Back returns one view and preserves both the unfinished
+control and later answers. Escape discards the form and returns Home. Left from
+a text field means Back; letters remain text. On a dial, Left, `h` and `a`
+move columns, then leave the view when already on its first column. Enter
+accepts the current value, including the previous answer when revisiting a view.
+
 ### 2. `q` leaves, and `Ctrl-Q` leaves from anywhere
 
 **No menu row ends the session.** Leaving is a key, and there are two of them,

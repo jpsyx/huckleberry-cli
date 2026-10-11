@@ -78,7 +78,8 @@ fn collect(label: &str, items: &[MenuItem], default: usize, theme: Theme) -> Res
     }
 }
 
-fn redraw(output: &mut impl Write, lines: &[String], previous: usize) -> Result<()> {
+/// Redraws a standalone prompt while retaining ownership of stderr.
+pub fn redraw(output: &mut impl Write, lines: &[String], previous: usize) -> Result<()> {
     if previous > 0 {
         execute!(output, cursor::MoveUp(previous as u16))?;
     }

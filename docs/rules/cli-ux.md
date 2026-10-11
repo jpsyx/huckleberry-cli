@@ -85,3 +85,8 @@ highlighted item. Zero and numbers beyond the menu's length are ignored; items
 10 and later remain reachable with navigation keys. Optional choices include Skip.
 Optional text offers Skip or Enter text, and existing values can be kept or
 cleared. Esc and Ctrl-C cancel the current question without accepting it.
+
+Retained forms distinguish navigation from cancellation: Back retains the
+unfinished value, while Escape returns Home in the shell. Text fields retain
+`h` and `a` as letters and use Left for Back. Dials use Left for Back only from
+their first column. Standalone prompt cancellation still restores the terminal.
