@@ -85,7 +85,7 @@ pub fn draw_with(frame: &mut Frame, app: &mut App, job: Option<&crate::tui::job:
     } else {
         split(areas[1], app, at)
     };
-    let bottom = Layout::horizontal([Constraint::Ratio(1, 3), Constraint::Ratio(2, 3)]).split(rows);
+    let bottom = Layout::horizontal([Constraint::Ratio(2, 5), Constraint::Ratio(3, 5)]).split(rows);
     draw_left(frame, bottom[0], app, job, at);
     summary::draw(frame, bottom[1], app, at);
     frame.render_widget(
@@ -382,14 +382,14 @@ mod frames {
             .unwrap();
         let after = terminal.backend().buffer();
         let top = (1..59)
-            .find(|row| before[(40, *row)].symbol() == "┌")
+            .find(|row| before[(48, *row)].symbol() == "┌")
             .unwrap();
         assert_eq!(before[(0, top)].symbol(), "┏");
         assert_eq!(after[(0, top)].symbol(), "┌");
-        assert_eq!(after[(40, top)].symbol(), "┏");
-        assert_ne!(before[(40, top)].fg, after[(40, top)].fg);
+        assert_eq!(after[(48, top)].symbol(), "┏");
+        assert_ne!(before[(48, top)].fg, after[(48, top)].fg);
         for row in top + 1..58 {
-            for column in 41..119 {
+            for column in 49..119 {
                 assert_eq!(
                     before[(column, row)],
                     after[(column, row)],
@@ -418,9 +418,9 @@ mod frames {
                 .collect::<Vec<_>>()
                 .join("\n")
         };
-        assert!(text(0, 40).contains("wet or dirty?"));
-        assert!(text(40, 80).contains("[feeds]"));
-        assert!(text(40, 80).contains("Alt+→/l/d focus"));
+        assert!(text(0, 48).contains("wet or dirty?"));
+        assert!(text(48, 72).contains("[feeds]"));
+        assert!(text(48, 72).contains("Alt+→/l/d focus"));
     }
 
     #[test]
@@ -757,7 +757,7 @@ mod frames {
     fn a_narrow_terminal_keeps_the_same_shape() {
         let drawn = screen(&mut loaded(), 60, 30);
         assert!(drawn.contains("Last fed"), "{drawn}");
-        assert!(drawn.contains("1. Log a diape"), "{drawn}");
+        assert!(drawn.contains("1. Log a diaper"), "{drawn}");
     }
 
     #[test]
@@ -844,7 +844,7 @@ mod frames {
             switch: None,
             trailing: Some("minutes ago".to_owned()),
         };
-        let lines = draw::render("When?", &dial, 31, crate::theme::Theme::dark(false));
+        let lines = draw::render("When?", &dial, 38, crate::theme::Theme::dark(false));
         let job = crate::tui::job::Job::idle("Log sleep", &lines);
         let mut terminal = Terminal::new(TestBackend::new(100, 30)).expect("a test terminal");
         terminal
