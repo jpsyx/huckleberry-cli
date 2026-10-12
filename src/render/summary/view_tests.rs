@@ -51,9 +51,7 @@ fn all_direction_aliases_stop_at_the_ends_without_closing() {
         KeyCode::Tab,
         KeyCode::Right,
         KeyCode::Char('l'),
-        KeyCode::Char('L'),
         KeyCode::Char('d'),
-        KeyCode::Char('D'),
     ] {
         let mut state = State::default();
         for expected in (1..COLUMNS.len()).chain([COLUMNS.len() - 1]) {
@@ -65,9 +63,7 @@ fn all_direction_aliases_stop_at_the_ends_without_closing() {
         KeyCode::BackTab,
         KeyCode::Left,
         KeyCode::Char('h'),
-        KeyCode::Char('H'),
         KeyCode::Char('a'),
-        KeyCode::Char('A'),
     ] {
         let mut state = State {
             selected: COLUMNS.len() - 1,
@@ -492,4 +488,82 @@ fn a_panel_too_short_for_any_data_asks_for_more_space() {
     assert_eq!(lines.len(), 5);
     assert_eq!(lines[0], "Enlarge the panel");
     assert!(lines[1].contains("Esc/q back"));
+}
+
+#[test]
+fn visible_edge_shortcuts_keep_the_rendered_window_and_vertical_scroll() {
+    let calendar = Calendar::utc();
+    let data = dataset();
+    let rows = summaries::build(&data, &calendar, DayRule::default(), AFTERNOON, 30);
+    for is_hosted in [true, false] {
+        let view = View {
+            is_hosted,
+            rows: &rows,
+            dataset: &data,
+            calendar: &calendar,
+            units: Units::Ml,
+            now: AFTERNOON,
+        };
+        let mut state = State {
+            selected: 12,
+            scroll: 2,
+            ..State::default()
+        };
+        for width in [100, 36, 20, 200, 80] {
+            let before = view.lines(&mut state, (width, 24), Theme::dark(false));
+            let range = visible_columns(
+                state.first_column,
+                state.selected,
+                Units::Ml,
+                usize::from(width),
+            );
+            let scroll = state.scroll;
+            for (key, expected) in visible_edge_keys(range) {
+                assert_visible_edge(&view, &mut state, key, expected, width, &before);
+                assert_eq!(state.scroll, scroll);
+            }
+        }
+    }
+}
+
+fn assert_visible_edge(
+    view: &View<'_>,
+    state: &mut State,
+    key: KeyEvent,
+    expected: usize,
+    width: u16,
+    before: &[String],
+) {
+    for _ in 0..2 {
+        assert!(!state.apply(key));
+        assert_eq!(state.selected, expected, "{key:?}, width {width}");
+        let after = view.lines(state, (width, 24), Theme::dark(false));
+        assert_eq!(before[1..3], after[1..3]);
+        assert_eq!(before[4], after[4]);
+    }
+}
+
+fn visible_edge_keys(range: Range<usize>) -> Vec<(KeyEvent, usize)> {
+    let mut keys = Vec::new();
+    for modifiers in [KeyModifiers::NONE, KeyModifiers::SHIFT] {
+        for (code, expected) in [
+            (KeyCode::Char('H'), range.start),
+            (KeyCode::Char('L'), range.end - 1),
+            (KeyCode::Char('A'), range.start),
+            (KeyCode::Char('D'), range.end - 1),
+        ] {
+            keys.push((KeyEvent::new(code, modifiers), expected));
+        }
+    }
+    keys.extend([
+        (
+            KeyEvent::new(KeyCode::Left, KeyModifiers::SHIFT),
+            range.start,
+        ),
+        (
+            KeyEvent::new(KeyCode::Right, KeyModifiers::SHIFT),
+            range.end - 1,
+        ),
+    ]);
+    keys
 }

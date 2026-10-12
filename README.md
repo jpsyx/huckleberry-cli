@@ -127,10 +127,13 @@ Wed 23 Sep │██▼█◦███▼◦███ ▼◦  ▼█◦ ▼ █�
 `h summary` opens a day table grouped into feed, sleep, wake time and diaper.
 Feed has bottle feed and nursed subcategories; total feeds stays outside both.
 Sleep and wake columns include day/night totals and separate day/night averages.
-Tab/Shift-Tab or left/right (H/L, A/D) selects a numeric column and draws its
+Tab/Shift-Tab or left/right (h/l, a/d) selects a numeric column and draws its
 bar chart underneath, with gaps between bars and a dotted average of the previous
 seven complete days (today excluded). The default shows eight days: those seven
-plus today. Horizontal scrolling moves only at the visible edges. Up/down scrolls the rows and notes; Esc or Q leaves.
+plus today. Horizontal scrolling moves only at the visible edges.
+H/A or Shift+Left selects the first visible numeric column; L/D or Shift+Right
+selects the last visible numeric column. g/G selects the first/last numeric
+column of the whole table. Up/down scrolls the rows and notes; Esc or Q leaves.
 Milk/feed averages only bottles with recorded amounts, and nurse/feed averages
 only nursing sessions. `% feed daytime`, after milk/feed, shows the share of
 recorded milk volume received during the configured daytime, rounded to a whole

@@ -514,8 +514,12 @@ uses only the height its rows and wrapped notes need; the chart fills the
 remaining space above the keys. Long tables scroll while
 leaving a visible chart. One blank line separates the rows and notes from the
 chart, except in panels under ten rows where the data and bars take priority.
-In the shell and standalone Summary, Left/Right, H/L, A/D, Tab and Shift-Tab
-select columns, stopping at either end without leaving the view. In the shell,
+In the shell and standalone Summary, Left/Right, h/l, a/d, Tab and Shift-Tab
+select adjacent columns, stopping at either end without leaving the view.
+Capital H/A and Shift+Left select the first visible numeric column; capital L/D
+and Shift+Right select the last visible numeric column, keeping the table window
+in place. The g/G keys select the first/last numeric column of the whole table.
+In the shell,
 Backspace or Ctrl-C focuses Menu, Escape discards unfinished input and returns
 Home, and Q quits the shell. These keys never remove the Summary panel.
 Up/down (J/K, W/S) scroll the rows and notes, including configured night hours
@@ -649,7 +653,7 @@ both follow. If the two ever have to differ, that is a decision for
 
 **WASD aliases hjkl wherever those letters navigate.** `j`/`s` move down,
 `k`/`w` move up, `h`/`a` move left or back, and `l`/`d` move right or open.
-Both cases work. Fixed-choice prompts and lists still require Enter to choose;
+Both cases work, except Summary uses capital H/A and L/D for visible column edges. Fixed-choice prompts and lists still require Enter to choose;
 their right keys do nothing. Lists use PageDown or Ctrl-F to page forward, keeping `d`
 consistent with `l`. Search filters and text fields treat letters as text.
 

@@ -28,6 +28,7 @@ pub struct State {
     pub selected: usize,
     scroll: usize,
     first_column: usize,
+    last_column: usize,
     limit: usize,
     page: usize,
 }
@@ -43,11 +44,19 @@ impl State {
         }
         match key.code {
             KeyCode::Esc | KeyCode::Backspace | KeyCode::Char('q' | 'Q') => return true,
-            KeyCode::BackTab | KeyCode::Left | KeyCode::Char('h' | 'H' | 'a' | 'A') => {
+            KeyCode::Left if key.modifiers.contains(KeyModifiers::SHIFT) => {
+                self.selected = self.first_column;
+            }
+            KeyCode::Right if key.modifiers.contains(KeyModifiers::SHIFT) => {
+                self.selected = self.last_column;
+            }
+            KeyCode::Char('H' | 'A') => self.selected = self.first_column,
+            KeyCode::Char('L' | 'D') => self.selected = self.last_column,
+            KeyCode::BackTab | KeyCode::Left | KeyCode::Char('h' | 'a') => {
                 self.previous_column();
             }
             KeyCode::Tab if key.modifiers.contains(KeyModifiers::SHIFT) => self.previous_column(),
-            KeyCode::Tab | KeyCode::Right | KeyCode::Char('l' | 'L' | 'd' | 'D') => {
+            KeyCode::Tab | KeyCode::Right | KeyCode::Char('l' | 'd') => {
                 self.selected = (self.selected + 1).min(COLUMNS.len() - 1);
             }
             KeyCode::Down | KeyCode::Char('j' | 'J' | 's' | 'S') => {
@@ -103,6 +112,7 @@ impl View<'_> {
         }
         let range = visible_columns(state.first_column, state.selected, self.units, width);
         state.first_column = range.start;
+        state.last_column = range.end - 1;
         let head_height = if height < 12 { 3 } else { 4 };
         // Below ten rows, the gap would displace the last visible data row or bars.
         let chart_gap = u16::from(height >= 10);
@@ -245,8 +255,8 @@ impl View<'_> {
 fn build_hints(state: &State, width: usize) -> String {
     let position = format!("{}/{}", state.scroll + 1, state.limit + 1);
     [
-        "Tab/S-Tab ←/→ h/l a/d · g/G first/last · Esc/q back · ↑/↓ j/k w/s scroll rows & notes",
-        "Tab/S-Tab ←/→ h/l a/d · ↑↓ j/k w/s · g/G ends · Esc/q back",
+        "Tab/S-Tab ←/→ h/l a/d · H/L visible · g/G first/last · Esc/q back · ↑/↓ j/k w/s scroll rows & notes",
+        "Tab/S-Tab ←/→ h/l a/d · ↑↓ j/k w/s · H/L visible · g/G ends · Esc/q back",
         "←→ h/l a/d · ↑↓ j/k w/s · g/G · Esc/q back",
         "←→ ↑↓ g/G · Esc/q back",
     ]

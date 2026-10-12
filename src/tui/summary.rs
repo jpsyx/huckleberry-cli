@@ -86,7 +86,7 @@ impl Summary {
         let mut lines = view.lines(&mut self.state, size, theme);
         if let Some(hints) = lines.last_mut() {
             *hints = theme.muted(&crate::prompt::select::clip(
-                "←→ h/l a/d columns · ↑↓ j/k w/s scroll",
+                "←→ h/l a/d columns · H/L visible ends · ↑↓ j/k w/s scroll",
                 usize::from(size.0),
             ));
         }

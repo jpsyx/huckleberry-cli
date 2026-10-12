@@ -216,7 +216,10 @@ the chosen volume unit.
 
 On a terminal, `summary` opens an interactive table. The shell keeps that same
 view in its permanent right-hand panel, beside Menu and below the Now drawer. Tab and Shift-Tab, left/right,
-H/L, and A/D move between numeric columns, stopping at both ends. `g` selects
+h/l, and a/d move between numeric columns, stopping at both ends.
+Capital H/A or Shift+Left selects the first visible numeric column; capital L/D
+or Shift+Right selects the last visible numeric column. These shortcuts keep the
+current horizontal window and vertical scroll in place. `g` selects
 the first numeric column and `G` the last; neither changes vertical scroll.
 Home/End scroll to the top/bottom of the rows and notes. Left at the first
 column keeps the summary open. Day is fixed and

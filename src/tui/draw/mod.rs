@@ -279,7 +279,7 @@ fn footer(app: &App, running: bool) -> Paragraph<'static> {
         None => spans.push(Span::raw(" ")),
     }
     let hints = if app.focus == Panel::Summary {
-        "←→ h/l a/d columns · ↑↓ j/k w/s scroll · Esc home · r refresh · q quit"
+        "←→ h/l a/d columns · H/L visible ends · ↑↓ j/k w/s scroll · Esc home · r refresh · q quit"
     } else if running {
         FLOW_HINTS
     } else if app.dashboard.is_some() {
