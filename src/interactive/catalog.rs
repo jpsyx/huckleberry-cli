@@ -136,7 +136,6 @@ fn rows(id: MenuId) -> Vec<MenuEntry> {
             menu("Log sleep", MenuId::Sleep),
             menu("Log pumping", MenuId::Pump),
             command("Edit", "edit"),
-            command("Summary", "summary"),
             menu("Visualizations", MenuId::Visualizations),
             command("View logs", "log"),
             command("Delete", "delete"),

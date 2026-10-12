@@ -214,8 +214,8 @@ nighttime-only total gives 0%; no recorded milk volume gives a dash. The chart
 and JSON retain the unrounded percentage on a 0 to 100 scale, independent of
 the chosen volume unit.
 
-On a terminal, `summary` opens an interactive table. It runs through the prompt
-host in the shell, keeping the Now drawer in place. Tab and Shift-Tab, left/right,
+On a terminal, `summary` opens an interactive table. The shell keeps that same
+view in its permanent right-hand panel, beside Menu and below the Now drawer. Tab and Shift-Tab, left/right,
 H/L, and A/D move between numeric columns, stopping at both ends. `g` selects
 the first numeric column and `G` the last; neither changes vertical scroll.
 Home/End scroll to the top/bottom of the rows and notes. Left at the first
@@ -263,7 +263,9 @@ Narrow panels shorten the navigation wording.
 Short panels omit the title to retain a data row; panels under ten lines omit the
 chart gap, and panels under six lines ask for more space. Calculation explanations live here and in the README,
 rather than in the Summary footer.
-Esc or Q returns directly to the menu. Piped output stays a plain table;
+In the shell, Alt+Left/H/A or Backspace focuses Menu, Escape returns Home, and
+Q quits the shell. Alt+Right/L/D focuses Summary. Standalone Esc or Q closes
+Summary. Piped output stays a plain table;
 `--json` always prints numeric data and never opens an interactive screen.
 
 Each row covers `day_start` to the next `day_start` in the family's timezone.
@@ -305,12 +307,14 @@ by its start time, matching the existing daily feeding totals. Daytime runs from
 `day_start` up to `day_end`; night starts at `day_end`. Inverted hours work too.
 The splits always add back to the daily totals.
 
-Summary rows are rebuilt on opening from the latest settings and raw history.
-Summary fetches its own snapshot, independently of the shell's Now drawer and
-embedded Dashboard view, which share one reading. Summary omits its freshness
-line inside the shell, where only the Now drawer displays the timer. The timer
-describes the Now drawer's reading, not Summary's separate snapshot.
-After any shell command, retained Now/dashboard history receives the current day
+Summary rows are rebuilt from the latest settings and raw history. The permanent
+shell Summary panel shares the Now drawer and embedded Dashboard reading, and
+refreshes with them on `r` or after commands. The shared fetch covers complete
+family days and carry-in sleeps. Only the Now drawer displays freshness in the
+shell; standalone Summary retains its own read and timer. Summary selection and
+scrolling survive refreshes and focus changes; its contents are never faded when
+Menu is focused.
+After any shell command, retained Now/Summary/dashboard history receives the current day
 rule immediately, before the background refresh returns. Changing hours or mode
 therefore updates calculations even if that refresh fails; derived totals are not
 cached.

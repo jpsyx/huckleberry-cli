@@ -5,9 +5,8 @@
 //! because a screen somebody glances at with a baby on one arm is read by
 //! position long before it is read by word.
 //!
-//! The middle holds the [`now`] drawer above the [`menu`] view. The drawer is
-//! a full-width strip across the top, where the eye lands first; the Menu view
-//! is the main panel and takes everything left over beneath it.
+//! The middle holds the full-width [`now`] drawer above the left [`menu`] view
+//! and permanent right [`summary`] panel. Focus changes their borders only.
 //!
 //! Colours come from [`crate::theme`] through [`crate::dashboard::draw::tone`],
 //! so this screen and every other one in the tool agree on what a heading
@@ -16,15 +15,16 @@
 pub mod flow;
 pub mod menu;
 pub mod now;
+pub mod summary;
 pub mod version;
 
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Paragraph};
+use ratatui::widgets::{Block, BorderType, Borders, Paragraph};
 
-use super::state::App;
+use super::state::{App, Panel};
 use crate::theme::Tone;
 
 pub use crate::dashboard::draw::tone;
@@ -53,12 +53,12 @@ pub fn style(role: Tone) -> Style {
 pub const HINTS: &str =
     "↑/↓ j/k w/s · ← h/a back · Esc home · Enter/→ l/d select · r refresh · q quit";
 
-/// The fewest rows the menu is ever squeezed to, including its two borders.
+/// The fewest bottom-panel rows, including two borders and a usable Summary.
 ///
 /// The drawer gives way rather than the menu: the menu is the part being
 /// operated, and a drawer scrolled off its last line is still readable where a
 /// menu with no rows is not.
-const MENU_FLOOR: u16 = 7;
+const MENU_FLOOR: u16 = 10;
 
 /// How many rows fit in the menu list, given the whole terminal.
 ///
@@ -66,25 +66,18 @@ const MENU_FLOOR: u16 = 7;
 /// so scrolling and drawing agree about what is on screen.
 #[must_use]
 pub fn viewport(area: Rect, app: &App, at: f64) -> usize {
-    let menu = split(area, app, at).0;
+    let menu = split(frame_areas(area)[1], app, at).0;
     usize::from(menu.height).saturating_sub(2).max(1)
 }
 
 /// Draws the whole frame, as of `at`.
-pub fn draw(frame: &mut Frame, app: &App, at: f64) {
+pub fn draw(frame: &mut Frame, app: &mut App, at: f64) {
     draw_with(frame, app, None, at);
 }
 
 /// Draws the whole frame, with a command running where the menu was.
-pub fn draw_with(frame: &mut Frame, app: &App, job: Option<&crate::tui::job::Job>, at: f64) {
-    let areas = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(1),
-            Constraint::Min(3),
-            Constraint::Length(1),
-        ])
-        .split(frame.area());
+pub fn draw_with(frame: &mut Frame, app: &mut App, job: Option<&crate::tui::job::Job>, at: f64) {
+    let areas = frame_areas(frame.area());
 
     frame.render_widget(header(app, areas[0].width), areas[0]);
     let (rows, facts) = if job.is_some() || app.dashboard.is_some() {
@@ -92,20 +85,10 @@ pub fn draw_with(frame: &mut Frame, app: &App, job: Option<&crate::tui::job::Job
     } else {
         split(areas[1], app, at)
     };
-    match (job, app.dashboard.as_ref()) {
-        (Some(job), _) => flow::draw(frame, rows, job),
-        (None, Some(dashboard)) => {
-            let outline = block("Dashboard");
-            let inner = outline.inner(rows);
-            frame.render_widget(outline, rows);
-            let units = app
-                .facts
-                .reading()
-                .map_or(crate::cli::Units::Ml, |reading| reading.units);
-            crate::dashboard::draw::draw_in(frame, inner, dashboard, units, at);
-        }
-        (None, None) => menu::draw(frame, rows, app),
-    }
+    let bottom =
+        Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)]).split(rows);
+    draw_left(frame, bottom[0], app, job, at);
+    summary::draw(frame, bottom[1], app, at);
     frame.render_widget(
         now::widget(&app.facts, at, facts.width.saturating_sub(2)).block(block("Now")),
         facts,
@@ -113,6 +96,40 @@ pub fn draw_with(frame: &mut Frame, app: &App, job: Option<&crate::tui::job::Job
     frame.render_widget(footer(app, job.is_some()), areas[2]);
     if let Some(version) = &app.version {
         version::draw(frame, version);
+    }
+}
+
+/// Stable frame regions shared by rendering and menu scrolling.
+fn frame_areas(area: Rect) -> [Rect; 3] {
+    Layout::vertical([
+        Constraint::Length(1),
+        Constraint::Min(3),
+        Constraint::Length(1),
+    ])
+    .areas(area)
+}
+
+/// The left panel keeps hosting commands and dashboard navigation.
+fn draw_left(
+    frame: &mut Frame,
+    area: Rect,
+    app: &App,
+    job: Option<&crate::tui::job::Job>,
+    at: f64,
+) {
+    match (job, app.dashboard.as_ref()) {
+        (Some(job), _) => flow::draw(frame, area, job, app.focus == Panel::Menu),
+        (None, Some(dashboard)) => {
+            let outline = panel_block("Dashboard", Panel::Menu, app.focus);
+            let inner = outline.inner(area);
+            frame.render_widget(outline, area);
+            let units = app
+                .facts
+                .reading()
+                .map_or(crate::cli::Units::Ml, |reading| reading.units);
+            crate::dashboard::draw::draw_in(frame, inner, dashboard, units, at);
+        }
+        (None, None) => menu::draw(frame, area, app),
     }
 }
 
@@ -210,6 +227,26 @@ fn block(title: &str) -> Block<'static> {
         ))
 }
 
+/// Panel focus changes only its border; content styles remain untouched.
+fn panel_block(title: &str, panel: Panel, focused: Panel) -> Block<'static> {
+    let is_focused = panel == focused;
+    block(title)
+        .border_type(if is_focused {
+            BorderType::Thick
+        } else {
+            BorderType::Plain
+        })
+        .border_style(style(if is_focused {
+            Tone::Accent
+        } else {
+            Tone::Muted
+        }))
+        .title_bottom(match panel {
+            Panel::Menu => " Alt+←/h/a focus ",
+            Panel::Summary => " Alt+→/l/d focus ",
+        })
+}
+
 /// The keys, and whatever the shell has to say for itself.
 ///
 /// A read in flight wins over a failure and a failure wins over a note,
@@ -241,7 +278,9 @@ fn footer(app: &App, running: bool) -> Paragraph<'static> {
         )),
         None => spans.push(Span::raw(" ")),
     }
-    let hints = if running {
+    let hints = if app.focus == Panel::Summary {
+        "←→ h/l a/d columns · ↑↓ j/k w/s scroll · Esc home · r refresh · q quit"
+    } else if running {
         FLOW_HINTS
     } else if app.dashboard.is_some() {
         DASH_HINTS
@@ -292,7 +331,7 @@ mod frames {
         app
     }
 
-    fn screen(app: &App, width: u16, height: u16) -> String {
+    fn screen(app: &mut App, width: u16, height: u16) -> String {
         let mut terminal = Terminal::new(TestBackend::new(width, height)).expect("a test terminal");
         terminal
             .draw(|frame| draw(frame, app, AFTERNOON))
@@ -309,10 +348,87 @@ mod frames {
     }
 
     #[test]
+    fn summary_is_permanent_beside_the_menu() {
+        let drawn = screen(&mut loaded(), 120, 60);
+        let border = drawn
+            .lines()
+            .find(|line| line.contains("What would you like to do?"))
+            .unwrap();
+        assert!(border.contains(" Summary "), "{drawn}");
+        assert!(
+            drawn.contains("[feeds]"),
+            "Summary draws its selected column: {drawn}"
+        );
+        assert!(border.starts_with('┏'), "the menu starts focused: {border}");
+    }
+
+    #[test]
+    fn summary_remains_browsable_on_an_eighty_by_twenty_four_terminal() {
+        let drawn = screen(&mut loaded(), 80, 24);
+        assert!(drawn.contains("[feeds]"), "{drawn}");
+        assert!(drawn.contains("Mon 22 Sep"), "{drawn}");
+    }
+
+    #[test]
+    fn focus_changes_borders_without_dimming_summary_content() {
+        let mut app = loaded();
+        let mut terminal = Terminal::new(TestBackend::new(120, 60)).unwrap();
+        terminal
+            .draw(|frame| draw(frame, &mut app, AFTERNOON))
+            .unwrap();
+        let before = terminal.backend().buffer().clone();
+        app.apply(crate::tui::Motion::FocusSummary, 20);
+        terminal
+            .draw(|frame| draw(frame, &mut app, AFTERNOON))
+            .unwrap();
+        let after = terminal.backend().buffer();
+        let top = (1..59)
+            .find(|row| before[(60, *row)].symbol() == "┌")
+            .unwrap();
+        assert_eq!(before[(0, top)].symbol(), "┏");
+        assert_eq!(after[(0, top)].symbol(), "┌");
+        assert_eq!(after[(60, top)].symbol(), "┏");
+        assert_ne!(before[(60, top)].fg, after[(60, top)].fg);
+        for row in top + 1..58 {
+            for column in 61..119 {
+                assert_eq!(
+                    before[(column, row)],
+                    after[(column, row)],
+                    "content at {column},{row}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn summary_stays_visible_while_a_command_uses_the_left_panel() {
+        let mut app = loaded();
+        let job = crate::tui::job::Job::idle("Diaper", &["wet or dirty?".into()]);
+        let mut terminal = Terminal::new(TestBackend::new(120, 60)).unwrap();
+        terminal
+            .draw(|frame| draw_with(frame, &mut app, Some(&job), AFTERNOON))
+            .unwrap();
+        let buffer = terminal.backend().buffer();
+        let text = |x, width| {
+            (0..60)
+                .map(|row| {
+                    (x..x + width)
+                        .map(|column| buffer[(column, row)].symbol())
+                        .collect::<String>()
+                })
+                .collect::<Vec<_>>()
+                .join("\n")
+        };
+        assert!(text(0, 60).contains("wet or dirty?"));
+        assert!(text(60, 60).contains("[feeds]"));
+        assert!(text(60, 60).contains("Alt+→/l/d focus"));
+    }
+
+    #[test]
     fn dashboard_navigation_and_quit_hints_fit_eighty_columns() {
         let mut app = loaded();
         app.open_dashboard(7);
-        let drawn = screen(&app, 80, 24);
+        let drawn = screen(&mut app, 80, 24);
         let footer = drawn.lines().last().expect("a footer");
         for hint in ["l/d", "w/s", "h/a", "r refresh", "q quit"] {
             assert!(footer.contains(hint), "{hint} clipped: {footer}");
@@ -325,7 +441,7 @@ mod frames {
         app.open_dashboard(7);
         for tab in app.dashboard.as_ref().unwrap().tabs() {
             app.dashboard.as_mut().unwrap().tab = *tab;
-            let drawn = screen(&app, 120, 80);
+            let drawn = screen(&mut app, 120, 80);
             assert_eq!(drawn.matches("as of just now").count(), 1, "{drawn}");
             let dashboard = drawn.split("Dashboard").last().unwrap();
             assert!(!dashboard.contains("as of"), "{dashboard}");
@@ -334,7 +450,7 @@ mod frames {
 
     #[test]
     fn the_now_widget_leads_with_the_last_feed() {
-        let drawn = screen(&loaded(), 100, 30);
+        let drawn = screen(&mut loaded(), 100, 30);
         assert!(drawn.contains("Last fed"), "{drawn}");
         assert!(drawn.contains("1h 0m ago"), "{drawn}");
         assert!(drawn.contains("90 ml of Formula"), "{drawn}");
@@ -347,10 +463,14 @@ mod frames {
         let mut data = populated();
         data.child.birthdate = Some("2025-09-08".to_owned());
         app.facts.replace(data, calendar(), Units::Ml, rule());
-        let reading = app.facts.reading().expect("a reading");
-        let view =
-            crate::domain::now::build(&reading.dataset, &reading.calendar, reading.rule, AFTERNOON);
         for width in [60, 83, 123, 183] {
+            let reading = app.facts.reading().expect("a reading");
+            let view = crate::domain::now::build(
+                &reading.dataset,
+                &reading.calendar,
+                reading.rule,
+                AFTERNOON,
+            );
             // The drawer reserves two borders and one leading space.
             let printed = crate::render::now::lines(
                 &view,
@@ -361,7 +481,7 @@ mod frames {
                 AFTERNOON,
                 Some(usize::from(width - 3)),
             );
-            let drawn = screen(&app, width, 120);
+            let drawn = screen(&mut app, width, 120);
             for line in printed.iter().filter(|line| !line.trim().is_empty()) {
                 assert!(
                     drawn.contains(line.trim_end()),
@@ -373,11 +493,13 @@ mod frames {
 
     #[test]
     fn the_now_drawer_reflows_after_terminal_resize() {
-        let app = loaded();
+        let mut app = loaded();
         let mut terminal = Terminal::new(TestBackend::new(183, 100)).unwrap();
         for width in [183, 123, 83, 183] {
             terminal.backend_mut().resize(width, 100);
-            terminal.draw(|frame| draw(frame, &app, AFTERNOON)).unwrap();
+            terminal
+                .draw(|frame| draw(frame, &mut app, AFTERNOON))
+                .unwrap();
             let buffer = terminal.backend().buffer();
             let position = |text: &str| {
                 (0..buffer.area.height)
@@ -414,14 +536,14 @@ mod frames {
         let mut data = populated();
         data.child.birthdate = Some("2025-09-08".to_owned());
         app.facts.replace(data, calendar(), Units::Ml, rule());
-        let drawn = screen(&app, 150, 30);
+        let drawn = screen(&mut app, 150, 30);
         assert!(drawn.contains("typical sleep at this age"), "{drawn}");
         assert!(drawn.contains("days old"), "{drawn}");
     }
 
     #[test]
     fn the_drawer_shows_every_fact_the_now_command_does() {
-        let drawn = screen(&loaded(), 100, 30);
+        let drawn = screen(&mut loaded(), 100, 30);
         // The wording is `h now`'s, because the drawer has none of its own.
         for fact in [
             "Last fed",
@@ -449,7 +571,7 @@ mod frames {
         app.facts.replace(data, calendar(), Units::Ml, rule());
         let mut terminal = Terminal::new(TestBackend::new(80, 45)).expect("a test terminal");
         terminal
-            .draw(|frame| draw(frame, &app, AFTERNOON + 3000.0))
+            .draw(|frame| draw(frame, &mut app, AFTERNOON + 3000.0))
             .expect("a frame");
         let buffer = terminal.backend().buffer();
         let drawn = (0..45)
@@ -474,7 +596,7 @@ mod frames {
             .to_vec();
         let mut app = App::new();
         app.facts.replace(data, calendar(), Units::Ml, rule());
-        let drawn = screen(&app, 80, 45);
+        let drawn = screen(&mut app, 80, 45);
         // Each timestamp must survive in both cells, including the last one.
         assert_eq!(drawn.matches("3h 10m ago").count(), 2, "{drawn}");
         assert_eq!(drawn.matches("2h 10m ago").count(), 2, "{drawn}");
@@ -497,7 +619,7 @@ mod frames {
         ];
         let mut app = App::new();
         app.facts.replace(data, calendar(), Units::Ml, rule());
-        let drawn = screen(&app, 80, 40);
+        let drawn = screen(&mut app, 80, 40);
         assert!(drawn.contains("1h 20m total · 2 sleeps"), "{drawn}");
         assert!(
             drawn.contains("430 ml total · nursed 15m · 6 feeds · since 6:00 am"),
@@ -516,12 +638,12 @@ mod frames {
         let mut app = App::new();
         app.facts
             .replace(populated(), calendar(), Units::Oz, rule());
-        assert!(screen(&app, 100, 30).contains("3.0 oz"));
+        assert!(screen(&mut app, 100, 30).contains("3.0 oz"));
     }
 
     #[test]
     fn the_widget_carries_the_running_totals_the_now_command_shows() {
-        let drawn = screen(&loaded(), 100, 30);
+        let drawn = screen(&mut loaded(), 100, 30);
         for fact in ["In last 4h", "Today", "Feed"] {
             assert!(drawn.contains(fact), "`{fact}` missing: {drawn}");
         }
@@ -537,7 +659,7 @@ mod frames {
             Units::Ml,
             crate::domain::today::DayRule::continuous(6.0, 19.5),
         );
-        let drawn = screen(&app, 100, 30);
+        let drawn = screen(&mut app, 100, 30);
         assert!(drawn.contains("In last 24h"), "{drawn}");
         assert!(!drawn.contains("Today"), "{drawn}");
     }
@@ -548,12 +670,12 @@ mod frames {
         data.fetched_at = AFTERNOON - 600.0;
         let mut app = App::new();
         app.facts.replace(data, calendar(), Units::Ml, rule());
-        assert!(screen(&app, 100, 36).contains("as of 10m ago"));
+        assert!(screen(&mut app, 100, 40).contains("as of 10m ago"));
     }
 
     #[test]
     fn the_night_a_stretch_belongs_to_is_named_rather_than_left_ambiguous() {
-        let drawn = screen(&loaded(), 100, 30);
+        let drawn = screen(&mut loaded(), 100, 30);
         assert!(drawn.contains("Last night's sleep"), "{drawn}");
         assert!(
             !drawn.contains("Tonight"),
@@ -565,7 +687,7 @@ mod frames {
     fn before_the_first_read_the_widget_says_it_is_reading() {
         let mut app = App::new();
         app.facts.start_reading();
-        let drawn = screen(&app, 100, 30);
+        let drawn = screen(&mut app, 100, 30);
         assert!(drawn.contains("reading…"), "{drawn}");
         assert!(
             drawn.contains("Now"),
@@ -581,7 +703,7 @@ mod frames {
     fn a_failed_read_keeps_the_numbers_and_says_so() {
         let mut app = loaded();
         app.facts.record_trouble("could not reach Huckleberry");
-        let drawn = screen(&app, 100, 30);
+        let drawn = screen(&mut app, 100, 30);
         assert!(drawn.contains("could not reach"), "{drawn}");
         assert!(
             drawn.contains("90 ml"),
@@ -591,14 +713,14 @@ mod frames {
 
     #[test]
     fn with_nothing_read_at_all_the_widget_says_which_key_reads() {
-        let drawn = screen(&App::new(), 100, 30);
+        let drawn = screen(&mut App::new(), 100, 30);
         assert!(drawn.contains("press r"), "{drawn}");
     }
 
     /// The layout rule: the drawer across the top, the menu beneath it.
     #[test]
     fn the_drawer_is_a_full_width_strip_above_the_menu() {
-        let drawn = screen(&loaded(), 100, 30);
+        let drawn = screen(&mut loaded(), 100, 30);
         let menu_row = drawn
             .lines()
             .position(|line| line.contains("What would you like to do?"))
@@ -634,7 +756,7 @@ mod frames {
 
     #[test]
     fn a_narrow_terminal_keeps_the_same_shape() {
-        let drawn = screen(&loaded(), 60, 30);
+        let drawn = screen(&mut loaded(), 60, 30);
         assert!(drawn.contains("Last fed"), "{drawn}");
         assert!(drawn.contains("Log a diaper"), "{drawn}");
     }
@@ -642,7 +764,7 @@ mod frames {
     #[test]
     fn the_menu_keeps_rows_even_when_the_drawer_would_fill_the_screen() {
         for height in [12, 16, 24] {
-            let drawn = screen(&loaded(), 80, height);
+            let drawn = screen(&mut loaded(), 80, height);
             assert!(
                 drawn.contains("Log a diaper"),
                 "the menu is never squeezed out at {height} rows: {drawn}"
@@ -652,15 +774,15 @@ mod frames {
 
     #[test]
     fn the_header_names_the_child_once_a_read_has_said_who_it_is() {
-        assert!(screen(&loaded(), 100, 30).contains("Huckleberry · Bear"));
-        assert!(screen(&App::new(), 100, 30).contains("Huckleberry"));
+        assert!(screen(&mut loaded(), 100, 30).contains("Huckleberry · Bear"));
+        assert!(screen(&mut App::new(), 100, 30).contains("Huckleberry"));
     }
 
     #[test]
     fn nothing_about_the_baby_is_ever_painted_red() {
         let mut terminal = Terminal::new(TestBackend::new(100, 30)).expect("a test terminal");
         terminal
-            .draw(|frame| draw(frame, &loaded(), AFTERNOON))
+            .draw(|frame| draw(frame, &mut loaded(), AFTERNOON))
             .expect("a frame");
         let buffer = terminal.backend().buffer().clone();
         let red = tone(Tone::Error);
@@ -723,11 +845,11 @@ mod frames {
             switch: None,
             trailing: Some("minutes ago".to_owned()),
         };
-        let lines = draw::render("When?", &dial, 98, crate::theme::Theme::dark(false));
+        let lines = draw::render("When?", &dial, 48, crate::theme::Theme::dark(false));
         let job = crate::tui::job::Job::idle("Log sleep", &lines);
         let mut terminal = Terminal::new(TestBackend::new(100, 30)).expect("a test terminal");
         terminal
-            .draw(|frame| draw_with(frame, &loaded(), Some(&job), AFTERNOON))
+            .draw(|frame| draw_with(frame, &mut loaded(), Some(&job), AFTERNOON))
             .expect("a frame");
         let buffer = terminal.backend().buffer();
         let drawn = (0..30)
@@ -748,11 +870,11 @@ mod frames {
 
     #[test]
     fn a_command_draws_where_the_menu_was_and_leaves_everything_else_alone() {
-        let app = loaded();
+        let mut app = loaded();
         let job = crate::tui::job::Job::idle("Diaper", &["wet or dirty?".to_owned()]);
         let mut terminal = Terminal::new(TestBackend::new(100, 30)).expect("a test terminal");
         terminal
-            .draw(|frame| draw_with(frame, &app, Some(&job), AFTERNOON))
+            .draw(|frame| draw_with(frame, &mut app, Some(&job), AFTERNOON))
             .expect("a frame");
         let buffer = terminal.backend().buffer().clone();
         let drawn = (0..buffer.area.height)

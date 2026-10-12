@@ -108,12 +108,15 @@ owns the terminal:
 
 | Module | Holds |
 | --- | --- |
-| `tui/keys.rs` | what a keystroke means, as a `Motion`. Pure. |
+| `tui/keys.rs` | what a keystroke means, including panel focus, as a `Motion`. Pure. |
+| `tui/input.rs` | routes keys and pastes to the focused panel, with modal and forced-quit priority. |
+| `tui/summary.rs` | retained Summary navigation and complete-day aggregates from the shared reading. |
 | `tui/state.rs` | the menu stack, the cursor, and what a `Motion` does to them. Pure. |
 | `tui/facts.rs` | the last reading, whether one is in flight, and what went wrong. Pure. |
 | `tui/data.rs` | making a reading: no narration, no questions, off the event loop. |
 | `tui/draw/mod.rs` | the frame, and where the widgets go in it. |
-| `tui/draw/menu.rs` | the Menu view: the main panel. |
+| `tui/draw/menu.rs` | the Menu view: the left bottom panel. |
+| `tui/draw/summary.rs` | the permanent right bottom panel, reusing the Summary renderer. |
 | `tui/draw/now.rs` | the Now widget: what `h now` says, permanently. |
 | `tui/job.rs` | one command running inside the shell, and everything it has said. `Exchange` and the panel window are pure. |
 | `tui/draw/flow.rs` | the flow panel: a command, drawn where the menu was. |
@@ -179,13 +182,15 @@ right gate for opening it at all.
 
 ## Interactive summary
 
-`summary.rs` owns only the standalone terminal and hosted input loops. Both draw
+`summary.rs` owns only the standalone terminal and hosted input loops. The permanent
+shell Summary panel calls the same renderer directly. All draw
 `render::summary::view::View`, whose state handles column cycling and vertical
 scrolling without I/O. Its horizontal viewport retains its first column until the
 selection crosses an edge. The shared column catalog supplies headings, table cells,
 and graph values; `render::summary::chart` returns separated daily bars and a
-dotted seven-complete-day average through the existing host protocol. No second screen
-or host protocol is needed in the shell. Redirected output and JSON bypass the
+dotted seven-complete-day average. The shell retains the shared view state across
+focus changes and refreshes. Drawing takes mutable app state to update the
+Summary viewport after resizing. Redirected output and JSON bypass the
 input loop.
 
 `domain::summaries::sleep` owns interval merging, precise family-day/night
@@ -205,8 +210,11 @@ start times and the same day rule.
 
 After a shell command, the current day rule is reapplied to retained readings
 before the background fetch begins, so even a failed fetch cannot preserve old
-hours. Views calculate from raw history and the current rule; summary opens a
-fresh context and rebuilds its rows each time.
+hours. Views calculate from raw history and the current rule. The permanent Summary
+panel shares the shell's reading, which now uses Summary's explicit complete-day
+history window and carry-in sleep coverage. It retains the actual coverage of the
+successful read when settings change or a subsequent read fails. Standalone Summary
+continues to open a fresh context. Both honor finite offline snapshot coverage.
 
 ## Setup, and the settings with no default
 

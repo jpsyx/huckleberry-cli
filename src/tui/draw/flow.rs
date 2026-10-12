@@ -15,11 +15,16 @@ use ratatui::widgets::Paragraph;
 
 use crate::tui::job::Job;
 
-use super::{block, painted};
+use super::{Panel, painted, panel_block};
 
 /// Draws whatever the command has put on the screen.
-pub fn draw(frame: &mut Frame, area: Rect, job: &Job) {
-    let outline = block(job.title());
+pub fn draw(frame: &mut Frame, area: Rect, job: &Job, is_focused: bool) {
+    let focus = if is_focused {
+        Panel::Menu
+    } else {
+        Panel::Summary
+    };
+    let outline = panel_block(job.title(), Panel::Menu, focus);
     let inner = outline.inner(area);
     frame.render_widget(outline, area);
     // The prompts lay themselves out to whatever they are told they have.

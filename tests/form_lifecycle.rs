@@ -157,3 +157,60 @@ async fn complete_inputs_execute_without_an_artificial_question() {
     form.complete(execution.await.unwrap());
     assert!(form.go_home());
 }
+
+#[test]
+fn summary_cancel_restores_focus_without_discarding_a_suspended_note() {
+    use app::tui::{App, input::route_with_draft, state::Panel};
+    let mut form = form(Arc::new(AtomicUsize::new(0)));
+    form.apply(Input::Pasted("unfinished note".into()), 1000.0, (80, 24));
+    press(&mut form, KeyCode::Left);
+    let mut suspended = Some(form);
+    let mut app = App::new();
+    for (code, modifiers) in [
+        (KeyCode::Right, KeyModifiers::ALT),
+        (KeyCode::Char('c'), KeyModifiers::CONTROL),
+    ] {
+        route_with_draft(
+            &mut app,
+            None,
+            &mut suspended,
+            Input::Key(KeyEvent::new(code, modifiers)),
+            20,
+            1000.0,
+        );
+    }
+    assert_eq!(app.focus, Panel::Menu);
+    let mut resumed = suspended.expect("Summary's cancel changes focus only");
+    assert!(resumed.resume(&path("note")));
+    assert!(
+        resumed
+            .render(1000.0, (80, 24), Theme::dark(false))
+            .join("\n")
+            .contains("unfinished note")
+    );
+}
+
+#[test]
+fn home_and_menu_cancel_still_discard_suspended_drafts() {
+    use app::tui::{App, input::route_with_draft, state::Panel};
+    for (focus, code, modifiers) in [
+        (Panel::Summary, KeyCode::Esc, KeyModifiers::NONE),
+        (Panel::Menu, KeyCode::Esc, KeyModifiers::NONE),
+        (Panel::Menu, KeyCode::Char('c'), KeyModifiers::CONTROL),
+    ] {
+        let mut form = form(Arc::new(AtomicUsize::new(0)));
+        press(&mut form, KeyCode::Left);
+        let mut suspended = Some(form);
+        let mut app = App::new();
+        app.focus = focus;
+        route_with_draft(
+            &mut app,
+            None,
+            &mut suspended,
+            Input::Key(KeyEvent::new(code, modifiers)),
+            20,
+            1000.0,
+        );
+        assert!(suspended.is_none());
+    }
+}

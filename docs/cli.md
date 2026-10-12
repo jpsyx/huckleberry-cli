@@ -117,7 +117,7 @@ Up/down (J/K, W/S) scroll rows and explanatory notes; Esc or Q leaves. The day
 column stays visible and the selected metric's bar chart stays below the
 table. Horizontal scrolling happens only when selection crosses a visible edge.
 The dotted line marks the previous seven complete days' average, excluding today
-and missing values. The shell exposes the same view through Home > Summary.
+and missing values. The shell keeps the same view open in its permanent right-hand Summary panel.
 Summary defaults to seven complete family days plus today (eight rows); `--days N`
 means N complete days plus today.
 
@@ -695,20 +695,24 @@ finished recording returns to Home; a view or a utility returns to the menu it
 was opened from; a cancelled or failed command says so on the line at the foot
 of the screen and never retries by itself.
 
-Along the bottom the shell keeps a Now drawer, a full-width strip under the
-menu. It shows exactly what `h now` prints, in the same words and the same
+At the top the shell keeps a Now drawer, a full-width strip above the
+side-by-side Menu and Summary panels. It shows exactly what `h now` prints, in the same words and the same
 order: the same command, left on the screen. `r` re-reads everything it shows, and so does
 finishing any command, since a command may have logged the very thing it is
 showing. Reads happen in the background: the rows still move while one is in
 flight, and a failure is reported on the foot of the screen without taking the
 numbers away.
 
-Home starts with diaper, feed, sleep, pumping, Edit, Summary, Visualizations,
-logs, Delete and More. More includes Potty and Growth alongside account and
+Home starts with diaper, feed, sleep, pumping, Edit, Visualizations,
+logs, Delete and More. Summary stays visible on the right instead of occupying a
+menu row. Alt+Left/H/A focuses Menu (or its running command); Alt+Right/L/D
+focuses Summary. Focus changes the border color and thickness without dimming
+contents. Menu selection, command drafts and Summary navigation are retained.
+More includes Potty and Growth alongside account and
 utility actions. `now` is not a
 Home row, because the widget already shows it; it stays reachable under
 Visualizations as Current status. Read-only views run
-immediately when selected: latest/current status, Dashboard, Trends, Summary,
+immediately when selected: latest/current status, Dashboard, Trends,
 Sleep stripes, logs, sleep/nursing status, food lists, child lists/profiles,
 authentication status, configuration display/paths, and build information.
 Every command starts immediately when selected, including logging, editing,

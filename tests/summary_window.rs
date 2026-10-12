@@ -120,6 +120,7 @@ async fn shell_read_reloads_day_settings_and_recalculates_existing_history() {
 fn retained_shell_facts_use_new_day_hours_even_if_the_network_refresh_fails() {
     let calendar = Calendar::new("America/New_York").unwrap();
     let mut data = dataset();
+    data.days = 7;
     data.feeds = vec![bottle(
         calendar.at("2025-09-22".parse().unwrap(), 6, 30),
         90.0,
@@ -144,6 +145,12 @@ fn retained_shell_facts_use_new_day_hours_even_if_the_network_refresh_fails() {
     );
     assert!((rows[0].total_ml - 90.0).abs() < f64::EPSILON);
     assert!((reading.dataset.child.night_start_hour - 19.0).abs() < f64::EPSILON);
+    let summary_rows = shell.summary.rows(reading, AFTERNOON);
+    assert!((summary_rows[0].total_ml - 90.0).abs() < f64::EPSILON);
+    assert!(
+        summary_rows.last().unwrap().partial,
+        "moving day start earlier cannot invent the unread hour after a failed refresh"
+    );
     let dashboard = shell.dashboard.as_ref().unwrap();
     let rows = app::domain::summaries::build(
         &dashboard.dataset,

@@ -67,6 +67,16 @@ pub enum Intent {
     Quit,
 }
 
+/// Which of the two bottom panels receives ordinary input.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum Panel {
+    /// The menu, or the command or dashboard occupying its area.
+    #[default]
+    Menu,
+    /// The permanent browsable day table and chart.
+    Summary,
+}
+
 /// Everything the shell is holding.
 pub struct App {
     levels: Vec<Level>,
@@ -76,6 +86,10 @@ pub struct App {
     pub facts: Facts,
     /// The dashboard, when it is the thing in the panel.
     pub dashboard: Option<crate::dashboard::State>,
+    /// Which bottom panel has the keyboard.
+    pub focus: Panel,
+    /// Retained Summary selection and viewport, sharing the shell's reading.
+    pub summary: super::summary::Summary,
     /// The centered Version modal, when open.
     pub version: Option<super::version::State>,
 }
@@ -97,6 +111,8 @@ impl App {
             facts: Facts::new(),
             dashboard: None,
             version: None,
+            focus: Panel::Menu,
+            summary: super::summary::Summary::default(),
         }
     }
 
@@ -163,6 +179,7 @@ impl App {
             self.pop();
         }
         self.dashboard = None;
+        self.focus = Panel::Menu;
     }
 
     /// Opens the dashboard on what has already been read.
@@ -196,6 +213,9 @@ impl App {
             dashboard.replace(dataset.clone());
         }
         self.facts.replace(dataset, calendar, units, rule);
+        if let Some(reading) = self.facts.reading() {
+            self.summary.record_read(reading);
+        }
     }
 
     /// Applies changed hours to every retained reading before the network responds.
@@ -248,11 +268,21 @@ impl App {
                 }
             };
         }
+        match motion {
+            Motion::FocusMenu => self.focus = Panel::Menu,
+            Motion::FocusSummary => self.focus = Panel::Summary,
+            _ => {}
+        }
+        if matches!(motion, Motion::FocusMenu | Motion::FocusSummary)
+            || (self.focus == Panel::Summary && !matches!(motion, Motion::Quit | Motion::Refresh))
+        {
+            return Intent::Stay;
+        }
         self.status = None;
         let entries = catalog::entries(self.menu());
         let last = entries.len().saturating_sub(1);
         match motion {
-            Motion::Ignore => return Intent::Stay,
+            Motion::Ignore | Motion::FocusMenu | Motion::FocusSummary => return Intent::Stay,
             Motion::Next => self.level_mut().cursor = self.cursor().saturating_add(1).min(last),
             Motion::Previous => self.level_mut().cursor = self.cursor().saturating_sub(1),
             Motion::First => self.level_mut().cursor = 0,

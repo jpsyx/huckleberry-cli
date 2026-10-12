@@ -13,10 +13,12 @@ pub mod data;
 pub mod draw;
 pub mod facts;
 pub mod forms;
+pub mod input;
 pub mod job;
 pub mod keys;
 pub mod shell;
 pub mod state;
+pub mod summary;
 pub mod version;
 pub mod version_task;
 
@@ -31,7 +33,6 @@ use shell::Shell;
 
 use crate::cli::Cli;
 use crate::interactive::session::SessionOptions;
-use crate::prompt::host::Input;
 use crate::theme::Theme;
 use job::{Job, Landing};
 
@@ -103,28 +104,14 @@ async fn navigate(
             // A tick with nothing typed. The clocks move on, so draw again.
             continue;
         };
-        // One key never reaches a command, however deep it is in a question.
-        if matches!(input, Input::Key(key) if keys::forces_quit(key)) {
-            return Ok(());
-        }
-        if let Some(running) = job.as_mut() {
-            // Never turned away: a question that has not arrived yet will
-            // still want this.
-            running.feed(input, now_seconds());
-            continue;
-        }
-        let Input::Key(key) = input else {
-            // Nothing outside a command has anywhere to paste into.
-            continue;
-        };
-        if app.dashboard.is_some() && dashboard_key(app, key, globals, theme, &mut reading) {
-            continue;
-        }
-
-        if matches!(motion_for(key), Motion::Home | Motion::Cancel) {
-            suspended = None;
-        }
-        match app.apply(motion_for(key), height) {
+        match input::route_with_draft(
+            app,
+            job.as_mut(),
+            &mut suspended,
+            input,
+            height,
+            now_seconds(),
+        ) {
             Intent::Stay => {}
             Intent::Quit => return Ok(()),
             Intent::Refresh => {
@@ -165,41 +152,6 @@ async fn navigate(
     }
 }
 
-/// Gives a key to the dashboard, and says whether it took it.
-///
-/// Back closes it and puts the menu back, which is what the same key does
-/// everywhere else in this shell. `r` reads again, for the dashboard and every
-/// widget at once, because they are all drawn from the one reading.
-fn dashboard_key(
-    app: &mut App,
-    key: crossterm::event::KeyEvent,
-    globals: &SessionOptions,
-    theme: Theme,
-    reading: &mut Option<data::Reading>,
-) -> bool {
-    match motion_for(key) {
-        // Leaving is the shell's to do, wherever the cursor happens to be.
-        Motion::Quit => return false,
-        Motion::Home => app.go_home(),
-        Motion::Back | Motion::Cancel => {
-            app.close_dashboard();
-        }
-        Motion::Refresh => {
-            if reading.is_none() {
-                *reading = Some(begin(app, globals, theme));
-            }
-        }
-        _ => {
-            if let Some(dashboard) = app.dashboard.as_mut() {
-                // Its own keys: tabs, digits and scrolling. Quitting it is
-                // Back, which never reaches here.
-                dashboard.apply(key);
-            }
-        }
-    }
-    true
-}
-
 /// How many days of history the dashboard covers.
 fn days(globals: &SessionOptions, theme: Theme) -> usize {
     crate::interactive::session::load_context(globals, theme)
@@ -210,6 +162,8 @@ fn days(globals: &SessionOptions, theme: Theme) -> usize {
 fn begin(app: &mut App, globals: &SessionOptions, theme: Theme) -> data::Reading {
     if let Ok(context) = crate::interactive::session::load_context(globals, theme) {
         app.apply_day_rule(context.config.day_rule());
+        app.summary.complete_days = context.days(None);
+        app.summary.is_offline = context.offline.is_some();
     }
     app.facts.start_reading();
     data::start(globals, theme)

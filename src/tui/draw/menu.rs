@@ -14,7 +14,7 @@ use ratatui::widgets::{List, ListItem, ListState};
 use crate::theme::Tone;
 use crate::tui::state::{App, Row};
 
-use super::{block, tone};
+use super::{panel_block, tone};
 
 /// The cursor, drawn as a bar down the left of the highlighted row.
 const CURSOR: &str = "▌ ";
@@ -24,7 +24,7 @@ const CHEVRON: char = '›';
 
 /// Draws the rows, inside a block that names the question they answer.
 pub fn draw(frame: &mut Frame, area: Rect, app: &App) {
-    let outline = block(app.title());
+    let outline = panel_block(app.title(), super::Panel::Menu, app.focus);
     let inner = outline.inner(area);
     frame.render_widget(outline, area);
 

@@ -24,8 +24,10 @@ either, say which.
 | Term | Means |
 | --- | --- |
 | **widget**, **panel** | The same thing, interchangeably: one bordered box showing one thing. Prefer **widget** in new prose; **panel** appears in older text and in the dashboard's code. |
-| **view** | A named arrangement that fills the shell's main area. The Menu view is the only one so far. |
-| **the Menu view** | The main panel: the `What would you like to do?` rows. `src/tui/draw/menu.rs`. |
+| **view** | A named arrangement within a shell panel, such as Menu, Summary or Dashboard. |
+| **the Menu view** | The left bottom panel: the `What would you like to do?` rows. `src/tui/draw/menu.rs`. |
+| **the Summary panel** | The permanent right bottom panel, showing the Summary view alongside Menu or a running command. `src/tui/summary.rs` and `src/tui/draw/summary.rs`. |
+| **panel focus** | Which bottom panel receives ordinary keys and pastes. Alt+Left/H/A focuses Menu; Alt+Right/L/D focuses Summary. A thick accented border identifies focus without fading content. |
 | **the flow panel** | The same area while a command is running: its questions, its output and its failures. `src/tui/draw/flow.rs`. |
 | **a job** | One command running inside the shell, and everything it has said so far. `src/tui/job.rs`. |
 | **a form draft** | Accepted answers and unfinished controls retained while navigating a command's questions. Distinct from the CLI argument `CommandDraft`. `src/prompt/flow/`. |
@@ -41,7 +43,7 @@ either, say which.
 | **the volume dial** | A dial of two: the amount, and the units it is in. |
 | **a column**, **a wheel** | The same thing: one turning list inside a dial. The one the keys are turning is lit and underlined. |
 | **a notch**, **a leap** | How far a column moves on a plain turn and on a shifted one. A minute and five of them; a quarter ounce and a whole one. |
-| **the Now widget**, **the View Latest widget**, **the Now drawer** | The same thing, interchangeably: the full-width strip along the bottom that permanently shows what `h now` prints. `src/tui/draw/now.rs`. It shows exactly what the command prints and nothing else, so changing one means changing both; see [`tui.md`](tui.md). |
+| **the Now widget**, **the View Latest widget**, **the Now drawer** | The same thing, interchangeably: the full-width strip across the top that permanently shows what `h now` prints. `src/tui/draw/now.rs`. It shows exactly what the command prints and nothing else, so changing one means changing both; see [`tui.md`](tui.md). |
 | **the drawer** | Where a widget sits: a full-width strip across the top of the shell, above the main panel. |
 | **the Dashboard view** | `h dash` drawn in the shell's panel, from the reading the shell already has. Back closes it. It is a view rather than a job: nothing about it runs as a command. |
 | **the header** | The top line: the tool, the child, and the breadcrumb. |

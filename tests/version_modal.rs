@@ -102,7 +102,7 @@ fn modal_is_centered_clamped_and_recentered_after_resize() {
     assert_eq!(area(Rect::new(5, 3, 30, 8)), Rect::new(5, 3, 30, 8));
 }
 
-fn screen(app: &App, width: u16, height: u16) -> String {
+fn screen(app: &mut App, width: u16, height: u16) -> String {
     use ratatui::{Terminal, backend::TestBackend};
     let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
     terminal
@@ -123,7 +123,7 @@ fn screen(app: &App, width: u16, height: u16) -> String {
 fn checking_modal_shows_installed_version_close_and_its_own_keys() {
     let mut app = App::new();
     app.open_version(false);
-    let drawn = screen(&app, 80, 24);
+    let drawn = screen(&mut app, 80, 24);
     for text in [
         env!("CARGO_PKG_VERSION"),
         "Checking",
@@ -157,7 +157,7 @@ fn every_completed_status_displays_its_versions_and_message() {
         let mut app = App::new();
         app.open_version(false);
         app.complete_version(report.clone());
-        let drawn = screen(&app, 80, 24);
+        let drawn = screen(&mut app, 80, 24);
         for text in [
             Some(report.installed.as_str()),
             report.latest.as_deref(),
@@ -177,6 +177,6 @@ fn tiny_modal_draws_without_panicking() {
     let mut app = App::new();
     app.open_version(false);
     for size in [(1, 1), (10, 3), (30, 8)] {
-        screen(&app, size.0, size.1);
+        screen(&mut app, size.0, size.1);
     }
 }

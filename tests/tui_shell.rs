@@ -397,7 +397,7 @@ fn every_menu_has_a_title_and_every_submenu_offers_back() {
 /// 2025-09-22T18:00:00Z, which is 2pm in New York.
 const AFTERNOON: f64 = 1_758_564_000.0;
 
-fn screen(app: &App, width: u16, height: u16) -> String {
+fn screen(app: &mut App, width: u16, height: u16) -> String {
     let mut terminal = ratatui::Terminal::new(ratatui::backend::TestBackend::new(width, height))
         .expect("a test terminal");
     terminal
@@ -416,7 +416,7 @@ fn screen(app: &App, width: u16, height: u16) -> String {
 
 #[test]
 fn the_shell_draws_the_breadcrumb_the_rows_and_the_keys_it_answers_to() {
-    let drawn = screen(&App::new(), 80, 24);
+    let drawn = screen(&mut App::new(), 80, 24);
     assert!(drawn.contains("Huckleberry"), "{drawn}");
     assert!(drawn.contains("Home"), "{drawn}");
     assert!(drawn.contains("Log a diaper"), "{drawn}");
@@ -435,9 +435,9 @@ fn the_shell_draws_the_breadcrumb_the_rows_and_the_keys_it_answers_to() {
 #[test]
 fn the_cursor_is_visible_and_moves_with_the_keys() {
     let mut app = App::new();
-    let first = screen(&app, 80, 24);
+    let first = screen(&mut app, 80, 24);
     app.apply(Motion::Next, 20);
-    let second = screen(&app, 80, 24);
+    let second = screen(&mut app, 80, 24);
     assert_ne!(first, second, "the cursor has to be visible on the screen");
     let marked = second
         .lines()
@@ -454,13 +454,14 @@ fn the_cursor_is_visible_and_moves_with_the_keys() {
 fn a_status_message_reaches_the_foot_of_the_screen() {
     let mut app = App::new();
     app.set_status("huckleberry-cli 9.9.9");
-    assert!(screen(&app, 80, 24).contains("huckleberry-cli 9.9.9"));
+    assert!(screen(&mut app, 80, 24).contains("huckleberry-cli 9.9.9"));
 }
 
 #[test]
 fn a_narrow_terminal_still_draws_every_part_of_the_shell() {
-    let drawn = screen(&App::new(), 28, 16);
-    assert!(drawn.contains("Log a diaper"), "{drawn}");
+    let drawn = screen(&mut App::new(), 28, 16);
+    assert!(drawn.contains("▌ 1. Log a"), "{drawn}");
+    assert!(drawn.contains("Summary"), "{drawn}");
     assert_eq!(drawn.lines().count(), 16);
 }
 
@@ -569,4 +570,26 @@ fn menu_selection_survives_reentry() {
     app.apply(Motion::Back, HEIGHT);
     app.apply(Motion::Open, HEIGHT);
     assert_eq!(app.cursor(), selected);
+}
+
+#[test]
+fn alt_directions_change_focus_without_opening_or_moving_the_menu() {
+    for right in [KeyCode::Right, KeyCode::Char('l'), KeyCode::Char('d')] {
+        let mut app = App::new();
+        assert_eq!(
+            app.apply(motion_for(KeyEvent::new(right, KeyModifiers::ALT)), HEIGHT),
+            Intent::Stay
+        );
+        app.apply(Motion::Next, HEIGHT);
+        assert_eq!(app.cursor(), 0, "Summary owns navigation after {right:?}");
+        for left in [KeyCode::Left, KeyCode::Char('h'), KeyCode::Char('a')] {
+            app.apply(motion_for(KeyEvent::new(left, KeyModifiers::ALT)), HEIGHT);
+            app.apply(Motion::Next, HEIGHT);
+        }
+        assert_eq!(
+            app.cursor(),
+            3,
+            "left aliases focus Menu without going back"
+        );
+    }
 }

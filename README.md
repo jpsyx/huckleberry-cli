@@ -138,8 +138,11 @@ percentage. Six ounces in daytime and four at night give 60%; no milk volume
 gives a dash. The night note shows the configured hours. The header
 includes the child's age. Standalone Summary keeps freshness at the bottom;
 inside the shell, only the Now drawer shows a freshness timer. The same
-view is in the shell under Home > Summary, where reference ranges and their
-pediatrician note stay in the Now drawer instead of repeating below the table.
+view stays open in the shell's right-hand Summary panel, beside Menu. Alt+Left,
+Alt+H or Alt+A focuses Menu; Alt+Right, Alt+L or Alt+D focuses Summary. The
+focused border is thicker and accented; both panels' contents keep their normal
+brightness. Reference ranges and their pediatrician note stay in the Now drawer.
+Summary shares the drawer's reading and refreshes with it.
 
 Wake totals estimate time outside recorded sleep; wake gaps require two sleeps.
 Rows marked `~` are partial, either today or days with limited snapshot coverage.

@@ -61,14 +61,14 @@ impl Shell {
     }
 
     /// Draws one frame as of `at`, and returns how many rows the menu shows.
-    pub fn draw(&mut self, app: &App, at: f64) -> Result<usize> {
+    pub fn draw(&mut self, app: &mut App, at: f64) -> Result<usize> {
         self.draw_with(app, None, at)
     }
 
     /// Draws one frame, with a command running where the menu was.
     pub fn draw_with(
         &mut self,
-        app: &App,
+        app: &mut App,
         job: Option<&super::job::Job>,
         at: f64,
     ) -> Result<usize> {

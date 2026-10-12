@@ -152,8 +152,10 @@ This is the same split as `src/dashboard/`, for the same reason.
 ## What is on the screen today
 
 The words for the parts are in [`nomenclature.md`](nomenclature.md). The short
-version: the **Menu view** is the main panel, the **Now widget** is the one
-widget beside it, and **widget** and **panel** mean the same thing.
+version: the **Now widget** spans the top. Beneath it, the **Menu view** is on
+the left and the permanent **Summary panel** is on the right. **Widget** and
+**panel** mean the same thing. Commands and the Dashboard replace Menu in the
+left panel while Summary stays visible.
 
 ```
  Huckleberry · Wren                                             Home
@@ -184,24 +186,25 @@ widget beside it, and **widget** and **panel** mean the same thing.
 │                                                                        │
 │ as of 2m ago                                                           │
 └────────────────────────────────────────────────────────────────────────┘
-┌ What would you like to do? ────────────────────────────────────────────┐
-│▌ 1. Log a diaper                                                       │
-│  2. Log a feed                                                       › │
-│  3. Log sleep                                                        › │
-│  4. Log pumping                                                      › │
-│  5. Edit                                                               │
-│  6. Summary                                                            │
-│  7. Visualizations                                                   › │
-│  8. View logs                                                          │
-│  9. Delete                                                             │
-│ 10. More                                                             › │
-└────────────────────────────────────────────────────────────────────────┘
- ↑/↓ j/k w/s · ← h/a back · → l/d open · Enter select · r refresh · q quit
+┏ What would you like to do? ━━━━━━━┓┌ Summary ─────────────────────────┐
+┃▌ 1. Log a diaper                 ┃│ day         [feeds]   milk ml   │
+┃  2. Log a feed                 › ┃│ today~            6       430   │
+┃  3. Log sleep                  › ┃│ yesterday         8       610   │
+┃  4. Log pumping                › ┃│                                │
+┃  5. Edit                         ┃│ feed / feeds                   │
+┃  6. Visualizations             › ┃│       █                        │
+┃  7. View logs                    ┃│       █    █                   │
+┃  8. Delete                       ┃│       █    █                   │
+┃  9. More                       › ┃│                                │
+┗ Alt+←/h/a focus ━━━━━━━━━━━━━━━━━┛└ Alt+→/l/d focus ─────────────────┘
+ ↑/↓ j/k w/s · ← h/a back · Enter/→ l/d select · r refresh · q quit
 ```
 
 | Key | Does |
 | --- | --- |
-| `↓`, `j`, `s`, `Ctrl-N` | down one row |
+| `Alt+←`, `Alt+H`, `Alt+A` | focus the left Menu, command or Dashboard panel |
+| `Alt+→`, `Alt+L`, `Alt+D` | focus the permanent right Summary panel |
+| `↓`, `j`, `s`, `Ctrl-N` | down one menu row |
 | `↑`, `k`, `w`, `Ctrl-P` | up one row |
 | `→`, `l`, `d`, `Enter`, `Space` | open the row under the cursor |
 | `←`, `h`, `a`, `Backspace` | back one view, and nothing at the top level |
@@ -212,6 +215,12 @@ widget beside it, and **widget** and **panel** mean the same thing.
 | `q` | leave, whenever the shell has the keyboard |
 | `Ctrl-Q` | leave, from anywhere, including from inside a question |
 | `Ctrl-C` | leave this menu, or the session at the top level |
+
+Menu starts focused. Its border is thick and accented; the unfocused panel has
+a thin muted border. Content never dims when focus moves. Focus chords work
+while commands are collecting input and preserve both panels' selection and
+scrolling. Ordinary input and pasted text go only to the focused panel. The
+Version modal retains its own keys until it closes.
 
 A chevron (`›`) marks a row that opens another menu, so nothing is a surprise.
 The numbers are right-aligned as a column, so every label starts in the same
@@ -482,9 +491,11 @@ the footer names its keys while it is open.
 More contains Potty and Growth directly, followed by the account and utility
 options. There is no separate Other logging menu.
 
-### Summary keeps its graph inside the flow panel
+### Summary is a permanent panel beside Menu
 
-Home > Summary opens a browsable table through the prompt host. Its
+The right bottom panel always shows the browsable Summary table and chart.
+Summary has no menu row. Alt+Right, Alt+L or Alt+D focuses it; Alt+Left, Alt+H
+or Alt+A restores focus to the left panel without changing either view. Its
 numeric columns have grouped headings; Feed adds bottle feed and nursed
 subheadings above their columns, with total feeds outside both. Day stays fixed.
 Tab/Shift-Tab and
@@ -505,7 +516,8 @@ leaving a visible chart. One blank line separates the rows and notes from the
 chart, except in panels under ten rows where the data and bars take priority.
 In the shell and standalone Summary, Left/Right, H/L, A/D, Tab and Shift-Tab
 select columns, stopping at either end without leaving the view. In the shell,
-Q or Backspace returns to the containing menu; Escape returns Home.
+Backspace or Ctrl-C focuses Menu, Escape discards unfinished input and returns
+Home, and Q quits the shell. These keys never remove the Summary panel.
 Up/down (J/K, W/S) scroll the rows and notes, including configured night hours
 but not reference ranges or their pediatrician note, which the Now drawer
 already shows. Standalone summary retains those lines. Calculation explanations
@@ -513,8 +525,9 @@ and configuration commands live
 in the README and screen documentation. The title includes the child's age when
 known. In the shell, the Now drawer is the only panel with an `as of` timer;
 standalone Summary keeps its freshness line below the keys.
-Column navigation, row scrolling and the scroll position share one help line,
-with shorter wording when the panel is narrow.
+The Summary panel has its own navigation line. Focus shortcuts remain in both
+bottom borders, and the shell footer describes whichever panel has focus.
+Standalone Summary retains its navigation and scroll-position line.
 The selected heading has brackets as well as
 colour, and the keys remain visible on narrow and short panels. The Now drawer
 stays on screen throughout.
@@ -532,8 +545,9 @@ is what makes that one change rather than fifty.
 
 ### 11. A widget shows one thing, and the menu remains usable
 
-The Now drawer grows to fit its facts and tables, while keeping at least five
-visible menu rows plus the menu's borders whenever the terminal has room.
+The Now drawer grows to fit its facts and tables, while reserving ten rows for
+the bottom panels (eight content rows plus borders) whenever the terminal has
+room. This keeps the Summary table and chart usable alongside Menu.
 The menu scrolls as its cursor moves. The drawer is no longer capped at half
 the screen: that cap would hide the daily table even when enough room exists
 for both the facts and a usable menu. On a terminal too short for both, the
@@ -550,19 +564,20 @@ can gain wrapped lines as the clock advances.
 
 ### 13. Every widget refreshes together, on `r`
 
-When the shell has the keyboard, `r` re-reads the Now drawer and the embedded
-Dashboard view together. Both receive the same completed reading. A refresh
+When the shell or Summary has the keyboard, `r` re-reads the Now drawer,
+permanent Summary panel and embedded Dashboard view together. All receive the
+same completed reading. A refresh
 also happens by itself after any command, since a command may have logged the
 very thing a widget is showing.
 
-Hosted commands such as Summary load their own snapshots when opened. Those
-snapshots can differ from the Now drawer's reading and are not replaced by a
-shell refresh. Their keys belong to the command while it is open.
+Other hosted read commands load their own snapshots when opened. Those snapshots
+can differ from the permanent panels' reading and are not replaced by a shell
+refresh. Their ordinary keys belong to the command while the left panel is focused.
 
 Only the Now drawer displays an `as of` timer inside the shell. Summary, the
 embedded Dashboard and More > Current status omit their copies. This display
-rule does not synchronize their reads: the timer describes the Now drawer's
-reading. Standalone commands retain their freshness labels, and read failures
+rule covers the shared Now/Summary/Dashboard reading; Current status remains
+a separate command read. Standalone commands retain their freshness labels, and read failures
 remain visible in either mode.
 
 Refreshing never moves the cursor or changes the menu: `r` is not navigation.
@@ -588,8 +603,7 @@ It is a full-width strip across the **top**, above the Menu view:
   anything else to find them.
 - Full width lets the drawer choose two or one column from the space
   available. Facts and table cells wrap when needed.
-- The Menu view is still the main panel and takes everything left over beneath
-  it. The drawer is only as tall as it has something to say, and gives way to
+- Menu and Summary split the remaining width equally beneath it. The drawer is only as tall as it has something to say, and gives way to
   the menu on a short terminal rather than the other way round: the menu is the
   part being operated, and a drawer short of its last line is still readable
   where a menu with no rows is not.

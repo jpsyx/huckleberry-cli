@@ -549,3 +549,75 @@ mod flows {
         assert_eq!(window(&lines(&["done"]), None, 10), ["done"]);
     }
 }
+
+#[cfg(test)]
+mod focused_input {
+    use super::*;
+    use crate::tui::{App, Intent, input::route, state::Panel};
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    fn press(code: KeyCode, modifiers: KeyModifiers) -> Input {
+        Input::Key(KeyEvent::new(code, modifiers))
+    }
+
+    #[test]
+    fn summary_input_and_focus_chords_never_enter_a_waiting_command() {
+        let mut app = App::new();
+        let mut job = Job::idle("A question", &[]);
+        job.exchange.show(vec!["Answer?".into()]);
+        let send = |app: &mut App, job: &mut Job, input| route(app, Some(job), input, 20, 0.0);
+        send(&mut app, &mut job, press(KeyCode::Right, KeyModifiers::ALT));
+        send(
+            &mut app,
+            &mut job,
+            press(KeyCode::Right, KeyModifiers::NONE),
+        );
+        send(
+            &mut app,
+            &mut job,
+            press(KeyCode::Enter, KeyModifiers::NONE),
+        );
+        send(
+            &mut app,
+            &mut job,
+            Input::Pasted("must not enter the draft".into()),
+        );
+        assert_eq!(app.focus, Panel::Summary);
+        assert_eq!(app.summary.state.selected, 1);
+        assert!(job.exchange.take().is_none());
+        send(
+            &mut app,
+            &mut job,
+            press(KeyCode::Char('a'), KeyModifiers::ALT),
+        );
+        send(&mut app, &mut job, Input::Pasted("kept answer".into()));
+        assert!(matches!(job.exchange.take(), Some(Input::Pasted(text)) if text == "kept answer"));
+    }
+
+    #[test]
+    fn summary_refresh_and_forced_quit_do_not_submit_the_command() {
+        let mut app = App::new();
+        app.focus = Panel::Summary;
+        let mut job = Job::idle("A question", &[]);
+        job.exchange.show(vec!["Answer?".into()]);
+        for (code, modifiers, expected) in [
+            (KeyCode::Char('r'), KeyModifiers::NONE, Intent::Refresh),
+            (KeyCode::Char('q'), KeyModifiers::CONTROL, Intent::Quit),
+        ] {
+            assert_eq!(
+                route(&mut app, Some(&mut job), press(code, modifiers), 20, 0.0),
+                expected
+            );
+            assert!(job.exchange.take().is_none());
+        }
+        route(
+            &mut app,
+            Some(&mut job),
+            press(KeyCode::Esc, KeyModifiers::NONE),
+            20,
+            0.0,
+        );
+        assert_eq!(app.focus, Panel::Menu);
+        assert!(job.home_requested);
+    }
+}

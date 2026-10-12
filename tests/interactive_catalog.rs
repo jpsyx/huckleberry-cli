@@ -30,7 +30,6 @@ fn home_order_and_all_commands_are_reachable() {
             "Log sleep",
             "Log pumping",
             "Edit",
-            "Summary",
             "Visualizations",
             "View logs",
             "Delete",
@@ -39,6 +38,7 @@ fn home_order_and_all_commands_are_reachable() {
     );
     let mut actual = BTreeSet::new();
     leaves(&Cli::command(), &[], &mut actual);
+    actual.remove(&vec!["summary".to_owned()]); // Permanently visible in the shell.
     assert_eq!(
         catalog::command_paths()
             .into_iter()
@@ -111,9 +111,8 @@ fn draft_aliases_and_invalid_choices_use_real_clap_validation() {
 }
 
 #[test]
-fn summary_runs_from_home_and_extra_logging_runs_from_more() {
+fn permanent_summary_has_no_menu_row_and_extra_logging_runs_from_more() {
     for (menu, label, command) in [
-        (catalog::MenuId::Home, "Summary", "summary"),
         (catalog::MenuId::More, "Potty", "potty"),
         (catalog::MenuId::More, "Growth", "growth"),
     ] {
@@ -125,7 +124,10 @@ fn summary_runs_from_home_and_extra_logging_runs_from_more() {
         );
     }
     assert!(
-        !catalog::entries(catalog::MenuId::Visualizations)
+        !catalog::MenuId::ALL
+            .into_iter()
+            .flat_map(catalog::entries)
+            .collect::<Vec<_>>()
             .iter()
             .any(|entry| entry.label == "Summary")
     );

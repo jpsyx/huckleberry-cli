@@ -200,7 +200,7 @@ fn retained() -> anyhow::Result<()> {
             if let Some(job) = job.as_mut() {
                 job.collect(10000.0).await;
             }
-            let height = shell.draw_with(&app, job.as_ref(), 10000.0)?;
+            let height = shell.draw_with(&mut app, job.as_ref(), 10000.0)?;
             if job.as_ref().is_some_and(Job::finished) {
                 let (landing, suspended) = job.take().unwrap().finish();
                 draft = suspended;

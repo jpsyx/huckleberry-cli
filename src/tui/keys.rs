@@ -13,6 +13,10 @@ use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 pub enum Motion {
     /// Nothing this shell understands.
     Ignore,
+    /// Focus the left Menu or flow panel.
+    FocusMenu,
+    /// Focus the permanent Summary panel.
+    FocusSummary,
     /// Down one row.
     Next,
     /// Up one row.
@@ -66,6 +70,13 @@ pub fn motion_for(key: KeyEvent) -> Motion {
             KeyCode::Char('c') => Motion::Cancel,
             KeyCode::Char('n') => Motion::Next,
             KeyCode::Char('p') => Motion::Previous,
+            _ => Motion::Ignore,
+        };
+    }
+    if key.modifiers.contains(KeyModifiers::ALT) {
+        return match key.code {
+            KeyCode::Left | KeyCode::Char('h' | 'H' | 'a' | 'A') => Motion::FocusMenu,
+            KeyCode::Right | KeyCode::Char('l' | 'L' | 'd' | 'D') => Motion::FocusSummary,
             _ => Motion::Ignore,
         };
     }
