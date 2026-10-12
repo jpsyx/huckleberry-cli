@@ -518,6 +518,40 @@ mod tests {
     }
 
     #[test]
+    fn summary_wake_crossing_day_start_keeps_the_whole_gap_on_the_previous_night() {
+        use crate::domain::fixtures::sleep;
+        let mut data = dataset();
+        data.sleep = vec![
+            // Sleep until 6:30am, then awake across the configured 7am day start.
+            sleep(at("2025-09-21", 20, 0), 37_800.0),
+            sleep(at("2025-09-22", 7, 30), 1800.0),
+        ];
+
+        let json = summary_json(&data, at("2025-09-22", 8, 0), 2);
+
+        assert_eq!(json[1]["day"], "2025-09-21");
+        assert_eq!(json[1]["average_night_wake_seconds"], 3600.0);
+        assert_eq!(json[1]["average_wake_seconds"], 3600.0);
+        assert_eq!(json[1]["longest_wake_seconds"], 3600.0);
+        assert!(json[1]["average_day_wake_seconds"].is_null());
+        assert_eq!(json[0]["day"], "2025-09-22");
+        for field in [
+            "average_wake_seconds",
+            "average_day_wake_seconds",
+            "average_night_wake_seconds",
+            "longest_wake_seconds",
+        ] {
+            assert!(
+                json[0][field].is_null(),
+                "the gap belongs to yesterday: {field}"
+            );
+        }
+        assert_eq!(json[1]["night_wake_seconds"], 1800.0);
+        assert_eq!(json[0]["day_wake_seconds"], 1800.0);
+        assert_eq!(json[0]["wake_seconds"], 1800.0);
+    }
+
+    #[test]
     fn summary_overlapping_sleep_does_not_double_count_or_make_negative_gaps() {
         use crate::domain::fixtures::sleep;
         let mut data = dataset();
