@@ -460,7 +460,7 @@ fn a_status_message_reaches_the_foot_of_the_screen() {
 #[test]
 fn a_narrow_terminal_still_draws_every_part_of_the_shell() {
     let drawn = screen(&mut App::new(), 28, 16);
-    assert!(drawn.contains("▌ 1. Log a"), "{drawn}");
+    assert!(drawn.contains("▌ 1."), "{drawn}");
     assert!(drawn.contains("Summary"), "{drawn}");
     assert_eq!(drawn.lines().count(), 16);
 }

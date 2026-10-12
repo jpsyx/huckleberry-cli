@@ -152,8 +152,9 @@ This is the same split as `src/dashboard/`, for the same reason.
 ## What is on the screen today
 
 The words for the parts are in [`nomenclature.md`](nomenclature.md). The short
-version: the **Now widget** spans the top. Beneath it, the **Menu view** is on
-the left and the permanent **Summary panel** is on the right. **Widget** and
+version: the **Now widget** spans the top. Beneath it, the **Menu view** takes
+one-third of the width on the left and the permanent **Summary panel** takes
+two-thirds on the right. **Widget** and
 **panel** mean the same thing. Commands and the Dashboard replace Menu in the
 left panel while Summary stays visible.
 
@@ -186,17 +187,17 @@ left panel while Summary stays visible.
 │                                                                        │
 │ as of 2m ago                                                           │
 └────────────────────────────────────────────────────────────────────────┘
-┏ What would you like to do? ━━━━━━━┓┌ Summary ─────────────────────────┐
-┃▌ 1. Log a diaper                 ┃│ day         [feeds]   milk ml   │
-┃  2. Log a feed                 › ┃│ today~            6       430   │
-┃  3. Log sleep                  › ┃│ yesterday         8       610   │
-┃  4. Log pumping                › ┃│                                │
-┃  5. Edit                         ┃│ feed / feeds                   │
-┃  6. Visualizations             › ┃│       █                        │
-┃  7. View logs                    ┃│       █    █                   │
-┃  8. Delete                       ┃│       █    █                   │
-┃  9. More                       › ┃│                                │
-┗ Alt+←/h/a focus ━━━━━━━━━━━━━━━━━┛└ Alt+→/l/d focus ─────────────────┘
+┏ What would you like to┓┌ Summary ───────────────────────────────────────┐
+┃▌ 1. Log a diaper      ┃│ day         [feeds]   milk ml                  │
+┃  2. Log a feed      › ┃│ today~            6       430                  │
+┃  3. Log sleep       › ┃│ yesterday         8       610                  │
+┃  4. Log pumping     › ┃│                                                │
+┃  5. Edit              ┃│ feed / feeds                                   │
+┃  6. Visualizations  › ┃│       █                                        │
+┃  7. View logs         ┃│       █    █                                   │
+┃  8. Delete            ┃│       █    █                                   │
+┃  9. More            › ┃│                                                │
+┗ Alt+←/h/a focus ━━━━━━┛└ Alt+→/l/d focus ───────────────────────────────┘
  ↑/↓ j/k w/s · ← h/a back · Enter/→ l/d select · r refresh · q quit
 ```
 
@@ -607,7 +608,8 @@ It is a full-width strip across the **top**, above the Menu view:
   anything else to find them.
 - Full width lets the drawer choose two or one column from the space
   available. Facts and table cells wrap when needed.
-- Menu and Summary split the remaining width equally beneath it. The drawer is only as tall as it has something to say, and gives way to
+- Menu takes one-third of the width beneath it and Summary takes two-thirds.
+  The drawer is only as tall as it has something to say, and gives way to
   the menu on a short terminal rather than the other way round: the menu is the
   part being operated, and a drawer short of its last line is still readable
   where a menu with no rows is not.
