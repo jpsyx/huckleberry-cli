@@ -132,7 +132,7 @@ bar chart underneath, with gaps between bars and a dotted average of the previou
 seven complete days (today excluded). The default shows eight days: those seven
 plus today. Horizontal scrolling moves only at the visible edges.
 H/A or Shift+Left selects the first visible numeric column; L/D or Shift+Right
-selects the last visible numeric column. g/G selects the first/last numeric
+selects the last visible numeric column. g/G (also 0/$) selects the first/last numeric
 column of the whole table. Up/down scrolls the rows and notes; Esc or Q leaves.
 Milk/feed averages only bottles with recorded amounts, and nurse/feed averages
 only nursing sessions. `% feed daytime`, after milk/feed, shows the share of

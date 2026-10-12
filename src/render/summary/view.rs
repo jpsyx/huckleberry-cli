@@ -67,8 +67,8 @@ impl State {
             }
             KeyCode::PageDown => self.scroll = self.scroll.saturating_add(self.page),
             KeyCode::PageUp => self.scroll = self.scroll.saturating_sub(self.page),
-            KeyCode::Char('g') => self.selected = 0,
-            KeyCode::Char('G') => self.selected = COLUMNS.len() - 1,
+            KeyCode::Char('g' | '0') => self.selected = 0,
+            KeyCode::Char('G' | '$') => self.selected = COLUMNS.len() - 1,
             KeyCode::Home => self.scroll = 0,
             KeyCode::End => self.scroll = self.limit,
             _ => {}
@@ -255,7 +255,7 @@ impl View<'_> {
 fn build_hints(state: &State, width: usize) -> String {
     let position = format!("{}/{}", state.scroll + 1, state.limit + 1);
     [
-        "Tab/S-Tab ←/→ h/l a/d · H/L visible · g/G first/last · Esc/q back · ↑/↓ j/k w/s scroll rows & notes",
+        "Tab/S-Tab ←/→ h/l a/d · H/L visible · g/G first/last (0/$) · Esc/q back · ↑/↓ j/k w/s scroll rows & notes",
         "Tab/S-Tab ←/→ h/l a/d · ↑↓ j/k w/s · H/L visible · g/G ends · Esc/q back",
         "←→ h/l a/d · ↑↓ j/k w/s · g/G · Esc/q back",
         "←→ ↑↓ g/G · Esc/q back",

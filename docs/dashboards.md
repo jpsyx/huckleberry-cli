@@ -219,8 +219,8 @@ view in its permanent right-hand panel, beside Menu and below the Now drawer. Ta
 h/l, and a/d move between numeric columns, stopping at both ends.
 Capital H/A or Shift+Left selects the first visible numeric column; capital L/D
 or Shift+Right selects the last visible numeric column. These shortcuts keep the
-current horizontal window and vertical scroll in place. `g` selects
-the first numeric column and `G` the last; neither changes vertical scroll.
+current horizontal window and vertical scroll in place. `g` or `0` selects
+the first numeric column and `G` or `$` the last; neither changes vertical scroll.
 Home/End scroll to the top/bottom of the rows and notes. Left at the first
 column keeps the summary open. Day is fixed and
 cannot be selected. Selection has brackets as well as colour. A panel at least

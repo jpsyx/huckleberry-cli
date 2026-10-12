@@ -518,7 +518,7 @@ In the shell and standalone Summary, Left/Right, h/l, a/d, Tab and Shift-Tab
 select adjacent columns, stopping at either end without leaving the view.
 Capital H/A and Shift+Left select the first visible numeric column; capital L/D
 and Shift+Right select the last visible numeric column, keeping the table window
-in place. The g/G keys select the first/last numeric column of the whole table.
+in place. The g/G keys (also 0/$) select the first/last numeric column of the whole table.
 In the shell,
 Backspace or Ctrl-C focuses Menu, Escape discards unfinished input and returns
 Home, and Q quits the shell. These keys never remove the Summary panel.

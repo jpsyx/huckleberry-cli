@@ -96,7 +96,7 @@ fn shifted_tab_moves_back_and_release_events_do_not_move_twice() {
 }
 
 #[test]
-fn g_shortcuts_select_end_columns_without_changing_vertical_scroll() {
+fn whole_table_shortcuts_select_end_columns_without_changing_vertical_scroll() {
     let mut state = State {
         selected: 4,
         scroll: 3,
@@ -104,12 +104,15 @@ fn g_shortcuts_select_end_columns_without_changing_vertical_scroll() {
         ..State::default()
     };
     for modifiers in [KeyModifiers::NONE, KeyModifiers::SHIFT] {
-        assert!(!state.apply(KeyEvent::new(KeyCode::Char('G'), modifiers)));
-        assert_eq!(state.selected, COLUMNS.len() - 1);
-        assert_eq!(state.scroll, 3);
-        assert!(!press(&mut state, KeyCode::Char('g')));
-        assert_eq!(state.selected, 0);
-        assert_eq!(state.scroll, 3);
+        for (first, last) in [('g', 'G'), ('0', '$')] {
+            state.selected = 4;
+            assert!(!state.apply(KeyEvent::new(KeyCode::Char(last), modifiers)));
+            assert_eq!(state.selected, COLUMNS.len() - 1);
+            assert_eq!(state.scroll, 3);
+            assert!(!state.apply(KeyEvent::new(KeyCode::Char(first), modifiers)));
+            assert_eq!(state.selected, 0);
+            assert_eq!(state.scroll, 3);
+        }
     }
     assert!(!press(&mut state, KeyCode::End));
     assert_eq!(state.scroll, 10);
