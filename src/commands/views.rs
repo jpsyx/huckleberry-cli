@@ -307,6 +307,7 @@ fn summary_to_json(row: &summaries::DaySummary) -> serde_json::Value {
 
 /// Keep sleep metrics together without exceeding the JSON macro's recursion limit.
 fn add_sleep_json(value: &mut serde_json::Value, row: &summaries::DaySummary) {
+    value["night_sleep_percent"] = serde_json::json!(row.night_sleep_percent);
     value["sleeps"] = serde_json::json!(row.sleep_count);
     value["night_naps"] = serde_json::json!(row.night_nap_count);
     value["day_naps"] = serde_json::json!(row.day_nap_count);
@@ -427,6 +428,26 @@ mod tests {
         assert_eq!(json[0]["day_wake_seconds"], 18000.0);
         assert_eq!(json[0]["average_day_wake_seconds"], 7200.0);
         assert!(json[0]["average_night_wake_seconds"].is_null());
+    }
+
+    #[test]
+    fn summary_night_sleep_percent_json_keeps_numeric_precision() {
+        use crate::domain::fixtures::sleep;
+
+        let calendar = Calendar::new("America/New_York").unwrap();
+        let start = calendar.at("2025-09-21".parse().unwrap(), 20, 0);
+        let mut data = dataset();
+        data.sleep = vec![sleep(start, 19800.0)];
+        let rows = summaries::build(&data, &calendar, DayRule::discrete(6.0, 19.5), AFTERNOON, 2);
+        let json = rows_as_json(&rows);
+        let percent = json[1]["night_sleep_percent"]
+            .as_f64()
+            .expect("a numeric percentage");
+        assert!((percent - 52.380_952_380_952).abs() < 1e-10);
+        assert_eq!(
+            json[0].get("night_sleep_percent"),
+            Some(&serde_json::Value::Null)
+        );
     }
 
     #[test]

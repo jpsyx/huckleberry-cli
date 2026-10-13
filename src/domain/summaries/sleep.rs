@@ -15,10 +15,13 @@ pub(super) fn fill(
     let intervals = intervals(dataset, now);
     for row in rows {
         let (start, end) = rule.day_bounds(calendar, row.day);
-        let end = end.min(now);
         let night = rule.night_start(calendar, row.day);
+        let night_seconds = end - night;
+        let end = end.min(now);
         row.sleep_seconds = coverage(&intervals, start, end);
         row.night_sleep_seconds = coverage(&intervals, night, end);
+        row.night_sleep_percent = (row.sleep_seconds > 0.0 && end > night && night_seconds > 0.0)
+            .then(|| row.night_sleep_seconds / night_seconds * 100.0);
         row.day_sleep_seconds = row.sleep_seconds - row.night_sleep_seconds;
         if row.sleep_seconds > 0.0 && !has_unknown_pause(dataset, start, end, now) {
             row.day_wake_seconds = (end.min(night) > start)

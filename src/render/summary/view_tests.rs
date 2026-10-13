@@ -436,7 +436,7 @@ fn age_stays_in_the_header_and_freshness_stays_at_the_bottom_when_scrolling() {
             assert_eq!(drawn.matches("as of").count(), 1);
             if size.1 >= 12 {
                 assert!(
-                    lines[0].contains("Summary · Bear · 21 days old · column 1/30 · ~ partial")
+                    lines[0].contains("Summary · Bear · 21 days old · column 1/31 · ~ partial")
                 );
                 assert_eq!(drawn.matches("days old").count(), 1);
             }
@@ -471,7 +471,7 @@ fn unknown_age_is_omitted_from_the_summary_header() {
         now: AFTERNOON,
     };
     let lines = view.lines(&mut State::default(), (100, 24), Theme::dark(false));
-    assert!(lines[0].contains("Summary · Bear · column 1/30"));
+    assert!(lines[0].contains("Summary · Bear · column 1/31"));
     assert!(!lines[0].contains("days old"));
 }
 

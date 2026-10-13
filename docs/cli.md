@@ -122,7 +122,7 @@ Summary defaults to seven complete family days plus today (eight rows); `--days 
 means N complete days plus today.
 
 Summary JSON includes `day_milk_ml`, `night_milk_ml`, `day_milk_percent`, `day_nursing_seconds`,
-`night_nursing_seconds`, `night_naps`, `day_naps`, `average_sleep_seconds`,
+`night_nursing_seconds`, `night_sleep_percent`, `night_naps`, `day_naps`, `average_sleep_seconds`,
 `average_milk_ml`, `average_nursing_seconds`,
 `average_nap_seconds`, `average_day_sleep_seconds`, `average_night_sleep_seconds`,
 `wake_seconds`, `night_wake_seconds`, `day_wake_seconds`, `average_wake_seconds`,
@@ -131,6 +131,10 @@ Summary JSON includes `day_milk_ml`, `night_milk_ml`, `day_milk_percent`, `day_n
 undefined averages are `null`; JSON volumes remain millilitres and durations
 remain seconds. `day_milk_percent` is the unrounded daytime share of recorded
 milk volume on a 0 to 100 scale, or `null` when total milk volume is zero.
+`night_sleep_percent` is the unrounded percentage of the full configured night
+covered by recorded sleep, including live sleep. Its denominator accounts for
+daylight-saving changes and stays the full night duration during a partial
+night. It is `null` before night begins or on days without recorded sleep.
 Milk/feed counts only bottles with amounts; nurse/feed counts
 only nursing sessions. `night_naps` and `day_naps` count completed sleeps by
 their start time, including zero when none qualify. A sleep crossing a day/night

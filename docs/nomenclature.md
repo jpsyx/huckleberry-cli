@@ -94,6 +94,7 @@ either, say which.
 | **a wake gap**, **a wake window** | A complete span from one sleep ending to the next starting, assigned to the day waking began. `avg wake window` averages these spans; `avg day wake window` and `avg night wake window` classify them by start time. |
 | **bottle feed**, **nursed** (summary subcategories) | The second Feed header row: bottle milk amounts, averages and daytime percentage, then nursing durations and averages. Total feeds belongs to neither. |
 | **% feed daytime** | Recorded daytime milk volume as a percentage of the family day's total milk volume. Follows milk/feed in the bottle feed subcategory. |
+| **% night slept** | Recorded night sleep as a percentage of the full configured night duration, from day end to the next day start. Follows `night*` in Summary. |
 | **Last wake up** (in Now) | The current awake duration, or the most recent complete wake gap's end and duration while sleeping. Its end is when the following sleep began. |
 | **wake time** (in summary) | Estimated elapsed day time outside recorded sleep; night wake restricts it to the configured night and day wake to daytime. |
 | **a day row** | One row of `summary` or `trends`: `day_start` to `day_start`. |

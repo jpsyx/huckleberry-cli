@@ -175,6 +175,9 @@ pub const COLUMNS: &[Column] = &[
     Column::new("sleep", "night*", Kind::Duration, |row| {
         recorded(row.night_sleep_seconds)
     }),
+    Column::new("sleep", "% night slept", Kind::Percentage, |row| {
+        row.night_sleep_percent
+    }),
     Column::new("sleep", "night naps", Kind::Count, |row| {
         recorded(row.night_nap_count as f64)
     }),
@@ -383,6 +386,100 @@ mod tests {
     }
 
     #[test]
+    fn night_sleep_percent_uses_the_configured_full_night() {
+        let calendar = Calendar::new("America/New_York").unwrap();
+        let start = calendar.at("2025-09-21".parse().unwrap(), 20, 0);
+        let mut data = dataset();
+        data.sleep = vec![sleep(start, 19800.0)];
+        for (rule, expected, display) in [
+            (DayRule::discrete(6.0, 20.0), 55.0, "55%"),
+            (DayRule::continuous(6.0, 20.0), 55.0, "55%"),
+            (DayRule::discrete(7.0, 20.0), 50.0, "50%"),
+            (DayRule::discrete(6.0, 19.5), 52.380_952_380_952, "52%"),
+        ] {
+            let rows = summaries::build(&data, &calendar, rule, AFTERNOON, 2);
+            assert_night_sleep_percent(&rows[1], Some(expected), display);
+        }
+    }
+
+    fn assert_night_sleep_percent(row: &DaySummary, expected: Option<f64>, display: &str) {
+        let index = COLUMNS
+            .iter()
+            .position(|column| column.heading(Units::Ml) == "% night slept")
+            .expect("a selectable night sleep percentage column");
+        assert_eq!(COLUMNS[index - 1].heading(Units::Ml), "night*");
+        for units in [Units::Ml, Units::Oz] {
+            let column = &COLUMNS[index];
+            assert_eq!(column.cell(row, units).trim(), display);
+            assert_eq!(column.title(units), "sleep / % night slept");
+            if let Some(expected) = expected {
+                assert!((column.value(row, units).unwrap() - expected).abs() < 1e-10);
+            } else {
+                assert_eq!(column.value(row, units), None);
+            }
+        }
+    }
+
+    #[test]
+    fn night_sleep_percent_clips_and_merges_sleep_within_the_night() {
+        let calendar = Calendar::new("America/New_York").unwrap();
+        let start = calendar.at("2025-09-21".parse().unwrap(), 19, 0);
+        let mut data = dataset();
+        data.sleep = vec![sleep(start, 43200.0), sleep(start + 3600.0, 7200.0)];
+        let rows = summaries::build(&data, &calendar, DayRule::discrete(6.0, 20.0), AFTERNOON, 2);
+        assert_night_sleep_percent(&rows[1], Some(100.0), "100%");
+    }
+
+    #[test]
+    fn night_sleep_percent_keeps_the_full_denominator_during_a_live_night() {
+        let calendar = Calendar::new("America/New_York").unwrap();
+        let start = calendar.at("2025-09-21".parse().unwrap(), 20, 0);
+        let mut data = dataset();
+        data.live.sleep_active = true;
+        data.live.sleep_start = Some(start);
+        let rows = summaries::build(
+            &data,
+            &calendar,
+            DayRule::discrete(6.0, 20.0),
+            start + 19800.0,
+            1,
+        );
+        assert!(rows[0].partial);
+        assert_night_sleep_percent(&rows[0], Some(55.0), "55%");
+    }
+
+    #[test]
+    fn night_sleep_percent_uses_available_hours_across_daylight_saving() {
+        let calendar = Calendar::new("America/New_York").unwrap();
+        for (night, morning, duration) in [
+            ("2025-03-08", "2025-03-09", 16200.0),
+            ("2025-11-01", "2025-11-02", 19800.0),
+        ] {
+            let mut data = dataset();
+            data.sleep = vec![sleep(calendar.at(night.parse().unwrap(), 20, 0), duration)];
+            let now = calendar.at(morning.parse().unwrap(), 12, 0);
+            let rows = summaries::build(&data, &calendar, DayRule::discrete(6.0, 20.0), now, 2);
+            assert_night_sleep_percent(&rows[1], Some(50.0), "50%");
+        }
+    }
+
+    #[test]
+    fn night_sleep_percent_distinguishes_missing_sleep_from_daytime_only_sleep() {
+        let calendar = Calendar::new("America/New_York").unwrap();
+        let rule = DayRule::discrete(6.0, 20.0);
+        let mut data = dataset();
+        let rows = summaries::build(&data, &calendar, rule, AFTERNOON, 2);
+        assert_night_sleep_percent(&rows[1], None, format::MISSING);
+        data.sleep = vec![
+            sleep(AFTERNOON - 3600.0, 1800.0),
+            sleep(AFTERNOON - 86400.0, 1800.0),
+        ];
+        let rows = summaries::build(&data, &calendar, rule, AFTERNOON, 2);
+        assert_night_sleep_percent(&rows[1], Some(0.0), "0%");
+        assert_night_sleep_percent(&rows[0], None, format::MISSING);
+    }
+
+    #[test]
     fn nap_counts_follow_their_durations_in_table_and_chart() {
         let calendar = Calendar::new("America/New_York").unwrap();
         let at = |hour| calendar.at("2025-09-21".parse().unwrap(), hour, 0);
@@ -393,8 +490,10 @@ mod tests {
             sleep(at(23), 10800.0),
         ];
         let rows = summaries::build(&data, &calendar, DayRule::assumed(), AFTERNOON, 2);
-        for (heading, preceding, count) in [("night naps", "night*", "1"), ("day naps", "day", "2")]
-        {
+        for (heading, preceding, count) in [
+            ("night naps", "% night slept", "1"),
+            ("day naps", "day", "2"),
+        ] {
             let index = COLUMNS
                 .iter()
                 .position(|column| column.heading(Units::Ml) == heading)

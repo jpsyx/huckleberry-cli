@@ -195,7 +195,7 @@ Total feeds sits outside both subcategories:
 | Category | Columns |
 | --- | --- |
 | feed | feeds; bottle feed: milk, formula, breast, daytime milk, night milk, milk ml/feed (or milk oz/feed), % feed daytime; nursed: nursed, daytime nursed, night nursed, nurse/feed |
-| sleep | sleep, night, night naps, day, day naps, longest, avg naps, avg night nap, avg day nap |
+| sleep | sleep, night, % night slept, night naps, day, day naps, longest, avg naps, avg night nap, avg day nap |
 | wake time | wake time, night wake, day wake, avg wake window, avg night wake window, avg day wake window, longest |
 | diaper | wet, dirty |
 
@@ -213,6 +213,16 @@ Nursing durations and bottles without amounts contribute no volume. A positive
 nighttime-only total gives 0%; no recorded milk volume gives a dash. The chart
 and JSON retain the unrounded percentage on a 0 to 100 scale, independent of
 the chosen volume unit.
+
+`% night slept` follows `night*`: recorded night sleep divided by the full
+configured night duration, multiplied by 100. Five hours thirty minutes in a
+ten-hour night gives 55%. The table rounds to whole percentages; the chart and
+JSON retain the unrounded value. Sleep is clipped to the night boundaries and
+overlapping records count once. The denominator runs from `day_end` to the next
+`day_start` in the family's timezone, including daylight-saving changes, and
+stays the full night duration while a night is in progress. Before night begins,
+or on a day with no recorded sleep, the value is missing. A day with recorded
+daytime sleep but no night sleep shows 0% once night has begun.
 
 On a terminal, `summary` opens an interactive table. The shell keeps that same
 view in its permanent right-hand panel, beside Menu and below the Now drawer. Tab and Shift-Tab, left/right,

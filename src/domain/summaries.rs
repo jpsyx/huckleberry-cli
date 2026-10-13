@@ -69,6 +69,9 @@ pub struct DaySummary {
     pub sleep_seconds: f64,
     /// Of which inside the family's night window.
     pub night_sleep_seconds: f64,
+    /// Recorded night sleep as a percentage of the full configured night duration.
+    /// Absent before night begins or when the day has no recorded sleep.
+    pub night_sleep_percent: Option<f64>,
     /// Of which outside it.
     pub day_sleep_seconds: f64,
     /// Sleeps that began on this day.
@@ -160,6 +163,7 @@ impl DaySummary {
             rash_count: 0,
             sleep_seconds: 0.0,
             night_sleep_seconds: 0.0,
+            night_sleep_percent: None,
             day_sleep_seconds: 0.0,
             sleep_count: 0,
             day_nap_count: 0,

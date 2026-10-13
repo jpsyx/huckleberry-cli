@@ -138,7 +138,9 @@ Milk/feed averages only bottles with recorded amounts, and nurse/feed averages
 only nursing sessions. `% feed daytime`, after milk/feed, shows the share of
 recorded milk volume received during the configured daytime, rounded to a whole
 percentage. Six ounces in daytime and four at night give 60%; no milk volume
-gives a dash. The night note shows the configured hours. The header
+gives a dash. `% night slept`, immediately after `night*`, divides recorded
+night sleep by the full configured night duration: 5h 30m in a 10-hour night
+shows 55%. The night note shows the configured hours. The header
 includes the child's age. Standalone Summary keeps freshness at the bottom;
 inside the shell, only the Now drawer shows a freshness timer. The same
 view stays open in the shell's right-hand Summary panel, beside Menu. Alt+Left,
@@ -149,8 +151,8 @@ Summary shares the drawer's reading and refreshes with it.
 
 Wake totals estimate time outside recorded sleep; wake gaps require two sleeps.
 Rows marked `~` are partial, either today or days with limited snapshot coverage.
-`avg naps` includes completed daytime and nighttime sleeps. `night naps` and
-`day naps` follow their matching duration columns and count completed sleeps
+`avg naps` includes completed daytime and nighttime sleeps. `night naps` follows
+`% night slept`; `day naps` follows `day`. Both count completed sleeps
 by start time, even when a nap crosses a day/night or family-day boundary.
 Wake gaps belong to the day waking began, and unfinished gaps are excluded. Feeding day/night
 splits follow each feed's start time. The chart's dense `···` line averages
