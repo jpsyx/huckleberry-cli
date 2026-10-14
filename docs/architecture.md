@@ -184,14 +184,23 @@ right gate for opening it at all.
 
 `summary.rs` owns only the standalone terminal and hosted input loops. The permanent
 shell Summary panel calls the same renderer directly. All draw
-`render::summary::view::View`, whose state handles column cycling and vertical
-scrolling without I/O. Its horizontal viewport retains its first column until the
+`render::summary::view::View`, whose state handles cell selection, column cycling, vertical
+scrolling, and modal navigation without I/O. Its horizontal viewport retains its first column until the
 selection crosses an edge. The shared column catalog supplies headings, table cells,
 and graph values; `render::summary::chart` returns separated daily bars and a
 dotted seven-complete-day average. The shell retains the shared view state across
 focus changes and refreshes. Drawing takes mutable app state to update the
 Summary viewport after resizing. Redirected output and JSON bypass the
 input loop.
+
+`domain::cumulative` builds exact event steps and timed segments from the raw
+reading, independently of rolling-total mode. It samples the prior seven fully
+covered family days every 15 minutes and interpolates only their mean with a
+monotone cubic. The column catalog maps each table metric to an additive quantity
+and display scale. `render::summary::comparison` returns bounded ASCII graph
+lines with axes, legends, and event markers. Shell and standalone hosts draw
+those same lines in an opaque modal; `summary --curve` prints them for scripts.
+Read coverage is explicit, independent of the table's requested row count.
 
 `domain::summaries::sleep` owns interval merging, precise family-day/night
 intersections, completed sleep/nap averages, and waking gaps. Paused sleep endpoints
@@ -203,7 +212,11 @@ starting at the oldest complete family day, then builds those complete rows plus
 today. The API filters sleep by start time, so the summary sleep read includes
 all earlier starts and retains only intervals ending on or after the window
 start. This avoids an arbitrary maximum sleep length, at the cost of reading
-more sleep history. Other commands retain their own window semantics. Offline
+more sleep history. Cumulative nursing also needs sessions that began before
+the read boundary and continue into it. Summary and the shell read earlier feed
+starts too, retaining only overlapping nursing and feeds starting inside the
+window; this can read more feed history. Ordinary rolling-window reads retain
+their bounded feed query. Other commands retain their own window semantics. Offline
 summary rows outside the snapshot's coverage are marked partial and excluded
 from averages. Feeding splits follow
 start times and the same day rule.
@@ -212,7 +225,7 @@ After a shell command, the current day rule is reapplied to retained readings
 before the background fetch begins, so even a failed fetch cannot preserve old
 hours. Views calculate from raw history and the current rule. The permanent Summary
 panel shares the shell's reading, which now uses Summary's explicit complete-day
-history window and carry-in sleep coverage. It retains the actual coverage of the
+history window and carry-in sleep/nursing coverage. It retains the actual coverage of the
 successful read when settings change or a subsequent read fails. Standalone Summary
 continues to open a fresh context. Both honor finite offline snapshot coverage.
 

@@ -113,13 +113,20 @@ open an entry from; piped, it is the same rows as plain text. See
 `summary` uses Tab/Shift-Tab or left/right (H/L, A/D) to move between numeric
 columns, stopping at both ends without leaving the view. `g` selects the first
 numeric column and `G` the last. Home/End scroll to the top/bottom of rows and notes.
-Up/down (J/K, W/S) scroll rows and explanatory notes; Esc or Q leaves. The day
+Up/down (J/K, W/S) select daily cells; Enter opens the cumulative comparison.
+Escape closes the comparison while preserving selection, or leaves the table.
+Paging and movement beyond the last row reach explanatory notes. The day
 column stays visible and the selected metric's bar chart stays below the
 table. Horizontal scrolling happens only when selection crosses a visible edge.
 The dotted line marks the previous seven complete days' average, excluding today
 and missing values. The shell keeps the same view open in its permanent right-hand Summary panel.
 Summary defaults to seven complete family days plus today (eight rows); `--days N`
-means N complete days plus today.
+means N complete days plus today. Comparisons still load the preceding seven
+complete days even when fewer table rows are shown. `h summary --curve today
+--column 2` prints the same cumulative milk graph without interactive input.
+`--curve` accepts today, yesterday, or YYYY-MM-DD; `--column` is 1-based and
+starts with feeds. The title names the cumulative quantity when the chosen
+column is an average or percentage. `--curve` conflicts with `--json`.
 
 Summary JSON includes `day_milk_ml`, `night_milk_ml`, `day_milk_percent`, `day_nursing_seconds`,
 `night_nursing_seconds`, `night_sleep_percent`, `night_naps`, `day_naps`, `average_sleep_seconds`,

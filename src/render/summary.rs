@@ -15,6 +15,7 @@ use super::format;
 
 mod chart;
 pub mod columns;
+pub mod comparison;
 pub mod view;
 
 use columns::{

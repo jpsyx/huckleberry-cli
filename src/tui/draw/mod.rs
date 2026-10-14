@@ -93,6 +93,7 @@ pub fn draw_with(frame: &mut Frame, app: &mut App, job: Option<&crate::tui::job:
         facts,
     );
     frame.render_widget(footer(app, job.is_some()), areas[2]);
+    summary::draw_modal(frame, app, at);
     if let Some(version) = &app.version {
         version::draw(frame, version);
     }
@@ -277,8 +278,10 @@ fn footer(app: &App, running: bool) -> Paragraph<'static> {
         )),
         None => spans.push(Span::raw(" ")),
     }
-    let hints = if app.focus == Panel::Summary {
-        "←→ h/l a/d columns · H/L visible ends · ↑↓ j/k w/s scroll · Esc home · r refresh · q quit"
+    let hints = if app.summary.state.is_comparing {
+        "Esc/Enter close · Ctrl-Q quit"
+    } else if app.focus == Panel::Summary {
+        "←→ h/l a/d columns · H/L visible ends · ↑↓ j/k w/s cell · Enter graph · Esc home · r refresh · q quit"
     } else if running {
         FLOW_HINTS
     } else if app.dashboard.is_some() {

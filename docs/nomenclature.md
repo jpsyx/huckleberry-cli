@@ -13,6 +13,7 @@ grows two implementations.
 | **the shell** | The full-screen app `h` opens with no command, and keeps open. `src/tui/`. Not the dashboard. |
 | **the dashboard** | Five tabs over the same data. `src/dashboard/`. It is both a program of its own (`h dash`) and a view inside the shell; say which when it could be either. |
 | **a one-shot command** | A command that prints and exits, such as `h now`. Summary and log are browsable on a terminal and print when piped. |
+| **the Cumulative comparison modal** | The graph opened with Enter on a Summary cell: exact Today and selected-day histories against the smooth previous-seven-day mean. |
 | **the Summary view** | The browsable day table and selected-column bar chart, in the shell or through `h summary`. |
 | **a listing** | The searchable, scrollable list behind `h log`, `h edit` and `h delete`. `src/listing/`. |
 

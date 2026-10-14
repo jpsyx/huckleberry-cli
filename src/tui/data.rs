@@ -44,13 +44,17 @@ pub async fn read(
     let client: Huckleberry = context.client()?;
     let cid = child_without_asking(&context, &client).await?;
     let at = now_seconds();
-    let start =
-        crate::domain::summaries::history_start(&context.calendar()?, rule, at, context.days(None));
+    let start = crate::domain::summaries::history_start(
+        &context.calendar()?,
+        rule,
+        at,
+        context.days(None).max(7),
+    );
     let mut dataset = crate::dataset::pull_window(
         &client,
         &cid,
         None,
-        context.days(None),
+        context.days(None).max(7),
         &context.config.timezone,
         huckleberry_api::Window::new(start as i64, at as i64),
     )

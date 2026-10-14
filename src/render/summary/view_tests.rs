@@ -4,6 +4,7 @@ use crate::domain::{
     summaries,
     today::DayRule,
 };
+use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 
 fn press(state: &mut State, code: KeyCode) -> bool {
     state.apply(KeyEvent::new(code, KeyModifiers::NONE))
@@ -20,6 +21,7 @@ fn feed_header_delimiters_follow_visible_subcategory_boundaries() {
         calendar: &calendar,
         units: Units::Oz,
         now: AFTERNOON,
+        coverage: (AFTERNOON - 30.0 * 86400.0, AFTERNOON),
     };
     for (range, expected) in [
         (0..12, vec![12, 22, 130]),
@@ -134,6 +136,7 @@ fn every_column_stays_visible_with_day_and_the_correct_graph_when_narrow() {
         calendar: &calendar,
         units: Units::Ml,
         now: AFTERNOON,
+        coverage: (AFTERNOON - 30.0 * 86400.0, AFTERNOON),
     };
     // The fixed day and bracketed "avg night wake window" need 36 cells.
     for size in [(36, 14), (40, 14), (80, 24), (120, 35), (240, 35)] {
@@ -187,6 +190,7 @@ fn narrow_wake_columns_keep_complete_values_and_bracketed_headings() {
             calendar: &calendar,
             units: Units::Ml,
             now: AFTERNOON,
+            coverage: (AFTERNOON - 30.0 * 86400.0, AFTERNOON),
         };
         for (heading, shortened) in [
             ("avg night wake window", "[avg night wake w…]"),
@@ -200,7 +204,11 @@ fn narrow_wake_columns_keep_complete_values_and_bracketed_headings() {
                 ..State::default()
             };
             let lines = view.lines(&mut state, (32, 14), Theme::dark(false));
-            assert!(lines[4].ends_with(expected_value), "{}", lines[4]);
+            assert!(
+                lines[4].ends_with(&format!("[{expected_value}]")),
+                "{}",
+                lines[4]
+            );
             assert!(lines[3].ends_with(shortened), "{}", lines[3]);
             assert_eq!(lines[3].chars().count(), 32);
             assert_eq!(lines[4].chars().count(), 32);
@@ -220,6 +228,7 @@ fn scrolling_reaches_night_hours_and_keeps_the_graph_and_keys() {
         calendar: &calendar,
         units: Units::Ml,
         now: AFTERNOON,
+        coverage: (AFTERNOON - 30.0 * 86400.0, AFTERNOON),
     };
     let mut state = State::default();
     let mut seen = String::new();
@@ -281,6 +290,7 @@ fn a_nine_line_shell_panel_keeps_one_data_row_and_a_graph_visible() {
         calendar: &calendar,
         units: Units::Ml,
         now: AFTERNOON,
+        coverage: (AFTERNOON - 30.0 * 86400.0, AFTERNOON),
     };
     let lines = view.lines(&mut State::default(), (80, 9), Theme::dark(false));
     let drawn = lines.join("\n");
@@ -311,6 +321,7 @@ fn chart_fills_the_space_after_the_table_and_notes_when_the_panel_grows() {
             calendar: &calendar,
             units: Units::Ml,
             now: AFTERNOON,
+            coverage: (AFTERNOON - 30.0 * 86400.0, AFTERNOON),
         };
         let mut plot_heights = Vec::new();
         for height in [40, 60] {
@@ -339,7 +350,7 @@ fn chart_fills_the_space_after_the_table_and_notes_when_the_panel_grows() {
                 "Tab/S-Tab",
                 "g/G first/last",
                 "Esc/q back",
-                "scroll rows & notes",
+                "Enter graph",
                 "1/1",
             ] {
                 assert!(navigation.contains(hint), "{navigation}");
@@ -366,6 +377,7 @@ fn reversing_inside_the_visible_columns_keeps_the_window_in_place() {
         calendar: &calendar,
         units: Units::Ml,
         now: AFTERNOON,
+        coverage: (AFTERNOON - 30.0 * 86400.0, AFTERNOON),
     };
     let mut state = State::default();
     for _ in 0..8 {
@@ -379,7 +391,16 @@ fn reversing_inside_the_visible_columns_keeps_the_window_in_place() {
         before[1], after[1],
         "reversing within the window must not scroll"
     );
-    assert_eq!(before[4], after[4]);
+    assert_eq!(
+        before[4]
+            .replace(['[', ']'], "")
+            .split_whitespace()
+            .collect::<Vec<_>>(),
+        after[4]
+            .replace(['[', ']'], "")
+            .split_whitespace()
+            .collect::<Vec<_>>()
+    );
 }
 
 #[test]
@@ -417,6 +438,7 @@ fn age_stays_in_the_header_and_freshness_stays_at_the_bottom_when_scrolling() {
         calendar: &calendar,
         units: Units::Ml,
         now: AFTERNOON,
+        coverage: (AFTERNOON - 30.0 * 86400.0, AFTERNOON),
     };
     for size in [(32, 9), (80, 9), (80, 14), (120, 35)] {
         let mut state = State::default();
@@ -469,6 +491,7 @@ fn unknown_age_is_omitted_from_the_summary_header() {
         calendar: &calendar,
         units: Units::Ml,
         now: AFTERNOON,
+        coverage: (AFTERNOON - 30.0 * 86400.0, AFTERNOON),
     };
     let lines = view.lines(&mut State::default(), (100, 24), Theme::dark(false));
     assert!(lines[0].contains("Summary · Bear · column 1/31"));
@@ -486,6 +509,7 @@ fn a_panel_too_short_for_any_data_asks_for_more_space() {
         calendar: &calendar,
         units: Units::Ml,
         now: AFTERNOON,
+        coverage: (AFTERNOON - 30.0 * 86400.0, AFTERNOON),
     };
     let lines = view.lines(&mut State::default(), (80, 5), Theme::dark(false));
     assert_eq!(lines.len(), 5);
@@ -506,6 +530,7 @@ fn visible_edge_shortcuts_keep_the_rendered_window_and_vertical_scroll() {
             calendar: &calendar,
             units: Units::Ml,
             now: AFTERNOON,
+            coverage: (AFTERNOON - 30.0 * 86400.0, AFTERNOON),
         };
         let mut state = State {
             selected: 12,
@@ -542,7 +567,16 @@ fn assert_visible_edge(
         assert_eq!(state.selected, expected, "{key:?}, width {width}");
         let after = view.lines(state, (width, 24), Theme::dark(false));
         assert_eq!(before[1..3], after[1..3]);
-        assert_eq!(before[4], after[4]);
+        assert_eq!(
+            before[4]
+                .replace(['[', ']'], "")
+                .split_whitespace()
+                .collect::<Vec<_>>(),
+            after[4]
+                .replace(['[', ']'], "")
+                .split_whitespace()
+                .collect::<Vec<_>>()
+        );
     }
 }
 
@@ -569,4 +603,92 @@ fn visible_edge_keys(range: Range<usize>) -> Vec<(KeyEvent, usize)> {
         ),
     ]);
     keys
+}
+
+#[test]
+fn row_navigation_highlights_one_cell_and_enter_opens_comparison() {
+    let calendar = Calendar::new("America/New_York").unwrap();
+    let mut data = dataset();
+    data.feeds = vec![
+        bottle(AFTERNOON - 3600.0, 90.0),
+        bottle(AFTERNOON - 86400.0, 120.0),
+    ];
+    let rows = summaries::build(&data, &calendar, DayRule::default(), AFTERNOON, 3);
+    let view = View {
+        is_hosted: false,
+        rows: &rows,
+        dataset: &data,
+        calendar: &calendar,
+        units: Units::Ml,
+        now: AFTERNOON,
+        coverage: (AFTERNOON - 30.0 * 86400.0, AFTERNOON),
+    };
+    for (down, up) in [
+        (KeyCode::Down, KeyCode::Up),
+        (KeyCode::Char('s'), KeyCode::Char('w')),
+        (KeyCode::Char('j'), KeyCode::Char('k')),
+    ] {
+        let mut state = State {
+            selected: 1,
+            ..State::default()
+        };
+        let draw = |state: &mut State| view.lines(state, (100, 24), Theme::dark(false)).join("\n");
+        assert!(draw(&mut state).contains("[90]"));
+        press(&mut state, down);
+        let drawn = draw(&mut state);
+        assert!(drawn.contains("[120]"), "{drawn}");
+        assert!(
+            !drawn.contains("[90]"),
+            "only the selected cell is bracketed"
+        );
+        assert!(
+            !drawn.contains("Cumulative"),
+            "selection alone does not open a graph"
+        );
+        press(&mut state, KeyCode::Enter);
+        let drawn = draw(&mut state);
+        assert!(drawn.contains("Cumulative"), "{drawn}");
+        assert!(drawn.contains("2025-09-21"), "{drawn}");
+        assert!(
+            !press(&mut state, KeyCode::Esc),
+            "Escape closes only the comparison"
+        );
+        assert!(draw(&mut state).contains("[120]"));
+        press(&mut state, up);
+        assert!(draw(&mut state).contains("[90]"));
+    }
+}
+
+#[test]
+fn shrinking_the_panel_keeps_the_selected_daily_cell_visible() {
+    let calendar = Calendar::new("America/New_York").unwrap();
+    let data = dataset();
+    let rows = summaries::build(&data, &calendar, DayRule::default(), AFTERNOON, 30);
+    let view = View {
+        is_hosted: true,
+        rows: &rows,
+        dataset: &data,
+        calendar: &calendar,
+        units: Units::Ml,
+        now: AFTERNOON,
+        coverage: (AFTERNOON - 30.0 * 86400.0, AFTERNOON),
+    };
+    let mut state = State::default();
+    let _ = view.lines(&mut state, (100, 60), Theme::dark(false));
+    for _ in 0..10 {
+        press(&mut state, KeyCode::Down);
+    }
+    let drawn = view
+        .lines(&mut state, (100, 10), Theme::dark(false))
+        .join("\n");
+    assert!(
+        drawn.contains(&super::super::day_label(&rows[10])),
+        "{drawn}"
+    );
+    assert!(
+        drawn
+            .lines()
+            .any(|line| line.contains(&super::super::day_label(&rows[10])) && line.contains("[—]")),
+        "{drawn}"
+    );
 }

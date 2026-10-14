@@ -26,7 +26,7 @@ pub fn route_with_draft(
         },
         Input::Pasted(_) => false,
     };
-    if should_discard {
+    if should_discard && !app.summary.state.is_comparing {
         *suspended = None;
     }
     route(app, job, input, height, now)
@@ -43,6 +43,10 @@ pub fn route(
     if let Input::Key(key) = &input {
         if forces_quit(*key) {
             return Intent::Quit;
+        }
+        if app.summary.state.is_comparing {
+            app.summary.state.apply(*key);
+            return Intent::Stay;
         }
         let motion = motion_for(*key);
         if app.version.is_some() || matches!(motion, Motion::FocusMenu | Motion::FocusSummary) {
@@ -204,5 +208,39 @@ mod tests {
         press(&mut app, KeyCode::Esc, KeyModifiers::NONE);
         assert_eq!(app.focus, Panel::Menu);
         assert_eq!(app.breadcrumb(), "Home");
+    }
+}
+
+#[cfg(test)]
+mod comparison_tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    #[test]
+    fn comparison_captures_focus_and_escape_without_discarding_navigation() {
+        let mut app = App::new();
+        app.focus = Panel::Summary;
+        app.summary.state.is_comparing = true;
+        app.summary.state.selected = 2;
+        let key = |code, modifiers| Input::Key(KeyEvent::new(code, modifiers));
+        route(
+            &mut app,
+            None,
+            key(KeyCode::Left, KeyModifiers::ALT),
+            20,
+            0.0,
+        );
+        assert_eq!(app.focus, Panel::Summary);
+        assert!(app.summary.state.is_comparing);
+        route(
+            &mut app,
+            None,
+            key(KeyCode::Esc, KeyModifiers::NONE),
+            20,
+            0.0,
+        );
+        assert!(!app.summary.state.is_comparing);
+        assert_eq!(app.focus, Panel::Summary);
+        assert_eq!(app.summary.state.selected, 2);
     }
 }

@@ -197,6 +197,7 @@ fn summary() -> anyhow::Result<()> {
             calendar: &app::domain::Calendar::new("UTC")?,
             units: app::cli::Units::Ml,
             now: 10000.0,
+            coverage: (0.0, 10000.0),
         },
         THEME,
     )

@@ -267,8 +267,10 @@ no average line. Shorter requested windows use the available complete days.
 Short panels omit the legend, keeping the quantity beside the line.
 If the window cannot fit separated bars, the
 chart asks for a wider panel or fewer days instead of merging days together.
-Up/down, J/K, W/S, PageUp/PageDown, and Home/End scroll the rows and notes while
-the graph stays visible. The header includes the child's age when known, between
+Up/down, J/K, and W/S select daily rows without changing the column. The selected
+cell has brackets; moving it does not open anything. The viewport follows the
+cell. Moving below the last day, PageUp/PageDown, and Home/End also reach the
+notes while the bar chart stays visible. The header includes the child's age when known, between
 the name and selected-column position. A single navigation line combines column
 controls, scrolling and scroll position, independent of scrolling. It occupies
 the bottom line inside the shell; standalone Summary keeps freshness below it.
@@ -281,12 +283,65 @@ Q quits the shell. Alt+Right/L/D focuses Summary. Standalone Esc or Q closes
 Summary. Piped output stays a plain table;
 `--json` always prints numeric data and never opens an interactive screen.
 
+### Cumulative comparison
+
+Enter or Space on a daily cell opens the **Cumulative comparison modal**.
+Escape, Enter, Backspace, Left/H/A, or Q closes it and restores the cell. Ctrl-Q
+still quits the shell. The modal captures focus keys and leaves command drafts
+intact. It uses the whole available terminal over the retained panels.
+
+The plot always uses discrete family days, from `day_start` to the next
+`day_start` (night end), regardless of `day_mode`. Today stops at the available
+observation time; it is never projected into the future. Selecting another day
+adds that date's curve. The historical curve remains the pointwise average of
+recorded, fully covered days in the seven family days preceding **today**.
+Today is excluded, missing days are not replaced with older ones, and an
+incomplete denominator is labeled `N/7`. No usable history means no average.
+
+Individual curves use exact steps for counts and measured volumes, and exact
+straight segments during timed activity. Their event times are retained, even
+between quarter hours. Only the average is sampled every 15 minutes and joined
+with a monotone cubic curve; it cannot dip below zero or overshoot adjacent
+samples. Individual events have `x` markers; sleep ends have `o` markers.
+A live or paused sleep has no invented end marker. Colors and line patterns
+identify Today, the selected date, and the average independently.
+
+The graph title names the additive quantity and units. Milk/feed opens total
+milk; daytime milk percentage opens daytime milk; nurse/feed opens nursing
+duration. Sleep averages and longest sleep open total sleep for the corresponding
+period, and night-sleep percentage opens night sleep duration. Wake averages and
+longest wake open cumulative wake duration. Counts retain their metric and
+period. No clinical reference bands are added.
+
+Timed activity is clipped to the plotted day and day/night boundaries. This
+means nursing in this graph follows elapsed time across a boundary, while the
+table attributes a completed nursing session's full duration to its start.
+Overlapping sleep is counted once. Wake duration estimates the complement of
+recorded sleep and is unavailable when a paused timer has an unknown endpoint.
+Missing bottle amounts are not converted to measured zero.
+
+Across daylight-saving transitions the axis uses actual elapsed hours from
+family-day start. Individual endpoints retain their actual 23/24/25-hour length.
+The mean stops at the shortest contributing day's endpoint to avoid extrapolation
+or a changing denominator. The axis explains elapsed time when clock ticks
+would be ambiguous.
+
+`h summary --curve today --column 2` prints the same comparison as a plain
+100-by-28 chart. `--curve` accepts `today`, `yesterday`, or `YYYY-MM-DD`;
+`--column` is the numeric table column, starting at 1 (feeds), and defaults to 1.
+Future dates are rejected. `--json` remains the daily table API and conflicts
+with `--curve`.
+
 Each row covers `day_start` to the next `day_start` in the family's timezone.
 The default is today plus seven complete family days: eight rows and eight bar
 slots. `--days N` selects N complete days plus today. The live read starts at the
 oldest requested day's beginning, including across daylight saving changes.
+Interactive comparisons always fetch at least the preceding seven complete days,
+even when fewer table rows are requested.
 Sleep reads also retain records beginning earlier but ending on or after that
 boundary, so overnight carry-over and the first waking gap remain available.
+Feed reads retain earlier nursing sessions that continue past the boundary,
+so the oldest cumulative nursing day does not lose its initial minutes.
 Rows marked `~` are partial: today, or days not fully covered by an offline
 snapshot's recorded read window. Older snapshots may lack the new eighth day's
 first hours; those rows remain visible but never enter averages. Export nine

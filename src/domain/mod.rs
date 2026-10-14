@@ -20,6 +20,7 @@
 //! | [`log`] | one merged, newest-first stream of everything |
 
 pub mod clock;
+pub mod cumulative;
 #[cfg(test)]
 pub(crate) mod fixtures;
 pub mod log;

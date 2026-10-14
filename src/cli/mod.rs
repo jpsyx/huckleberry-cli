@@ -157,6 +157,14 @@ pub enum Command {
 
     /// One row per day: feeds, milk, sleep and diapers.
     Summary {
+        /// Print a cumulative comparison for today, yesterday, or YYYY-MM-DD.
+        #[arg(long, value_name = "DAY", conflicts_with = "json")]
+        curve: Option<String>,
+
+        /// Numeric Summary column (1-based; defaults to feeds). Requires --curve.
+        #[arg(long, value_name = "NUMBER", requires = "curve", value_parser = clap::value_parser!(u8).range(1..=31))]
+        column: Option<u8>,
+
         /// Complete family days to summarize, plus today (default: configured days, normally 7).
         #[arg(short, long, value_name = "DAYS")]
         days: Option<u32>,
@@ -529,5 +537,21 @@ mod tests {
             cli.offline.as_deref(),
             Some(std::path::Path::new("/tmp/s.json"))
         );
+    }
+}
+
+#[cfg(test)]
+mod summary_curve_tests {
+    use super::*;
+
+    #[test]
+    fn cumulative_comparison_is_scriptable_with_date_and_column() {
+        assert!(Cli::try_parse_from(["h", "summary", "--curve", "today", "--column", "2"]).is_ok());
+        assert!(Cli::try_parse_from(["h", "summary", "--curve", "2025-09-21"]).is_ok());
+        assert!(Cli::try_parse_from(["h", "summary", "--column", "2"]).is_err());
+        assert!(
+            Cli::try_parse_from(["h", "summary", "--curve", "today", "--column", "0"]).is_err()
+        );
+        assert!(Cli::try_parse_from(["h", "summary", "--curve", "today", "--json"]).is_err());
     }
 }

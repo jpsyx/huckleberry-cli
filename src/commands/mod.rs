@@ -74,7 +74,12 @@ pub(crate) async fn act(context: &Context, command: &Command) -> Result<()> {
         // a draw closure, and an unboxed one would make every other arm of
         // this match as large as the biggest.
         Command::Dash { days, refresh } => Box::pin(dash::run(context, *days, *refresh)).await,
-        Command::Summary { days, json } => views::summary(context, *days, *json).await,
+        Command::Summary {
+            days,
+            json,
+            curve,
+            column,
+        } => views::summary(context, *days, *json, curve.as_deref(), *column).await,
         Command::Trends { metric, days } => views::trends(context, *metric, *days).await,
         Command::Stripes { days } => views::stripes(context, *days).await,
         Command::Log {

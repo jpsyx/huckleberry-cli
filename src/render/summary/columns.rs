@@ -2,6 +2,7 @@
 
 use std::{fmt::Write as _, ops::Range};
 
+use crate::domain::cumulative::{Measure, Metric, Period};
 use crate::{cli::Units, domain::summaries::DaySummary, render::format};
 
 #[derive(Clone, Copy)]
@@ -19,6 +20,7 @@ pub struct Column {
     subgroup: &'static str,
     label: &'static str,
     kind: Kind,
+    measure: Measure,
     pick: fn(&DaySummary) -> Option<f64>,
 }
 
@@ -34,8 +36,59 @@ impl Column {
             subgroup: "",
             label,
             kind,
+            measure: Measure {
+                metric: Metric::Feeds,
+                period: Period::All,
+            },
             pick,
         }
+    }
+
+    const fn for_curve(mut self, metric: Metric, period: Period) -> Self {
+        self.measure = Measure { metric, period };
+        self
+    }
+
+    /// The additive metric underlying this column's cumulative comparison.
+    #[must_use]
+    pub const fn measure(&self) -> Measure {
+        self.measure
+    }
+
+    /// Cumulative graph title and conversion from base units to display units.
+    #[must_use]
+    pub fn cumulative_label(&self, units: Units) -> (String, f64) {
+        let (label, unit, scale) = match self.measure.metric {
+            Metric::Milk | Metric::Formula | Metric::BreastMilk => {
+                let label = match self.measure.metric {
+                    Metric::Formula => "formula",
+                    Metric::BreastMilk => "breast milk",
+                    _ => "milk",
+                };
+                if units == Units::Oz {
+                    (
+                        label,
+                        "oz",
+                        1.0 / huckleberry_api::models::feed::MILLILITRES_PER_OUNCE,
+                    )
+                } else {
+                    (label, "ml", 1.0)
+                }
+            }
+            Metric::Nursing => ("nursing", "hours", 1.0 / 3600.0),
+            Metric::Sleep => ("sleep", "hours", 1.0 / 3600.0),
+            Metric::Wake => ("wake time", "hours", 1.0 / 3600.0),
+            Metric::Feeds => ("feeds", "count", 1.0),
+            Metric::Naps => ("naps", "count", 1.0),
+            Metric::Wet => ("wet diapers", "count", 1.0),
+            Metric::Dirty => ("dirty diapers", "count", 1.0),
+        };
+        let period = match self.measure.period {
+            Period::All => "",
+            Period::Day => "daytime ",
+            Period::Night => "night ",
+        };
+        (format!("{period}{label} ({unit})"), scale)
     }
 
     const fn in_subgroup(mut self, subgroup: &'static str) -> Self {
@@ -117,24 +170,30 @@ fn recorded(value: f64) -> Option<f64> {
 pub const COLUMNS: &[Column] = &[
     Column::new("feed", "feeds", Kind::Count, |row| {
         recorded(row.feed_count as f64)
-    }),
+    })
+    .for_curve(Metric::Feeds, Period::All),
     Column::new("feed", "milk", Kind::Volume, |row| recorded(row.total_ml))
+        .for_curve(Metric::Milk, Period::All)
         .in_subgroup("bottle feed"),
     Column::new("feed", "formula", Kind::Volume, |row| {
         recorded(row.formula_ml)
     })
+    .for_curve(Metric::Formula, Period::All)
     .in_subgroup("bottle feed"),
     Column::new("feed", "breast", Kind::Volume, |row| {
         recorded(row.breast_milk_ml)
     })
+    .for_curve(Metric::BreastMilk, Period::All)
     .in_subgroup("bottle feed"),
     Column::new("feed", "daytime milk", Kind::Volume, |row| {
         recorded(row.day_milk_ml)
     })
+    .for_curve(Metric::Milk, Period::Day)
     .in_subgroup("bottle feed"),
     Column::new("feed", "night milk", Kind::Volume, |row| {
         recorded(row.night_milk_ml)
     })
+    .for_curve(Metric::Milk, Period::Night)
     .in_subgroup("bottle feed"),
     Column::new(
         "feed",
@@ -142,6 +201,7 @@ pub const COLUMNS: &[Column] = &[
         Kind::Volume,
         DaySummary::average_milk_ml,
     )
+    .for_curve(Metric::Milk, Period::All)
     .in_subgroup("bottle feed"),
     Column::new(
         "feed",
@@ -149,18 +209,22 @@ pub const COLUMNS: &[Column] = &[
         Kind::Percentage,
         DaySummary::day_milk_percent,
     )
+    .for_curve(Metric::Milk, Period::Day)
     .in_subgroup("bottle feed"),
     Column::new("feed", "nursed", Kind::Duration, |row| {
         recorded(row.nursing_seconds)
     })
+    .for_curve(Metric::Nursing, Period::All)
     .in_subgroup("nursed"),
     Column::new("feed", "daytime nursed", Kind::Duration, |row| {
         recorded(row.day_nursing_seconds)
     })
+    .for_curve(Metric::Nursing, Period::Day)
     .in_subgroup("nursed"),
     Column::new("feed", "night nursed", Kind::Duration, |row| {
         recorded(row.night_nursing_seconds)
     })
+    .for_curve(Metric::Nursing, Period::Night)
     .in_subgroup("nursed"),
     Column::new(
         "feed",
@@ -168,67 +232,87 @@ pub const COLUMNS: &[Column] = &[
         Kind::Duration,
         DaySummary::average_nursing_seconds,
     )
+    .for_curve(Metric::Nursing, Period::All)
     .in_subgroup("nursed"),
     Column::new("sleep", "sleep", Kind::Duration, |row| {
         recorded(row.sleep_seconds)
-    }),
+    })
+    .for_curve(Metric::Sleep, Period::All),
     Column::new("sleep", "night*", Kind::Duration, |row| {
         recorded(row.night_sleep_seconds)
-    }),
+    })
+    .for_curve(Metric::Sleep, Period::Night),
     Column::new("sleep", "% night slept", Kind::Percentage, |row| {
         row.night_sleep_percent
-    }),
+    })
+    .for_curve(Metric::Sleep, Period::Night),
     Column::new("sleep", "night naps", Kind::Count, |row| {
         recorded(row.night_nap_count as f64)
-    }),
+    })
+    .for_curve(Metric::Naps, Period::Night),
     Column::new("sleep", "day", Kind::Duration, |row| {
         recorded(row.day_sleep_seconds)
-    }),
+    })
+    .for_curve(Metric::Sleep, Period::Day),
     Column::new("sleep", "day naps", Kind::Count, |row| {
         recorded(row.day_nap_count as f64)
-    }),
+    })
+    .for_curve(Metric::Naps, Period::Day),
     Column::new("sleep", "longest", Kind::Duration, |row| {
         recorded(row.longest_sleep_seconds)
-    }),
+    })
+    .for_curve(Metric::Sleep, Period::All),
     Column::new("sleep", "avg naps", Kind::Duration, |row| {
         row.average_sleep_seconds
-    }),
+    })
+    .for_curve(Metric::Sleep, Period::All),
     Column::new("sleep", "avg night nap", Kind::Duration, |row| {
         row.average_night_sleep_seconds
-    }),
+    })
+    .for_curve(Metric::Sleep, Period::Night),
     Column::new("sleep", "avg day nap", Kind::Duration, |row| {
         row.average_nap_seconds
-    }),
+    })
+    .for_curve(Metric::Sleep, Period::Day),
     Column::new("wake time", "wake time", Kind::Duration, |row| {
         row.wake_seconds
-    }),
+    })
+    .for_curve(Metric::Wake, Period::All),
     Column::new("wake time", "night wake*", Kind::Duration, |row| {
         row.night_wake_seconds
-    }),
+    })
+    .for_curve(Metric::Wake, Period::Night),
     Column::new("wake time", "day wake", Kind::Duration, |row| {
         row.day_wake_seconds
-    }),
+    })
+    .for_curve(Metric::Wake, Period::Day),
     Column::new("wake time", "avg wake window", Kind::Duration, |row| {
         row.average_wake_seconds
-    }),
+    })
+    .for_curve(Metric::Wake, Period::All),
     Column::new(
         "wake time",
         "avg night wake window",
         Kind::Duration,
         |row| row.average_night_wake_seconds,
-    ),
+    )
+    .for_curve(Metric::Wake, Period::Night),
     Column::new("wake time", "avg day wake window", Kind::Duration, |row| {
         row.average_day_wake_seconds
-    }),
+    })
+    .for_curve(Metric::Wake, Period::Day),
     Column::new("wake time", "longest", Kind::Duration, |row| {
         row.longest_wake_seconds
-    }),
+    })
+    .for_curve(Metric::Wake, Period::All),
     Column::new("diaper", "wet", Kind::Count, |row| {
         recorded(row.wet_count as f64)
-    }),
+    })
+    .for_curve(Metric::Wet, Period::All),
     Column::new("diaper", "dirty", Kind::Count, |row| {
         recorded(row.dirty_count as f64)
-    }),
+    })
+    .for_curve(Metric::Dirty, Period::All),
 ];
 
 /// Leaf headings for the selected visible range.

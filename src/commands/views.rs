@@ -41,41 +41,85 @@ pub async fn now(context: &Context, json: bool) -> Result<()> {
     Ok(())
 }
 
-/// The day table.
-pub async fn summary(context: &Context, days: Option<u32>, json: bool) -> Result<()> {
+/// The day table and its cumulative comparison, with one shared read.
+pub async fn summary(
+    context: &Context,
+    days: Option<u32>,
+    json: bool,
+    curve: Option<&str>,
+    column: Option<u8>,
+) -> Result<()> {
     let at = now_seconds();
     let complete_days = context.days(days);
-    let rule = context.config.day_rule();
-    let start = summaries::history_start(&context.calendar()?, rule, at, complete_days);
+    let start = summary_start(context, complete_days, curve, at)?;
     let window = huckleberry_api::Window::new(start as i64, at as i64);
     let (dataset, calendar) = Box::pin(super::load_window(context, days, Some(window))).await?;
     let rows = summary_rows(context, &dataset, &calendar, at, complete_days);
+    let selected_day = curve
+        .map(|day| crate::summary::parse_day(day, &calendar, context.config.day_rule(), at))
+        .transpose()?;
+    let coverage = if context.offline.is_some() {
+        (
+            dataset.fetched_at - dataset.days as f64 * 86400.0,
+            dataset.fetched_at,
+        )
+    } else {
+        (start, at)
+    };
+    let view = render::summary::view::View {
+        rows: &rows,
+        dataset: &dataset,
+        calendar: &calendar,
+        units: units(context),
+        now: at,
+        is_hosted: crate::prompt::host::hosted(),
+        coverage,
+    };
+    present_summary(&view, context.output_theme(), selected_day, column, json)
+}
 
-    if json {
-        crate::render::print(&[serde_json::to_string_pretty(&rows_as_json(&rows))?]);
-        return Ok(());
+/// Offline dates are resolved only after loading the snapshot's effective calendar.
+fn summary_start(context: &Context, days: u32, curve: Option<&str>, at: f64) -> Result<f64> {
+    if context.offline.is_some() {
+        return Ok(0.0);
     }
-    if crate::summary::interactive() {
-        return crate::summary::show(
-            &render::summary::view::View {
-                rows: &rows,
-                dataset: &dataset,
-                calendar: &calendar,
-                units: units(context),
-                now: at,
-                is_hosted: crate::prompt::host::hosted(),
-            },
-            context.output_theme(),
-        );
+    let rule = context.config.day_rule();
+    let calendar = context.calendar()?;
+    let start = summaries::history_start(&calendar, rule, at, days.max(7));
+    curve.map_or(Ok(start), |day| {
+        let day = crate::summary::parse_day(day, &calendar, rule, at)?;
+        Ok(start.min(rule.day_bounds(&calendar, day).0))
+    })
+}
+
+fn present_summary(
+    view: &render::summary::view::View<'_>,
+    theme: crate::theme::Theme,
+    selected_day: Option<jiff::civil::Date>,
+    column: Option<u8>,
+    json: bool,
+) -> Result<()> {
+    if let Some(day) = selected_day {
+        render::print(&view.comparison_lines(
+            day,
+            usize::from(column.unwrap_or(1).saturating_sub(1)),
+            (100, 28),
+            theme,
+        ));
+    } else if json {
+        render::print(&[serde_json::to_string_pretty(&rows_as_json(view.rows))?]);
+    } else if crate::summary::interactive() {
+        return crate::summary::show(view, theme);
+    } else {
+        render::print(&render::summary::lines(
+            view.rows,
+            view.dataset,
+            view.calendar,
+            theme,
+            view.units,
+            view.now,
+        ));
     }
-    render::print(&render::summary::lines(
-        &rows,
-        &dataset,
-        &calendar,
-        context.output_theme(),
-        units(context),
-        at,
-    ));
     Ok(())
 }
 

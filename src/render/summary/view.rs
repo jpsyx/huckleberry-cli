@@ -2,8 +2,6 @@
 
 use std::ops::Range;
 
-use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-
 use crate::{
     cli::Units,
     domain::{Calendar, summaries::DaySummary, types::Dataset},
@@ -21,66 +19,8 @@ use super::{
 #[path = "view_tests.rs"]
 mod tests;
 
-/// Selection and vertical scroll, independent of terminal I/O.
-#[derive(Default)]
-pub struct State {
-    /// Index of the selected numeric column; the day column cannot be selected.
-    pub selected: usize,
-    scroll: usize,
-    first_column: usize,
-    last_column: usize,
-    limit: usize,
-    page: usize,
-}
-
-impl State {
-    /// Apply one key, returning true when the view should close.
-    pub fn apply(&mut self, key: KeyEvent) -> bool {
-        if key.kind == KeyEventKind::Release {
-            return false;
-        }
-        if key.modifiers.contains(KeyModifiers::CONTROL) {
-            return matches!(key.code, KeyCode::Char('c' | 'q'));
-        }
-        match key.code {
-            KeyCode::Esc | KeyCode::Backspace | KeyCode::Char('q' | 'Q') => return true,
-            KeyCode::Left if key.modifiers.contains(KeyModifiers::SHIFT) => {
-                self.selected = self.first_column;
-            }
-            KeyCode::Right if key.modifiers.contains(KeyModifiers::SHIFT) => {
-                self.selected = self.last_column;
-            }
-            KeyCode::Char('H' | 'A') => self.selected = self.first_column,
-            KeyCode::Char('L' | 'D') => self.selected = self.last_column,
-            KeyCode::BackTab | KeyCode::Left | KeyCode::Char('h' | 'a') => {
-                self.previous_column();
-            }
-            KeyCode::Tab if key.modifiers.contains(KeyModifiers::SHIFT) => self.previous_column(),
-            KeyCode::Tab | KeyCode::Right | KeyCode::Char('l' | 'd') => {
-                self.selected = (self.selected + 1).min(COLUMNS.len() - 1);
-            }
-            KeyCode::Down | KeyCode::Char('j' | 'J' | 's' | 'S') => {
-                self.scroll = self.scroll.saturating_add(1);
-            }
-            KeyCode::Up | KeyCode::Char('k' | 'K' | 'w' | 'W') => {
-                self.scroll = self.scroll.saturating_sub(1);
-            }
-            KeyCode::PageDown => self.scroll = self.scroll.saturating_add(self.page),
-            KeyCode::PageUp => self.scroll = self.scroll.saturating_sub(self.page),
-            KeyCode::Char('g' | '0') => self.selected = 0,
-            KeyCode::Char('G' | '$') => self.selected = COLUMNS.len() - 1,
-            KeyCode::Home => self.scroll = 0,
-            KeyCode::End => self.scroll = self.limit,
-            _ => {}
-        }
-        self.scroll = self.scroll.min(self.limit);
-        false
-    }
-
-    const fn previous_column(&mut self) {
-        self.selected = self.selected.saturating_sub(1);
-    }
-}
+mod state;
+pub use state::State;
 
 /// The data shown by either interactive host, with an explicit reading time.
 pub struct View<'a> {
@@ -96,19 +36,65 @@ pub struct View<'a> {
     pub units: Units,
     /// Time used to label the reading, never read inside a renderer.
     pub now: f64,
+    /// Actual read window; incomplete days are excluded from the comparison mean.
+    pub coverage: (f64, f64),
 }
 
 impl View<'_> {
+    /// Renders the same cumulative comparison for interactive and scripted callers.
+    #[must_use]
+    pub fn comparison_lines(
+        &self,
+        day: jiff::civil::Date,
+        column: usize,
+        size: (u16, u16),
+        theme: Theme,
+    ) -> Vec<String> {
+        let column = &COLUMNS[column.min(COLUMNS.len() - 1)];
+        let rule = crate::domain::today::DayRule::discrete(
+            self.dataset.child.morning_cutoff_hour,
+            self.dataset.child.night_start_hour,
+        );
+        let comparison = crate::domain::cumulative::build(&crate::domain::cumulative::Request {
+            dataset: self.dataset,
+            calendar: self.calendar,
+            rule,
+            now: self.now,
+            selected: day,
+            measure: column.measure(),
+            coverage: self.coverage,
+        });
+        let (title, scale) = column.cumulative_label(self.units);
+        super::comparison::lines(
+            &comparison,
+            &format!("Cumulative {title}"),
+            scale,
+            self.dataset.child.morning_cutoff_hour,
+            size,
+            theme,
+        )
+    }
+
     /// A frame that fits its host. The day stays visible while numeric columns move.
     #[must_use]
     pub fn lines(&self, state: &mut State, size: (u16, u16), theme: Theme) -> Vec<String> {
+        if state.is_comparing
+            && let Some(row) = self.rows.get(state.selected_row)
+        {
+            return self.comparison_lines(row.day, state.selected, size, theme);
+        }
+        self.table_lines(state, size, theme)
+    }
+
+    /// Draws the retained table behind the comparison overlay.
+    #[must_use]
+    pub fn table_lines(&self, state: &mut State, size: (u16, u16), theme: Theme) -> Vec<String> {
+        state.row_count = self.rows.len();
+        state.selected_row = state.selected_row.min(state.row_count.saturating_sub(1));
         let width = usize::from(size.0);
         let height = usize::from(size.1);
         if height < 6 {
-            let mut lines = vec!["Enlarge the panel".to_owned(), "Esc/q back".to_owned()];
-            lines.truncate(height);
-            lines.resize(height, String::new());
-            return lines.into_iter().map(|line| clip(&line, width)).collect();
+            return small_panel(size);
         }
         let range = visible_columns(state.first_column, state.selected, self.units, width);
         state.first_column = range.start;
@@ -123,12 +109,10 @@ impl View<'_> {
         let minimum_chart_height = (size.1 / 3)
             .clamp(4, 9)
             .min(content_height.saturating_sub(1));
-        let body = self.body(range.clone(), state.selected, width, theme);
+        let body = self.body(range.clone(), state, width, theme);
         let body_height = usize::from(content_height - minimum_chart_height).min(body.len());
         let chart_height = content_height - body_height as u16;
-        state.page = body_height.max(1);
-        state.limit = body.len().saturating_sub(body_height);
-        state.scroll = state.scroll.min(state.limit);
+        state.fit_rows(body.len(), body_height);
         let mut lines = self.head(range, state.selected, width, theme);
         if head_height == 3 {
             lines.remove(0);
@@ -191,18 +175,22 @@ impl View<'_> {
         ]
     }
 
-    fn body(
-        &self,
-        range: Range<usize>,
-        selected: usize,
-        width: usize,
-        theme: Theme,
-    ) -> Vec<String> {
+    fn body(&self, range: Range<usize>, state: &State, width: usize, theme: Theme) -> Vec<String> {
+        let selected = state.selected;
         let mut lines: Vec<_> = self
             .rows
             .iter()
-            .map(|row| {
+            .enumerate()
+            .map(|(row_index, row)| {
                 let mut cells = data_cells(row, self.units, range.clone());
+                if let Some(cell) = cells.get_mut(selected - range.start)
+                    && row_index == state.selected_row
+                {
+                    *cell = super::format::pad_left(
+                        &format!("[{}]", cell.trim()),
+                        cell.chars().count(),
+                    );
+                }
                 fit_single_column(&mut cells, range.clone(), self.units, width);
                 for (index, cell) in range.clone().zip(&mut cells) {
                     let tone = match (row.partial, index == selected) {
@@ -252,13 +240,23 @@ impl View<'_> {
     }
 }
 
+fn small_panel(size: (u16, u16)) -> Vec<String> {
+    let mut lines = vec!["Enlarge the panel".to_owned(), "Esc/q back".to_owned()];
+    lines.truncate(usize::from(size.1));
+    lines.resize(usize::from(size.1), String::new());
+    lines
+        .into_iter()
+        .map(|line| clip(&line, usize::from(size.0)))
+        .collect()
+}
+
 fn build_hints(state: &State, width: usize) -> String {
     let position = format!("{}/{}", state.scroll + 1, state.limit + 1);
     [
-        "Tab/S-Tab ←/→ h/l a/d · H/L visible · g/G first/last (0/$) · Esc/q back · ↑/↓ j/k w/s scroll rows & notes",
-        "Tab/S-Tab ←/→ h/l a/d · ↑↓ j/k w/s · H/L visible · g/G ends · Esc/q back",
-        "←→ h/l a/d · ↑↓ j/k w/s · g/G · Esc/q back",
-        "←→ ↑↓ g/G · Esc/q back",
+        "Tab/S-Tab ←→ h/l a/d · ↑↓ j/k w/s cell · Enter graph · H/L visible · g/G first/last · Esc/q back",
+        "←→ h/l a/d · ↑↓ j/k w/s cell · Enter graph · g/G · Esc/q back",
+        "←→ ↑↓ · Enter graph · g/G · Esc/q back",
+        "↑↓←→g/G Enter Esc/q back",
     ]
     .into_iter()
     .map(|keys| format!("{keys} · {position}"))

@@ -53,7 +53,7 @@ pub async fn pull(
     Ok(dataset)
 }
 
-/// Reads an explicit window, allowing summaries to begin at a family-day boundary.
+/// Reads an explicit family-day window, retaining sleep and nursing carried into it.
 pub async fn pull_window(
     client: &Huckleberry,
     cid: &str,
@@ -62,16 +62,24 @@ pub async fn pull_window(
     timezone: &str,
     window: Window,
 ) -> Result<Dataset> {
-    let sleep_window = Window::new(i64::MIN, window.end);
+    let timed_window = Window::new(i64::MIN, window.end);
     let mut dataset =
-        read_window(client, cid, nickname, days, timezone, window, sleep_window).await?;
+        read_window(client, cid, nickname, days, timezone, window, timed_window).await?;
     dataset
         .sleep
         .retain(|sleep| sleep.end() >= window.start as f64);
+    dataset.feeds.retain(|feed| {
+        window.contains(feed.start())
+            || (feed.start() < window.start as f64
+                && feed.nursing_seconds().is_some_and(|duration| {
+                    let end = feed.start() + duration;
+                    end.is_finite() && end > window.start as f64
+                }))
+    });
     Ok(dataset)
 }
 
-/// The API filters sleeps by start, so summaries need earlier starts for carry-in coverage.
+/// Start-filtered sleep and nursing reads need earlier starts for carry-in coverage.
 async fn read_window(
     client: &Huckleberry,
     cid: &str,
@@ -79,7 +87,7 @@ async fn read_window(
     days: u32,
     timezone: &str,
     window: Window,
-    sleep_window: Window,
+    timed_window: Window,
 ) -> Result<Dataset> {
     let mut notes = Vec::new();
 
@@ -88,8 +96,8 @@ async fn read_window(
     let (profile, growth, sleep, feed, diaper, pump, milestones, sleep_live, feed_live) = tokio::join!(
         client.child(cid),
         client.latest_growth(cid),
-        client.sleep_intervals(cid, sleep_window),
-        client.feed_intervals(cid, window),
+        client.sleep_intervals(cid, timed_window),
+        client.feed_intervals(cid, timed_window),
         client.diaper_intervals(cid, window),
         client.pump_intervals(cid, window),
         client.milestones(cid),

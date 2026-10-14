@@ -68,6 +68,33 @@ impl Summary {
         }
     }
 
+    /// Draws the selected cell's cumulative comparison over the shell.
+    #[must_use]
+    pub fn comparison_lines(&self, reading: &Reading, size: (u16, u16), now: f64) -> Vec<String> {
+        let rows = self.rows(reading, now);
+        let Some(row) = rows.get(self.state.selected_row) else {
+            return Vec::new();
+        };
+        View {
+            is_hosted: true,
+            rows: &rows,
+            dataset: &reading.dataset,
+            calendar: &reading.calendar,
+            units: reading.units,
+            now,
+            coverage: (
+                self.read_start
+                    .unwrap_or_else(|| self.coverage_start(reading)),
+                if self.is_offline {
+                    reading.dataset.fetched_at
+                } else {
+                    now
+                },
+            ),
+        }
+        .comparison_lines(row.day, self.state.selected, size, Theme::dark(true))
+    }
+
     /// Draws the same table and chart as `h summary`, retaining its viewport.
     pub fn lines(&mut self, reading: &Reading, size: (u16, u16), now: f64) -> Vec<String> {
         if size.1 < 6 {
@@ -82,11 +109,20 @@ impl Summary {
             calendar: &reading.calendar,
             units: reading.units,
             now,
+            coverage: (
+                self.read_start
+                    .unwrap_or_else(|| self.coverage_start(reading)),
+                if self.is_offline {
+                    reading.dataset.fetched_at
+                } else {
+                    now
+                },
+            ),
         };
-        let mut lines = view.lines(&mut self.state, size, theme);
+        let mut lines = view.table_lines(&mut self.state, size, theme);
         if let Some(hints) = lines.last_mut() {
             *hints = theme.muted(&crate::prompt::select::clip(
-                "←→ h/l a/d columns · H/L visible ends · ↑↓ j/k w/s scroll",
+                "←→ h/l a/d · ↑↓ j/k w/s cell · Enter graph",
                 usize::from(size.0),
             ));
         }

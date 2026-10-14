@@ -162,3 +162,43 @@ fn retained_shell_facts_use_new_day_hours_even_if_the_network_refresh_fails() {
     assert!((rows[0].total_ml - 90.0).abs() < f64::EPSILON);
     assert!((dashboard.dataset.child.night_start_hour - 19.0).abs() < f64::EPSILON);
 }
+
+#[test]
+fn offline_today_comparison_uses_the_snapshot_calendar() {
+    let directory =
+        std::env::temp_dir().join(format!("h-summary-curve-zone-{}", std::process::id()));
+    std::fs::create_dir_all(&directory).unwrap();
+    let mut data = dataset();
+    data.fetched_at = huckleberry_api::client::now_seconds();
+    data.feeds = vec![bottle(data.fetched_at - 60.0, 90.0)];
+    // UTC's family day has begun while New York's corresponding day has not.
+    let utc_hour = Calendar::utc().zoned(data.fetched_at).hour();
+    let start = (utc_hour + 23) % 24;
+    let end = (start + 12) % 24;
+    std::fs::write(
+        directory.join("snapshot.json"),
+        app::dataset::render_snapshot(&data).unwrap(),
+    )
+    .unwrap();
+    std::fs::write(directory.join("config.toml"), format!("timezone='UTC'\nday_start='{start:02}:00'\nday_end='{end:02}:00'\nday_mode='continuous'\n")).unwrap();
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_huckleberry-cli"))
+        .arg("--config")
+        .arg(directory.join("config.toml"))
+        .arg("--offline")
+        .arg(directory.join("snapshot.json"))
+        .args(["summary", "--curve", "today", "--column", "2"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let text = String::from_utf8_lossy(&output.stdout);
+    assert!(text.contains("Today"), "{text}");
+    assert!(
+        !text.lines().any(|line| line.starts_with("- - ")),
+        "today must not add a different selected-day curve: {text}"
+    );
+    std::fs::remove_dir_all(directory).unwrap();
+}

@@ -523,7 +523,9 @@ in place. The g/G keys (also 0/$) select the first/last numeric column of the wh
 In the shell,
 Backspace or Ctrl-C focuses Menu, Escape discards unfinished input and returns
 Home, and Q quits the shell. These keys never remove the Summary panel.
-Up/down (J/K, W/S) scroll the rows and notes, including configured night hours
+Up/down (J/K, W/S) select rows in the current column; brackets mark the current
+cell. The viewport follows it. Moving past the last row or paging reaches the
+notes, including configured night hours
 but not reference ranges or their pediatrician note, which the Now drawer
 already shows. Standalone summary retains those lines. Calculation explanations
 and configuration commands live
@@ -533,9 +535,15 @@ standalone Summary keeps its freshness line below the keys.
 The Summary panel has its own navigation line. Focus shortcuts remain in both
 bottom borders, and the shell footer describes whichever panel has focus.
 Standalone Summary retains its navigation and scroll-position line.
-The selected heading has brackets as well as
-colour, and the keys remain visible on narrow and short panels. The Now drawer
-stays on screen throughout.
+The selected heading and cell have brackets as well as
+colour, and the keys remain visible on narrow and short panels. Enter or Space
+opens the Cumulative comparison modal over the retained shell. Escape or Enter
+closes it without changing the cell or discarding a command draft; Ctrl-Q quits.
+Today and a different selected day use exact event steps or timed segments.
+Only the previous seven complete days' average is smoothed, from 15-minute
+samples. Each graph uses discrete family-day boundaries, even in continuous
+mode, and the average is always anchored to today. See `dashboards.md` for
+metric mappings, missing data, markers, and daylight-saving behavior.
 
 ### Where the output goes
 
