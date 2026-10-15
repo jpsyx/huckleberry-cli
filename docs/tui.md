@@ -542,7 +542,9 @@ closes it without changing the cell or discarding a command draft; Ctrl-Q quits.
 Today and a different selected day use exact event steps or timed segments.
 Only the previous seven complete days' average is smoothed, from 15-minute
 samples. Each graph uses discrete family-day boundaries, even in continuous
-mode, and the average is always anchored to today. See `dashboards.md` for
+mode; day/night columns show only that period. Starts use `o`, actual ends use
+`x`, the selected date says `(selected day)`, and the magenta average value sits
+in a reserved margin beside its endpoint. The average is always anchored to today. See `dashboards.md` for
 metric mappings, missing data, markers, and daylight-saving behavior.
 
 ### Where the output goes

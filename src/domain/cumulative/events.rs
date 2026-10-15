@@ -68,8 +68,9 @@ fn nursing(observations: &mut Observations, feed: &FeedEvent, window: &Window) {
     if window.overlap(start, end) || window.contains(start) {
         observations.has_data = true;
         observations.duration(start, end, window);
-        if window.includes(start) {
-            observations.markers.push((start, 'x'));
+        observations.marker(start, 'o', window);
+        if duration > 0.0 {
+            observations.marker(end, 'x', window);
         }
     }
 }

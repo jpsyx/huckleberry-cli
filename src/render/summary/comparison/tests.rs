@@ -54,6 +54,7 @@ fn comparison() -> Comparison {
             },
         ],
         average_days: 3,
+        clock_duration: 86_400.0,
     }
 }
 
@@ -92,7 +93,7 @@ fn another_selection_has_a_dated_legend_and_three_semantic_tones() {
         Theme::dark(true),
     );
     let text = output.join("\n");
-    assert!(text.contains("2026-10-13"));
+    assert!(text.contains("2026-10-13 (selected day)"));
     for tone in [
         crate::theme::Tone::Today,
         crate::theme::Tone::Accent,
@@ -115,6 +116,7 @@ fn axis_values_use_display_units() {
         selected: None,
         average: Vec::new(),
         average_days: 0,
+        clock_duration: 86_400.0,
     };
     let output = lines(
         &data,
@@ -263,4 +265,34 @@ fn dst_average_uses_elapsed_ticks_even_when_today_is_ordinary() {
     data.average.last_mut().unwrap().seconds = 90000.0;
     let text = rendered(&data).join("\n");
     assert!(text.contains("DST") && text.contains("+25h"), "{text}");
+}
+
+#[test]
+fn average_value_is_magenta_in_a_gutter_beyond_coincident_curves() {
+    let mut data = comparison();
+    data.today = day(14, 14_400.0);
+    data.selected = Some(day(13, 14_400.0));
+    data.average.last_mut().unwrap().value = 14_400.0;
+    for width in [28, 80] {
+        let output = lines(
+            &data,
+            "Sleep (h)",
+            1.0 / 3600.0,
+            6.0,
+            (width, 30),
+            Theme::dark(true),
+        );
+        let average_style = crate::tui::draw::style(Tone::Average);
+        let row = output.iter().find(|line| {
+            line.contains('|')
+                && crate::tui::draw::painted(line)
+                    .spans
+                    .iter()
+                    .any(|span| span.style == average_style && span.content.trim() == "4")
+        });
+        let row = crate::tui::draw::painted(row.expect("floating average value"));
+        let text: String = row.spans.iter().map(|span| span.content.as_ref()).collect();
+        assert!(text.ends_with("- 4"), "{text}");
+        assert!(row.width() <= usize::from(width));
+    }
 }

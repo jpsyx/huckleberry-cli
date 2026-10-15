@@ -446,7 +446,7 @@ mod tests {
     }
 
     #[test]
-    fn summary_day_and_night_metrics_use_coverage_and_completed_start_times() {
+    fn summary_day_and_night_metrics_use_overlapping_coverage() {
         use crate::domain::fixtures::sleep;
         let mut data = dataset();
         data.sleep = vec![
@@ -462,8 +462,8 @@ mod tests {
             ("night_sleep_seconds", 18000.0),
             ("day_wake_seconds", 39600.0),
             ("night_wake_seconds", 21600.0),
-            ("average_day_sleep_seconds", 5400.0),
-            ("average_night_sleep_seconds", 9000.0),
+            ("average_day_sleep_seconds", 3600.0),
+            ("average_night_sleep_seconds", 6000.0),
             ("average_day_wake_seconds", 36000.0),
             ("average_night_wake_seconds", 10800.0),
         ] {
@@ -546,7 +546,7 @@ mod tests {
     }
 
     #[test]
-    fn summary_naps_exclude_night_sleeps_and_night_totals_split_at_day_end() {
+    fn summary_nap_averages_and_night_totals_split_at_day_end() {
         use crate::domain::fixtures::sleep;
         let mut data = dataset();
         data.sleep = vec![
@@ -555,7 +555,7 @@ mod tests {
             sleep(at("2025-09-21", 22, 0), 7200.0),
         ];
         let json = summary_json(&data, AFTERNOON, 2);
-        assert_eq!(json[1]["average_nap_seconds"], 2700.0);
+        assert_eq!(json[1]["average_nap_seconds"], 1800.0);
         assert_eq!(json[1]["night_sleep_seconds"], 9000.0);
         assert_eq!(json[1]["day_sleep_seconds"], 3600.0);
         assert_eq!(json[1]["wake_seconds"], 73800.0);
@@ -583,7 +583,7 @@ mod tests {
     }
 
     #[test]
-    fn summary_wake_crossing_day_start_keeps_the_whole_gap_on_the_previous_night() {
+    fn summary_wake_crossing_day_start_splits_period_averages_across_rows() {
         use crate::domain::fixtures::sleep;
         let mut data = dataset();
         data.sleep = vec![
@@ -595,14 +595,14 @@ mod tests {
         let json = summary_json(&data, at("2025-09-22", 8, 0), 2);
 
         assert_eq!(json[1]["day"], "2025-09-21");
-        assert_eq!(json[1]["average_night_wake_seconds"], 3600.0);
+        assert_eq!(json[1]["average_night_wake_seconds"], 1800.0);
         assert_eq!(json[1]["average_wake_seconds"], 3600.0);
         assert_eq!(json[1]["longest_wake_seconds"], 3600.0);
         assert!(json[1]["average_day_wake_seconds"].is_null());
         assert_eq!(json[0]["day"], "2025-09-22");
+        assert_eq!(json[0]["average_day_wake_seconds"], 1800.0);
         for field in [
             "average_wake_seconds",
-            "average_day_wake_seconds",
             "average_night_wake_seconds",
             "longest_wake_seconds",
         ] {

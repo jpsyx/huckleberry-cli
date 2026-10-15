@@ -84,9 +84,9 @@ pub struct DaySummary {
     pub longest_sleep_seconds: f64,
     /// Mean full duration of all completed sleeps starting on this day.
     pub average_sleep_seconds: Option<f64>,
-    /// Mean full duration of completed sleeps starting at night on this day.
+    /// Mean nighttime portion of completed sleeps overlapping this family day.
     pub average_night_sleep_seconds: Option<f64>,
-    /// Mean duration of completed sleeps starting in daytime on this day.
+    /// Mean daytime portion of completed sleeps overlapping this family day.
     pub average_nap_seconds: Option<f64>,
     /// Elapsed day time minus recorded sleep, absent without sleep records.
     pub wake_seconds: Option<f64>,
@@ -94,9 +94,9 @@ pub struct DaySummary {
     pub night_wake_seconds: Option<f64>,
     /// Elapsed daytime minus recorded daytime sleep.
     pub day_wake_seconds: Option<f64>,
-    /// Mean complete gap starting at night, attributed to the day waking began.
+    /// Mean nighttime portion of complete wake gaps overlapping this family day.
     pub average_night_wake_seconds: Option<f64>,
-    /// Mean complete gap starting in daytime, attributed to the day waking began.
+    /// Mean daytime portion of complete wake gaps overlapping this family day.
     pub average_day_wake_seconds: Option<f64>,
     /// Mean complete gap between sleeps, attributed to the day waking began.
     pub average_wake_seconds: Option<f64>,
@@ -647,5 +647,52 @@ mod tests {
             "the snapshot starts mid-day on the oldest row"
         );
         assert!(rows[1..7].iter().all(|row| !row.partial));
+    }
+    #[test]
+    fn sleep_period_averages_use_only_the_overlapping_minutes() {
+        let calendar = Calendar::utc();
+        let day = "2025-09-22".parse().unwrap();
+        let mut data = dataset();
+        data.sleep = vec![
+            sleep(calendar.at(day, 6, 30), 5_400.0),
+            sleep(calendar.at(day, 19, 0), 10_800.0),
+        ];
+        let rows = build(
+            &data,
+            &calendar,
+            DayRule::discrete(7.0, 21.0),
+            calendar.at(day, 23, 0),
+            2,
+        );
+        assert!((rows[1].night_sleep_seconds - 1_800.0).abs() < 0.001);
+        assert_eq!(rows[1].average_night_sleep_seconds, Some(1_800.0));
+        assert!((rows[0].day_sleep_seconds - 10_800.0).abs() < 0.001);
+        assert!((rows[0].night_sleep_seconds - 3_600.0).abs() < 0.001);
+        assert_eq!(rows[0].average_nap_seconds, Some(5_400.0));
+        assert_eq!(rows[0].average_night_sleep_seconds, Some(3_600.0));
+    }
+
+    #[test]
+    fn wake_period_averages_include_gaps_starting_outside_the_period() {
+        let calendar = Calendar::utc();
+        let day = "2025-09-22".parse().unwrap();
+        let mut data = dataset();
+        data.sleep = vec![
+            sleep(calendar.at(day, 5, 30), 3_600.0),
+            sleep(calendar.at(day, 8, 0), 39_600.0),
+            sleep(calendar.at(day, 22, 0), 3_600.0),
+        ];
+        let rows = build(
+            &data,
+            &calendar,
+            DayRule::discrete(7.0, 21.0),
+            calendar.at(day, 23, 0),
+            2,
+        );
+        assert_eq!(rows[1].average_night_wake_seconds, Some(1_800.0));
+        assert_eq!(rows[0].average_day_wake_seconds, Some(5_400.0));
+        assert_eq!(rows[0].average_night_wake_seconds, Some(3_600.0));
+        assert_eq!(rows[0].day_wake_seconds, Some(10_800.0));
+        assert_eq!(rows[0].night_wake_seconds, Some(3_600.0));
     }
 }

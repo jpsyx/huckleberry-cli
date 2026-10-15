@@ -6,13 +6,14 @@ use huckleberry_api::{Huckleberry, Session, Window, Zone};
 use serde_json::json;
 
 #[tokio::test]
-async fn summary_fetch_includes_sleep_starting_before_the_oldest_day() {
+async fn summary_fetch_includes_carry_in_sleep_and_the_latest_preceding_endpoint() {
     let fields = huckleberry_api::firestore::value::fields_from_json(
         json!({
             "multi": true, "data": {
                 "carry": { "start": 900, "duration": 300, "offset": 0 },
                 "boundary": { "start": 800, "duration": 200, "offset": 0 },
                 "old": { "start": 100, "duration": 100, "offset": 0 },
+                "older": { "start": 0, "duration": 50, "offset": 0 },
                 "inside": { "start": 1400, "duration": 100, "offset": 0 }
             }
         })
@@ -39,7 +40,7 @@ async fn summary_fetch_includes_sleep_starting_before_the_oldest_day() {
         .await
         .unwrap();
     let starts: Vec<_> = data.sleep.iter().map(|sleep| sleep.start as i64).collect();
-    assert_eq!(starts, vec![800, 900, 1400]);
+    assert_eq!(starts, vec![100, 800, 900, 1400]);
     let requests = stub.requests().await;
     let sleep_query = requests
         .iter()

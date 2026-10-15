@@ -71,9 +71,14 @@ fn waking(observations: &mut Observations, intervals: &[(f64, f64)], window: &Wi
 }
 
 fn markers(observations: &mut Observations, request: &Request<'_>, window: &Window) {
-    // Counts classify the whole sleep by its start. Its real end stays visible
-    // across night start, without leaking into the other count category.
+    // Counts belong to their start category; duration markers use actual
+    // endpoints within the displayed period, never clipped synthetic ends.
     let counts_starts = request.measure.metric == Metric::Naps;
+    let (start_symbol, end_symbol) = if request.measure.metric == Metric::Wake {
+        ('x', 'o')
+    } else {
+        ('o', 'x')
+    };
     for sleep in &request.dataset.sleep {
         if !sleep.duration.is_finite()
             || sleep.duration <= 0.0
@@ -81,24 +86,16 @@ fn markers(observations: &mut Observations, request: &Request<'_>, window: &Wind
         {
             continue;
         }
-        if window.includes(sleep.start) {
-            observations.markers.push((sleep.start, 'x'));
-        }
+        observations.marker(sleep.start, start_symbol, window);
         let end = sleep.end();
-        if end <= request.now.min(request.coverage.1)
-            && end.is_finite()
-            && end >= window.available_start
-            && end <= window.available_end
-            && (counts_starts || (end >= window.period_start && end <= window.period_end))
-        {
-            observations.markers.push((end, 'o'));
+        if end <= request.now.min(request.coverage.1) {
+            observations.marker(end, end_symbol, window);
         }
     }
     if request.dataset.live.sleep_active
         && let Some(start) = request.dataset.live.sleep_start
-        && window.includes(start)
     {
-        observations.markers.push((start, 'x'));
+        observations.marker(start, start_symbol, window);
     }
 }
 

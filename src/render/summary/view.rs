@@ -69,7 +69,11 @@ impl View<'_> {
             &comparison,
             &format!("Cumulative {title}"),
             scale,
-            self.dataset.child.morning_cutoff_hour,
+            if column.measure().period == crate::domain::cumulative::Period::Night {
+                rule.day_end_hour
+            } else {
+                rule.day_start_hour
+            },
             size,
             theme,
         )

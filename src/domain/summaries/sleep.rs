@@ -46,11 +46,13 @@ fn completed_sleeps(
     let mut sleeps = Vec::new();
     let mut night_sleeps = Vec::new();
     for sleep in &dataset.sleep {
-        if sleep.duration <= 0.0
-            || sleep.end() > now
-            || sleep.start < bounds.0
-            || sleep.start >= bounds.1
-        {
+        if !sleep.duration.is_finite() || sleep.duration <= 0.0 || sleep.end() > now {
+            continue;
+        }
+        let interval = (sleep.start, sleep.end());
+        add_overlap(&mut naps, interval, (bounds.0, night_start.min(bounds.1)));
+        add_overlap(&mut night_sleeps, interval, (night_start, bounds.1));
+        if sleep.start < bounds.0 || sleep.start >= bounds.1 {
             continue;
         }
         sleeps.push(sleep.duration);
@@ -58,10 +60,8 @@ fn completed_sleeps(
         row.longest_sleep_seconds = row.longest_sleep_seconds.max(sleep.duration);
         if sleep.start < night_start {
             row.day_nap_count += 1;
-            naps.push(sleep.duration);
         } else {
             row.night_nap_count += 1;
-            night_sleeps.push(sleep.duration);
         }
     }
     row.average_nap_seconds = mean(&naps);
@@ -112,6 +112,7 @@ fn coverage(intervals: &[Interval], start: f64, end: f64) -> f64 {
 }
 
 fn waking_gaps(row: &mut DaySummary, intervals: &[Interval], calendar: &Calendar, rule: DayRule) {
+    let (start, end) = rule.day_bounds(calendar, row.day);
     let night = rule.night_start(calendar, row.day);
     let mut gaps = Vec::new();
     let mut day_gaps = Vec::new();
@@ -119,21 +120,27 @@ fn waking_gaps(row: &mut DaySummary, intervals: &[Interval], calendar: &Calendar
     for pair in intervals.windows(2) {
         // A zero-length marker knows when an old paused sleep began, not when it ended.
         let wake_start = pair[0].1;
-        if wake_start <= pair[0].0 || rule.day_of(calendar, wake_start) != row.day {
+        if wake_start <= pair[0].0 {
             continue;
         }
-        let duration = pair[1].0 - wake_start;
-        gaps.push(duration);
-        if wake_start < night {
-            day_gaps.push(duration);
-        } else {
-            night_gaps.push(duration);
+        let interval = (wake_start, pair[1].0);
+        add_overlap(&mut day_gaps, interval, (start, night));
+        add_overlap(&mut night_gaps, interval, (night, end));
+        if rule.day_of(calendar, wake_start) == row.day {
+            gaps.push(pair[1].0 - wake_start);
         }
     }
     row.average_wake_seconds = mean(&gaps);
     row.average_day_wake_seconds = mean(&day_gaps);
     row.average_night_wake_seconds = mean(&night_gaps);
     row.longest_wake_seconds = gaps.into_iter().max_by(f64::total_cmp);
+}
+
+fn add_overlap(durations: &mut Vec<f64>, interval: Interval, bounds: Interval) {
+    let seconds = interval.1.min(bounds.1) - interval.0.max(bounds.0);
+    if seconds > 0.0 {
+        durations.push(seconds);
+    }
 }
 
 fn mean(values: &[f64]) -> Option<f64> {

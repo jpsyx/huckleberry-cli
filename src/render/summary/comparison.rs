@@ -96,7 +96,10 @@ fn legends(comparison: &Comparison, start_hour: f64) -> Vec<(Tone, String)> {
         format!("--- Today (to {cutoff}){}", day_note(&comparison.today)),
     )];
     if let Some(day) = &comparison.selected {
-        result.push((Tone::Accent, format!("- - {}{}", day.day, day_note(day))));
+        result.push((
+            Tone::Accent,
+            format!("- - {} (selected day){}", day.day, day_note(day)),
+        ));
     }
     let average = if comparison.average_days == 7 {
         "... 7-day avg".to_owned()
@@ -124,7 +127,7 @@ const fn day_note(day: &DayCurve) -> &'static str {
 
 fn notes(comparison: &Comparison, start_hour: f64) -> Vec<String> {
     let mut result = vec![
-        "x event/start; o sleep end; overlapping marks may share a cell".to_owned(),
+        "o event/start; x event end; overlapping marks may share a cell".to_owned(),
         "7-day avg: 15-minute samples, smoothed; preceding complete days".to_owned(),
     ];
     if uses_elapsed(comparison) {
@@ -141,7 +144,7 @@ fn uses_elapsed(comparison: &Comparison) -> bool {
         .chain(comparison.selected.iter())
         .map(|day| day.duration)
         .chain(comparison.average.last().map(|point| point.seconds))
-        .any(|duration| (duration - 86400.0).abs() > 1.0)
+        .any(|duration| (duration - comparison.clock_duration).abs() > 1.0)
 }
 
 fn clock_label(hours: f64) -> String {

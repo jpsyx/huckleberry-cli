@@ -19,13 +19,21 @@ pub(super) struct Plot {
     duration: f64,
     maximum: f64,
     scale: f64,
+    average_label: Option<(usize, String)>,
 }
 
 impl Plot {
     pub(super) fn create(comparison: &Comparison, scale: f64, width: usize, height: usize) -> Self {
         let maximum = maximum(comparison, scale);
         let label_width = quantity(maximum).len().max(4) + 1;
-        let plot_width = width.saturating_sub(label_width + 1).max(2);
+        let average_value = comparison
+            .average
+            .iter()
+            .map(|point| point.value)
+            .max_by(f64::total_cmp)
+            .map(|value| quantity(value * scale));
+        let gutter = average_value.as_ref().map_or(0, |label| label.len() + 1);
+        let plot_width = width.saturating_sub(label_width + 1 + gutter).max(2);
         let duration = std::iter::once(comparison.today.duration)
             .chain(comparison.selected.iter().map(|day| day.duration))
             .chain(comparison.average.last().map(|point| point.seconds))
@@ -42,7 +50,11 @@ impl Plot {
             duration,
             maximum,
             scale,
+            average_label: None,
         };
+        if let Some((endpoint, label)) = comparison.average.last().zip(average_value) {
+            result.average_label = Some((result.position(*endpoint).1, label));
+        }
         result.draw(comparison);
         result
     }
@@ -83,7 +95,12 @@ impl Plot {
                     String::new()
                 };
                 let prefix = format!("{label:>width$}|", width = self.label_width);
-                format!("{}{}", theme.muted(&prefix), paint_cells(cells, theme))
+                format!(
+                    "{}{}{}",
+                    theme.muted(&prefix),
+                    paint_cells(cells, theme),
+                    self.average_label_at(row, theme)
+                )
             })
             .collect();
         let prefix = " ".repeat(self.label_width);
@@ -93,6 +110,16 @@ impl Plot {
             self.time_labels(start_hour, is_elapsed)
         )));
         output
+    }
+
+    fn average_label_at(&self, row: usize, theme: Theme) -> String {
+        match &self.average_label {
+            Some((label_row, label)) if row == *label_row => {
+                format!(" {}", theme.paint(Tone::Average, label))
+            }
+            Some((_, label)) => " ".repeat(label.len() + 1),
+            None => String::new(),
+        }
     }
 
     fn curve(&mut self, points: &[Point], cutoff: f64, tone: Tone) {

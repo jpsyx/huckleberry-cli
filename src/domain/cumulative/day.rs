@@ -46,6 +46,14 @@ impl Window {
         self.contains(at) && at >= self.period_start && at < self.period_end
     }
 
+    pub(super) fn includes_end(&self, at: f64) -> bool {
+        at.is_finite()
+            && at >= self.available_start
+            && at <= self.available_end
+            && at >= self.period_start
+            && at <= self.period_end
+    }
+
     pub(super) fn overlap(&self, start: f64, end: f64) -> bool {
         start.is_finite()
             && end.is_finite()
@@ -77,6 +85,17 @@ pub(super) struct Observations {
 }
 
 impl Observations {
+    pub(super) fn marker(&mut self, at: f64, symbol: char, window: &Window) {
+        let is_visible = if symbol == 'x' {
+            window.includes_end(at)
+        } else {
+            window.includes(at)
+        };
+        if is_visible {
+            self.markers.push((at, symbol));
+        }
+    }
+
     pub(super) fn step(&mut self, at: f64, value: f64, window: &Window) {
         if window.includes(at) {
             self.contributions.push(Contribution {
@@ -84,7 +103,7 @@ impl Observations {
                 end: at,
                 value,
             });
-            self.markers.push((at, 'x'));
+            self.markers.push((at, 'o'));
         }
     }
 
@@ -115,8 +134,11 @@ pub(super) fn build(request: &Request<'_>, day: Date) -> DayCurve {
         } else {
             Vec::new()
         },
-        duration: window.end - window.start,
-        observed: window.available_end - window.start,
+        duration: window.period_end - window.period_start,
+        observed: window
+            .available_end
+            .clamp(window.period_start, window.period_end)
+            - window.period_start,
         is_partial: window.available_start > window.start
             || window.available_end < window.end
             || observations.is_unknown,
@@ -125,11 +147,17 @@ pub(super) fn build(request: &Request<'_>, day: Date) -> DayCurve {
 }
 
 fn points(observations: &Observations, window: &Window) -> Vec<Point> {
-    let mut times = vec![window.available_start, window.available_end];
+    let start = window.available_start.max(window.period_start);
+    let end = window.available_end.min(window.period_end);
+    if end < start {
+        return Vec::new();
+    }
+    let mut times = vec![start, end];
     for contribution in &observations.contributions {
         times.extend([contribution.start, contribution.end]);
     }
     times.extend(observations.markers.iter().map(|(at, _)| *at));
+    times.retain(|at| *at >= start && *at <= end);
     times.sort_by(f64::total_cmp);
     times.dedup();
     let mut points = Vec::new();
@@ -137,12 +165,12 @@ fn points(observations: &Observations, window: &Window) -> Vec<Point> {
         let before = value_at(observations, at, false);
         let after = value_at(observations, at, true);
         points.push(Point {
-            seconds: at - window.start,
+            seconds: at - window.period_start,
             value: before,
         });
         if after > before {
             points.push(Point {
-                seconds: at - window.start,
+                seconds: at - window.period_start,
                 value: after,
             });
         }
@@ -156,7 +184,7 @@ fn markers(observations: &Observations, window: &Window) -> Vec<Marker> {
         .iter()
         .map(|(at, symbol)| Marker {
             point: Point {
-                seconds: at - window.start,
+                seconds: at - window.period_start,
                 value: value_at(observations, *at, true),
             },
             symbol: *symbol,

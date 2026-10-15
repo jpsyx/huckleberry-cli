@@ -198,20 +198,26 @@ reading, independently of rolling-total mode. It samples the prior seven fully
 covered family days every 15 minutes and interpolates only their mean with a
 monotone cubic. The column catalog maps each table metric to an additive quantity
 and display scale. `render::summary::comparison` returns bounded ASCII graph
-lines with axes, legends, and event markers. Shell and standalone hosts draw
+lines with period-specific axes, legends, event markers, and a reserved margin
+for the average endpoint value. Curves use seconds from their period's start;
+the configured clock duration distinguishes shorter periods from DST changes.
+Shell and standalone hosts draw
 those same lines in an opaque modal; `summary --curve` prints them for scripts.
 Read coverage is explicit, independent of the table's requested row count.
 
 `domain::summaries::sleep` owns interval merging, precise family-day/night
-intersections, completed sleep/nap averages, and waking gaps. Paused sleep endpoints
+intersections, completed sleep/nap averages, and waking gaps. Period averages
+use positive interval overlaps, including carry-in sleeps and wake gaps;
+full-day averages and counts retain their start-day attribution. Paused sleep endpoints
 are retained by normalization as `LiveState::sleep_paused_at`, an optional field
 compatible with older snapshots. A missing paused endpoint leaves affected wake
 estimates unknown rather than counting that sleep as waking. Table and JSON
 consume the same daily aggregates. Summary loads an explicit history window
 starting at the oldest complete family day, then builds those complete rows plus
 today. The API filters sleep by start time, so the summary sleep read includes
-all earlier starts and retains only intervals ending on or after the window
-start. This avoids an arbitrary maximum sleep length, at the cost of reading
+all earlier starts and retains intervals ending on or after the window start,
+plus the latest preceding sleep endpoint needed for a carry-in wake gap.
+This avoids an arbitrary maximum sleep length, at the cost of reading
 more sleep history. Cumulative nursing also needs sessions that began before
 the read boundary and continue into it. Summary and the shell read earlier feed
 starts too, retaining only overlapping nursing and feeds starting inside the

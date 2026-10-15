@@ -290,10 +290,13 @@ Escape, Enter, Backspace, Left/H/A, or Q closes it and restores the cell. Ctrl-Q
 still quits the shell. The modal captures focus keys and leaves command drafts
 intact. It uses the whole available terminal over the retained panels.
 
-The plot always uses discrete family days, from `day_start` to the next
-`day_start` (night end), regardless of `day_mode`. Today stops at the available
-observation time; it is never projected into the future. Selecting another day
-adds that date's curve. The historical curve remains the pointwise average of
+The plot uses discrete family-day boundaries regardless of `day_mode`.
+All-day columns span `day_start` to the next `day_start`; daytime columns span
+`day_start` to `day_end`; night columns span `day_end` to the next `day_start`.
+Each curve begins accumulating at its displayed period's start. Today stops at
+the available observation time or the period's end, whichever comes first; a
+period that has not begun has no Today line. Selecting another day adds that
+date's curve with `(selected day)` in its legend. The historical curve remains the pointwise average of
 recorded, fully covered days in the seven family days preceding **today**.
 Today is excluded, missing days are not replaced with older ones, and an
 incomplete denominator is labeled `N/7`. No usable history means no average.
@@ -302,9 +305,14 @@ Individual curves use exact steps for counts and measured volumes, and exact
 straight segments during timed activity. Their event times are retained, even
 between quarter hours. Only the average is sampled every 15 minutes and joined
 with a monotone cubic curve; it cannot dip below zero or overshoot adjacent
-samples. Individual events have `x` markers; sleep ends have `o` markers.
-A live or paused sleep has no invented end marker. Colors and line patterns
-identify Today, the selected date, and the average independently.
+samples. Events and interval starts have `o` markers; actual interval ends
+have `x` markers. Wake windows start at sleep ends and end at sleep starts;
+nursing durations mark both endpoints. Instant events have no end marker.
+A live or paused sleep has no invented end marker, and clipping to a period
+does not create one. Colors and line patterns identify Today, the selected
+date, and the average independently. The average's highest value is shown in
+magenta at its endpoint's height, in a reserved right margin so other curves
+cannot overlap the number. It uses the same display units as the y-axis.
 
 The graph title names the additive quantity and units. Milk/feed opens total
 milk; daytime milk percentage opens daytime milk; nurse/feed opens nursing
@@ -321,8 +329,8 @@ recorded sleep and is unavailable when a paused timer has an unknown endpoint.
 Missing bottle amounts are not converted to measured zero.
 
 Across daylight-saving transitions the axis uses actual elapsed hours from
-family-day start. Individual endpoints retain their actual 23/24/25-hour length.
-The mean stops at the shortest contributing day's endpoint to avoid extrapolation
+the displayed period's start. Individual endpoints retain their actual elapsed
+length, including shorter or longer nights. The mean stops at the shortest contributing period's endpoint to avoid extrapolation
 or a changing denominator. The axis explains elapsed time when clock ticks
 would be ambiguous.
 
@@ -339,7 +347,8 @@ oldest requested day's beginning, including across daylight saving changes.
 Interactive comparisons always fetch at least the preceding seven complete days,
 even when fewer table rows are requested.
 Sleep reads also retain records beginning earlier but ending on or after that
-boundary, so overnight carry-over and the first waking gap remain available.
+boundary, plus the latest preceding sleep endpoint, so overnight carry-over and
+the first waking gap remain available.
 Feed reads retain earlier nursing sessions that continue past the boundary,
 so the oldest cumulative nursing day does not lose its initial minutes.
 Rows marked `~` are partial: today, or days not fully covered by an offline
@@ -365,9 +374,14 @@ Like the other count columns, a zero count prints a dash; JSON exposes
 numeric `night_naps` and `day_naps` counts, including zero.
 `avg naps` is the mean full duration of completed sleeps that began on the
 row's family day, including both daytime and nighttime starts. Unfinished live
-sleeps do not contribute. `avg night nap` and `avg day nap` use the same
-full durations: day sleeps start before the configured night start, and night
-sleeps start at or after it. The older `average_nap_seconds` JSON field remains an
+sleeps do not contribute. `avg night nap` and `avg day nap` average only the
+positive portions of completed sleeps overlapping that row's night or daytime.
+An interval crossing a boundary contributes to both periods, even when it
+started on the preceding family day. With daytime from 07:00 to 21:00, a
+06:30-08:00 sleep contributes 30 minutes to the preceding night and one hour
+to daytime; a 19:00-22:00 sleep contributes two daytime hours and one night hour.
+Nap counts still classify starts, so period-average denominators can differ
+from the nap counts. The older `average_nap_seconds` JSON field remains an
 alias of `average_day_sleep_seconds` for compatibility.
 
 Daytime/night milk and nursing assign each feed's amount or full nursing duration
@@ -397,9 +411,10 @@ These are estimates from the log, not independent measurements of waking.
 
 Average and longest wake use complete gaps from one sleep's end to the next
 sleep's start, after overlaps are merged. Average night wake and average day wake
-separate those gaps by when waking began; each uses the whole gap even when it
-crosses the day/night boundary. All wake gaps belong to the day waking began,
-even if the gap crosses a day boundary. The unfinished gap after the last sleep
+use each complete gap's positive overlap with that row's night or daytime.
+A boundary-crossing gap contributes only its elapsed time within each period,
+including on the following family day's row. The full-day average and longest
+gap remain assigned to the day waking began. The unfinished gap after the last sleep
 is excluded; so is any unknown gap before the first recorded sleep.
 
 The muted note below the rows names the configured night start and end, and the

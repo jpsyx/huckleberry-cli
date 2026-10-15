@@ -65,9 +65,7 @@ pub async fn pull_window(
     let timed_window = Window::new(i64::MIN, window.end);
     let mut dataset =
         read_window(client, cid, nickname, days, timezone, window, timed_window).await?;
-    dataset
-        .sleep
-        .retain(|sleep| sleep.end() >= window.start as f64);
+    retain_sleep_context(&mut dataset, window.start as f64);
     dataset.feeds.retain(|feed| {
         window.contains(feed.start())
             || (feed.start() < window.start as f64
@@ -77,6 +75,19 @@ pub async fn pull_window(
                 }))
     });
     Ok(dataset)
+}
+
+fn retain_sleep_context(dataset: &mut Dataset, start: f64) {
+    // A wake gap can begin before the read window and continue into its first day.
+    let predecessor_end = dataset
+        .sleep
+        .iter()
+        .filter(|sleep| sleep.start.is_finite() && sleep.duration > 0.0)
+        .map(crate::domain::types::SleepEvent::end)
+        .filter(|end| end.is_finite() && *end < start)
+        .max_by(f64::total_cmp)
+        .unwrap_or(start);
+    dataset.sleep.retain(|sleep| sleep.end() >= predecessor_end);
 }
 
 /// Start-filtered sleep and nursing reads need earlier starts for carry-in coverage.
@@ -303,5 +314,33 @@ mod notes {
         let outcome: huckleberry_api::Result<u8> = Ok(7);
         assert_eq!(note_failure(&mut collected, "pump", outcome), Some(7));
         assert!(collected.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod history {
+    use super::*;
+    use crate::domain::{Calendar, fixtures, summaries, today::DayRule};
+
+    #[test]
+    fn pruned_history_preserves_the_oldest_rows_carry_in_wake_portion() {
+        let calendar = Calendar::utc();
+        let day = "2025-09-21".parse().unwrap();
+        let mut data = fixtures::dataset();
+        data.sleep = vec![
+            fixtures::sleep(calendar.at(day, 4, 0), 3_600.0),
+            fixtures::sleep(calendar.at(day, 8, 0), 3_600.0),
+            fixtures::sleep(calendar.at(day, 6, 0), 1_800.0),
+        ];
+        retain_sleep_context(&mut data, calendar.at(day, 7, 0));
+        let rows = summaries::build(
+            &data,
+            &calendar,
+            DayRule::discrete(7.0, 21.0),
+            calendar.at(day, 23, 0),
+            1,
+        );
+        assert_eq!(rows[0].average_day_wake_seconds, Some(3_600.0));
+        assert_eq!(data.sleep.len(), 2, "retain only the relevant predecessor");
     }
 }

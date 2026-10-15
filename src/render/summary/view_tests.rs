@@ -692,3 +692,44 @@ fn shrinking_the_panel_keeps_the_selected_daily_cell_visible() {
         "{drawn}"
     );
 }
+
+#[test]
+fn day_and_night_comparisons_label_only_the_configured_clock_hours() {
+    use crate::domain::cumulative::{Metric, Period};
+    let calendar = Calendar::utc();
+    let mut data = dataset();
+    let day = "2025-09-22".parse().unwrap();
+    data.sleep = vec![sleep(calendar.at(day, 8, 0), 3_600.0)];
+    let view = View {
+        is_hosted: true,
+        rows: &[],
+        dataset: &data,
+        calendar: &calendar,
+        units: Units::Ml,
+        now: calendar.at(day, 23, 0),
+        coverage: (f64::NEG_INFINITY, f64::INFINITY),
+    };
+    for (period, first, last) in [
+        (Period::Day, "07:00", "20:00"),
+        (Period::Night, "20:00", "07:00"),
+    ] {
+        let column = COLUMNS
+            .iter()
+            .position(|column| {
+                column.measure().metric == Metric::Sleep && column.measure().period == period
+            })
+            .unwrap();
+        let lines = view.comparison_lines(day, column, (80, 24), Theme::dark(false));
+        let text = lines.join("\n");
+        let axis = lines
+            .iter()
+            .position(|line| line.contains('+') && line.contains("---"))
+            .unwrap();
+        let ticks = lines[axis + 1].trim();
+        assert!(ticks.starts_with(first) && ticks.ends_with(last), "{text}");
+        assert!(
+            !text.contains("DST"),
+            "an ordinary partial period is not a DST day: {text}"
+        );
+    }
+}

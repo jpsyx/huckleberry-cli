@@ -107,18 +107,18 @@ fn sleep_union_crosses_night_and_day_boundaries_without_double_counting() {
     let selected = result.selected.expect("a historical day");
     assert!((last_value(&selected.points) - 9_000.0).abs() < 0.001);
     assert!(selected.points.contains(&Point {
-        seconds: 50_400.0,
+        seconds: 0.0,
         value: 0.0
     }));
     assert!(selected.points.contains(&Point {
-        seconds: 57_600.0,
+        seconds: 7_200.0,
         value: 7_200.0
     }));
     assert!(
         !selected
             .markers
             .iter()
-            .any(|marker| marker.point.seconds > 86_400.0)
+            .any(|marker| marker.point.seconds > 36_000.0)
     );
 }
 
@@ -139,7 +139,7 @@ fn paused_live_sleep_stops_growing_without_a_completed_end_marker() {
             .iter()
             .map(|marker| marker.symbol)
             .collect::<Vec<_>>(),
-        vec!['x']
+        vec!['o']
     );
     assert!(result.today.points.contains(&Point {
         seconds: 39_600.0,
@@ -254,7 +254,7 @@ fn a_newly_started_live_sleep_has_a_known_zero_and_start_marker() {
                 seconds: 43_200.0,
                 value: 0.0
             },
-            symbol: 'x',
+            symbol: 'o',
         }]
     );
 }
@@ -273,7 +273,7 @@ fn completed_nap_count_is_known_zero_when_an_ongoing_sleep_is_recorded() {
             .today
             .markers
             .iter()
-            .any(|marker| marker.symbol == 'o')
+            .any(|marker| marker.symbol == 'x')
     );
 }
 
@@ -291,14 +291,14 @@ fn completed_nap_count_retains_its_actual_end_marker() {
                     seconds: 3_600.0,
                     value: 1.0
                 },
-                symbol: 'x'
+                symbol: 'o'
             },
             Marker {
                 point: Point {
                     seconds: 5_400.0,
                     value: 1.0
                 },
-                symbol: 'o'
+                symbol: 'x'
             },
         ]
     );
@@ -322,7 +322,7 @@ fn advancing_online_time_does_not_complete_history_fetched_before_day_end() {
 }
 
 #[test]
-fn a_day_nap_retains_its_end_marker_after_night_begins() {
+fn a_day_nap_graph_excludes_its_end_after_night_begins() {
     let calendar = Calendar::utc();
     let mut dataset = dataset();
     dataset.sleep = vec![sleep(calendar.at(date("2025-09-22"), 19, 30), 5_400.0)];
@@ -342,7 +342,7 @@ fn a_day_nap_retains_its_end_marker_after_night_begins() {
             )
         })
         .collect();
-    assert_eq!(markers, vec![(48_600, 1, 'x'), (54_000, 1, 'o')]);
+    assert_eq!(markers, vec![(48_600, 1, 'o')]);
 }
 
 #[test]
@@ -384,7 +384,7 @@ fn bottle_category_markers_identify_only_the_selected_milk_type() {
             result.today.markers,
             vec![Marker {
                 point: Point { seconds, value },
-                symbol: 'x',
+                symbol: 'o',
             }]
         );
         assert!((last_value(&result.today.points) - value).abs() < 0.001);
@@ -438,8 +438,168 @@ fn matching_bottles_with_a_recorded_zero_keep_their_event_marker() {
                     seconds: 3_600.0,
                     value: 0.0
                 },
-                symbol: 'x',
+                symbol: 'o',
             }]
         );
+    }
+}
+
+#[test]
+fn period_curves_start_at_zero_and_stop_at_their_own_boundary() {
+    let calendar = Calendar::utc();
+    let mut dataset = dataset();
+    dataset.sleep = vec![sleep(calendar.at(date("2025-09-21"), 19, 0), 10_800.0)];
+    for (period, duration, value) in [
+        (Period::Day, 50_400.0, 3_600.0),
+        (Period::Night, 36_000.0, 7_200.0),
+    ] {
+        let mut request = request(&dataset, &calendar, Metric::Sleep);
+        request.selected = date("2025-09-21");
+        request.measure.period = period;
+        let result = build(&request);
+        let selected = result.selected.unwrap();
+        assert!((selected.duration - duration).abs() < 0.001);
+        assert_eq!(
+            selected.points.first(),
+            Some(&Point {
+                seconds: 0.0,
+                value: 0.0
+            })
+        );
+        assert_eq!(
+            selected.points.last(),
+            Some(&Point {
+                seconds: duration,
+                value
+            })
+        );
+        assert_eq!(
+            result.average.last(),
+            Some(&Point {
+                seconds: duration,
+                value
+            })
+        );
+        assert!(
+            selected
+                .markers
+                .iter()
+                .all(|marker| marker.point.seconds <= duration)
+        );
+    }
+}
+
+#[test]
+fn wake_markers_describe_waking_instead_of_sleeping() {
+    let calendar = Calendar::utc();
+    let mut dataset = dataset();
+    dataset.sleep = vec![
+        sleep(calendar.at(date("2025-09-22"), 5, 0), 7_200.0),
+        sleep(calendar.at(date("2025-09-22"), 9, 0), 3_600.0),
+    ];
+    let result = build(&request(&dataset, &calendar, Metric::Wake));
+    let markers: Vec<_> = result
+        .today
+        .markers
+        .iter()
+        .map(|marker| (marker.point.seconds as i64, marker.symbol))
+        .collect();
+    assert_eq!(markers, vec![(3_600, 'o'), (10_800, 'x'), (14_400, 'o')]);
+}
+
+#[test]
+fn nursing_marks_both_actual_endpoints() {
+    let calendar = Calendar::utc();
+    let mut dataset = dataset();
+    dataset.feeds = vec![nursing(calendar.at(date("2025-09-22"), 7, 0), 600.0, 300.0)];
+    let result = build(&request(&dataset, &calendar, Metric::Nursing));
+    let markers: Vec<_> = result
+        .today
+        .markers
+        .iter()
+        .map(|marker| (marker.point.seconds as i64, marker.symbol))
+        .collect();
+    assert_eq!(markers, vec![(3_600, 'o'), (4_500, 'x')]);
+}
+
+#[test]
+fn a_future_night_has_no_today_points_or_markers() {
+    let calendar = Calendar::utc();
+    let mut dataset = dataset();
+    dataset.sleep = vec![sleep(calendar.at(date("2025-09-22"), 7, 0), 3_600.0)];
+    let mut request = request(&dataset, &calendar, Metric::Sleep);
+    request.measure.period = Period::Night;
+    let result = build(&request);
+    assert!(result.today.observed.abs() < 0.001);
+    assert!(result.today.points.is_empty());
+    assert!(result.today.markers.is_empty());
+}
+
+#[test]
+fn night_curves_retain_dst_elapsed_lengths_and_a_fixed_average_denominator() {
+    let calendar = Calendar::new("America/New_York").unwrap();
+    for (night, following, now, expected_seconds) in [
+        ("2025-03-08", "2025-03-09", "2025-03-10", 32_400.0),
+        ("2025-11-01", "2025-11-02", "2025-11-03", 39_600.0),
+    ] {
+        let mut data = dataset();
+        data.sleep = vec![
+            sleep(calendar.at(date(night), 20, 0), expected_seconds),
+            sleep(calendar.at(date(following), 20, 0), 36_000.0),
+        ];
+        data.fetched_at = calendar.at(date(now), 18, 0);
+        let mut request = request(&data, &calendar, Metric::Sleep);
+        request.now = data.fetched_at;
+        request.selected = date(night);
+        request.measure.period = Period::Night;
+        let result = build(&request);
+        let selected = result.selected.unwrap();
+        assert!((selected.duration - expected_seconds).abs() < 0.001);
+        assert!((last_value(&selected.points) - expected_seconds).abs() < 0.001);
+        assert!((result.clock_duration - 36_000.0).abs() < 0.001);
+        assert_eq!(result.average_days, 2);
+        let average = result.average.last().unwrap();
+        let common_seconds = expected_seconds.min(36_000.0);
+        assert!((average.seconds - common_seconds).abs() < 0.001);
+        assert!((average.value - common_seconds).abs() < 0.001);
+    }
+}
+
+#[test]
+fn wake_ends_at_period_boundaries_keep_their_marker_for_saved_and_live_sleep() {
+    let calendar = Calendar::utc();
+    for (period, day, hour, elapsed) in [
+        (Period::Day, "2025-09-21", 20, 50_400),
+        (Period::Night, "2025-09-22", 6, 36_000),
+    ] {
+        for is_live in [false, true] {
+            let mut data = dataset();
+            let end = calendar.at(date(day), hour, 0);
+            data.sleep = vec![sleep(end - 10_800.0, 3_600.0)];
+            if is_live {
+                data.live.sleep_active = true;
+                data.live.sleep_start = Some(end);
+            } else {
+                data.sleep.push(sleep(end, 3_600.0));
+            }
+            let mut request = request(&data, &calendar, Metric::Wake);
+            request.selected = date("2025-09-21");
+            request.measure.period = period;
+            let result = build(&request);
+            let selected = result.selected.unwrap();
+            let markers: Vec<_> = selected
+                .markers
+                .iter()
+                .map(|marker| (marker.point.seconds as i64, marker.symbol))
+                .collect();
+            assert_eq!(
+                markers,
+                vec![
+                    (elapsed - 10_800, 'x'),
+                    (elapsed - 7_200, 'o'),
+                    (elapsed, 'x')
+                ]
+            );
+        }
     }
 }

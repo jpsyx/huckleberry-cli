@@ -1,8 +1,8 @@
 //! Exact cumulative family-day histories and their previous-seven-day average.
 //!
-//! The x axis is elapsed time from configured day start, never a rolling
-//! window. Actual 23/24/25-hour endpoints are retained. Historical averages
-//! stop at the shortest contributing day so their denominator stays fixed,
+//! The x axis covers the configured family day or selected day/night period,
+//! never a rolling window. Actual elapsed endpoints are retained across DST.
+//! Historical averages stop at the shortest contributing period so their denominator stays fixed,
 //! and a short day is never projected beyond its real endpoint. Individual
 //! curves retain every event and duration boundary; only the historical mean
 //! is sampled and interpolated.
@@ -69,7 +69,7 @@ pub struct Measure {
 /// One exact coordinate in elapsed seconds and cumulative base units.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Point {
-    /// Seconds elapsed since this family day's configured start.
+    /// Seconds elapsed since this curve's configured period start.
     pub seconds: f64,
     /// Accumulated millilitres, seconds, or count.
     pub value: f64,
@@ -80,7 +80,7 @@ pub struct Point {
 pub struct Marker {
     /// The event's plotted coordinate.
     pub point: Point,
-    /// `x` for an event/start, `o` for a completed sleep's end.
+    /// `o` for an event/start, `x` for an event's actual end.
     pub symbol: char,
 }
 
@@ -93,7 +93,7 @@ pub struct DayCurve {
     pub points: Vec<Point>,
     /// Actual event times, including starts and completed sleep ends.
     pub markers: Vec<Marker>,
-    /// This day's actual length, including daylight-saving transitions.
+    /// This period's actual length, including daylight-saving transitions.
     pub duration: f64,
     /// Elapsed seconds through the available observation cutoff.
     pub observed: f64,
@@ -114,6 +114,8 @@ pub struct Comparison {
     pub average: Vec<Point>,
     /// Covered, recorded days contributing from the previous seven days.
     pub average_days: usize,
+    /// Configured wall-clock length of the plotted period, before DST changes.
+    pub clock_duration: f64,
 }
 
 /// All inputs to the pure cumulative calculation.
@@ -148,7 +150,16 @@ pub fn build(request: &Request<'_>) -> Comparison {
         selected: (request.selected != today).then(|| day::build(request, request.selected)),
         average: interpolation::average(&history),
         average_days: history.len(),
+        clock_duration: match request.measure.period {
+            Period::All => 86_400.0,
+            Period::Day => daytime_hours(request.rule) * 3600.0,
+            Period::Night => (24.0 - daytime_hours(request.rule)) * 3600.0,
+        },
     }
+}
+
+fn daytime_hours(rule: DayRule) -> f64 {
+    (rule.day_end_hour - rule.day_start_hour).rem_euclid(24.0)
 }
 
 #[cfg(test)]
