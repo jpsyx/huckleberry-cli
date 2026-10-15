@@ -293,6 +293,11 @@ intact. It uses the whole available terminal over the retained panels.
 The plot uses discrete family-day boundaries regardless of `day_mode`.
 All-day columns span `day_start` to the next `day_start`; daytime columns span
 `day_start` to `day_end`; night columns span `day_end` to the next `day_start`.
+Daytime and night axes label every elapsed hour from their configured start,
+including the exact endpoint when the period ends on a partial hour. Labels
+stagger into additional rows when needed to avoid overlap on narrow terminals;
+the graph reserves their height, or asks for more room when it cannot fit.
+All-day axes retain their wider label spacing.
 Each curve begins accumulating at its displayed period's start. Today stops at
 the available observation time or the period's end, whichever comes first; a
 period that has not begun has no Today line. Selecting another day adds that

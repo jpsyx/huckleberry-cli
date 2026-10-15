@@ -5,6 +5,7 @@ use crate::{
     theme::{Theme, Tone},
 };
 
+mod axis;
 mod plot;
 
 /// Render a comparison inside the supplied terminal-cell dimensions.
@@ -63,20 +64,34 @@ fn contents(
         ));
     } else {
         output.extend(legends);
-        if has_data(comparison) {
-            let graph = plot::Plot::create(comparison, scale, width, height - reserved);
-            output.extend(graph.lines(start_hour, uses_elapsed(comparison), theme));
-        } else {
-            output.push(paint_clipped(
-                "No recorded data for these curves",
-                Tone::Muted,
-                width,
-                theme,
-            ));
-        }
+        output.extend(graph_lines(
+            comparison,
+            scale,
+            start_hour,
+            (width, height - reserved),
+            theme,
+        ));
         output.extend(notes);
     }
     output
+}
+
+fn graph_lines(
+    comparison: &Comparison,
+    scale: f64,
+    start_hour: f64,
+    size: (usize, usize),
+    theme: Theme,
+) -> Vec<String> {
+    let message = if has_data(comparison) {
+        if let Some(graph) = plot::Plot::create(comparison, scale, size.0, size.1, start_hour) {
+            return graph.lines(theme);
+        }
+        "Enlarge for comparison graph"
+    } else {
+        "No recorded data for these curves"
+    };
+    vec![paint_clipped(message, Tone::Muted, size.0, theme)]
 }
 
 fn has_data(comparison: &Comparison) -> bool {

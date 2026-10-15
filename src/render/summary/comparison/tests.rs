@@ -296,3 +296,106 @@ fn average_value_is_magenta_in_a_gutter_beyond_coincident_curves() {
         assert!(row.width() <= usize::from(width));
     }
 }
+
+fn period_comparison(duration: f64) -> Comparison {
+    let mut data = comparison();
+    data.clock_duration = duration;
+    data.today.duration = duration;
+    data.today.observed = duration;
+    data.today.points.last_mut().unwrap().seconds = duration;
+    data.average.last_mut().unwrap().seconds = duration;
+    data
+}
+
+fn axis_labels(output: &[String]) -> Vec<&str> {
+    let axis = output
+        .iter()
+        .position(|line| line.contains('+') && line.contains("---"))
+        .expect("a time axis");
+    output[axis + 1..]
+        .iter()
+        .take_while(|line| line.starts_with(' ') && !line.trim().is_empty())
+        .flat_map(|line| line.split_whitespace())
+        .collect()
+}
+
+#[test]
+fn period_axes_label_every_hour_including_across_midnight() {
+    for (start, duration, expected) in [
+        (
+            7.0,
+            14.0,
+            "07:00 08:00 09:00 10:00 11:00 12:00 13:00 14:00 15:00 16:00 17:00 18:00 19:00 20:00 21:00",
+        ),
+        (
+            21.0,
+            10.0,
+            "21:00 22:00 23:00 00:00 01:00 02:00 03:00 04:00 05:00 06:00 07:00",
+        ),
+    ] {
+        let output = lines(
+            &period_comparison(duration * 3600.0),
+            "Sleep (h)",
+            1.0,
+            start,
+            (160, 30),
+            Theme::dark(false),
+        );
+        assert_eq!(
+            axis_labels(&output),
+            expected.split_whitespace().collect::<Vec<_>>()
+        );
+    }
+}
+
+#[test]
+fn narrow_period_axes_keep_every_label_readable_within_the_modal() {
+    let expected: Vec<_> = (7..=21).map(|hour| format!("{hour:02}:00")).collect();
+    for width in [28, 50, 80, 100] {
+        let output = lines(
+            &period_comparison(50_400.0),
+            "Sleep (h)",
+            1.0,
+            7.0,
+            (width, 30),
+            Theme::dark(false),
+        );
+        let mut labels = axis_labels(&output);
+        labels.sort_unstable();
+        assert_eq!(labels, expected, "width {width}: {}", output.join("\n"));
+        assert!(output.iter().all(|line| line.len() <= usize::from(width)));
+        assert!(output.join(" ").contains("preceding complete days"));
+        assert_eq!(output.last().unwrap(), "Esc/Enter close");
+    }
+}
+
+#[test]
+fn hourly_axes_keep_fractional_endpoints_and_dst_elapsed_ticks() {
+    let output = lines(
+        &period_comparison(9_000.0),
+        "Sleep (h)",
+        1.0,
+        7.5,
+        (100, 24),
+        Theme::dark(false),
+    );
+    assert_eq!(axis_labels(&output), ["07:30", "08:30", "09:30", "10:00"]);
+    let mut data = period_comparison(36_000.0);
+    data.today.duration = 39_600.0;
+    let output = lines(&data, "Sleep (h)", 1.0, 21.0, (160, 24), Theme::dark(false));
+    assert_eq!(
+        axis_labels(&output),
+        [
+            "+0h", "+1h", "+2h", "+3h", "+4h", "+5h", "+6h", "+7h", "+8h", "+9h", "+10h", "+11h"
+        ]
+    );
+    assert!(output.iter().any(|line| line.contains("DST")));
+}
+
+#[test]
+fn full_day_axes_retain_their_existing_label_spacing() {
+    assert_eq!(
+        axis_labels(&rendered(&comparison())),
+        ["06:00", "12:00", "18:00", "00:00", "06:00"]
+    );
+}

@@ -199,7 +199,9 @@ covered family days every 15 minutes and interpolates only their mean with a
 monotone cubic. The column catalog maps each table metric to an additive quantity
 and display scale. `render::summary::comparison` returns bounded ASCII graph
 lines with period-specific axes, legends, event markers, and a reserved margin
-for the average endpoint value. Curves use seconds from their period's start;
+for the average endpoint value. Its `axis` module places hourly day/night labels
+at their elapsed positions and staggers crowded labels into reserved rows.
+Curves use seconds from their period's start;
 the configured clock duration distinguishes shorter periods from DST changes.
 Shell and standalone hosts draw
 those same lines in an opaque modal; `summary --curve` prints them for scripts.

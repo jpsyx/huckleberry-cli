@@ -20,24 +20,34 @@ pub(super) struct Plot {
     maximum: f64,
     scale: f64,
     average_label: Option<(usize, String)>,
+    time_labels: Vec<String>,
 }
 
 impl Plot {
-    pub(super) fn create(comparison: &Comparison, scale: f64, width: usize, height: usize) -> Self {
+    pub(super) fn create(
+        comparison: &Comparison,
+        scale: f64,
+        width: usize,
+        height: usize,
+        start_hour: f64,
+    ) -> Option<Self> {
         let maximum = maximum(comparison, scale);
         let label_width = quantity(maximum).len().max(4) + 1;
-        let average_value = comparison
-            .average
-            .iter()
-            .map(|point| point.value)
-            .max_by(f64::total_cmp)
-            .map(|value| quantity(value * scale));
+        let average_value = average_value(comparison, scale);
         let gutter = average_value.as_ref().map_or(0, |label| label.len() + 1);
         let plot_width = width.saturating_sub(label_width + 1 + gutter).max(2);
-        let duration = std::iter::once(comparison.today.duration)
-            .chain(comparison.selected.iter().map(|day| day.duration))
-            .chain(comparison.average.last().map(|point| point.seconds))
-            .fold(1.0, f64::max);
+        let duration = duration(comparison);
+        let time_labels = super::axis::labels(
+            plot_width,
+            duration,
+            start_hour,
+            super::uses_elapsed(comparison),
+            comparison.clock_duration < 86_400.0,
+        );
+        let height = height.checked_sub(time_labels.len().saturating_sub(1))?;
+        if height < 3 {
+            return None;
+        }
         let blank = Cell {
             symbol: ' ',
             tone: Tone::Muted,
@@ -51,15 +61,18 @@ impl Plot {
             maximum,
             scale,
             average_label: None,
+            time_labels,
         };
-        if let Some((endpoint, label)) = comparison.average.last().zip(average_value) {
-            result.average_label = Some((result.position(*endpoint).1, label));
-        }
         result.draw(comparison);
-        result
+        Some(result)
     }
 
     fn draw(&mut self, comparison: &Comparison) {
+        self.average_label = comparison
+            .average
+            .last()
+            .zip(average_value(comparison, self.scale))
+            .map(|(endpoint, label)| (self.position(*endpoint).1, label));
         self.curve(&comparison.average, self.duration, Tone::Average);
         if let Some(day) = comparison.selected.as_ref().filter(|day| day.has_data) {
             self.curve(&day.points, day.observed, Tone::Accent);
@@ -81,7 +94,7 @@ impl Plot {
         }
     }
 
-    pub(super) fn lines(&self, start_hour: f64, is_elapsed: bool, theme: Theme) -> Vec<String> {
+    pub(super) fn lines(&self, theme: Theme) -> Vec<String> {
         let mut output: Vec<_> = self
             .cells
             .iter()
@@ -105,10 +118,11 @@ impl Plot {
             .collect();
         let prefix = " ".repeat(self.label_width);
         output.push(theme.muted(&format!("{prefix}+{}", "-".repeat(self.width))));
-        output.push(theme.muted(&format!(
-            "{prefix} {}",
-            self.time_labels(start_hour, is_elapsed)
-        )));
+        output.extend(
+            self.time_labels
+                .iter()
+                .map(|labels| theme.muted(&format!("{prefix} {labels}"))),
+        );
         output
     }
 
@@ -197,27 +211,22 @@ impl Plot {
             * (self.height - 1) as f64;
         (column.round() as usize, row.round() as usize)
     }
+}
 
-    fn time_labels(&self, start_hour: f64, is_elapsed: bool) -> String {
-        let mut cells = vec![' '; self.width];
-        let divisions = if self.width >= 48 { 4 } else { 2 };
-        for index in 0..=divisions {
-            let elapsed = self.duration / 3600.0 * f64::from(index) / f64::from(divisions);
-            let label = if is_elapsed {
-                format!("+{}h", quantity(elapsed))
-            } else {
-                super::clock_label(start_hour + elapsed)
-            };
-            let center = self.width.saturating_sub(1) * index as usize / divisions as usize;
-            let start = center
-                .saturating_sub(label.len() / 2)
-                .min(self.width - label.len());
-            for (offset, character) in label.chars().enumerate() {
-                cells[start + offset] = character;
-            }
-        }
-        cells.into_iter().collect()
-    }
+fn average_value(comparison: &Comparison, scale: f64) -> Option<String> {
+    comparison
+        .average
+        .iter()
+        .map(|point| point.value)
+        .max_by(f64::total_cmp)
+        .map(|value| quantity(value * scale))
+}
+
+fn duration(comparison: &Comparison) -> f64 {
+    std::iter::once(comparison.today.duration)
+        .chain(comparison.selected.iter().map(|day| day.duration))
+        .chain(comparison.average.last().map(|point| point.seconds))
+        .fold(1.0, f64::max)
 }
 
 fn maximum(comparison: &Comparison, scale: f64) -> f64 {
@@ -246,7 +255,8 @@ fn maximum(comparison: &Comparison, scale: f64) -> f64 {
     magnitude * factor
 }
 
-fn quantity(value: f64) -> String {
+/// Compact numeric labels shared by the value axis and elapsed-hour ticks.
+pub(super) fn quantity(value: f64) -> String {
     if value.abs() >= 10000.0 {
         format!("{value:.1e}")
     } else if value.fract().abs() < 0.001 {
