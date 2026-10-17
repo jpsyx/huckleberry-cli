@@ -18,6 +18,35 @@ use crate::domain::time::Calendar;
 /// What is printed where a number was never recorded.
 pub const MISSING: &str = "—";
 
+/// Age in calendar days through day 31, weeks until three months, then whole months.
+/// Month anniversaries clamp to the last valid day in shorter months.
+#[must_use]
+pub fn age(birthdate: &str, calendar: &Calendar, now: f64) -> Option<String> {
+    let days = calendar.age_in_days(birthdate, now)?;
+    if days <= 31 {
+        return Some(format!("{days} day{}", if days == 1 { "" } else { "s" }));
+    }
+    let born: Date = birthdate.trim().parse().ok()?;
+    let today = calendar.day_of(now);
+    let months = (i32::from(today.year()) - i32::from(born.year())) * 12 + i32::from(today.month())
+        - i32::from(born.month());
+    let anniversary = born.checked_add(jiff::Span::new().months(months)).ok()?;
+    let completed_months = months - i32::from(today < anniversary);
+    if completed_months >= 3 {
+        return Some(format!("{completed_months} months"));
+    }
+    let weeks = days / 7;
+    let remaining_days = days % 7;
+    Some(if remaining_days == 0 {
+        format!("{weeks} weeks")
+    } else {
+        format!(
+            "{weeks} weeks {remaining_days} day{}",
+            if remaining_days == 1 { "" } else { "s" }
+        )
+    })
+}
+
 /// A volume, in the units the reader asked for.
 #[must_use]
 pub fn volume(millilitres: Option<f64>, units: Units) -> String {

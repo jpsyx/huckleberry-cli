@@ -169,12 +169,9 @@ pub fn profile_fields(
     if let Some(age) = child
         .birthdate
         .as_deref()
-        .and_then(|birthdate| calendar.age_in_days(birthdate, now))
+        .and_then(|birthdate| format::age(birthdate, calendar, now))
     {
-        fields.push((
-            "Age",
-            format!("{} weeks, {} days ({age} days)", age / 7, age % 7),
-        ));
+        fields.push(("Age", age));
     }
     let today = calendar.day_of(now);
     for (label, hour) in [

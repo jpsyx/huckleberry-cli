@@ -630,7 +630,13 @@ It is a full-width strip across the **top**, above the Menu view:
 order, no additions and no abbreviations.** It is that command left on the
 screen rather than a second screen about the same data.
 
-The child heading includes their age when known, as in Summary. `Last wake up`
+The child heading includes their age when known, as in Summary. All human-readable
+age displays, including child profiles, use days through day 31 (`31 days`),
+then weeks and remaining days (`4 weeks 4 days`), omitting zero remaining days.
+Starting on the three-month calendar anniversary, they show completed months
+only (`3 months`). Anniversaries use the last valid day in shorter months.
+Age follows the local calendar date, independently of family-day settings.
+The machine-readable child profile retains its numeric `age_days` field. `Last wake up`
 follows the night's sleep and shows either the current awake duration or the
 end and duration of the latest completed wake period.
 

@@ -164,8 +164,13 @@ impl View<'_> {
                 cell,
             );
         }
-        let age = super::age_in_days(self.dataset, self.calendar, self.now)
-            .map_or_else(String::new, |days| format!(" · {days} days old"));
+        let age = self
+            .dataset
+            .child
+            .birthdate
+            .as_deref()
+            .and_then(|birthdate| super::format::age(birthdate, self.calendar, self.now))
+            .map_or_else(String::new, |age| format!(" · {age} old"));
         vec![
             theme.heading(&format!(
                 "Summary · {}{age} · column {}/{} · ~ partial",

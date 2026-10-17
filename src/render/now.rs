@@ -112,10 +112,10 @@ fn child_heading(child: &Child, calendar: &Calendar, now: f64) -> String {
     child
         .birthdate
         .as_deref()
-        .and_then(|birthdate| calendar.age_in_days(birthdate, now))
+        .and_then(|birthdate| format::age(birthdate, calendar, now))
         .map_or_else(
             || child.name.clone(),
-            |age| format!("{} · {age} days old", child.name),
+            |age| format!("{} · {age} old", child.name),
         )
 }
 
@@ -903,6 +903,58 @@ mod tests {
         let text = joined(&dataset(), AFTERNOON);
         assert!(text.contains("nothing logged"), "{text}");
         assert!(!text.contains("nothing logged total"), "{text}");
+    }
+
+    #[test]
+    fn age_heading_uses_days_weeks_then_calendar_months() {
+        let calendar = Calendar::new("America/New_York").unwrap();
+        let mut data = dataset();
+        for (birthday, date, expected) in [
+            ("2025-01-01", "2025-01-01", "0 days"),
+            ("2025-01-01", "2025-01-02", "1 day"),
+            ("2025-01-01", "2025-02-01", "31 days"),
+            ("2025-01-01", "2025-02-02", "4 weeks 4 days"),
+            ("2025-01-01", "2025-02-05", "5 weeks"),
+            ("2025-01-01", "2025-02-06", "5 weeks 1 day"),
+            ("2025-01-01", "2025-03-31", "12 weeks 5 days"),
+            ("2025-01-01", "2025-04-01", "3 months"),
+            ("2025-01-01", "2025-04-05", "3 months"),
+            ("2025-01-01", "2026-02-01", "13 months"),
+            ("2024-11-30", "2025-02-28", "3 months"),
+            ("2023-11-30", "2024-02-28", "12 weeks 6 days"),
+            ("2023-11-30", "2024-02-29", "3 months"),
+            ("2025-01-31", "2025-04-30", "3 months"),
+            ("2025-01-31", "2025-05-30", "3 months"),
+            ("2099-01-01", "2025-01-01", "0 days"),
+        ] {
+            data.child.birthdate = Some(birthday.into());
+            let now = calendar.at(date.parse().unwrap(), 0, 0);
+            assert_eq!(
+                child_heading(&data.child, &calendar, now),
+                format!("Bear · {expected} old"),
+                "{birthday} on {date}"
+            );
+            assert_profile_and_summary_age(&data, &calendar, now, expected);
+        }
+        data.child.birthdate = Some("invalid".into());
+        assert_eq!(child_heading(&data.child, &calendar, AFTERNOON), "Bear");
+    }
+
+    fn assert_profile_and_summary_age(
+        data: &Dataset,
+        calendar: &Calendar,
+        now: f64,
+        expected: &str,
+    ) {
+        let summary =
+            crate::render::summary::lines(&[], data, calendar, Theme::dark(false), Units::Ml, now)
+                .join("\n");
+        assert!(
+            summary.contains(&format!("Bear is {expected} old")),
+            "{summary}"
+        );
+        let fields = crate::render::output::profile_fields(&data.child, calendar, now);
+        assert!(fields.contains(&("Age", expected.into())), "{fields:?}");
     }
 
     #[test]

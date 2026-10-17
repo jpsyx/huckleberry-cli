@@ -429,7 +429,8 @@ fn summary_bars_are_separated_and_explain_the_complete_day_average() {
 #[test]
 fn age_stays_in_the_header_and_freshness_stays_at_the_bottom_when_scrolling() {
     let calendar = Calendar::new("America/New_York").unwrap();
-    let data = dataset();
+    let mut data = dataset();
+    data.child.birthdate = Some("2025-08-21".into());
     let rows = summaries::build(&data, &calendar, DayRule::default(), AFTERNOON, 30);
     let view = View {
         is_hosted: false,
@@ -458,7 +459,8 @@ fn age_stays_in_the_header_and_freshness_stays_at_the_bottom_when_scrolling() {
             assert_eq!(drawn.matches("as of").count(), 1);
             if size.1 >= 12 {
                 assert!(
-                    lines[0].contains("Summary · Bear · 21 days old · column 1/31 · ~ partial")
+                    lines[0]
+                        .contains("Summary · Bear · 4 weeks 4 days old · column 1/31 · ~ partial")
                 );
                 assert_eq!(drawn.matches("days old").count(), 1);
             }

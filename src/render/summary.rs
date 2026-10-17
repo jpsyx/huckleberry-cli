@@ -47,8 +47,13 @@ pub fn lines(
             theme.value(&text)
         });
     }
-    if let Some(age) = age_in_days(dataset, calendar, now) {
-        lines.push(theme.muted(&format!("{} is {age} days old", dataset.child.name)));
+    if let Some(age) = dataset
+        .child
+        .birthdate
+        .as_deref()
+        .and_then(|birthdate| format::age(birthdate, calendar, now))
+    {
+        lines.push(theme.muted(&format!("{} is {age} old", dataset.child.name)));
     }
     lines.extend(footer(rows, dataset, calendar, theme, units, now));
     lines.push(theme.muted(&super::now::as_of(dataset, now)));
