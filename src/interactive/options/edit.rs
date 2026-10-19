@@ -28,6 +28,7 @@ pub(super) async fn collect(context: &Context, pending: &mut CommandDraft) -> Re
         selected.draft.as_ref(),
         selected.started,
         selected.token == "sleep/current",
+        selected.resumable,
         pending.values.get("set").cloned().unwrap_or_default(),
     )
     .await?;

@@ -68,6 +68,16 @@ impl EditForm {
         }
         Ok(form.with_foods(&[]))
     }
+    /// Marks the one completed sleep that may be resumed.
+    #[must_use]
+    pub fn with_resumable_sleep(mut self, token: Option<&str>) -> Self {
+        for (key, draft) in &mut self.drafts {
+            draft.resumable = token == Some(key.as_str())
+                && matches!(draft.target.draft, Some(Draft::Sleep(_)))
+                && draft.target.timer.is_none();
+        }
+        self
+    }
     /// Restores pending options into the selected entry without suppressing its field menu.
     pub(crate) fn with_changes(mut self, changes: Vec<String>, started: f64) -> Self {
         if let Some(draft) = self
@@ -182,14 +192,21 @@ impl FormModel for EditForm {
     }
     fn complete(&self) -> Result<EditSubmission> {
         let draft = self.current()?;
-        draft.validate()?;
+        let changes = if self.explicit.is_empty() {
+            draft.changes.clone()
+        } else {
+            self.explicit.clone()
+        };
+        if super::resume::requested(&changes)? {
+            if draft.corrected_start().is_some() {
+                bail!("resume a completed sleep separately from other edits");
+            }
+        } else {
+            draft.validate()?;
+        }
         Ok(EditSubmission {
             target: draft.target.clone(),
-            changes: if self.explicit.is_empty() {
-                draft.changes.clone()
-            } else {
-                self.explicit.clone()
-            },
+            changes,
             started: draft.corrected_start(),
         })
     }

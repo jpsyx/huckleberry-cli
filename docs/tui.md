@@ -707,3 +707,14 @@ Pumping keeps a draft for each amount mode. Returning from a side amount to
 Total restores the earlier total; switching back restores both sides, including
 zero. Back from custom minutes returns to duration presets without clearing the
 custom text. Enter moves through the applicable questions before recording.
+
+### Resuming a sleep stopped prematurely
+
+The edit form's Fields to change menu appends **Resume sleep** only for the
+latest eligible completed sleep. Done remains highlighted by default. The
+same navigation keys select the action, and Enter submits it through the shared
+edit executor without leaving the shell. Other pending edits hide the action
+until saved. A later event or an active sleep, nursing or pumping timer prevents
+resuming; full history is checked again when submitted. Restoring the original
+start and details replaces the completed entry so the refreshed Now drawer and
+Summary count the sleep once. See `cli.md` for the scriptable equivalent.

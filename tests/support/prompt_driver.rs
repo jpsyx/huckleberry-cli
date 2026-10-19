@@ -64,6 +64,7 @@ fn main() -> anyhow::Result<()> {
             Some(&draft),
             1000.0,
             false,
+            false,
             vec![],
         ))?;
         assert!(kept.is_empty());
@@ -72,6 +73,7 @@ fn main() -> anyhow::Result<()> {
             &context,
             Some(&draft),
             1000.0,
+            false,
             false,
             vec![],
         ))?;
@@ -99,6 +101,7 @@ fn main() -> anyhow::Result<()> {
             &context,
             Some(&draft),
             900.0,
+            false,
             false,
             vec![],
         ))?;

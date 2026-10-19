@@ -17,6 +17,8 @@ pub struct SelectedEdit {
     pub draft: Option<Draft>,
     /// Current event time.
     pub started: f64,
+    /// Whether the complete history currently permits reopening this sleep.
+    pub resumable: bool,
 }
 
 /// Selects or resolves an entry using the same history and live rows as edit.
@@ -59,7 +61,13 @@ pub async fn select(
         .at
         .as_ref()
         .and_then(|at| edit::draft_for(&dataset, at, Units::from_setting(&context.config.units)));
+    let resumable = matches!(draft, Some(Draft::Sleep(_)))
+        && super::resume::available(context, &client, &cid)
+            .await
+            .as_deref()
+            == Some(&token);
     Ok(SelectedEdit {
+        resumable,
         token,
         draft,
         started: entry.start,

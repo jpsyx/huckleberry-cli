@@ -64,7 +64,9 @@ async fn execute(
     cid: &str,
     answer: EditSubmission,
 ) -> Result<()> {
-    if answer.target.timer.is_some() {
+    if super::resume::requested(&answer.changes)? {
+        super::resume::execute(context, client, cid, answer).await
+    } else if answer.target.timer.is_some() {
         live::execute(context, client, cid, answer).await
     } else {
         history::execute(context, client, cid, answer).await
@@ -140,6 +142,15 @@ async fn create_model(
     } else {
         vec![]
     };
+    let resumable = if options.set.is_empty()
+        && targets
+            .iter()
+            .any(|target| matches!(target.draft, Some(edit::Draft::Sleep(_))))
+    {
+        super::resume::available(context, client, cid).await
+    } else {
+        None
+    };
     EditForm::create_edit(
         calendar,
         rows,
@@ -147,7 +158,11 @@ async fn create_model(
         options.id.clone(),
         options.set.clone(),
     )
-    .map(|model| model.with_foods(&known))
+    .map(|model| {
+        model
+            .with_foods(&known)
+            .with_resumable_sleep(resumable.as_deref())
+    })
 }
 async fn live_target(client: &Huckleberry, cid: &str, now: f64) -> Result<EditTarget> {
     let timer = client

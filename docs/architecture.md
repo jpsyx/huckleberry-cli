@@ -540,6 +540,13 @@ Each edit target owns its pending field changes and nested controls. Field
 acceptance returns to Fields to change, while Done consumes only the selected
 entry's draft. History saves still use sparse explicit field updates; live
 sleep corrections retain the original timer UUID for the API conflict check.
+Completed sleep resumption is a separate explicit edit action, shared by the
+field menu and `--set resume=true`. Preparation asks the API for the eligible
+row, while execution rechecks full history. `ops/sleep_reopen` owns the pure
+eligibility rules and the conditional atomic history/timer/summary write.
+`ops/sleep_finish` retains the timer's raw details through the next completion.
+Pending field edits cannot be mixed with resumption. Eligibility failures hide
+only the optional menu action; ordinary editing remains available.
 Delete confirmation is scoped to the selected RowRef and returns to that picker
 on Back. Neither collection path mutates an entry before completion.
 

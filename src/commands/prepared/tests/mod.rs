@@ -14,3 +14,5 @@ mod entries;
 mod setup;
 
 mod catalog;
+
+mod resume;
