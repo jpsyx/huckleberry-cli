@@ -16,6 +16,8 @@ pub mod removal;
 pub mod rows;
 pub mod sleep;
 mod sleep_edit;
+mod sleep_finish;
+mod sleep_reopen;
 pub mod solids;
 pub mod watch;
 

@@ -11,6 +11,7 @@ use anyhow::{Result, anyhow, bail};
 
 pub(super) struct EntryDraft {
     pub target: EditTarget,
+    pub resumable: bool,
     pub changes: Vec<String>,
     pub started: f64,
     pub stopped: Option<f64>,
@@ -23,6 +24,7 @@ impl EntryDraft {
         Self {
             started: target.started,
             target,
+            resumable: false,
             changes: vec![],
             stopped: None,
             field: None,
@@ -48,20 +50,23 @@ impl EntryDraft {
         let values = std::iter::once("done")
             .chain(names)
             .map(|field| FormValue::Choice(field.into()));
-        View::create_choices(
-            "Fields to change",
-            items
-                .into_iter()
-                .zip(values)
-                .map(|(item, value)| {
-                    (
-                        format!("{} · {}", item.label, item.detail.unwrap_or_default()),
-                        value,
-                    )
-                })
-                .collect(),
-            0,
-        )
+        let mut choices: Vec<_> = items
+            .into_iter()
+            .zip(values)
+            .map(|(item, value)| {
+                (
+                    format!("{} · {}", item.label, item.detail.unwrap_or_default()),
+                    value,
+                )
+            })
+            .collect();
+        if self.can_resume() {
+            choices.push((
+                "Resume sleep · continue from its original start".into(),
+                FormValue::Choice("resume".into()),
+            ));
+        }
+        View::create_choices("Fields to change", choices, 0)
     }
     pub fn accept(
         &mut self,
@@ -71,22 +76,7 @@ impl EntryDraft {
         _now: f64,
     ) -> Result<()> {
         if view == "fields" {
-            let selected = crate::prompt::flow::fields::choice(value)?;
-            self.field = if selected == "done" {
-                None
-            } else {
-                Some(
-                    form::visible_fields(
-                        self.shown().as_ref(),
-                        self.target.token == super::super::live::TOKEN,
-                    )
-                    .into_iter()
-                    .find(|field| *field == selected)
-                    .ok_or_else(|| anyhow!("choose a field"))?,
-                )
-            };
-            self.nested = false;
-            return Ok(());
+            return self.select_field(value);
         }
         let field = self.field.ok_or_else(|| anyhow!("choose a field"))?;
         if let FormValue::Instant(at) = value {
@@ -99,6 +89,34 @@ impl EntryDraft {
             return self.accept_choice(field, value);
         }
         self.record(field, &crate::prompt::flow::fields::text(value)?)
+    }
+    /// Menu navigation changes a draft; only the completed form can execute it.
+    fn select_field(&mut self, value: FormValue) -> Result<()> {
+        let selected = crate::prompt::flow::fields::choice(value)?;
+        if selected == "resume" {
+            if !self.can_resume() {
+                bail!("save other edits before resuming the latest sleep");
+            }
+            self.changes = vec!["resume=true".into()];
+            self.field = None;
+            self.nested = false;
+            return Ok(());
+        }
+        self.field = if selected == "done" {
+            None
+        } else {
+            Some(
+                form::visible_fields(
+                    self.shown().as_ref(),
+                    self.target.token == super::super::live::TOKEN,
+                )
+                .into_iter()
+                .find(|field| *field == selected)
+                .ok_or_else(|| anyhow!("choose a field"))?,
+            )
+        };
+        self.nested = false;
+        Ok(())
     }
     fn accept_choice(&mut self, field: &str, value: FormValue) -> Result<()> {
         let answer = crate::prompt::flow::fields::choice(value)?;
@@ -165,6 +183,9 @@ impl EntryDraft {
         }
         self.nested = false;
         Ok(())
+    }
+    fn can_resume(&self) -> bool {
+        self.resumable && self.changes.is_empty() && self.corrected_start().is_none()
     }
     pub fn corrected_start(&self) -> Option<f64> {
         (self.started.to_bits() != self.target.started.to_bits()).then_some(self.started)

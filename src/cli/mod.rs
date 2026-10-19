@@ -68,6 +68,8 @@ pub struct EditOptions {
     /// Change one field without being asked, for example `--set pee=big`.
     /// Every saved entry accepts `--set "at=8am"`; clock-only edits keep its date.
     /// For the ongoing sleep use `--set "start=32 mins ago"`.
+    /// Resume the latest completed sleep with `--set resume=true` alone,
+    /// provided no events occurred after its end and no timer is active.
     /// Repeat for several. An empty value clears the field. Left out on a
     /// terminal, choose which fields to change from a menu.
     #[arg(long = "set", value_name = "KEY=VALUE")]

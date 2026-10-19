@@ -21,6 +21,7 @@ pub async fn collect(
     draft: Option<&Draft>,
     started: f64,
     live: bool,
+    resumable: bool,
     changes: Vec<String>,
 ) -> Result<Vec<String>> {
     if !prompt::available() {
@@ -52,7 +53,8 @@ pub async fn collect(
         Some(token.into()),
         vec![],
     )?
-    .with_changes(changes, time);
+    .with_changes(changes, time)
+    .with_resumable_sleep(resumable.then_some(token));
     let model = if matches!(draft, Some(Draft::Solids(_))) {
         let (client, cid) = crate::commands::client_and_child(context).await?;
         model.with_foods(&client.custom_foods(&cid, false).await.unwrap_or_default())
@@ -252,7 +254,7 @@ pub async fn fill(
     draft: &mut Option<Draft>,
     started: &mut f64,
 ) -> Result<()> {
-    let changes = collect(context, draft.as_ref(), *started, false, vec![]).await?;
+    let changes = collect(context, draft.as_ref(), *started, false, false, vec![]).await?;
     for change in &changes {
         let (key, value) = change.split_once('=').expect("collected field change");
         if key == "at" {

@@ -264,7 +264,7 @@ impl Huckleberry {
     ///
     /// Invalid event times or a refused or unreachable Firestore.
     pub async fn complete_sleep_at(&self, cid: &str, at: f64) -> Result<Option<CompletedSleep>> {
-        let Some(timer) = self.sleep_timer(cid).await? else {
+        let Some((timer, details)) = self.sleep_for_completion(cid).await? else {
             return Ok(None);
         };
         super::timing::validate_time(
@@ -289,27 +289,8 @@ impl Huckleberry {
             return Ok(None);
         };
 
-        let offset = self.zone().offset_minutes(completed.start as f64);
-        let interval = SleepInterval {
-            id: None,
-            start: Number::Integer(completed.start),
-            duration: Number::Integer(completed.duration),
-            offset: Number::Float(offset),
-            end_offset: Some(Number::Float(
-                self.zone()
-                    .offset_minutes((completed.start + completed.duration) as f64),
-            )),
-            details: completed.details.clone(),
-            last_updated: Some(Number::Float(now)),
-        };
-        let token = self.token().await?;
-        self.firestore()
-            .set(
-                &token,
-                &paths::history_row(paths::SLEEP, cid, &ids::sleep_interval_id()),
-                &to_fields(&interval)?,
-                "writing the sleep to history",
-            )
+        let offset = self
+            .write_completed_sleep(cid, &completed, details, now)
             .await?;
 
         let last_sleep = LastSleep {

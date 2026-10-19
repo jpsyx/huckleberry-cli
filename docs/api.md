@@ -286,6 +286,35 @@ The update mask contains only `timer.timerStartTime` (milliseconds),
 end marker, summaries and history are untouched. This is a Rust-specific
 extension using Woyken's original timer schema, not a completion or a new session.
 
+## Reopening a completed sleep
+
+`resumable_sleep(cid)` returns the latest eligible sleep's `RowRef`, or none.
+It reads all supported history trackers without the CLI's display window or
+row limit, expands batches without silently dropping malformed containers, and
+checks sleep, nursing and pumping timers. A later event start or interval end,
+an active or paused timer, ambiguous latest sleeps, future sleeps or unreadable
+event timing prevents reopening. Reads that fail return a typed error.
+
+`resume_completed_sleep(cid, at)` repeats that check at execution. It rereads
+the source row, refuses changes since the eligibility read, then commits source
+removal, a running sleep timer and `prefs.lastSleep` repair atomically. The timer
+uses the original start in milliseconds and preserves the source's details,
+including unknown Firestore field types. Completion carries those raw details
+back to history, so resuming and stopping does not discard unmodeled fields.
+It receives a new session UUID; stale
+idle timer fields are replaced. Batch removal masks only the selected key.
+The last-sleep summary points to the previous completed sleep, or is cleared.
+
+Both the source and sleep tracker require their original server revisions.
+Missing revisions or a refused commit never cause a weaker write or automatic
+retry. Other trackers are read immediately before the commit but are not locked:
+a simultaneous event inserted after those reads can still race the eligibility
+check. This follows the existing conditional-commit architecture rather than
+claiming a transaction across all histories.
+
+This is a Rust-specific extension using the original sleep schema researched
+by Woyken in `py-huckleberry-api`; no new upstream operation was ported.
+
 ## Name mapping
 
 The models drop the `Firebase` prefix, because the crate name is the namespace.

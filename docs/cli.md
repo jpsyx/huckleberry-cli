@@ -416,6 +416,27 @@ with the dimmed examples and the same flexible parser, and the stop is saved as
 the duration between them. Moving the start keeps a stop already chosen where it
 is; a start moved past that stop drops it and says so.
 
+The latest completed sleep also offers **Resume sleep** when nothing happened
+later than its end and no sleep, nursing, or pumping timer is active (including
+paused timers). It continues from the original start, counting the time since
+the accidental stop as sleep and retaining the recorded details. The completed
+entry is removed as the running timer is restored, so totals count it once.
+Done remains the default; resume is hidden while other edits are pending.
+Save those edits first, then reopen the entry to resume it.
+
+The same action is available without prompts:
+
+```sh
+h edit --id sleep/<ENTRY> --set resume=true
+```
+
+Use `resume=true` alone. Eligibility checks all supported history trackers,
+including health, pumping, milestones and activities, beyond the listing's
+`--days` and `--limit`. An interval ending later blocks resuming even if it
+started earlier; an event exactly at the sleep's end does not. Unreadable
+history hides the option, with a warning for failed reads. Eligibility is
+checked again when submitted, and a conflicting change refuses the save.
+
 Selecting a time field opens **When?** (**When did it end?** for a stop) with
 the stored date and time as its default, for example `2026-09-27 8:00 AM`. Keep
 and Enter preserve the exact instant, including fractional seconds. A clock-only
