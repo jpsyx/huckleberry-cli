@@ -52,17 +52,20 @@ fn ask_with_minimum(
     minimum: i32,
 ) -> Result<(Units, f64)> {
     let start = amount.unwrap_or_else(|| format::convert(UNKNOWN_ML, Units::Ml, units));
-    let dial = Dial::new(vec![amounts(units, start, minimum), units_wheel(units)]);
-    // A volume has one way of being said, so Tab does nothing and the only
-    // way out is the answer.
-    let super::terminal::Outcome::Submitted(turned) =
-        super::terminal::ask(label, dial, theme, &mut |dial, column| {
-            settle(dial, column, minimum);
-        })?
-    else {
-        unreachable!("a volume dial offers nothing to switch to")
-    };
-    Ok(read(&turned))
+    let mut fine = false;
+    let mut dial = create_dial(units, start, minimum, fine);
+    loop {
+        match super::terminal::ask(label, dial, theme, &mut |dial, column| {
+            settle_with_scale(dial, column, minimum, fine);
+        })? {
+            super::terminal::Outcome::Submitted(turned) => return Ok(read(&turned)),
+            super::terminal::Outcome::Switched(turned) => {
+                fine = !fine;
+                let (units, amount) = read(&turned);
+                dial = create_dial(units, amount, minimum, fine).opening_on(turned.column);
+            }
+        }
+    }
 }
 
 /// Asks for a volume that can include zero, as a pumping side can.
@@ -81,30 +84,62 @@ pub fn ask_nonnegative(
 /// millilitres becomes two ounces, not two millilitres. The new wheel stands
 /// on whichever of its notches is nearest, because an exact conversion is
 /// almost never one of them.
+#[cfg(test)]
 fn settle(dial: &mut Dial, column: usize, minimum: i32) {
+    settle_with_scale(dial, column, minimum, false);
+}
+
+/// Converts the displayed quantity while retaining the selected ounce scale.
+fn settle_with_scale(dial: &mut Dial, column: usize, minimum: i32, fine: bool) {
     if column != UNITS {
         return;
     }
     let now = read_units(dial);
     let held: f64 = dial.value(AMOUNT).parse().unwrap_or_default();
     let wanted = format::convert(held, other(now), now);
-    if let Some(wheel) = dial.wheels.get_mut(AMOUNT) {
-        *wheel = amounts(now, wanted, minimum);
-    }
+    *dial = create_dial(now, wanted, minimum, fine).opening_on(column);
 }
 
 /// The amount wheel for these units, standing nearest `wanted`.
 ///
 /// Millilitres are whole numbers and turn one at a time, leaping five.
 /// Ounces are quarters, and leap four of them, which is a whole ounce.
+#[cfg(test)]
 pub(crate) fn amounts(units: Units, wanted: f64, minimum: i32) -> Wheel {
+    amounts_with_scale(units, wanted, minimum, false)
+}
+
+/// Builds the volume dial with the chosen step and its visible Tab hint.
+pub(crate) fn create_dial(units: Units, amount: f64, minimum: i32, fine: bool) -> Dial {
+    let dial = Dial::new(vec![
+        amounts_with_scale(units, amount, minimum, fine),
+        units_wheel(units),
+    ]);
+    if units == Units::Oz {
+        if fine {
+            dial.reading("(0.1 steps)").switching_to("0.25 steps")
+        } else {
+            dial.reading("(0.25 steps)").switching_to("0.1 steps")
+        }
+    } else {
+        dial
+    }
+}
+
+/// Offers quarter ounces by default or tenths, with a whole-ounce leap in either.
+fn amounts_with_scale(units: Units, wanted: f64, minimum: i32, fine: bool) -> Wheel {
+    let (most_notches, notch, ounce_leap) = if fine {
+        (240, 0.1, 10)
+    } else {
+        (MOST_OZ_NOTCHES, OZ_NOTCH, 4)
+    };
     let (labels, leap): (Vec<String>, usize) = match units {
         Units::Ml => ((minimum..=MOST_ML).map(|ml| ml.to_string()).collect(), 5),
         Units::Oz => (
-            (minimum..=MOST_OZ_NOTCHES)
-                .map(|notch| format!("{:.2}", f64::from(notch) * OZ_NOTCH))
+            (minimum..=most_notches)
+                .map(|position| format!("{:.2}", f64::from(position) * notch))
                 .collect(),
-            4,
+            ounce_leap,
         ),
     };
     let mut wheel = Wheel::new(labels, 0, leap, "");

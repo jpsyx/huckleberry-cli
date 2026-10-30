@@ -479,12 +479,12 @@ fn the_menu_view_no_longer_offers_view_latest() {
     );
     assert_eq!(labels.first().map(String::as_str), Some("Log a diaper"));
     assert_eq!(labels.last().map(String::as_str), Some("More"));
-    // It is still a command, and still reachable, just not from Home.
+    // The permanent widget supplies the command output without a menu row.
     assert!(
-        catalog::command_paths()
+        !catalog::command_paths()
             .iter()
             .any(|path| path.0 == ["now"]),
-        "`now` has to stay reachable from somewhere"
+        "the permanent Now widget replaces the menu row"
     );
 }
 

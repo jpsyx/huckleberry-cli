@@ -129,15 +129,14 @@ fn rows(id: MenuId) -> Vec<MenuEntry> {
     match id {
         // `now` is not here: the Now widget shows it permanently, so a row
         // that opened the same thing would be one more thing to read past.
-        // It stays reachable under Visualizations as Current status.
         MenuId::Home => vec![
             command("Log a diaper", "diaper"),
             menu("Log a feed", MenuId::Feed),
             menu("Log sleep", MenuId::Sleep),
             menu("Log pumping", MenuId::Pump),
-            command("Edit", "edit"),
             menu("Visualizations", MenuId::Visualizations),
             command("View logs", "log"),
+            command("Edit", "edit"),
             command("Delete", "delete"),
             menu("More", MenuId::More),
         ],
@@ -145,7 +144,6 @@ fn rows(id: MenuId) -> Vec<MenuEntry> {
             command("Dashboard", "dash"),
             command("Trends", "trends"),
             command("Sleep stripes", "stripes"),
-            command("Current status", "now"),
         ],
         MenuId::More => more(),
         MenuId::Feed => vec![

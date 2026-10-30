@@ -29,15 +29,16 @@ fn home_order_and_all_commands_are_reachable() {
             "Log a feed",
             "Log sleep",
             "Log pumping",
-            "Edit",
             "Visualizations",
             "View logs",
+            "Edit",
             "Delete",
             "More"
         ]
     );
     let mut actual = BTreeSet::new();
     leaves(&Cli::command(), &[], &mut actual);
+    actual.remove(&vec!["now".to_owned()]);
     actual.remove(&vec!["summary".to_owned()]); // Permanently visible in the shell.
     assert_eq!(
         catalog::command_paths()

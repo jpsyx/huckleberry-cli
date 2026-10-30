@@ -17,6 +17,7 @@ pub struct VolumeState {
     source_amount: (Units, f64),
     units: Units,
     minimum: i32,
+    fine: bool,
     dial: Dial,
 }
 
@@ -26,16 +27,18 @@ impl VolumeState {
     pub fn create_volume(units: Units, amount: Option<f64>, minimum: f64) -> Self {
         let millilitres = amount.map_or(60.0, |amount| format::convert(amount, units, Units::Ml));
         let minimum = i32::from(minimum > 0.0);
-        let dial = create_dial(
+        let dial = dial::volume::create_dial(
             units,
             format::convert(millilitres, Units::Ml, units),
             minimum,
+            false,
         );
         Self {
             millilitres,
             source_amount: amount.map_or((Units::Ml, 60.0), |amount| (units, amount)),
             units,
             minimum,
+            fine: false,
             dial,
         }
     }
@@ -50,7 +53,14 @@ impl VolumeState {
             DialAction::Cancel => ControlEvent::Cancel,
             DialAction::Turned(1) => {
                 self.units = dial::volume::read_units(&self.dial);
-                self.dial = create_dial(self.units, self.value().1, self.minimum).opening_on(1);
+                self.rebuild_dial(1);
+                ControlEvent::Stay
+            }
+            DialAction::Switched => {
+                self.fine = !self.fine;
+                self.rebuild_dial(self.dial.column);
+                self.source_amount = dial::volume::read(&self.dial);
+                self.millilitres = format::convert(self.source_amount.1, self.units, Units::Ml);
                 ControlEvent::Stay
             }
             DialAction::Turned(_) => {
@@ -60,6 +70,12 @@ impl VolumeState {
             }
             _ => ControlEvent::Stay,
         }
+    }
+
+    /// Keeps the exact answer while rebuilding the visible notches.
+    fn rebuild_dial(&mut self, column: usize) {
+        self.dial = dial::volume::create_dial(self.units, self.value().1, self.minimum, self.fine)
+            .opening_on(column);
     }
 
     /// The exact quantity in the selected units.
@@ -83,11 +99,4 @@ impl VolumeState {
             .map(|line| line.replace("Esc back", "Esc home"))
             .collect()
     }
-}
-
-fn create_dial(units: Units, amount: f64, minimum: i32) -> Dial {
-    Dial::new(vec![
-        dial::volume::amounts(units, amount, minimum),
-        dial::volume::units_wheel(units),
-    ])
 }
