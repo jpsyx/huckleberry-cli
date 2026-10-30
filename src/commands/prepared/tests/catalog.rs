@@ -64,8 +64,9 @@ const FORMS: &[&str] = &[
 async fn every_prompting_command_has_a_retained_form() {
     let fixture = Fixture::create_fixture("catalog");
     let mut paths = catalog::command_paths();
-    // Summary is permanent in the shell, but remains a standalone command.
+    // Permanent panels remain available as standalone commands.
     paths.push(catalog::CommandPath(vec!["summary".into()]));
+    paths.push(catalog::CommandPath(vec!["now".into()]));
     assert_eq!(paths.len(), READERS.len() + IMMEDIATE.len() + FORMS.len());
     for path in paths {
         let name = path.0.join(" ");

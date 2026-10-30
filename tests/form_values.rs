@@ -130,3 +130,38 @@ fn untouched_ounce_amount_keeps_its_original_bits() {
     assert_eq!(volume.value().0, Units::Oz);
     assert_eq!(volume.value().1.to_bits(), original.to_bits());
 }
+
+#[test]
+fn ounce_tab_switches_steps_and_shift_still_leaps_one_ounce() {
+    let mut volume = VolumeState::create_volume(Units::Oz, Some(1.0), 1.0);
+    volume.apply(press(KeyCode::Down));
+    assert!((volume.value().1 - 1.25).abs() < 1e-9);
+    volume.apply(press(KeyCode::Up));
+    volume.apply(press(KeyCode::Tab));
+    for _ in 0..4 {
+        volume.apply(press(KeyCode::Down));
+    }
+    assert!((volume.value().1 - 1.4).abs() < 1e-9);
+    volume.apply(KeyEvent::new(KeyCode::Down, KeyModifiers::SHIFT));
+    assert!((volume.value().1 - 2.4).abs() < 1e-9);
+    volume.apply(press(KeyCode::BackTab));
+    assert!(
+        (volume.value().1 - 2.5).abs() < 1e-9,
+        "switching selects the displayed quarter-ounce notch"
+    );
+    volume.apply(press(KeyCode::Down));
+    assert!((volume.value().1 - 2.75).abs() < 1e-9);
+}
+
+#[test]
+fn fine_ounces_survive_unit_switches_and_allow_zero_for_pumping() {
+    let mut volume = VolumeState::create_volume(Units::Oz, Some(0.0), 0.0);
+    volume.apply(press(KeyCode::Tab));
+    assert!(volume.value().1.abs() < 1e-9);
+    volume.apply(press(KeyCode::Right));
+    volume.apply(press(KeyCode::Down));
+    volume.apply(press(KeyCode::Down));
+    volume.apply(press(KeyCode::Left));
+    volume.apply(press(KeyCode::Down));
+    assert!((volume.value().1 - 0.1).abs() < 1e-9);
+}

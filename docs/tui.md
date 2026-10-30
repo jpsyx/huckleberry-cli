@@ -422,7 +422,11 @@ typed wrong. Turning a wheel cannot produce a time that does not exist.
   correction somebody came to make; the leap is what you reach for when it is
   further off. What a notch and a leap are is the column's own business:
   minutes turn one and leap five, millilitres turn one and leap five, ounces
-  turn a quarter and leap a whole one, which is four of them.
+  turn a quarter by default. Tab toggles ounces between 0.25 and 0.1 steps;
+  Shift always leaps one ounce. The dial shows its active step and the Tab
+  destination. Switching steps selects the nearest notch on the new scale,
+  so Enter saves exactly the amount shown.
+  Millilitres keep whole-number steps.
 - **Every column cycles.** Past 59 comes 00, past 12 comes 1, and the values
   above and below are always drawn, so no column ever looks like it has run
   out.
@@ -589,10 +593,10 @@ Other hosted read commands load their own snapshots when opened. Those snapshots
 can differ from the permanent panels' reading and are not replaced by a shell
 refresh. Their ordinary keys belong to the command while the left panel is focused.
 
-Only the Now drawer displays an `as of` timer inside the shell. Summary, the
-embedded Dashboard and More > Current status omit their copies. This display
-rule covers the shared Now/Summary/Dashboard reading; Current status remains
-a separate command read. Standalone commands retain their freshness labels, and read failures
+Only the Now drawer displays an `as of` timer inside the shell. Summary and the
+embedded Dashboard omit their copies. Current status has no Visualizations
+menu row because the permanent Now drawer already shows it. This display
+rule covers the shared Now/Summary/Dashboard reading. Standalone commands retain their freshness labels, and read failures
 remain visible in either mode.
 
 Refreshing never moves the cursor or changes the menu: `r` is not navigation.
@@ -718,3 +722,6 @@ until saved. A later event or an active sleep, nursing or pumping timer prevents
 resuming; full history is checked again when submitted. Restoring the original
 start and details replaces the completed entry so the refreshed Now drawer and
 Summary count the sleep once. See `cli.md` for the scriptable equivalent.
+
+Home places Edit at row 7, immediately before Delete at row 8. Visualizations
+contains Dashboard, Trends and Sleep stripes, followed by Back.

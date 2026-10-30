@@ -735,16 +735,15 @@ showing. Reads happen in the background: the rows still move while one is in
 flight, and a failure is reported on the foot of the screen without taking the
 numbers away.
 
-Home starts with diaper, feed, sleep, pumping, Edit, Visualizations,
-logs, Delete and More. Summary stays visible on the right instead of occupying a
+Home starts with diaper, feed, sleep, pumping, Visualizations,
+logs, Edit (7), Delete (8) and More. Summary stays visible on the right instead of occupying a
 menu row. Alt+Left/H/A focuses Menu (or its running command); Alt+Right/L/D
 focuses Summary. Focus changes the border color and thickness without dimming
 contents. Menu selection, command drafts and Summary navigation are retained.
 More includes Potty and Growth alongside account and
-utility actions. `now` is not a
-Home row, because the widget already shows it; it stays reachable under
-Visualizations as Current status. Read-only views run
-immediately when selected: latest/current status, Dashboard, Trends,
+utility actions. `now` has no menu row because the permanent Now widget
+already shows it; `h now` remains available on the command line. Read-only views run
+immediately when selected: Dashboard, Trends,
 Sleep stripes, logs, sleep/nursing status, food lists, child lists/profiles,
 authentication status, configuration display/paths, and build information.
 Every command starts immediately when selected, including logging, editing,

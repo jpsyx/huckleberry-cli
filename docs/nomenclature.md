@@ -43,7 +43,7 @@ either, say which.
 | **the time dial** | A dial of three columns: hour, minute, the half of the day. |
 | **the volume dial** | A dial of two: the amount, and the units it is in. |
 | **a column**, **a wheel** | The same thing: one turning list inside a dial. The one the keys are turning is lit and underlined. |
-| **a notch**, **a leap** | How far a column moves on a plain turn and on a shifted one. A minute and five of them; a quarter ounce and a whole one. |
+| **a notch**, **a leap** | How far a column moves on a plain turn and on a shifted one. A minute and five of them; a quarter ounce (or a tenth after Tab) and a whole one. |
 | **the Now widget**, **the View Latest widget**, **the Now drawer** | The same thing, interchangeably: the full-width strip across the top that permanently shows what `h now` prints. `src/tui/draw/now.rs`. It shows exactly what the command prints and nothing else, so changing one means changing both; see [`tui.md`](tui.md). |
 | **the drawer** | Where a widget sits: a full-width strip across the top of the shell, above the main panel. |
 | **the Dashboard view** | `h dash` drawn in the shell's panel, from the reading the shell already has. Back closes it. It is a view rather than a job: nothing about it runs as a command. |
